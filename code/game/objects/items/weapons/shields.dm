@@ -23,7 +23,7 @@
 		return 0
 
 	//block as long as they are not directly behind us
-	var/bad_arc = user.dir && GLOB.reverse_dir[user.dir] //arc of directions from which we cannot block
+	var/bad_arc = user.dir && global.reverse_dir[user.dir] //arc of directions from which we cannot block
 	if(!check_shield_arc(user, bad_arc, damage_source, attacker))
 		return 0
 
@@ -38,7 +38,7 @@
 		return 0
 
 	//block as long as they are not directly behind us
-	var/bad_arc = user.dir && GLOB.reverse_dir[user.dir] //arc of directions from which we cannot block
+	var/bad_arc = user.dir && global.reverse_dir[user.dir] //arc of directions from which we cannot block
 	if(check_shield_arc(user, bad_arc, damage_source, attacker))
 		if(prob(get_block_chance(user, damage, damage_source, attacker)))
 			user.visible_message("<span class='danger'>\The [user] blocks [attack_text] with \the [src]!</span>")
@@ -52,7 +52,7 @@
 	name = "riot shield"
 	desc = "A shield adept at blocking blunt objects from connecting with the torso of the shield wielder."
 	icon = 'icons/obj/items/shield/riot.dmi'
-	icon_state = "riot"
+	icon_state = ICON_STATE_WORLD
 	obj_flags = OBJ_FLAG_CONDUCTIBLE
 	slot_flags = SLOT_BACK
 	force = 5.0
@@ -61,7 +61,7 @@
 	throw_range = 4
 	w_class = ITEM_SIZE_HUGE
 	origin_tech = "{'materials':2}"
-	material = /decl/material/solid/glass
+	material = /decl/material/solid/fiberglass
 	matter = list(/decl/material/solid/metal/steel = MATTER_AMOUNT_REINFORCEMENT)
 	attack_verb = list("shoved", "bashed")
 	var/cooldown = 0 //shield bash cooldown. based on world.time
@@ -94,7 +94,7 @@
 /obj/item/shield/riot/metal
 	name = "plasteel combat shield"
 	icon = 'icons/obj/items/shield/metal.dmi'
-	icon_state = "metal"
+	icon_state = ICON_STATE_WORLD
 	obj_flags = OBJ_FLAG_CONDUCTIBLE
 	slot_flags = SLOT_BACK
 	force = 6.0
@@ -157,9 +157,7 @@
 	. = ..()
 
 	if(.)
-		var/datum/effect/effect/system/spark_spread/spark_system = new /datum/effect/effect/system/spark_spread()
-		spark_system.set_up(5, 0, user.loc)
-		spark_system.start()
+		spark_at(user.loc, amount=5)
 		playsound(user.loc, 'sound/weapons/blade1.ogg', 50, 1)
 
 /obj/item/shield/energy/get_block_chance(mob/user, var/damage, atom/damage_source = null, mob/attacker = null)
@@ -169,29 +167,30 @@
 			return (base_block_chance - round(damage / 2.5)) //block bullets and beams using the old block chance
 	return base_block_chance
 
-/obj/item/shield/energy/attack_self(mob/living/user)
-	if ((MUTATION_CLUMSY in user.mutations) && prob(50))
-		to_chat(user, "<span class='warning'>You beat yourself in the head with [src].</span>")
-		user.take_organ_damage(5)
+/obj/item/shield/energy/attack_self(mob/user)
+	if((MUTATION_CLUMSY in user.mutations) && prob(50))
+		to_chat(user, SPAN_DANGER("You beat yourself in the head with [src]."))
+		if(isliving(user))
+			var/mob/living/M = user
+			M.take_organ_damage(5, 0)
 	active = !active
 	if (active)
 		force = 10
 		update_icon()
 		w_class = ITEM_SIZE_HUGE
 		playsound(user, 'sound/weapons/saberon.ogg', 50, 1)
-		to_chat(user, "<span class='notice'>\The [src] is now active.</span>")
+		to_chat(user, SPAN_NOTICE("\The [src] is now active."))
 
 	else
 		force = 3
 		update_icon()
 		w_class = ITEM_SIZE_TINY
 		playsound(user, 'sound/weapons/saberoff.ogg', 50, 1)
-		to_chat(user, "<span class='notice'>\The [src] can now be concealed.</span>")
+		to_chat(user, SPAN_NOTICE("\The [src] can now be concealed."))
 
 	if(istype(user,/mob/living/carbon/human))
 		var/mob/living/carbon/human/H = user
-		H.update_inv_l_hand()
-		H.update_inv_r_hand()
+		H.update_inv_hands()
 
 	add_fingerprint(user)
 	return
@@ -199,6 +198,6 @@
 /obj/item/shield/energy/on_update_icon()
 	icon_state = "eshield[active]"
 	if(active)
-		set_light(0.4, 0.1, 1, 2, "#006aff")
+		set_light(1.5, 1.5, "#006aff")
 	else
 		set_light(0)

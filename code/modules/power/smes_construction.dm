@@ -17,7 +17,7 @@
 	part_flags = PART_FLAG_HAND_REMOVE
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/metal/gold = MATTER_AMOUNT_TRACE,
 		/decl/material/solid/metal/silver = MATTER_AMOUNT_TRACE,
 		/decl/material/solid/metal/aluminium = MATTER_AMOUNT_TRACE
@@ -102,9 +102,7 @@
 // This also causes the SMES to quickly discharge, and has small chance of damaging output APCs.
 /obj/machinery/power/smes/buildable/Process()
 	if(!grounding && (Percentage() > 5))
-		var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-		s.set_up(5, 1, src)
-		s.start()
+		spark_at(src, amount=5, cardinal_only = TRUE)
 		charge -= (output_level_max * CELLRATE)
 		if(prob(1)) // Small chance of overload occuring since grounding is disabled.
 			apcs_overload(5,10,20)
@@ -114,7 +112,7 @@
 // Proc: attack_ai()
 // Parameters: None
 // Description: AI requires the RCON wire to be intact to operate the SMES.
-/obj/machinery/power/smes/buildable/attack_ai(mob/user)
+/obj/machinery/power/smes/buildable/attack_ai(mob/living/silicon/ai/user)
 	if(RCon)
 		..()
 	else // RCON wire cut
@@ -162,8 +160,6 @@
 		h_user = user
 
 
-	// Preparations
-	var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
 	// Check if user has protected gloves.
 	var/user_protected = 0
 	if(h_user.gloves)
@@ -177,25 +173,23 @@
 		if (0 to 15)
 			// Small overcharge
 			// Sparks, Weak shock
-			s.set_up(2, 1, src)
-			s.start()
+			spark_at(src, amount = 2, cardinal_only = TRUE)
 			if(user_protected && prob(80))
 				to_chat(h_user, SPAN_WARNING("Small electrical arc almost burns your hand. Luckily you had your gloves on!"))
 			else
 				to_chat(h_user, SPAN_DANGER("Small electrical arc sparks and burns your hand as you touch the [src]!"))
-				h_user.electrocute_act(rand(5,20), src, def_zone = h_user.hand ? BP_L_HAND : BP_R_HAND)//corrected to counter act armor and stuff
+				h_user.electrocute_act(rand(5,20), src, def_zone = h_user.get_active_held_item_slot())//corrected to counter act armor and stuff
 			charge = 0
 
 		if (16 to 35)
 			// Medium overcharge
 			// Sparks, Medium shock, Weak EMP
-			s.set_up(4,1,src)
-			s.start()
+			spark_at(src, amount = 4, cardinal_only = TRUE)
 			if (user_protected && prob(25))
 				to_chat(h_user, SPAN_WARNING("Medium electrical arc sparks and almost burns your hand. Luckily you had your gloves on!"))
 			else
 				to_chat(h_user, SPAN_DANGER("Medium electrical sparks as you touch the [src], severely burning your hand!"))
-				h_user.electrocute_act(rand(15,35), src, def_zone = h_user.hand ? BP_L_HAND : BP_R_HAND)
+				h_user.electrocute_act(rand(15,35), src, def_zone = h_user.get_active_held_item_slot())
 			spawn(0)
 				empulse(src.loc, 2, 4)
 			apcs_overload(0, 5, 10)
@@ -204,16 +198,15 @@
 		if (36 to 60)
 			// Strong overcharge
 			// Sparks, Strong shock, Strong EMP, 10% light overload. 1% APC failure
-			s.set_up(7,1,src)
-			s.start()
+			spark_at(src, amount = 7, cardinal_only = TRUE)
 			if (user_protected)
 				to_chat(h_user, SPAN_DANGER("Strong electrical arc sparks between you and [src], ignoring your gloves and burning your hand!"))
-				h_user.electrocute_act(rand(30,60), src, def_zone = h_user.hand ? BP_L_HAND : BP_R_HAND)
-				h_user.Paralyse(3)
+				h_user.electrocute_act(rand(30,60), src, def_zone = h_user.get_active_held_item_slot())
+				SET_STATUS_MAX(h_user, STAT_PARA, 3)
 			else
 				to_chat(h_user, SPAN_DANGER("Strong electrical arc sparks between you and [src], knocking you out for a while!"))
 				h_user.electrocute_act(rand(40,80), src, def_zone = ran_zone(null))
-				h_user.Paralyse(6)
+				SET_STATUS_MAX(h_user, STAT_PARA, 6)
 			spawn(0)
 				empulse(src.loc, 8, 16)
 			charge = 0
@@ -224,12 +217,11 @@
 		if (61 to INFINITY)
 			// Massive overcharge
 			// Sparks, Near - instantkill shock, Strong EMP, 25% light overload, 5% APC failure. 50% of SMES explosion. This is bad.
-			s.set_up(10,1,src)
-			s.start()
+			spark_at(src, amount = 10, cardinal_only = TRUE)
 			to_chat(h_user, SPAN_WARNING("Massive electrical arc sparks between you and [src].<br>Last thing you can think about is <span class='danger'>\"Oh shit...\"</span>"))
 			// Remember, we have few gigajoules of electricity here.. Turn them into crispy toast.
 			h_user.electrocute_act(rand(170,210), src, def_zone = ran_zone(null))
-			h_user.Paralyse(8)
+			SET_STATUS_MAX(h_user, STAT_PARA, 8)
 			spawn(0)
 				empulse(src.loc, 32, 64)
 			charge = 0

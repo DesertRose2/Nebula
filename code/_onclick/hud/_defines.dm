@@ -54,6 +54,7 @@
 #define ui_pull_resist "RIGHT-2:26,BOTTOM+1:7"
 #define ui_acti "RIGHT-2:26,BOTTOM:5"
 #define ui_movi "RIGHT-3:24,BOTTOM:5"
+#define ui_attack_selector "RIGHT-3:24,BOTTOM+1:-2"
 #define ui_zonesel "RIGHT-1:28,BOTTOM:5"
 #define ui_acti_alt "RIGHT-1:28,BOTTOM:5" //alternative intent switcher for when the interface is hidden (F12)
 #define ui_stamina "RIGHT-3:24,BOTTOM+1:5"
@@ -156,3 +157,10 @@
 // AI: Crew
 #define ui_ai_crew_mon "RIGHT-1:30,TOP:0"
 #define ui_ai_crew_rec "RIGHT-2:30, TOP:0"
+
+// pAI
+#define ui_pai_software "TOP,LEFT:6"
+#define ui_pai_subsystems "TOP,LEFT+1:6"
+#define ui_pai_shell "TOP,LEFT+2:6"
+#define ui_pai_light "TOP,LEFT+3:6"
+#define ui_pai_rest "TOP,LEFT+4:6"

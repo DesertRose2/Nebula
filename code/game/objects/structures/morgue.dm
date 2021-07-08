@@ -39,7 +39,7 @@
 /obj/structure/morgue/explosion_act(severity)
 	..()
 	if(!QDELETED(src) && (severity == 1 || (severity == 2 && prob(50)) || (severity == 3 && prob(5))))
-		physically_destroyed(src)
+		physically_destroyed()
 
 /obj/structure/morgue/attack_hand(mob/user)
 	if (src.connected)
@@ -139,20 +139,15 @@
 		return
 	return
 
-/obj/structure/m_tray/MouseDrop_T(atom/movable/O, mob/user)
-	if ((!( istype(O, /atom/movable) ) || O.anchored || get_dist(user, src) > 1 || get_dist(user, O) > 1 || user.contents.Find(src) || user.contents.Find(O)))
-		return
-	if (!ismob(O) && !istype(O, /obj/structure/closet/body_bag))
-		return
-	if (!ismob(user) || user.stat || user.lying || user.stunned)
-		return
-	O.forceMove(src.loc)
-	if (user != O)
-		for(var/mob/B in viewers(user, 3))
-			if ((B.client && !( B.blinded )))
-				to_chat(B, "<span class='warning'>\The [user] stuffs [O] into [src]!</span>")
-	return
-
+/obj/structure/m_tray/receive_mouse_drop(atom/dropping, mob/user)
+	. = ..()
+	if(!. && (ismob(dropping) || istype(dropping, /obj/structure/closet/body_bag)))
+		var/atom/movable/AM = dropping
+		if(!AM.anchored)
+			AM.forceMove(loc)
+			if(user != dropping)
+				user.visible_message(SPAN_NOTICE("\The [user] stuffs \the [dropping] into \the [src]!"))
+			return TRUE
 
 /*
  * Crematorium
@@ -190,7 +185,7 @@
 /obj/structure/crematorium/explosion_act(severity)
 	..()
 	if(!QDELETED(src) && (severity == 1 || (severity == 2 && prob(50)) || (severity == 3 && prob(5))))
-		physically_destroyed(src)
+		physically_destroyed()
 
 /obj/structure/crematorium/attack_hand(mob/user)
 	if(cremating)
@@ -258,7 +253,7 @@
 		return
 
 	else
-		if(!isemptylist(src.search_contents_for(/obj/item/disk/nuclear)))
+		if(length(search_contents_for(/obj/item/disk/nuclear)))
 			to_chat(loc, "The button's status indicator flashes yellow, indicating that something important is inside the crematorium, and must be removed.")
 			return
 		src.audible_message("<span class='warning'>You hear a roar as the [src] activates.</span>", 1)
@@ -268,7 +263,7 @@
 		update()
 
 		for(var/mob/living/M in contents)
-			admin_attack_log(M, A, "Began cremating their victim.", "Has begun being cremated.", "began cremating")
+			admin_attack_log(A, M, "Began cremating their victim.", "Has begun being cremated.", "began cremating")
 			if(iscarbon(M))
 				var/mob/living/carbon/C = M
 				for(var/I, I < 60, I++)
@@ -338,7 +333,7 @@
 	name = "crematorium tray"
 	desc = "Apply body before burning."
 	icon = 'icons/obj/structures/morgue.dmi'
-	icon_state = "cremat"
+	icon_state = "morguet"
 	density = 1
 	layer = BELOW_OBJ_LAYER
 	var/obj/structure/crematorium/connected = null
@@ -364,18 +359,15 @@
 		return
 	return
 
-/obj/structure/c_tray/MouseDrop_T(atom/movable/O, mob/user)
-	if ((!( istype(O, /atom/movable) ) || O.anchored || get_dist(user, src) > 1 || get_dist(user, O) > 1 || user.contents.Find(src) || user.contents.Find(O)))
-		return
-	if (!ismob(O) && !istype(O, /obj/structure/closet/body_bag))
-		return
-	if (!ismob(user) || user.stat || user.lying || user.stunned)
-		return
-	O.forceMove(src.loc)
-	if (user != O)
-		for(var/mob/B in viewers(user, 3))
-			if ((B.client && !( B.blinded )))
-				to_chat(B, text("<span class='warning'>[] stuffs [] into []!</span>", user, O, src))
+/obj/structure/c_tray/receive_mouse_drop(atom/dropping, mob/user)
+	. = ..()
+	if(!. && (ismob(dropping) || istype(dropping, /obj/structure/closet/body_bag)))
+		var/atom/movable/AM = dropping
+		if(!AM.anchored)
+			AM.forceMove(loc)
+			if(user != dropping)
+				user.visible_message(SPAN_NOTICE("\The [user] stuffs \the [dropping] into \the [src]!"))
+			return TRUE
 
 /obj/machinery/button/crematorium
 	name = "crematorium igniter"

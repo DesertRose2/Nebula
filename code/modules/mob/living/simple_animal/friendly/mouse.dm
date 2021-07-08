@@ -14,11 +14,9 @@
 	speak_chance = 1
 	turns_per_move = 5
 	see_in_dark = 6
-	maxHealth = 5
 	health = 5
-	response_help  = "pets"
-	response_disarm = "gently pushes aside"
-	response_harm   = "stamps on"
+	maxHealth = 5
+	response_harm = "stamps on"
 	density = 0
 	minbodytemp = 223		//Below -50 Degrees Celsius
 	maxbodytemp = 323	//Above 50 Degrees Celsius
@@ -65,31 +63,24 @@
 	icon_state = resting ? "mouse_[body_color]_sleep" : "mouse_[body_color]"
 
 /mob/living/simple_animal/mouse/Initialize()
-	. = ..()
-
 	verbs += /mob/living/proc/ventcrawl
 	verbs += /mob/living/proc/hide
-
 	if(name == initial(name))
 		name = "[name] ([sequential_id(/mob/living/simple_animal/mouse)])"
 	real_name = name
-
 	if(!body_color)
 		body_color = pick( list("brown","gray","white") )
-
-	icon_state = "mouse_[body_color]"
-	item_state = "mouse_[body_color]"
-	icon_living = "mouse_[body_color]"
-	icon_dead = "mouse_[body_color]_dead"
-	desc = "It's a small [body_color] rodent, often seen hiding in maintenance areas and making a nuisance of itself."
-
-/mob/living/simple_animal/mouse/Initialize()
-	. = ..()
 	switch(body_color)
 		if("gray")
 			skin_material = /decl/material/solid/skin/fur/gray
 		if("white")
 			skin_material = /decl/material/solid/skin/fur/white
+	icon_state = "mouse_[body_color]"
+	item_state = "mouse_[body_color]"
+	icon_living = "mouse_[body_color]"
+	icon_dead = "mouse_[body_color]_dead"
+	desc = "It's a small [body_color] rodent, often seen hiding in maintenance areas and making a nuisance of itself."
+	. = ..()
 
 /mob/living/simple_animal/mouse/proc/splat()
 	icon_dead = "mouse_[body_color]_splat"
@@ -100,7 +91,7 @@
 	if( ishuman(AM) )
 		if(!stat)
 			var/mob/M = AM
-			to_chat(M, "<span class='warning'>\icon[src] Squeek!</span>")
+			to_chat(M, "<span class='warning'>[html_icon(src)] Squeek!</span>")
 			sound_to(M, 'sound/effects/mousesqueek.ogg')
 	..()
 

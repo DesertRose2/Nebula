@@ -13,9 +13,7 @@
 	speak_chance = 1
 	turns_per_move = 5
 	see_in_dark = 6
-	response_help  = "pets"
-	response_disarm = "gently pushes aside"
-	response_harm   = "pokes"
+	response_harm = "pokes"
 	stop_automated_movement_when_pulled = 0
 	maxHealth = 60
 	health = 60
@@ -40,13 +38,11 @@
 /mob/living/simple_animal/hostile/bear/Hudson
 	name = "Hudson"
 	desc = ""
-	response_help  = "pets"
-	response_disarm = "gently pushes aside"
-	response_harm   = "pokes"
+	response_harm = "pokes"
 
 /mob/living/simple_animal/hostile/bear/do_delayed_life_action()
 	..()
-	if(loc && istype(loc,/turf/space))
+	if(isspaceturf(loc))
 		icon_state = "bear"
 	else
 		icon_state = "bearfloor"
@@ -101,7 +97,7 @@
 		target_mob = user
 	..()
 
-/mob/living/simple_animal/hostile/bear/attack_hand(mob/living/carbon/human/M)
+/mob/living/simple_animal/hostile/bear/attack_hand(mob/M)
 	if(stance != HOSTILE_STANCE_ATTACK && stance != HOSTILE_STANCE_ATTACKING)
 		stance = HOSTILE_STANCE_ALERT
 		stance_step = 6
@@ -127,7 +123,7 @@
 	if(ishuman(target_mob))
 		var/mob/living/carbon/human/H = target_mob
 		var/dam_zone = pick(BP_CHEST, BP_L_HAND, BP_R_HAND, BP_L_LEG, BP_R_LEG)
-		var/obj/item/organ/external/affecting = H.get_organ(ran_zone(dam_zone))
+		var/obj/item/organ/external/affecting = H.get_organ(ran_zone(dam_zone, target = H))
 		H.apply_damage(damage, BRUTE, affecting, DAM_SHARP|DAM_EDGE) //TODO damage_flags var on simple_animals, maybe?
 		return H
 	else if(isliving(target_mob))

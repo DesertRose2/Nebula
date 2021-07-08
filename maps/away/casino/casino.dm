@@ -15,10 +15,9 @@
 		"nav_casino_3",
 		"nav_casino_4",
 		"nav_casino_antag",
-		"nav_casino_hangar",
 	)
 	initial_restricted_waypoints = list(
-		"Casino Cutter" = list("nav_casino_hangar"),
+		/datum/shuttle/autodock/overmap/casino_cutter = list("nav_casino_hangar"),
 	)
 
 /obj/effect/overmap/visitable/ship/casino/Initialize()
@@ -33,6 +32,7 @@
 	cost = 1
 	shuttles_to_initialise = list(/datum/shuttle/autodock/overmap/casino_cutter)
 	area_usage_test_exempted_root_areas = list(/area/casino)
+	template_flags = TEMPLATE_FLAG_TEST_DUPLICATES
 	apc_test_exempt_areas = list(
 		/area/casino/casino_hangar = NO_SCRUBBER,
 		/area/casino/casino_cutter = NO_SCRUBBER|NO_VENT,

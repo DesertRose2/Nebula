@@ -1,43 +1,24 @@
-/mob/living/carbon/human/say(var/message, var/decl/language/speaking = null, whispering)
+/mob/living/carbon/human/say(var/message, var/decl/language/speaking, var/verb = "says", var/alt_name = "", whispering)
+	if(!whispering)
+		var/obj/item/organ/internal/voicebox/voice = locate() in internal_organs
+		// Check if the language they're speaking is vocal and not supplied by a machine, and if they are currently suffocating.
+		whispering = (whispering || has_chemical_effect(CE_VOICELOSS, 1))
+		if((!speaking || !(speaking.flags & (NONVERBAL|SIGNLANG))) && (!voice || !voice.is_usable() || !voice.assists_languages[speaking]) && !isSynthetic() && need_breathe() && failed_last_breath)
+			var/obj/item/organ/internal/lungs/L = get_internal_organ(species.breathing_organ)
+			if(!L || L.breath_fail_ratio > 0.9)
+				if(L && world.time < L.last_successful_breath + 2 MINUTES) //if we're in grace suffocation period, give it up for last words
+					to_chat(src, SPAN_WARNING("You use your remaining air to say something!"))
+					L.last_successful_breath = world.time - 2 MINUTES
+					whispering = FALSE
+				else
+					to_chat(src, SPAN_WARNING("You don't have enough air[L ? " in [L]" : ""] to make a sound!"))
+					return
+			else if(L.breath_fail_ratio > 0.7 || (L.breath_fail_ratio > 0.4 && length(message) > 10) || (L.breath_fail_ratio > 0.2 && length(message) > 30))
+				whispering = TRUE
 	if(name != GetVoice())
 		if(get_id_name("Unknown") == GetVoice())
 			SetName(get_id_name("Unknown"))
-
-	//parse the language code and consume it
-	if(!speaking)
-		speaking = parse_language(message)
-		if (speaking)
-			message = copytext(message,2+length(speaking.key))
-		else
-			speaking = get_any_good_language(set_default=TRUE)
-			if (!speaking)
-				to_chat(src, SPAN_WARNING("You don't know a language and cannot speak."))
-				emote("custom", AUDIBLE_MESSAGE, "[pick("grunts", "babbles", "gibbers", "jabbers", "burbles")] aimlessly.")
-				return
-
-	if(has_chem_effect(CE_VOICELOSS, 1))
-		whispering = TRUE
-
-	message = sanitize(message)
-	var/obj/item/organ/internal/voicebox/vox = locate() in internal_organs
-	var/snowflake_speak = (speaking && (speaking.flags & (NONVERBAL|SIGNLANG))) || (vox && vox.is_usable() && vox.assists_languages[speaking])
-	if(!isSynthetic() && need_breathe() && failed_last_breath && !snowflake_speak)
-		var/obj/item/organ/internal/lungs/L = internal_organs_by_name[species.breathing_organ]
-		if(!L || L.breath_fail_ratio > 0.9)
-			if(L && world.time < L.last_successful_breath + 2 MINUTES) //if we're in grace suffocation period, give it up for last words
-				to_chat(src, "<span class='warning'>You use your remaining air to say something!</span>")
-				L.last_successful_breath = world.time - 2 MINUTES
-				return ..(message, speaking = speaking)
-
-			to_chat(src, "<span class='warning'>You don't have enough air[L ? " in [L]" : ""] to make a sound!</span>")
-			return
-		else if(L.breath_fail_ratio > 0.7)
-			whisper_say(length(message) > 5 ? stars(message) : message, speaking)
-		else if(L.breath_fail_ratio > 0.4 && length(message) > 10)
-			whisper_say(message, speaking)
-	else
-		return ..(message, speaking = speaking, whispering = whispering)
-
+	. = ..(message, speaking, verb, alt_name, whispering)
 
 /mob/living/carbon/human/proc/forcesay(list/append)
 	if(stat == CONSCIOUS)
@@ -74,25 +55,13 @@
 				winset(client, "input", "text=[null]")
 
 /mob/living/carbon/human/say_understands(var/mob/other,var/decl/language/speaking = null)
-
 	if(species.can_understand(other))
-		return 1
-
-	//These only pertain to common. Languages are handled by mob/say_understands()
-	if (!speaking)
-		if (istype(other, /mob/living/silicon))
-			return 1
-		if (istype(other, /mob/living/carbon/brain))
-			return 1
-		if (istype(other, /mob/living/carbon/slime))
-			return 1
-
-	//This is already covered by mob/say_understands()
-	//if (istype(other, /mob/living/simple_animal))
-	//	if((other.universal_speak && !speaking) || src.universal_speak || src.universal_understand)
-	//		return 1
-	//	return 0
-
+		return TRUE
+	if(!speaking)
+		if(istype(other, /mob/living/silicon))
+			return TRUE
+		if(istype(other, /mob/living/carbon/brain))
+			return TRUE
 	return ..()
 
 /mob/living/carbon/human/GetVoice()
@@ -140,7 +109,8 @@
 	return verb
 
 /mob/living/carbon/human/handle_speech_problems(var/list/message_data)
-	if(silent || (sdisabilities & MUTED))
+	if(HAS_STATUS(src, STAT_SILENCE) || (sdisabilities & MUTED))
+		to_chat(src, SPAN_WARNING("You are unable to speak!"))
 		message_data[1] = ""
 		. = 1
 
@@ -177,8 +147,9 @@
 			if(r_ear && istype(r_ear,/obj/item/radio))
 				R = r_ear
 				has_radio = 1
-			if(r_hand && istype(r_hand, /obj/item/radio))
-				R = r_hand
+			var/datum/inventory_slot/inv_slot = LAZYACCESS(held_item_slots, BP_R_HAND)
+			if(istype(inv_slot?.holding, /obj/item/radio))
+				R = inv_slot.holding
 				has_radio = 1
 			if(has_radio)
 				R.talk_into(src,message,null,verb,speaking)
@@ -189,8 +160,9 @@
 			if(l_ear && istype(l_ear,/obj/item/radio))
 				R = l_ear
 				has_radio = 1
-			if(l_hand && istype(l_hand,/obj/item/radio))
-				R = l_hand
+			var/datum/inventory_slot/inv_slot = LAZYACCESS(held_item_slots, BP_L_HAND)
+			if(istype(inv_slot?.holding, /obj/item/radio))
+				R = inv_slot.holding
 				has_radio = 1
 			if(has_radio)
 				R.talk_into(src,message,null,verb,speaking)
@@ -220,7 +192,7 @@
 
 /mob/living/carbon/human/can_speak(decl/language/speaking)
 	if(ispath(speaking, /decl/language))
-		speaking = decls_repository.get_decl(speaking)
+		speaking = GET_DECL(speaking)
 	if(species && speaking && (speaking.name in species.assisted_langs))
 		for(var/obj/item/organ/internal/voicebox/I in src.internal_organs)
 			if(I.is_usable() && I.assists_languages[speaking])
@@ -231,7 +203,7 @@
 /mob/living/carbon/human/parse_language(var/message)
 	var/prefix = copytext(message,1,2)
 	if(length(message) >= 1 && prefix == get_prefix_key(/decl/prefix/audible_emote))
-		return decls_repository.get_decl(/decl/language/noise)
+		return GET_DECL(/decl/language/noise)
 
 	if(length(message) >= 2 && is_language_prefix(prefix))
 		var/language_prefix = lowertext(copytext(message, 2 ,3))

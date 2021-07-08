@@ -18,7 +18,7 @@
 	var/destroyed = 0
 	var/list/connections
 	var/list/other_connections
-	
+
 /obj/structure/grille/clear_connections()
 	connections = null
 	other_connections = null
@@ -106,7 +106,7 @@
 		damage_dealt += 5
 	else
 		damage_dealt += 1
-	
+
 	attack_generic(user,damage_dealt,attack_message)
 
 /obj/structure/grille/CanPass(atom/movable/mover, turf/target, height=0, air_group=0)
@@ -158,7 +158,8 @@
 		qdel(src)
 	else
 		set_density(0)
-		new /obj/item/stack/material/rods(get_turf(src), 1, material.type)
+		if(material)
+			material.create_object(get_turf(src), 1,/obj/item/stack/material/rods)
 		destroyed = TRUE
 		update_icon()
 
@@ -206,7 +207,7 @@
 				take_damage(W.force * 0.1)
 	..()
 
-/obj/structure/grille/physically_destroyed()
+/obj/structure/grille/physically_destroyed(var/skip_qdel)
 	SHOULD_CALL_PARENT(FALSE)
 	if(!destroyed)
 		visible_message(SPAN_DANGER("\The [src] falls to pieces!"))
@@ -230,10 +231,8 @@
 		if(electrocute_mob(user, C, src))
 			if(C.powernet)
 				C.powernet.trigger_warning()
-			var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-			s.set_up(3, 1, src)
-			s.start()
-			if(user.stunned)
+			spark_at(src, cardinal_only = TRUE)
+			if(HAS_STATUS(user, STAT_STUN))
 				return 1
 		else
 			return 0
@@ -282,4 +281,5 @@
 		F.add_fingerprint(user)
 
 /obj/structure/grille/create_dismantled_products(var/turf/T)
-	new /obj/item/stack/material/rods(get_turf(src), (destroyed ? 1 : 2), material.type)
+	if(material)
+		material.create_object(get_turf(src), (destroyed ? 1 : 2), /obj/item/stack/material/rods)

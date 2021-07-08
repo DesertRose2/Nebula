@@ -21,8 +21,8 @@
 		/obj/item/stock_parts/smes_coil,
 		/obj/item/stock_parts/computer,
 		/obj/item/fuel_assembly,
-		/obj/item/stack/material/deuterium,
-		/obj/item/stack/material/tritium,
+		/obj/item/stack/material/aerogel/mapped/deuterium,
+		/obj/item/stack/material/aerogel/mapped/tritium,
 		/obj/item/stack/tile
 		)
 
@@ -84,7 +84,6 @@
 		/obj/item/organ/internal/posibrain,
 		/obj/item/stack/cable_coil,
 		/obj/item/stock_parts/circuitboard,
-		/obj/item/slime_extract,
 		/obj/item/chems/glass,
 		/obj/item/chems/food/snacks/monkeycube,
 		/obj/item/stock_parts/computer,
@@ -104,7 +103,6 @@
 		/obj/item/chems/glass,
 		/obj/item/seeds,
 		/obj/item/grown,
-		/obj/item/slime_extract,
 		/obj/item/disk/botany
 	)
 
@@ -143,7 +141,7 @@
 
 	can_hold = list(
 		/obj/item/stack/material
-		)
+	)
 
 /obj/item/gripper/examine(mob/user)
 	. = ..()

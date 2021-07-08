@@ -3,7 +3,7 @@
 	desc = "A heavy crowbar, good and solid in your hand."
 	icon = 'icons/obj/items/tool/crowbar.dmi'
 	icon_state = ICON_STATE_WORLD
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	material_force_multiplier = 0.25
 	attack_cooldown = 2*DEFAULT_WEAPON_COOLDOWN
 	melee_accuracy_bonus = -10
@@ -13,17 +13,22 @@
 	center_of_mass = @"{'x':16,'y':20}"
 	attack_verb = list("attacked", "bashed", "battered", "bludgeoned", "whacked")
 	applies_material_colour = TRUE
-	var/global/valid_colours = list(COLOR_RED_GRAY, COLOR_MAROON, COLOR_DARK_BROWN, COLOR_GRAY20)
+	drop_sound = 'sound/foley/bardrop1.ogg'
+	var/static/valid_colours = list(COLOR_RED_GRAY, COLOR_MAROON, COLOR_DARK_BROWN, COLOR_GRAY20)
 	var/handle_color
 	var/shape_variations = 1
 	var/shape_type
 	//List of things crowbars made from brittle materials have high chance of breaking on.
-	var/global/list/break_chances = list(
+	var/static/list/break_chances = list(
 		/obj/machinery/door = 80,
 		/turf/simulated/floor/tiled = 25,
 		/mob/living = 15,
 		/obj/machinery = 15
 		)
+
+/obj/item/crowbar/Initialize()
+	. = ..()
+	set_extension(src, /datum/extension/tool, list(TOOL_CROWBAR = TOOL_QUALITY_DEFAULT))
 
 /obj/item/crowbar/get_autopsy_descriptors()
 	. = ..()
@@ -36,7 +41,7 @@
 	icon_state = "[get_world_inventory_state()][shape_type]"
 	if(!handle_color)
 		handle_color = pick(valid_colours)
-	overlays += get_mutable_overlay(icon, "[get_world_inventory_state()]_handle[shape_type]", handle_color)
+	overlays += mutable_appearance(icon, "[get_world_inventory_state()]_handle[shape_type]", handle_color)
 
 /obj/item/crowbar/afterattack(atom/target, mob/user)
 	. = ..()

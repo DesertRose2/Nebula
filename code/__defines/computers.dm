@@ -17,12 +17,12 @@
 #define MF_ROLE_SOFTWARE    	"SOFTWARE REPOSITORY"
 
 // Program bitflags
-#define PROGRAM_ALL 		0x1F
-#define PROGRAM_CONSOLE 	0x1
-#define PROGRAM_LAPTOP 		0x2
-#define PROGRAM_TABLET 		0x4
-#define PROGRAM_TELESCREEN 	0x8
-#define PROGRAM_PDA 		0x10
+#define PROGRAM_CONSOLE    BITFLAG(0)
+#define PROGRAM_LAPTOP     BITFLAG(1)
+#define PROGRAM_TABLET     BITFLAG(2)
+#define PROGRAM_TELESCREEN BITFLAG(3)
+#define PROGRAM_PDA        BITFLAG(4)
+#define PROGRAM_ALL        (PROGRAM_CONSOLE|PROGRAM_LAPTOP|PROGRAM_TABLET|PROGRAM_TELESCREEN|PROGRAM_PDA)
 
 #define PROGRAM_STATE_KILLED 0
 #define PROGRAM_STATE_BACKGROUND 1
@@ -40,8 +40,8 @@
 
 #define NETWORK_CONNECTION_WIRELESS			1
 #define NETWORK_CONNECTION_STRONG_WIRELESS	2
-#define NETWORK_CONNECTION_WIRED			3
 #define NETWORK_BASE_BROADCAST_STRENGTH		25
+#define NETWORK_WIRED_CONNECTION_STRENGTH	75
 
 // Caps for network logging. Less than 10 would make logging useless anyway, more than 500 may make the log browser too laggy. Defaults to 100 unless user changes it.
 #define MAX_NETWORK_LOGS 100

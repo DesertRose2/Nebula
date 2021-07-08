@@ -105,22 +105,18 @@
 	// TODO: Datumlize buckle-handling
 	if(istype(mob.buckled, /obj/vehicle))
 		//drunk driving
-		if(mob.confused && prob(20)) //vehicles tend to keep moving in the same direction
+		if(HAS_STATUS(mob, STAT_CONFUSE) && prob(20)) //vehicles tend to keep moving in the same direction
 			direction = turn(direction, pick(90, -90))
 		mob.buckled.relaymove(mob, direction)
 		return MOVEMENT_HANDLED
 
 	if(mob.buckled) // Wheelchair driving!
-		if(istype(mob.loc, /turf/space))
+		if(isspaceturf(mob.loc))
 			return // No wheelchair driving in space
 		if(istype(mob.buckled, /obj/structure/bed/chair/wheelchair))
 			. = MOVEMENT_HANDLED
-			if(ishuman(mob))
-				var/mob/living/carbon/human/driver = mob
-				var/obj/item/organ/external/l_hand = driver.get_organ(BP_L_HAND)
-				var/obj/item/organ/external/r_hand = driver.get_organ(BP_R_HAND)
-				if((!l_hand || l_hand.is_stump()) && (!r_hand || r_hand.is_stump()))
-					return // No hands to drive your chair? Tough luck!
+			if(!mob.has_held_item_slot())
+				return // No hands to drive your chair? Tough luck!
 			//drunk wheelchair driving
 			direction = mob.AdjustMovementDirection(direction)
 			mob.buckled.DoMove(direction, mob)
@@ -135,9 +131,10 @@
 	var/next_move
 
 /datum/movement_handler/mob/delay/DoMove(var/direction, var/mover, var/is_external)
-	if(is_external)
-		return
-	next_move = world.time + max(1, mob.movement_delay())
+	if(!is_external)
+		var/delay = max(1, mob.movement_delay())
+		next_move = world.time + delay
+		mob.glide_size = ADJUSTED_GLIDE_SIZE(delay)
 
 /datum/movement_handler/mob/delay/MayMove(var/mover, var/is_external)
 	if(IS_NOT_SELF(mover) && is_external)
@@ -191,8 +188,8 @@
 			to_chat(mob, SPAN_WARNING("You're pinned down by \a [mob.pinned[1]]!"))
 		return MOVEMENT_STOP
 
-	for(var/obj/item/grab/G in mob.grabbed_by)
-		if(G.assailant != mob && (mob.restrained() || G.stop_move()))
+	for(var/obj/item/grab/G AS_ANYTHING in mob.grabbed_by)
+		if(G.assailant != mob && G.assailant != mover && (mob.restrained() || G.stop_move()))
 			if(mover == mob)
 				to_chat(mob, SPAN_WARNING("You're restrained and cannot move!"))
 			mob.ProcessGrabs()
@@ -204,7 +201,7 @@
 /datum/movement_handler/mob/movement/DoMove(var/direction, var/mob/mover)
 	. = MOVEMENT_HANDLED
 
-	if(mob.moving)
+	if(!mob || mob.moving)
 		return
 
 	if(!mob.lastarea)
@@ -217,25 +214,33 @@
 	var/turf/old_turf = get_turf(mob)
 	step(mob, direction)
 
-	// Something with dragging things
-	var/extra_delay = HandleGrabs(direction, old_turf)
-
-	if(QDELETED(mob)) // No idea why, but this was causing null check runtimes on live.
+	if(!mob)
+		return // If the mob gets deleted on move (e.g. Entered, whatever), it wipes this reference on us in Destroy (and we should be aborting all action anyway).
+	if(mob.loc == old_turf) // Did not move for whatever reason.
+		mob.moving = FALSE
 		return
 
-	mob.ExtraMoveCooldown(extra_delay)
+	var/turf/new_loc = mob.loc
+	if(istype(new_loc))
+		for(var/atom/movable/AM AS_ANYTHING in mob.ret_grab())
+			if(AM != src && AM.loc != mob.loc && !AM.anchored && old_turf.Adjacent(AM))
+				AM.glide_size = mob.glide_size // This is adjusted by grabs again from events/some of the procs below, but doing it here makes it more likely to work with recursive movement.
+				AM.DoMove(get_dir(get_turf(AM), old_turf), mob, TRUE)
 
-	for (var/obj/item/grab/G in mob)
-		if (G.assailant_reverse_facing())
-			mob.set_dir(GLOB.reverse_dir[direction])
+		for(var/obj/item/grab/G AS_ANYTHING in mob.get_active_grabs())
+			G.adjust_position()
+
+	for(var/obj/item/grab/G AS_ANYTHING in mob.get_active_grabs())
+		if(G.assailant_reverse_facing())
+			mob.set_dir(global.reverse_dir[direction])
 		G.assailant_moved()
-	for (var/obj/item/grab/G in mob.grabbed_by)
+	for(var/obj/item/grab/G AS_ANYTHING in mob.grabbed_by)
 		G.adjust_position()
 
 	if(direction & (UP|DOWN))
 		var/txt_dir = (direction & UP) ? "upwards" : "downwards"
 		old_turf.visible_message(SPAN_NOTICE("[mob] moves [txt_dir]."))
-		for(var/obj/item/grab/G in mob.get_active_grabs())
+		for(var/obj/item/grab/G AS_ANYTHING in mob.get_active_grabs())
 			if(!G.affecting)
 				continue
 			var/turf/start = G.affecting.loc
@@ -256,14 +261,18 @@
 			G.affecting.forceMove(destination)
 			continue
 
-	//Moving with objects stuck in you can cause bad times.
-	if(get_turf(mob) != old_turf)
-		if(MOVING_QUICKLY(mob))
-			mob.last_quick_move_time = world.time
-			mob.adjust_stamina(-(mob.get_stamina_used_per_step() * (1+mob.encumbrance())))
-		mob.handle_embedded_and_stomach_objects()
+	// Sprinting uses up stamina and causes exertion effects.
+	if(MOVING_QUICKLY(mob))
+		mob.last_quick_move_time = world.time
+		mob.adjust_stamina(-(mob.get_stamina_used_per_step() * (1+mob.encumbrance())))
+		if(ishuman(mob))
+			var/decl/species/species = mob.get_species()
+			if(species)
+				species.handle_exertion(mob)
 
-	mob.moving = 0
+	//Moving with objects stuck in you can cause bad times.
+	mob.handle_embedded_and_stomach_objects()
+	mob.moving = FALSE
 
 /datum/movement_handler/mob/movement/MayMove(var/mob/mover)
 	return IS_SELF(mover) &&  mob.moving ? MOVEMENT_STOP : MOVEMENT_PROCEED
@@ -281,32 +290,17 @@
 
 	return config.minimum_sprint_cost + (config.skill_sprint_cost_range * mod)
 
-/datum/movement_handler/mob/movement/proc/HandleGrabs(var/direction, var/old_turf)
-	. = 0
-	// TODO: Look into making grabs use movement events instead, this is a mess.
-	for(var/obj/item/grab/G in mob?.get_active_grabs())
-		if(G.assailant == G.affecting)
-			return
-		if(G.affecting.anchored)
-			return
-		. = max(., G.grab_slowdown())
-		if(isturf(mob.loc) && mob.loc != old_turf)
-			for(var/atom/movable/M in (mob.ret_grab()-mob))
-				if(isturf(M.loc) && M.loc != mob.loc && get_dist(old_turf, M) <= 1)
-					step(M, get_dir(M.loc, old_turf))
-		G.adjust_position()
-
 // Misc. helpers
 /mob/proc/MayEnterTurf(var/turf/T)
 	return T && !((mob_flags & MOB_FLAG_HOLY_BAD) && check_is_holy_turf(T))
 
 /mob/proc/AdjustMovementDirection(var/direction)
 	. = direction
-	if(!confused)
+	if(!HAS_STATUS(src, STAT_CONFUSE))
 		return
 
 	var/stability = MOVING_DELIBERATELY(src) ? 75 : 25
 	if(prob(stability))
 		return
 
-	return prob(50) ? GLOB.cw_dir[.] : GLOB.ccw_dir[.]
+	return prob(50) ? global.cw_dir[.] : global.ccw_dir[.]

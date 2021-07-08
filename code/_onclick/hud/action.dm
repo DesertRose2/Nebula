@@ -13,6 +13,7 @@
 
 /datum/action
 	var/name = "Generic Action"
+	var/desc = null
 	var/action_type = AB_ITEM
 	var/procname = null
 	var/atom/movable/target = null
@@ -100,7 +101,7 @@
 		if(owner.restrained())
 			return 0
 	if(check_flags & AB_CHECK_STUNNED)
-		if(owner.stunned)
+		if(HAS_STATUS(owner, STAT_STUN))
 			return 0
 	if(check_flags & AB_CHECK_LYING)
 		if(owner.lying)
@@ -115,6 +116,9 @@
 
 /datum/action/proc/UpdateName()
 	return name
+
+/datum/action/proc/UpdateDesc()
+	return desc
 
 /obj/screen/movable/action_button
 	var/datum/action/owner
@@ -151,6 +155,18 @@
 		color = rgb(128,0,0,128)
 	else
 		color = rgb(255,255,255,255)
+
+/obj/screen/movable/action_button/MouseEntered(location, control, params)
+	openToolTip(user = usr, tip_src = src, params = params, title = name, content = desc)
+	..()
+
+/obj/screen/movable/action_button/MouseDown()
+	closeToolTip(usr)
+	..()
+
+/obj/screen/movable/action_button/MouseExited()
+	closeToolTip(usr)
+	..()
 
 //Hide/Show Action Buttons ... Button
 /obj/screen/movable/action_button/hide_toggle

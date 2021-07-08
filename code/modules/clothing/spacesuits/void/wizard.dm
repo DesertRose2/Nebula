@@ -14,7 +14,6 @@
 		rad = ARMOR_RAD_SMALL
 		)
 	siemens_coefficient = 0.7
-	sprite_sheets_obj = null
 	wizard_garb = 1
 
 /obj/item/clothing/suit/space/void/wizard
@@ -33,23 +32,22 @@
 		rad = ARMOR_RAD_SMALL
 		)
 	siemens_coefficient = 0.7
-	sprite_sheets_obj = null
 	wizard_garb = 1
 	flags_inv = HIDESHOES|HIDEJUMPSUIT|HIDETAIL //For gloves.
-	body_parts_covered = UPPER_TORSO|LOWER_TORSO|LEGS|FEET|ARMS
-	cold_protection = UPPER_TORSO | LOWER_TORSO | LEGS | FEET | ARMS
+	body_parts_covered = SLOT_UPPER_BODY|SLOT_LOWER_BODY|SLOT_LEGS|SLOT_FEET|SLOT_ARMS
+	cold_protection = SLOT_UPPER_BODY | SLOT_LOWER_BODY | SLOT_LEGS | SLOT_FEET | SLOT_ARMS
 
 /obj/item/clothing/suit/space/void/wizard/Initialize()
 	. = ..()
-	slowdown_per_slot[slot_wear_suit] = 1
+	LAZYSET(slowdown_per_slot, slot_wear_suit_str, 1)
 
 /obj/item/clothing/gloves/wizard
 	name = "mystical gloves"
 	desc = "Reinforced, gem-studded gloves that radiate energy. They look like they go along with a matching voidsuit."
 	color = COLOR_VIOLET
 	item_flags = ITEM_FLAG_THICKMATERIAL
-	body_parts_covered = HANDS
-	cold_protection =    HANDS
+	body_parts_covered = SLOT_HANDS
+	cold_protection =    SLOT_HANDS
 	min_cold_protection_temperature = SPACE_SUIT_MIN_COLD_PROTECTION_TEMPERATURE
 	bodytype_restricted = null
 	gender = PLURAL

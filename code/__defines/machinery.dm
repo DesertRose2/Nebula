@@ -24,16 +24,16 @@ var/global/defer_powernet_rebuild = 0      // True if net rebuild will be called
 #define TOTAL   5 // For total power used only.
 
 // Bitflags for machine stat variable.
-#define BROKEN   0x1
-#define NOPOWER  0x2
-#define MAINT    0x8  // Under maintenance.
-#define EMPED    0x10 // Temporary broken by EMP pulse.
-#define NOSCREEN 0x20 // No UI shown via direct interaction
-#define NOINPUT  0x40 // No input taken from direct interaction
+#define BROKEN   BITFLAG(0)
+#define NOPOWER  BITFLAG(1)
+#define MAINT    BITFLAG(2) // Under maintenance.
+#define EMPED    BITFLAG(3) // Temporary broken by EMP pulse.
+#define NOSCREEN BITFLAG(4) // No UI shown via direct interaction
+#define NOINPUT  BITFLAG(5) // No input taken from direct interaction
 
-#define MACHINE_BROKEN_GENERIC   0x1 // Standard legacy brokenness, used on a case-by-case basis
-#define MACHINE_BROKEN_NO_PARTS  0x2 // Missing required parts
-#define MACHINE_BROKEN_CONSTRUCT 0x4 // Construction state is causing the brokenness
+#define MACHINE_BROKEN_GENERIC   BITFLAG(0) // Standard legacy brokenness, used on a case-by-case basis
+#define MACHINE_BROKEN_NO_PARTS  BITFLAG(1) // Missing required parts
+#define MACHINE_BROKEN_CONSTRUCT BITFLAG(2) // Construction state is causing the brokenness
 
 // Used by firelocks
 #define FIREDOOR_OPEN 1
@@ -42,18 +42,24 @@ var/global/defer_powernet_rebuild = 0      // True if net rebuild will be called
 #define AI_CAMERA_LUMINOSITY 6
 
 // Camera networks
-#define NETWORK_CRESCENT "Crescent"
+// Station networks
+#define NETWORK_PUBLIC "Public"
 #define NETWORK_ENGINEERING "Engineering"
-#define NETWORK_ERT "ZeEmergencyResponseTeam"
-#define NETWORK_EXODUS "Exodus"
 #define NETWORK_MEDICAL "Medical"
-#define NETWORK_MERCENARY "MercurialNet"
-#define NETWORK_MINE "Mining"
 #define NETWORK_RESEARCH "Research"
-#define NETWORK_ROBOTS "Robots"
 #define NETWORK_SECURITY "Security"
+
+#define NETWORK_ROBOTS "Robots"
+#define NETWORK_MINE "Mining"
+#define NETWORK_SECRET "Secret"
+
+// Non-station networks
+#define NETWORK_CRESCENT "Crescent"
+#define NETWORK_ERT "ZeEmergencyResponseTeam"
+#define NETWORK_MERCENARY "MercurialNet"
 #define NETWORK_THUNDER "Thunderdome"
 
+// Alarm networks
 #define NETWORK_ALARM_ATMOS "Atmosphere Alarms"
 #define NETWORK_ALARM_CAMERA "Camera Alarms"
 #define NETWORK_ALARM_FIRE "Fire Alarms"
@@ -61,7 +67,7 @@ var/global/defer_powernet_rebuild = 0      // True if net rebuild will be called
 #define NETWORK_ALARM_POWER "Power Alarms"
 
 // Those networks can only be accessed by pre-existing terminals. AIs and new terminals can't use them.
-var/list/restricted_camera_networks = list(NETWORK_ERT, NETWORK_MERCENARY, NETWORK_CRESCENT, "Secret")
+var/global/list/restricted_camera_networks = list(NETWORK_ERT, NETWORK_MERCENARY, NETWORK_CRESCENT, NETWORK_SECRET)
 
 
 //singularity defines

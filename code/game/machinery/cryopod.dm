@@ -182,6 +182,8 @@
 	construct_state = /decl/machine_construction/default/panel_closed
 	uncreated_component_parts = null
 	stat_immune = 0
+	var/open_sound = 'sound/machines/podopen.ogg'
+	var/close_sound = 'sound/machines/podclose.ogg'
 
 /obj/machinery/cryopod/robot
 	name = "robotic storage unit"
@@ -220,7 +222,7 @@
 
 /obj/machinery/cryopod/lifepod/proc/launch()
 	launched = 1
-	for(var/d in GLOB.cardinal)
+	for(var/d in global.cardinal)
 		var/turf/T = get_step(src,d)
 		var/obj/machinery/door/blast/B = locate() in T
 		if(B && B.density)
@@ -228,17 +230,17 @@
 			break
 
 	var/list/possible_locations = list()
-	if(GLOB.using_map.use_overmap)
+	if(global.using_map.use_overmap)
 		var/obj/effect/overmap/visitable/O = map_sectors["[z]"]
 		for(var/obj/effect/overmap/visitable/OO in range(O,2))
 			if((OO.sector_flags & OVERMAP_SECTOR_IN_SPACE) || istype(OO,/obj/effect/overmap/visitable/sector/exoplanet))
 				possible_locations |= text2num(level)
 
-	var/newz = GLOB.using_map.get_empty_zlevel()
+	var/newz = global.using_map.get_empty_zlevel()
 	if(possible_locations.len && prob(10))
 		newz = pick(possible_locations)
 	var/turf/nloc = locate(rand(TRANSITIONEDGE, world.maxx-TRANSITIONEDGE), rand(TRANSITIONEDGE, world.maxy-TRANSITIONEDGE),newz)
-	if(!istype(nloc, /turf/space))
+	if(!isspaceturf(nloc))
 		explosion(nloc, 1, 2, 3)
 	playsound(loc,'sound/effects/rocket.ogg',100)
 	forceMove(nloc)
@@ -266,12 +268,12 @@
 /obj/machinery/cryopod/proc/find_control_computer()
 	if(!control_computer)
 		control_computer = locate(/obj/machinery/computer/cryopod) in src.loc.loc
-		GLOB.destroyed_event.register(control_computer, src, .proc/clear_control_computer)
+		events_repository.register(/decl/observ/destroyed, control_computer, src, .proc/clear_control_computer)
 	return control_computer
 
 /obj/machinery/cryopod/proc/clear_control_computer()
 	if(control_computer)
-		GLOB.destroyed_event.unregister(control_computer, src)
+		events_repository.unregister(/decl/observ/destroyed, control_computer, src)
 		control_computer = null
 
 /obj/machinery/cryopod/proc/check_occupant_allowed(mob/M)
@@ -374,7 +376,7 @@
 				W.forceMove(src.loc)
 
 	//Update any existing objectives involving this mob.
-	for(var/datum/objective/O in GLOB.all_objectives)
+	for(var/datum/objective/O in global.all_objectives)
 		// We don't want revs to get objectives that aren't for heads of staff. Letting
 		// them win or lose based on cryo is silly so we remove the objective.
 		if(O.target == occupant.mind)
@@ -389,7 +391,7 @@
 
 		if(occupant.mind.objectives.len)
 			occupant.mind.objectives = null
-			occupant.mind.special_role = null
+			occupant.mind.assigned_special_role = null
 
 	// Delete them from datacore.
 	var/sanitized_name = occupant.real_name
@@ -434,6 +436,8 @@
 		if(!do_after(user, 20, src)|| QDELETED(target))
 			return
 		set_occupant(target)
+		if(close_sound)
+			playsound(src, close_sound, 40)
 
 		// Book keeping!
 		log_and_message_admins("has entered a stasis pod")
@@ -442,15 +446,17 @@
 		src.add_fingerprint(target)
 
 //Like grap-put, but for mouse-drop.
-/obj/machinery/cryopod/MouseDrop_T(var/mob/target, var/mob/user)
-	if(!check_occupant_allowed(target))
-		return
-	if(occupant)
-		to_chat(user, "<span class='notice'>\The [src] is in use.</span>")
-		return
-
-	user.visible_message("<span class='notice'>\The [user] begins placing \the [target] into \the [src].</span>", "<span class='notice'>You start placing \the [target] into \the [src].</span>")
-	attempt_enter(target, user)
+/obj/machinery/cryopod/receive_mouse_drop(var/atom/dropping, var/mob/user)
+	. = ..()
+	if(!. && check_occupant_allowed(dropping))
+		if(occupant)
+			to_chat(user, SPAN_WARNING("\The [src] is in use."))
+			return TRUE
+		user.visible_message( \
+			SPAN_NOTICE("\The [user] begins placing \the [dropping] into \the [src]."), \
+			SPAN_NOTICE("You start placing \the [dropping] into \the [src]."))
+		attempt_enter(dropping, user)
+		return TRUE
 
 /obj/machinery/cryopod/attackby(var/obj/item/G, var/mob/user)
 
@@ -501,13 +507,11 @@
 		return
 
 	if(src.occupant)
-		to_chat(usr, "<span class='notice'><B>\The [src] is in use.</B></span>")
+		to_chat(usr, SPAN_WARNING("\The [src] is in use."))
 		return
 
-	for(var/mob/living/carbon/slime/M in range(1,usr))
-		if(M.Victim == usr)
-			to_chat(usr, "You're too busy getting your life sucked out of you.")
-			return
+	if(!usr.can_enter_cryopod(usr))
+		return
 
 	visible_message("\The [usr] starts climbing into \the [src].", range = 3)
 
@@ -537,6 +541,8 @@
 
 	occupant.dropInto(loc)
 	set_occupant(null)
+	if(open_sound)
+		playsound(src, open_sound, 40)
 
 	icon_state = base_icon_state
 
@@ -602,3 +608,6 @@
 			dead.set_dir(dir) //skeleton is oriented as cryo
 	else
 		to_chat(user, "<span class='notice'>The glass cover is already open.</span>")
+
+/obj/machinery/cryopod/proc/on_mob_spawn()
+	playsound(src, 'sound/machines/ding.ogg', 30, 1)

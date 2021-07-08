@@ -1,4 +1,4 @@
-datum/admins/proc/DB_staffwarn_record(var/ckey, var/reason)
+/datum/admins/proc/DB_staffwarn_record(var/ckey, var/reason)
 	if(!check_rights((R_ADMIN|R_MOD), 0)) return
 	if(!istext(reason)) return
 	_DB_staffwarn_record(ckey, reason)
@@ -26,7 +26,7 @@ datum/admins/proc/DB_staffwarn_record(var/ckey, var/reason)
 	query.Execute()
 	to_chat(usr,"<span class='notice'>StaffWarn saved to DB</span>")
 
-datum/admins/proc/DB_staffwarn_remove(var/ckey)
+/datum/admins/proc/DB_staffwarn_remove(var/ckey)
 	if(!check_rights((R_ADMIN|R_MOD), 0)) return
 	var/dbckey = sql_sanitize_text(ckey)
 
@@ -43,7 +43,7 @@ datum/admins/proc/DB_staffwarn_remove(var/ckey)
 	to_chat(usr,"<span class='notice'>StaffWarn removed from DB</span>")
 	return 1
 
-datum/admins/proc/DB_ban_record(var/bantype, var/mob/banned_mob, var/duration = -1, var/reason, var/job = "", var/rounds = 0, var/banckey = null, var/banip = null, var/bancid = null)
+/datum/admins/proc/DB_ban_record(var/bantype, var/mob/banned_mob, var/duration = -1, var/reason, var/job = "", var/rounds = 0, var/banckey = null, var/banip = null, var/bancid = null)
 	if(!src || !src.owner)
 		return
 	_DB_ban_record(src.owner.ckey, src.owner.computer_id, src.owner.address, bantype, banned_mob, duration, reason, job, rounds, banckey, banip, bancid)
@@ -91,20 +91,26 @@ datum/admins/proc/DB_ban_record(var/bantype, var/mob/banned_mob, var/duration = 
 		if(banned_mob.client)
 			computerid = banned_mob.client.computer_id
 			ip = banned_mob.client.address
+		if (bantype == BANTYPE_PERMA || bantype == BANTYPE_TEMP)
+			banned_mob.ckey = null
 	else if(banckey)
 		ckey = ckey(banckey)
 		computerid = bancid
 		ip = banip
+		for (var/mob/M in SSmobs.mob_list)
+			if (M.ckey == ckey)
+				M.ckey = null
+				break
 
 	var/who
-	for(var/client/C in GLOB.clients)
+	for(var/client/C in global.clients)
 		if(!who)
 			who = "[C]"
 		else
 			who += ", [C]"
 
 	var/adminwho
-	for(var/client/C in GLOB.admins)
+	for(var/client/C in global.admins)
 		if(!adminwho)
 			adminwho = "[C]"
 		else
@@ -123,7 +129,7 @@ datum/admins/proc/DB_ban_record(var/bantype, var/mob/banned_mob, var/duration = 
 
 
 
-datum/admins/proc/DB_ban_unban(var/ckey, var/bantype, var/job = "")
+/datum/admins/proc/DB_ban_unban(var/ckey, var/bantype, var/job = "")
 
 	if(!check_rights(R_BAN))	return
 
@@ -187,7 +193,7 @@ datum/admins/proc/DB_ban_unban(var/ckey, var/bantype, var/job = "")
 
 	DB_ban_unban_by_id(ban_id)
 
-datum/admins/proc/DB_ban_edit(var/banid = null, var/param = null)
+/datum/admins/proc/DB_ban_edit(var/banid = null, var/param = null)
 
 	if(!check_rights(R_BAN))	return
 
@@ -247,7 +253,7 @@ datum/admins/proc/DB_ban_edit(var/banid = null, var/param = null)
 			to_chat(usr, "Cancelled")
 			return
 
-datum/admins/proc/DB_ban_unban_by_id(var/id)
+/datum/admins/proc/DB_ban_unban_by_id(var/id)
 
 	if(!check_rights(R_BAN))	return
 
@@ -333,13 +339,11 @@ datum/admins/proc/DB_ban_unban_by_id(var/id)
 	output += "<option value=''>--</option>"
 	for(var/j in SSjobs.titles_to_datums)
 		output += "<option value='[j]'>[j]</option>"
-	for(var/j in SSjobs.titles_by_department(DEPT_MISC))
-		output += "<option value='[j]'>[j]</option>"
 	var/list/bantypes = list("traitor","changeling","operative","revolutionary","cultist","wizard") //For legacy bans.
-	var/list/all_antag_types = GLOB.all_antag_types_
+	var/list/all_antag_types = decls_repository.get_decls_of_subtype(/decl/special_role)
 	for(var/antag_type in all_antag_types) // Grab other bans.
-		var/datum/antagonist/antag = all_antag_types[antag_type]
-		bantypes |= antag.id
+		var/decl/special_role/antag = all_antag_types[antag_type]
+		bantypes |= antag.name
 	for(var/j in bantypes)
 		output += "<option value='[j]'>[j]</option>"
 	output += "</select></td></tr></table>"
@@ -468,15 +472,16 @@ datum/admins/proc/DB_ban_unban_by_id(var/id)
 					dcolor = adcolor
 
 				var/typedesc =""
+				var/mins_readable = minutes_to_readable(duration)
 				switch(bantype)
 					if("PERMABAN")
 						typedesc = "<font color='red'><b>PERMABAN</b></font>"
 					if("TEMPBAN")
-						typedesc = "<b>TEMPBAN</b><br><font size='2'>([duration] minutes) [(unbanned || auto) ? "" : "(<a href=\"byond://?src=\ref[src];dbbanedit=duration;dbbanid=[banid]\">Edit</a>)"]<br>Expires [expiration]</font>"
+						typedesc = "<b>TEMPBAN</b><br><font size='2'>([mins_readable]) [(unbanned || auto) ? "" : "(<a href=\"byond://?src=\ref[src];dbbanedit=duration;dbbanid=[banid]\">Edit</a>)"]<br>Expires [expiration]</font>"
 					if("JOB_PERMABAN")
 						typedesc = "<b>JOBBAN</b><br><font size='2'>([job])</font>"
 					if("JOB_TEMPBAN")
-						typedesc = "<b>TEMP JOBBAN</b><br><font size='2'>([job])<br>([duration] minutes<br>Expires [expiration]</font>"
+						typedesc = "<b>TEMP JOBBAN</b><br><font size='2'>([job])<br>([mins_readable]<br>Expires [expiration]</font>"
 
 				output += "<tr bgcolor='[dcolor]'>"
 				output += "<td align='center'>[typedesc]</td>"

@@ -22,7 +22,7 @@
 			var/mob/living/carbon/human/kidmob = kid.holder.current
 			if(!istype(kidmob))
 				continue
-			if(abs(holdermob.age - kidmob.age) > 3)
+			if(abs(holdermob.get_age() - kidmob.get_age()) > 3)
 				creche -= kid		//No creepers please, it's okay if the pool is small.
 				continue
 			var/kidhome =    kidmob.get_cultural_value(TAG_HOMEWORLD)
@@ -71,7 +71,7 @@
 			continue
 		if(R.holder.assigned_job == holder.assigned_job)
 			best += R
-		if(LAZYLEN(R.holder.assigned_job.department_refs & holder.assigned_job.department_refs))
+		if(LAZYLEN(R.holder.assigned_job.department_types & holder.assigned_job.department_types))
 			good += R
 	if(best.len)
 		return best
@@ -94,7 +94,7 @@
 	var/list/warbuds = ..()
 	var/list/branchmates = list()
 	var/mob/living/carbon/human/holdermob = holder.current
-	if(istype(holdermob) && GLOB.using_map && (GLOB.using_map.flags & MAP_HAS_BRANCH))
+	if(istype(holdermob) && global.using_map && (global.using_map.flags & MAP_HAS_BRANCH))
 		for(var/datum/relation/buddy in warbuds)
 			var/mob/living/carbon/human/buddymob = buddy.holder.current
 			if(!istype(buddymob))

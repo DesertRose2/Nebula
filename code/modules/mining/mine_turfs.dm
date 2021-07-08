@@ -6,7 +6,7 @@
 	density = 1
 	opacity = 1
 
-var/list/mining_floors = list()
+var/global/list/mining_floors = list()
 /**********************Asteroid**************************/
 // Setting icon/icon_state initially will use these values when the turf is built on/replaced.
 // This means you can put grass on the asteroid etc.
@@ -19,13 +19,12 @@ var/list/mining_floors = list()
 	base_icon = 'icons/turf/flooring/asteroid.dmi'
 	base_icon_state = "asteroid"
 	footstep_type = /decl/footsteps/asteroid
-
 	initial_flooring = null
 	initial_gas = null
 	temperature = TCMB
+
 	var/dug = 0       //0 = has not yet been dug, 1 = has already been dug
 	var/overlay_detail
-	has_resources = 1
 
 /turf/simulated/floor/asteroid/Initialize()
 	. = ..()
@@ -98,16 +97,12 @@ var/list/mining_floors = list()
 		return ..(W,user)
 
 /turf/simulated/floor/asteroid/proc/gets_dug()
-
 	if(dug)
 		return
-
 	for(var/i=0;i<(rand(3)+2);i++)
-		new/obj/item/ore/glass(src)
-
-	dug = 1
+		LAZYADD(., new/obj/item/ore/glass(src))
+	dug = TRUE
 	icon_state = "asteroid_dug"
-	return
 
 /turf/simulated/floor/asteroid/proc/updateMineralOverlays(var/update_neighbors)
 
@@ -116,7 +111,7 @@ var/list/mining_floors = list()
 	var/list/step_overlays = list("n" = NORTH, "s" = SOUTH, "e" = EAST, "w" = WEST)
 	for(var/direction in step_overlays)
 
-		if(istype(get_step(src, step_overlays[direction]), /turf/space))
+		if(isspaceturf(get_step(src, step_overlays[direction])))
 			var/image/aster_edge = image('icons/turf/flooring/asteroid.dmi', "asteroid_edges", dir = step_overlays[direction])
 			aster_edge.layer = DECAL_LAYER
 			overlays += aster_edge

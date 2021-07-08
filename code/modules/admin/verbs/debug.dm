@@ -101,22 +101,6 @@
 			paiController.pai_candidates.Remove(candidate)
 	SSstatistics.add_field_details("admin_verb","MPAI") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
 
-/client/proc/cmd_admin_slimeize(var/mob/M in SSmobs.mob_list)
-	set category = "Fun"
-	set name = "Make slime"
-
-	if(GAME_STATE < RUNLEVEL_GAME)
-		alert("Wait until the game starts")
-		return
-	if(ishuman(M))
-		log_admin("[key_name(src)] has slimeized [M.key].")
-		spawn(10)
-			M:slimeize()
-			SSstatistics.add_field_details("admin_verb","MKMET") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
-		log_and_message_admins("made [key_name(M)] into a slime.")
-	else
-		alert("Invalid mob")
-
 //TODO: merge the vievars version into this or something maybe mayhaps
 /client/proc/cmd_debug_del_all()
 	set category = "Debug"
@@ -170,7 +154,7 @@
 			id.registered_name = H.real_name
 			id.assignment = "Captain"
 			id.SetName("[id.registered_name]'s ID Card ([id.assignment])")
-			H.equip_to_slot_or_del(id, slot_wear_id)
+			H.equip_to_slot_or_del(id, slot_wear_id_str)
 			H.update_inv_wear_id()
 	else
 		alert("Invalid mob")
@@ -214,7 +198,7 @@
 	var/list/areas_with_intercom = list()
 	var/list/areas_with_camera = list()
 
-	for(var/area/A in world)
+	for(var/area/A in global.areas)
 		if(!(A.type in areas_all))
 			areas_all.Add(A.type)
 
@@ -228,7 +212,7 @@
 		if(!(A.type in areas_with_air_alarm))
 			areas_with_air_alarm.Add(A.type)
 
-	for(var/obj/machinery/requests_console/RC in world)
+	for(var/obj/machinery/network/requests_console/RC in world)
 		var/area/A = get_area(RC)
 		if(!(A.type in areas_with_RC))
 			areas_with_RC.Add(A.type)
@@ -296,7 +280,7 @@
 	if(!check_rights(R_FUN))
 		return
 
-	var/mob/living/carbon/human/H = input("Select mob.", "Select equipment.") as null|anything in GLOB.human_mob_list
+	var/mob/living/carbon/human/H = input("Select mob.", "Select equipment.") as null|anything in global.human_mob_list
 	if(!H)
 		return
 
@@ -373,19 +357,19 @@
 
 	switch(input("Which list?") in list("Players","Admins","Mobs","Living Mobs","Dead Mobs", "Ghost Mobs", "Clients"))
 		if("Players")
-			to_chat(usr, jointext(GLOB.player_list,","))
+			to_chat(usr, jointext(global.player_list,","))
 		if("Admins")
-			to_chat(usr, jointext(GLOB.admins,","))
+			to_chat(usr, jointext(global.admins,","))
 		if("Mobs")
 			to_chat(usr, jointext(SSmobs.mob_list,","))
 		if("Living Mobs")
-			to_chat(usr, jointext(GLOB.living_mob_list_,","))
+			to_chat(usr, jointext(global.living_mob_list_,","))
 		if("Dead Mobs")
-			to_chat(usr, jointext(GLOB.dead_mob_list_,","))
+			to_chat(usr, jointext(global.dead_mob_list_,","))
 		if("Ghost Mobs")
-			to_chat(usr, jointext(GLOB.ghost_mob_list,","))
+			to_chat(usr, jointext(global.ghost_mob_list,","))
 		if("Clients")
-			to_chat(usr, jointext(GLOB.clients,","))
+			to_chat(usr, jointext(global.clients,","))
 
 // DNA2 - Admin Hax
 /client/proc/cmd_admin_toggle_block(var/mob/M,var/block)
@@ -411,14 +395,14 @@
 	if(!check_rights(R_DEBUG))
 		return
 
-	GLOB.error_cache.show_to(usr.client)
+	global.error_cache.show_to(usr.client)
 
 /client/proc/cmd_analyse_health_panel()
 	set category = "Debug"
 	set name = "Analyse Health"
 	set desc = "Get an advanced health reading on a human mob."
 
-	var/mob/living/carbon/human/H = input("Select mob.", "Analyse Health") as null|anything in GLOB.human_mob_list
+	var/mob/living/carbon/human/H = input("Select mob.", "Analyse Health") as null|anything in global.human_mob_list
 	if(!H)	return
 
 	cmd_analyse_health(H)
@@ -435,7 +419,7 @@
 	dat += text("<BR><A href='?src=\ref[];mach_close=scanconsole'>Close</A>", usr)
 	show_browser(usr, dat, "window=scanconsole;size=430x600")
 
-/client/proc/cmd_analyse_health_context(mob/living/carbon/human/H as mob in GLOB.human_mob_list)
+/client/proc/cmd_analyse_health_context(mob/living/carbon/human/H as mob in global.human_mob_list)
 	set category = null
 	set name = "Analyse Human Health"
 
@@ -447,7 +431,7 @@
 
 /obj/effect/debugmarker
 	icon = 'icons/effects/lighting_overlay.dmi'
-	icon_state = "transparent"
+	icon_state = "blank"
 	layer = HOLOMAP_LAYER
 	alpha = 127
 
@@ -463,7 +447,7 @@
 	for(var/datum/powernet/PN in SSmachines.powernets)
 		var/netcolor = rgb(rand(100,255),rand(100,255),rand(100,255))
 		for(var/obj/structure/cable/C in PN.cables)
-			var/image/I = image('icons/effects/lighting_overlay.dmi', get_turf(C), "transparent")
+			var/image/I = image('icons/effects/lighting_overlay.dmi', get_turf(C), "blank")
 			I.plane = DEFAULT_PLANE
 			I.layer = EXPOSED_WIRE_LAYER
 			I.alpha = 127
@@ -487,5 +471,48 @@
 	var/material = input("Select material to spawn") as null|anything in SSmaterials.materials_by_name
 	if(!material)
 		return
-	var/decl/material/M = decls_repository.get_decl(material)
-	new M.stack_type(get_turf(mob), 50, M)
+	SSmaterials.create_object(material, get_turf(mob), 50)
+
+/client/proc/force_ghost_trap_trigger()
+	set category = "Debug"
+	set name = "Force Ghost Trap Trigger"
+	if(!check_rights(R_DEBUG)) return
+	var/decl/ghosttrap/trap = input("Select a ghost trap.", "Force Ghost Trap Trigger") as null|anything in typesof(/decl/ghosttrap)
+	if(!trap)
+		return
+	trap = GET_DECL(trap)
+	trap.forced(mob)
+
+/client/proc/spawn_exoplanet(exoplanet_type AS_ANYTHING in subtypesof(/obj/effect/overmap/visitable/sector/exoplanet))
+	set category = "Debug"
+	set name = "Create Exoplanet"
+
+	var/budget = input("Ruins budget. Default is 5, a budget of 0 will not spawn any ruins, 5 will spawn around 3-5 ruins:", "Ruins Budget", 5) as num | null
+
+	if (isnull(budget) || budget < 0)
+		budget = 5
+
+	var/theme = input("Choose a theme:", "Theme") as null|anything in typesof(/datum/exoplanet_theme) | null
+
+	if (!theme)
+		theme = /datum/exoplanet_theme
+
+	var/daycycle = alert("Should the planet have a day-night cycle?","Day Night Cycle", "Yes", "No")
+
+	if (daycycle == "Yes")
+		daycycle = TRUE
+	else
+		daycycle = FALSE
+
+	var/last_chance = alert("Spawn exoplanet?", "Final Confirmation", "Yes", "Cancel")
+
+	if (last_chance == "Cancel")
+		return
+
+	var/obj/effect/overmap/visitable/sector/exoplanet/new_planet = new exoplanet_type(null, world.maxx, world.maxy)
+	new_planet.features_budget = budget
+	new_planet.themes = list(new theme)
+	new_planet.daycycle = daycycle
+
+	new_planet.update_daynight()
+	new_planet.build_level()

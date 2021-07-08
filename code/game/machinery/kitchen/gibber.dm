@@ -89,10 +89,11 @@
 	else
 		return ..()
 
-/obj/machinery/gibber/MouseDrop_T(mob/target, mob/user)
-	if(user.stat || user.restrained())
-		return
-	move_into_gibber(user,target)
+/obj/machinery/gibber/receive_mouse_drop(atom/dropping, mob/user)
+	. = ..()
+	if(!. && ismob(dropping))
+		move_into_gibber(user, dropping)
+		return TRUE
 
 /obj/machinery/gibber/proc/move_into_gibber(var/mob/user,var/mob/living/victim)
 
@@ -168,9 +169,10 @@
 	src.occupant.ghostize()
 	addtimer(CALLBACK(src, .proc/finish_gibbing), gib_time)
 
-	var/list/gib_products = shuffle(occupant.harvest_meat() | occupant.harvest_skin() | occupant.harvest_bones())
-	if(length(gib_products) <= 0)
+	var/list/gib_products = occupant.harvest_meat() | occupant.harvest_skin() | occupant.harvest_bones()
+	if(!length(gib_products))
 		return
+	gib_products = shuffle(gib_products)
 
 	var/slab_name =  occupant.name
 	var/slab_nutrition = 20

@@ -24,6 +24,8 @@ for(var/existing in get_turf(src)) { \
 	} \
 } \
 if(other_init) { \
-	crash_with("Deleting duplicate of [log_info_line(src)]"); \
+	PRINT_STACK_TRACE("Deleting duplicate of [log_info_line(src)]"); \
 	return INITIALIZE_HINT_QDEL; \
 }
+
+#define ADJUST_TAG_VAR(variable, map_hash) (istext(variable) && (variable += map_hash))

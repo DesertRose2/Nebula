@@ -91,7 +91,7 @@ var/global/photo_count = 0
 
 	var/n_name = sanitizeSafe(input(usr, "What would you like to label the photo?", "Photo Labelling", null)  as text, MAX_NAME_LEN)
 	//loc.loc check is for making possible renaming photos in clipboards
-	if(!n_name || !CanInteract(usr, GLOB.deep_inventory_state))
+	if(!n_name || !CanInteract(usr, global.deep_inventory_topic_state))
 		return
 	SetName("[(n_name ? text("[n_name]") : "photo")]")
 	add_fingerprint(usr)
@@ -110,29 +110,20 @@ var/global/photo_count = 0
 	storage_slots = DEFAULT_BOX_STORAGE //yes, that's storage_slots. Photos are w_class 1 so this has as many slots equal to the number of photos you could put in a box
 	can_hold = list(/obj/item/photo)
 
-/obj/item/storage/photo_album/MouseDrop(obj/over_object)
-
-	if((istype(usr, /mob/living/carbon/human)))
-		var/mob/M = usr
-		if(!( istype(over_object, /obj/screen) ))
-			return ..()
+/obj/item/storage/photo_album/handle_mouse_drop(atom/over, mob/user)
+	if(istype(over, /obj/screen/inventory))
+		var/obj/screen/inventory/inv = over
 		playsound(loc, "rustle", 50, 1, -5)
-		if((!( M.restrained() ) && !( M.stat ) && M.back == src))
-			switch(over_object.name)
-				if("r_hand")
-					if(M.unEquip(src))
-						M.put_in_r_hand(src)
-				if("l_hand")
-					if(M.unEquip(src))
-						M.put_in_l_hand(src)
-			add_fingerprint(usr)
-			return
-		if(over_object == usr && in_range(src, usr) || usr.contents.Find(src))
-			if(usr.s_active)
-				usr.s_active.close(usr)
-			show_to(usr)
-			return
-	return
+		if(user.back == src)
+			add_fingerprint(user)
+			if(user.unEquip(src))
+				user.equip_to_slot_if_possible(src, inv.slot_id)
+		else if(over == user && in_range(src, user) || loc == user)
+			if(user.s_active)
+				user.s_active.close(user)
+			show_to(user)
+		return TRUE
+	. = ..()
 
 /*********
 * camera *
@@ -145,7 +136,7 @@ var/global/photo_count = 0
 	item_state = "electropack"
 	w_class = ITEM_SIZE_SMALL
 	obj_flags = OBJ_FLAG_CONDUCTIBLE
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	material = /decl/material/solid/metal/aluminium
 	matter = list(/decl/material/solid/plastic = MATTER_AMOUNT_REINFORCEMENT)
 	var/pictures_max = 10
@@ -197,16 +188,13 @@ var/global/photo_count = 0
 /obj/item/camera/proc/get_mobs(turf/the_turf)
 	var/mob_detail
 	for(var/mob/living/carbon/A in the_turf)
-		if(A.invisibility) continue
-		var/holding = null
-		if(A.l_hand || A.r_hand)
-			if(A.l_hand) holding = "They are holding \a [A.l_hand]"
-			if(A.r_hand)
-				if(holding)
-					holding += " and \a [A.r_hand]"
-				else
-					holding = "They are holding \a [A.r_hand]"
-
+		if(A.invisibility)
+			continue
+		var/holding
+		for(var/obj/item/thing in A.get_held_items())
+			LAZYADD(holding, "\a [thing]")
+		if(length(holding))
+			holding = "They are holding [english_list(holding)]"
 		if(!mob_detail)
 			mob_detail = "You can see [A] on the photo[(A.health / A.maxHealth) < 0.75 ? " - [A] looks hurt":""].[holding ? " [holding]":"."]. "
 		else

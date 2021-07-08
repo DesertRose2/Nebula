@@ -10,8 +10,13 @@
 		)
 	flags_inv = HIDEMASK|HIDEEARS|HIDEEYES|BLOCKHAIR
 	item_flags = ITEM_FLAG_THICKMATERIAL
-	body_parts_covered = HEAD|FACE|EYES
+	body_parts_covered = SLOT_HEAD|SLOT_FACE|SLOT_EYES
 	siemens_coefficient = 0.9
+	origin_tech = "{'materials':3, 'engineering':3}"
+	matter = list(
+		/decl/material/solid/plastic = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/metal/silver = MATTER_AMOUNT_REINFORCEMENT
+	)
 
 /obj/item/clothing/suit/bio_suit
 	name = "bio suit"
@@ -20,7 +25,7 @@
 	w_class = ITEM_SIZE_HUGE//bulky item
 	gas_transfer_coefficient = 0
 	permeability_coefficient = 0
-	body_parts_covered = UPPER_TORSO|LOWER_TORSO|LEGS|FEET|ARMS|HANDS
+	body_parts_covered = SLOT_UPPER_BODY|SLOT_LOWER_BODY|SLOT_LEGS|SLOT_FEET|SLOT_ARMS|SLOT_HANDS
 	allowed = list(/obj/item/tank/emergency,/obj/item/pen,/obj/item/flashlight/pen,/obj/item/scanner/health,/obj/item/ano_scanner,/obj/item/clothing/head/bio_hood,/obj/item/clothing/mask/gas)
 	armor = list(
 		bio = ARMOR_BIO_SHIELDED, 
@@ -29,10 +34,15 @@
 	flags_inv = HIDEGLOVES|HIDESHOES|HIDEJUMPSUIT|HIDETAIL
 	item_flags = ITEM_FLAG_THICKMATERIAL
 	siemens_coefficient = 0.9
+	origin_tech = "{'materials':3, 'engineering':3}"
+	matter = list(
+		/decl/material/solid/plastic = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/metal/silver = MATTER_AMOUNT_REINFORCEMENT
+	)
 
 /obj/item/clothing/suit/bio_suit/Initialize()
 	. = ..()
-	slowdown_per_slot[slot_wear_suit] = 1.0
+	LAZYSET(slowdown_per_slot, slot_wear_suit_str, 1)
 
 //Standard biosuit, orange stripe
 /obj/item/clothing/head/bio_hood/general
@@ -75,7 +85,12 @@
 
 //Plague Dr mask can be found in clothing/masks/gasmask.dm
 /obj/item/clothing/suit/bio_suit/plaguedoctorsuit
-	name = "Plague doctor suit"
+	name = "plague doctor suit"
 	desc = "It protected doctors from the Black Death, back then. You bet your arse it's gonna help you against space plague."
 	icon = 'icons/clothing/suit/biosuit/plague.dmi'
 	flags_inv = HIDEGLOVES|HIDEJUMPSUIT|HIDETAIL
+	origin_tech = "{'materials':1,'engineering':1,'biotech':1}"
+	matter = list(
+		/decl/material/solid/plastic = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/metal/silver = MATTER_AMOUNT_REINFORCEMENT
+	)

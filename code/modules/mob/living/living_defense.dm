@@ -76,8 +76,8 @@
 	flash_pain()
 
 	if (stun_amount)
-		Stun(stun_amount)
-		Weaken(stun_amount)
+		SET_STATUS_MAX(src, STAT_STUN, stun_amount)
+		SET_STATUS_MAX(src, STAT_WEAK, stun_amount)
 		apply_effect(stun_amount, STUTTER)
 		apply_effect(stun_amount, EYE_BLUR)
 
@@ -126,18 +126,20 @@
 	//Apply weapon damage
 	var/damage_flags = I.damage_flags()
 
-	return apply_damage(effective_force, I.damtype, hit_zone, damage_flags, used_weapon=I)
+	return apply_damage(effective_force, I.damtype, hit_zone, damage_flags, used_weapon=I, armor_pen=I.armor_penetration)
 
 //this proc handles being hit by a thrown atom
 /mob/living/hitby(var/atom/movable/AM, var/datum/thrownthing/TT)
+
+	..()
 
 	if(isliving(AM))
 		var/mob/living/M = AM
 		playsound(loc, 'sound/weapons/pierce.ogg', 25, 1, -1)
 		if(skill_fail_prob(SKILL_COMBAT, 75))
-			Weaken(rand(3,5))
+			SET_STATUS_MAX(src, STAT_WEAK, rand(3,5))
 		if(M.skill_fail_prob(SKILL_HAULING, 100))
-			M.Weaken(rand(4,8))
+			SET_STATUS_MAX(M, STAT_WEAK, rand(4,8))
 		M.visible_message(SPAN_DANGER("\The [M] collides with \the [src]!"))
 
 	if(!aura_check(AURA_TYPE_THROWN, AM, TT.speed))
@@ -195,6 +197,8 @@
 		visible_message(SPAN_DANGER("[src] is pinned to the wall by [O]!"),SPAN_DANGER("You are pinned to the wall by [O]!"))
 		src.anchored = 1
 		src.pinned += O
+		if(!LAZYISIN(embedded,O))
+			embed(O)
 
 /mob/living/proc/embed(var/obj/O, var/def_zone=null, var/datum/wound/supplied_wound)
 	O.forceMove(src)
@@ -239,7 +243,7 @@
 /mob/living/proc/IgniteMob()
 	if(fire_stacks > 0 && !on_fire)
 		on_fire = 1
-		set_light(0.6, 0.1, 4, l_color = COLOR_ORANGE)
+		set_light(4, l_color = COLOR_ORANGE)
 		update_fire()
 
 /mob/living/proc/ExtinguishMob()
@@ -310,6 +314,7 @@
 			if(!I.action)
 				I.action = new I.default_action_type
 			I.action.name = I.action_button_name
+			I.action.desc = I.action_button_desc
 			I.action.SetTarget(I)
 			I.action.Grant(src)
 	return
@@ -351,6 +356,7 @@
 		B.UpdateIcon()
 
 		B.SetName(A.UpdateName())
+		B.desc = A.UpdateDesc()
 
 		client.screen += B
 

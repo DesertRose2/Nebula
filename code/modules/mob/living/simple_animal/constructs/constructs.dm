@@ -5,9 +5,12 @@
 	speak = list("Hsssssssszsht.", "Hsssssssss...", "Tcshsssssssszht!")
 	speak_emote = list("hisses")
 	emote_hear = list("wails","screeches")
-	response_help  = "thinks better of touching"
-	response_disarm = "flailed at"
-	response_harm   = "punched"
+
+	response_help_1p = "You think better of touching $TARGET$."
+	response_help_3p = "$USER$ thinks better of touching $TARGET$."
+	response_disarm =  "flails at"
+	response_harm =    "punches"
+
 	icon_dead = "shade_dead"
 	speed = -1
 	a_intent = I_HURT
@@ -26,6 +29,7 @@
 	mob_swap_flags = HUMAN|SIMPLE_ANIMAL|SLIME|MONKEY
 	mob_push_flags = ALLMOBS
 	bleed_colour = "#331111"
+	gene_damage = -1
 
 	meat_type =     null
 	meat_amount =   0
@@ -48,6 +52,7 @@
 	add_language(/decl/language/cult)
 	for(var/spell in construct_spells)
 		src.add_spell(new spell, "const_spell_ready")
+	set_light(1.5, -2, COLOR_WHITE)
 	update_icon()
 
 /mob/living/simple_animal/construct/death(gibbed, deathmessage, show_dead_message)
@@ -57,9 +62,8 @@
 	qdel(src)
 
 /mob/living/simple_animal/construct/on_update_icon()
-	overlays.Cut()
 	..()
-	add_glow()
+	set_overlays(emissive_overlay(icon,"glow-[icon_state]"))
 
 /mob/living/simple_animal/construct/attack_animal(var/mob/user)
 	if(istype(user, /mob/living/simple_animal/construct/builder))
@@ -73,7 +77,7 @@
 
 /mob/living/simple_animal/construct/examine(mob/user)
 	. = ..(user)
-	var/msg = "<span cass='info'>*---------*\nThis is \icon[src] \a <EM>[src]</EM>!\n"
+	var/msg = "<span cass='info'>*---------*\nThis is [html_icon(src)] \a <EM>[src]</EM>!\n"
 	if (src.health < src.maxHealth)
 		msg += "<span class='warning'>"
 		if (src.health >= src.maxHealth/2)
@@ -106,7 +110,7 @@
 	maxHealth = 250
 	health = 250
 	speak_emote = list("rumbles")
-	response_harm   = "harmlessly punches"
+	response_harm = "harmlessly punches"
 	harm_intent_damage = 0
 	natural_weapon = /obj/item/natural_weapon/juggernaut
 	mob_size = MOB_SIZE_LARGE
@@ -125,9 +129,9 @@
 	force = 30
 
 /mob/living/simple_animal/construct/armoured/Life()
-	weakened = 0
+	set_status(STAT_WEAK, 0)
 	if ((. = ..()))
-		return 
+		return
 
 /mob/living/simple_animal/construct/armoured/bullet_act(var/obj/item/projectile/P)
 	if(istype(P, /obj/item/projectile/energy) || istype(P, /obj/item/projectile/beam))
@@ -223,7 +227,7 @@
 	maxHealth = 750
 	health = 750
 	speak_emote = list("rumbles")
-	response_harm   = "harmlessly punched"
+	response_harm = "harmlessly punches"
 	harm_intent_damage = 0
 	natural_weapon = /obj/item/natural_weapon/juggernaut/behemoth
 	speed = 5
@@ -267,14 +271,6 @@
 	hitsound = 'sound/weapons/pierce.ogg'
 	sharp = TRUE
 	force = 25
-
-////////////////Glow//////////////////
-/mob/living/simple_animal/construct/proc/add_glow()
-	var/image/eye_glow = image(icon,"glow-[icon_state]")
-	eye_glow.plane = EFFECTS_ABOVE_LIGHTING_PLANE
-	eye_glow.layer = EYE_GLOW_LAYER
-	overlays += eye_glow
-	set_light(-2, 0.1, 1.5, l_color = "#ffffff")
 
 ////////////////HUD//////////////////////
 

@@ -81,7 +81,7 @@
 
 /obj/item/anodevice/Process()
 	if(!activated || !inserted_battery || !inserted_battery.battery_effect || !inserted_battery.stored_charge)
-		visible_message("<span class='notice'>\icon[src] [src] buzzes.</span>", "<span class='notice'>\icon[src] You hear something buzz.</span>")
+		visible_message("<span class='notice'>[html_icon(src)] [src] buzzes.</span>", "<span class='notice'>[html_icon(src)] You hear something buzz.</span>")
 		shutdown_emission()
 		return
 
@@ -108,25 +108,25 @@
 	if(inserted_battery.battery_effect)
 		inserted_battery.battery_effect.process()
 	else //ran out of charge
-		visible_message("<span class='notice'>\icon[src] [src] buzzes.</span>", "<span class='notice'>\icon[src] You hear something buzz.</span>")
+		visible_message("<span class='notice'>[html_icon(src)] [src] buzzes.</span>", "<span class='notice'>[html_icon(src)] You hear something buzz.</span>")
 		shutdown_emission()
 
 	if(current_tick >= duration)
-		visible_message("<span class='notice'>\icon[src] [src] chimes.</span>", "<span class='notice'>\icon[src] You hear something chime.</span>")
+		visible_message("<span class='notice'>[html_icon(src)] [src] chimes.</span>", "<span class='notice'>[html_icon(src)] You hear something chime.</span>")
 		shutdown_emission()
 
 /obj/item/anodevice/proc/start_emission()
 	activated = 1
 	current_tick = 0
 	START_PROCESSING(SSobj, src)
-	GLOB.moved_event.register(src, src, /obj/item/anodevice/proc/on_move)
+	events_repository.register(/decl/observ/moved, src, src, /obj/item/anodevice/proc/on_move)
 	if(inserted_battery?.battery_effect?.activated == 0)
 		inserted_battery.battery_effect.ToggleActivate(1)
 
 /obj/item/anodevice/proc/shutdown_emission()
 	activated = 0
 	STOP_PROCESSING(SSobj, src)
-	GLOB.moved_event.unregister(src, src)
+	events_repository.unregister(/decl/observ/moved, src, src)
 	if(inserted_battery?.battery_effect?.activated == 1)
 		inserted_battery.battery_effect.ToggleActivate(1)
 
@@ -135,7 +135,7 @@
 		inserted_battery.battery_effect.UpdateMove()
 
 /obj/item/anodevice/DefaultTopicState()
-	return GLOB.inventory_state
+	return global.inventory_topic_state
 
 /obj/item/anodevice/OnTopic(user, href_list)
 	if(..())
@@ -150,7 +150,7 @@
 		. = TOPIC_REFRESH
 	else if(href_list["startup"])
 		if(inserted_battery && inserted_battery.battery_effect && (inserted_battery.stored_charge > 0) )
-			visible_message("<span class='notice'>\icon[src] [src] whirrs.</span>", "<span class='notice'>\icon[src] You hear something whirr.</span>")
+			visible_message("<span class='notice'>[html_icon(src)] [src] whirrs.</span>", "<span class='notice'>[html_icon(src)] You hear something whirr.</span>")
 			start_emission()
 			. = TOPIC_REFRESH
 	else if(href_list["shutdown"])

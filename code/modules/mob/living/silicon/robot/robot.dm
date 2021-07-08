@@ -7,6 +7,7 @@
 	icon_state = "robot"
 	maxHealth = 300
 	health = 300
+	mob_sort_value = 4
 
 	mob_bump_flag = ROBOT
 	mob_swap_flags = ROBOT|MONKEY|SLIME|SIMPLE_ANIMAL
@@ -21,7 +22,7 @@
 	var/custom_sprite = 0 //Due to all the sprites involved, a var for our custom borgs may be best
 	var/crisis //Admin-settable for combat module use.
 	var/crisis_override = 0
-	var/integrated_light_max_bright = 0.75
+	var/integrated_light_power = 0.75
 	var/datum/wires/robot/wires
 	var/module_category = ROBOT_MODULE_TYPE_GROUNDED
 	var/dismantle_type = /obj/item/robot_parts/robot_suit
@@ -80,7 +81,6 @@
 	var/lower_mod = 0
 	var/jetpack = 0
 	var/datum/effect/effect/system/ion_trail_follow/ion_trail = null
-	var/datum/effect/effect/system/spark_spread/spark_system
 	var/jeton = 0
 	var/killswitch = 0
 	var/killswitch_time = 60
@@ -100,13 +100,13 @@
 		/mob/living/silicon/robot/proc/robot_checklaws
 	)
 
+	light_wedge = LIGHT_WIDE
+
 /mob/living/silicon/robot/Initialize()
 	. = ..()
-	spark_system = new /datum/effect/effect/system/spark_spread()
-	spark_system.set_up(5, 0, src)
-	spark_system.attach(src)
 
 	add_language(/decl/language/binary, 1)
+	add_language(/decl/language/machine, 1)
 	add_language(/decl/language/human/common, 1)
 
 	wires = new(src)
@@ -122,7 +122,7 @@
 	if(!scrambledcodes && !camera)
 		camera = new /obj/machinery/camera(src)
 		camera.c_tag = real_name
-		camera.replace_networks(list(NETWORK_EXODUS,NETWORK_ROBOTS))
+		camera.replace_networks(list(NETWORK_PUBLIC,NETWORK_ROBOTS))
 		if(wires.IsIndexCut(BORG_WIRE_CAMERA))
 			camera.status = 0
 	init()
@@ -142,6 +142,9 @@
 		cell_component.installed = 1
 
 	add_robot_verbs()
+
+	// Disables lay down verb for robots due they're can't lay down and it cause some movement, vision issues.
+	verbs -= /mob/living/verb/lay_down
 
 	hud_list[HEALTH_HUD]      = new /image/hud_overlay('icons/mob/hud.dmi', src, "hudblank")
 	hud_list[STATUS_HUD]      = new /image/hud_overlay('icons/mob/hud.dmi', src, "hudhealth100")
@@ -270,7 +273,7 @@
 	if(module && !override)
 		return
 
-	var/decl/security_state/security_state = decls_repository.get_decl(GLOB.using_map.security_state)
+	var/decl/security_state/security_state = GET_DECL(global.using_map.security_state)
 	var/is_crisis_mode = crisis_override || (crisis && security_state.current_security_level_is_same_or_higher_than(security_state.high_security_level))
 	var/list/robot_modules = SSrobots.get_available_modules(module_category, is_crisis_mode, override)
 
@@ -430,9 +433,9 @@
 /mob/living/silicon/robot/proc/update_robot_light()
 	if(lights_on)
 		if(intenselight)
-			set_light(1, 2, 6)
+			set_light(integrated_light_power * 2, integrated_light_power)
 		else
-			set_light(0.75, 1, 4)
+			set_light(integrated_light_power)
 	else
 		set_light(0)
 
@@ -478,8 +481,8 @@
 
 /mob/living/silicon/robot/bullet_act(var/obj/item/projectile/Proj)
 	..(Proj)
-	if(prob(75) && Proj.damage > 0) 
-		spark_system.start()
+	if(prob(75) && Proj.damage > 0)
+		spark_at(src, 5, holder=src)
 	return 2
 
 /mob/living/silicon/robot/attackby(obj/item/W, mob/user)
@@ -523,8 +526,7 @@
 			adjustBruteLoss(-30)
 			updatehealth()
 			add_fingerprint(user)
-			for(var/mob/O in viewers(user, null))
-				O.show_message(text("<span class='warning'>[user] has fixed some of the dents on [src]!</span>"), 1)
+			user.visible_message(SPAN_NOTICE("\The [user] has fixed some of the dents on \the [src]!"))
 		else
 			to_chat(user, "Need more welding fuel!")
 			return
@@ -538,8 +540,7 @@
 			user.setClickCooldown(DEFAULT_ATTACK_COOLDOWN)
 			adjustFireLoss(-30)
 			updatehealth()
-			for(var/mob/O in viewers(user, null))
-				O.show_message(text("<span class='warning'>[user] has fixed some of the burnt wires on [src]!</span>"), 1)
+			user.visible_message(SPAN_NOTICE("\The [user] has fixed some of the burnt wires on \the [src]!"))
 
 	else if(isCrowbar(W) && user.a_intent != I_HURT)	// crowbar means open or close the cover - we all know what a crowbar is by now
 		if(opened)
@@ -629,7 +630,7 @@
 		to_chat(user, "The wires have been [wiresexposed ? "exposed" : "unexposed"].")
 		update_icon()
 
-	else if(istype(W, /obj/item/screwdriver) && opened && cell)	// radio
+	else if(isScrewdriver(W) && opened && cell)	// radio
 		if(silicon_radio)
 			silicon_radio.attackby(W,user)//Push it to the radio to let it handle everything
 		else
@@ -672,7 +673,7 @@
 
 	else
 		if(!(istype(W, /obj/item/robotanalyzer) || istype(W, /obj/item/scanner/health)) && W.force && user.a_intent != I_HELP)
-			spark_system.start()
+			spark_at(src, 5, holder=src)
 		return ..()
 
 /mob/living/silicon/robot/proc/handle_selfinsert(obj/item/W, mob/user)
@@ -690,11 +691,15 @@
 	if(istype(user,/mob/living/carbon/human))
 
 		var/mob/living/carbon/human/H = user
+		if(H.a_intent == I_HELP && H.attempt_hug(src))
+			return TRUE
+
 		if(H.a_intent == I_GRAB)
 			return ..()
-		if(H.species.can_shred(H))
+
+		if(H.a_intent == I_HURT && H.species.can_shred(H))
 			attack_generic(H, rand(30,50), "slashed")
-			return
+			return TRUE
 
 	if(opened && !wiresexposed && (!istype(user, /mob/living/silicon)))
 		var/datum/robot_component/cell_component = components["power cell"]
@@ -729,9 +734,7 @@
 				eye_overlays = list()
 			var/image/eye_overlay = eye_overlays[eye_icon_state]
 			if(!eye_overlay)
-				eye_overlay = image(icon, eye_icon_state)
-				eye_overlay.plane = EFFECTS_ABOVE_LIGHTING_PLANE
-				eye_overlay.layer = EYE_GLOW_LAYER
+				eye_overlay = emissive_overlay(icon, eye_icon_state)
 				eye_overlays[eye_icon_state] = eye_overlay
 			overlays += eye_overlay
 
@@ -887,16 +890,12 @@
 						if(cleaned_human.lying)
 							if(cleaned_human.head)
 								cleaned_human.head.clean_blood()
-								cleaned_human.update_inv_head(0)
 							if(cleaned_human.wear_suit)
 								cleaned_human.wear_suit.clean_blood()
-								cleaned_human.update_inv_wear_suit(0)
 							else if(cleaned_human.w_uniform)
 								cleaned_human.w_uniform.clean_blood()
-								cleaned_human.update_inv_w_uniform(0)
 							if(cleaned_human.shoes)
 								cleaned_human.shoes.clean_blood()
-								cleaned_human.update_inv_shoes(0)
 							cleaned_human.clean_blood(1)
 							to_chat(cleaned_human, "<span class='warning'>[src] cleans your face!</span>")
 		return
@@ -1070,8 +1069,9 @@
 				clear_inherent_laws()
 				laws = new /datum/ai_laws/syndicate_override
 				var/time = time2text(world.realtime,"hh:mm:ss")
-				GLOB.lawchanges.Add("[time] <B>:</B> [user.name]([user.key]) emagged [name]([key])")
-				set_zeroth_law("Only [user.real_name] and people \he designates as being such are operatives.")
+				global.lawchanges.Add("[time] <B>:</B> [user.name]([user.key]) emagged [name]([key])")
+				var/decl/pronouns/G = user.get_pronouns(ignore_coverings = TRUE)
+				set_zeroth_law("Only [user.real_name] and people [G.he] designate[G.s] as being such are operatives.")
 				SetLockdown(0)
 				. = 1
 				spawn()
@@ -1119,3 +1119,9 @@
 	if(.)
 		handle_selfinsert(W, user)
 		recalculate_synth_capacities()
+
+/mob/living/silicon/robot/get_admin_job_string()
+	return "Robot"
+
+/mob/living/silicon/robot/handle_pre_transformation()
+	QDEL_NULL(mmi)

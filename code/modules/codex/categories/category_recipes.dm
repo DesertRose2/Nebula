@@ -1,10 +1,10 @@
-/datum/codex_category/recipes
+/decl/codex_category/recipes
 	name = "Recipes"
 	desc = "Recipes for a variety of different kinds of foods and condiments."
 	guide_name = "Cooking"
 	guide_strings = list("chef", "cooking", "recipes")
 
-/datum/codex_category/recipes/Initialize()
+/decl/codex_category/recipes/Initialize()
 
 	var/list/entries_to_register = list()
 
@@ -67,17 +67,19 @@
 		if(food.minimum_temperature > 0)
 			mechanics_text += "<br>The recipe will not succeed if the temperature is below [food.minimum_temperature]K."
 
-		entries_to_register += new /datum/codex_entry(            \
+		entries_to_register += new /datum/codex_entry(                     \
 		 _display_name =       "[lowertext(food.name)] ([category_name])", \
-		 _associated_strings = list(                              \
-		 	lowertext(food.name),                                 \
-			lowertext(product_name)),                             \
-		 _lore_text =          lore_text,                         \
-		 _mechanics_text =     mechanics_text,                    \
+		 _associated_strings = list(                                       \
+		 	lowertext(food.name),                                          \
+			lowertext(product_name)),                                      \
+		 _lore_text =          lore_text,                                  \
+		 _mechanics_text =     mechanics_text,                             \
 		)
 
-	for(var/datum/recipe/recipe in SScuisine.microwave_recipes)
-		if(recipe.hidden_from_codex || !recipe.result)
+	var/list/all_recipes = decls_repository.get_decls_of_subtype(/decl/recipe)
+	for(var/rtype in all_recipes)
+		var/decl/recipe/recipe = all_recipes[rtype]
+		if(!istype(recipe) || recipe.hidden_from_codex || !recipe.result)
 			continue
 
 		var/mechanics_text = ""
@@ -112,7 +114,7 @@
 		)
 
 	for(var/datum/codex_entry/entry in entries_to_register)
-		SScodex.add_entry_by_string(entry.display_name, entry)
-		items += entry.display_name
+		SScodex.add_entry_by_string(entry.name, entry)
+		items |= entry.name
 
-	..()
+	. = ..()

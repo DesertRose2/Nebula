@@ -22,7 +22,7 @@
 /obj/structure/monolith/Initialize()
 	. = ..()
 	icon_state = "jaggy[rand(1,4)]"
-	if(GLOB.using_map.use_overmap)
+	if(global.using_map.use_overmap)
 		var/obj/effect/overmap/visitable/sector/exoplanet/E = map_sectors["[z]"]
 		if(istype(E))
 			desc += "\nThere are images on it: [E.get_engravings()]"
@@ -32,22 +32,20 @@
 	..()
 	overlays.Cut()
 	if(active)
-		var/image/I = image(icon,"[icon_state]decor")
+		var/image/I = emissive_overlay(icon,"[icon_state]decor")
 		I.appearance_flags = RESET_COLOR
 		I.color = get_random_colour(0, 150, 255)
-		I.layer = ABOVE_LIGHTING_LAYER
-		I.plane = EFFECTS_ABOVE_LIGHTING_PLANE
 		overlays += I
-		set_light(0.3, 0.1, 2, l_color = I.color)
+		set_light(2, 0.3, I.color)
 
-	var/turf/simulated/floor/exoplanet/T = get_turf(src)
+	var/turf/exterior/T = get_turf(src)
 	if(istype(T))
 		var/image/I = overlay_image(icon, "dugin", T.dirt_color, RESET_COLOR)
 		overlays += I
 
 /obj/structure/monolith/attack_hand(mob/user)
 	visible_message("[user] touches \the [src].")
-	if(GLOB.using_map.use_overmap && istype(user,/mob/living/carbon/human))
+	if(global.using_map.use_overmap && istype(user,/mob/living/carbon/human))
 		var/obj/effect/overmap/visitable/sector/exoplanet/E = map_sectors["[z]"]
 		if(istype(E))
 			var/mob/living/carbon/human/H = user
@@ -63,8 +61,8 @@
 					for(var/i = 1 to 10)
 						vision += pick(E.actors) + " " + pick("killing","dying","gored","expiring","exploding","mauled","burning","flayed","in agony") + ". "
 					to_chat(H, "<span class='danger'><font size=2>[uppertext(vision)]</font></span>")
-					H.Paralyse(2)
-					H.hallucination(20, 100)
+					SET_STATUS_MAX(H, STAT_PARA, 2)
+					H.set_hallucination(20, 100)
 				return
 	to_chat(user, "<span class='notice'>\The [src] is still.</span>")
 	return ..()

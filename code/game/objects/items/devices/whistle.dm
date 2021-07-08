@@ -2,8 +2,7 @@
 	name = "hailer"
 	desc = "Used by obese officers to save their breath for running."
 	icon = 'icons/obj/items/device/hailer.dmi'
-	icon_state = "voice0"
-	item_state = "flashbang"	//looks exactly like a flash (and nothing like a flashbang)
+	icon_state = ICON_STATE_WORLD
 	w_class = ITEM_SIZE_TINY
 	obj_flags = OBJ_FLAG_CONDUCTIBLE
 
@@ -28,7 +27,7 @@
 
 	to_chat(usr, "You configure the hailer to shout \"[use_message]\".")
 
-/obj/item/hailer/attack_self(mob/living/carbon/user)
+/obj/item/hailer/attack_self(mob/user)
 	if (spamcheck)
 		return
 

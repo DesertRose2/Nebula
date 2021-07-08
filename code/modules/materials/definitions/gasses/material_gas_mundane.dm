@@ -8,6 +8,7 @@
 	gas_symbol_html = "O<sub>2</sub>"
 	gas_symbol = "O2"
 	gas_metabolically_inert = TRUE
+	value = 0.25
 
 /decl/material/gas/helium
 	name = "helium"
@@ -19,8 +20,9 @@
 	gas_symbol = "He"
 	taste_description = "nothing"
 	metabolism = 0.05
+	value = 0.3
 
-/decl/material/gas/helium/affect_blood(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/gas/helium/affect_blood(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
 	M.add_chemical_effect(CE_SQUEAKY, 1)
 
@@ -42,31 +44,35 @@
 	taste_description = "stale air"
 	metabolism = 0.05 // As with helium.
 
-/decl/material/gas/carbon_monoxide/affect_blood(var/mob/living/carbon/human/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/gas/carbon_monoxide/affect_blood(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	if(!istype(M))
 		return
 	var/warning_message
 	var/warning_prob = 10
-	var/dosage = M.chem_doses[type]
+	var/dosage = LAZYACCESS(M.chem_doses, type)
+	var/mob/living/carbon/human/H = M
 	if(dosage >= 3)
 		warning_message = pick("extremely dizzy","short of breath","faint","confused")
 		warning_prob = 15
 		M.adjustOxyLoss(10,20)
-		M.co2_alert = 1
+		if(istype(H))
+			H.co2_alert = 1
 	else if(dosage >= 1.5)
 		warning_message = pick("dizzy","short of breath","faint","momentarily confused")
-		M.co2_alert = 1
 		M.adjustOxyLoss(3,5)
+		if(istype(H))
+			H.co2_alert = 1
 	else if(dosage >= 0.25)
 		warning_message = pick("a little dizzy","short of breath")
 		warning_prob = 10
-		M.co2_alert = 0
-	else
-		M.co2_alert = 0
-	if(dosage > 1 && M.losebreath < 15)
-		M.losebreath++
+		if(istype(H))
+			H.co2_alert = 0
+	else if(istype(H))
+		H.co2_alert = 0
+	if(istype(H) && dosage > 1 && H.losebreath < 15)
+		H.losebreath++
 	if(warning_message && prob(warning_prob))
-		to_chat(M, "<span class='warning'>You feel [warning_message].</span>")
+		to_chat(M, SPAN_WARNING("You feel [warning_message]."))
 
 /decl/material/gas/methyl_bromide
 	name = "methyl bromide"
@@ -79,18 +85,22 @@
 	vapor_products = list(
 		/decl/material/gas/methyl_bromide = 1
 	)
+	value = 0.25
 
-/decl/material/gas/methyl_bromide/affect_blood(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/gas/methyl_bromide/affect_blood(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	. = ..()
-	if(istype(M))
-		for(var/obj/item/organ/external/E in M.organs)
-			if(LAZYLEN(E.implants))
-				for(var/obj/effect/spider/spider in E.implants)
-					if(prob(25))
-						E.implants -= spider
-						M.visible_message("<span class='notice'>The dying form of \a [spider] emerges from inside \the [M]'s [E.name].</span>")
-						qdel(spider)
-						break
+	if(!ishuman(M))
+		return
+	var/mob/living/carbon/human/H = M
+	for(var/obj/item/organ/external/E in H.organs)
+		if(!LAZYLEN(E.implants))
+			continue
+		for(var/obj/effect/spider/spider in E.implants)
+			if(prob(25))
+				E.implants -= spider
+				H.visible_message(SPAN_NOTICE("The dying form of \a [spider] emerges from inside \the [M]'s [E.name]."))
+				qdel(spider)
+				break
 
 /decl/material/gas/nitrous_oxide
 	name = "sleeping agent"
@@ -103,17 +113,18 @@
 	gas_symbol_html = "N<sub>2</sub>O"
 	gas_symbol = "N2O"
 	metabolism = 0.05 // So that low dosages have a chance to build up in the body.
+	value = 0.25
 
-/decl/material/gas/nitrous_oxide/affect_blood(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
-	var/dosage = M.chem_doses[type]
+/decl/material/gas/nitrous_oxide/affect_blood(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
+	var/dosage = LAZYACCESS(M.chem_doses, type)
 	if(dosage >= 1)
-		if(prob(5)) M.Sleeping(3)
-		M.dizziness =  max(M.dizziness, 3)
-		M.confused =   max(M.confused, 3)
+		if(prob(5)) SET_STATUS_MAX(M, STAT_ASLEEP, 3)
+		SET_STATUS_MAX(M, STAT_DIZZY, 3)
+		SET_STATUS_MAX(M, STAT_CONFUSE, 3)
 	if(dosage >= 0.3)
-		if(prob(5)) M.Paralyse(1)
-		M.drowsyness = max(M.drowsyness, 3)
-		M.slurring =   max(M.slurring, 3)
+		if(prob(5)) SET_STATUS_MAX(M, STAT_PARA, 1)
+		SET_STATUS_MAX(M, STAT_DROWSY, 3)
+		SET_STATUS_MAX(M, STAT_SLUR, 3)
 	if(prob(20))
 		M.emote(pick("giggle", "laugh"))
 	M.add_chemical_effect(CE_PULSE, -1)
@@ -159,6 +170,7 @@
 	gas_molar_mass = 0.018
 	gas_symbol_html = "Ar"
 	gas_symbol = "Ar"
+	value = 0.25
 
 // If narcosis is ever simulated, krypton has a narcotic potency seven times greater than regular airmix.
 /decl/material/gas/krypton
@@ -167,6 +179,7 @@
 	gas_molar_mass = 0.036
 	gas_symbol_html = "Kr"
 	gas_symbol = "Kr"
+	value = 0.25
 
 /decl/material/gas/neon
 	name = "neon"
@@ -174,6 +187,7 @@
 	gas_molar_mass = 0.01
 	gas_symbol_html = "Ne"
 	gas_symbol = "Ne"
+	value = 0.25
 
 /decl/material/gas/ammonia
 	name = "ammonia"
@@ -195,17 +209,18 @@
 	gas_molar_mass = 0.054
 	gas_symbol_html = "Xe"
 	gas_symbol = "Xe"
+	value = 0.25
 
-/decl/material/gas/xenon/affect_blood(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
-	var/dosage = M.chem_doses[type]
+/decl/material/gas/xenon/affect_blood(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
+	var/dosage = LAZYACCESS(M.chem_doses, type)
 	if(dosage >= 1)
-		if(prob(5)) M.Sleeping(3)
-		M.dizziness =  max(M.dizziness, 3)
-		M.confused =   max(M.confused, 3)
+		if(prob(5)) SET_STATUS_MAX(M, STAT_ASLEEP, 3)
+		SET_STATUS_MAX(M, STAT_DIZZY, 3)
+		SET_STATUS_MAX(M, STAT_CONFUSE, 3)
 	if(dosage >= 0.3)
-		if(prob(5)) M.Paralyse(1)
-		M.drowsyness = max(M.drowsyness, 3)
-		M.slurring =   max(M.slurring, 3)
+		if(prob(5)) SET_STATUS_MAX(M, STAT_PARA, 1)
+		SET_STATUS_MAX(M, STAT_DROWSY, 3)
+		SET_STATUS_MAX(M, STAT_SLUR, 3)
 	M.add_chemical_effect(CE_PULSE, -1)
 
 /decl/material/gas/chlorine
@@ -237,38 +252,47 @@
 /decl/material/gas/hydrogen
 	name = "hydrogen"
 	lore_text = "A colorless, flammable gas."
-	sheet_singular_name = "ingot"
-	sheet_plural_name = "ingots"
 	flags = MAT_FLAG_FUSION_FUEL
 	wall_name = "bulkhead"
 	construction_difficulty = MAT_VALUE_HARD_DIY
 	gas_specific_heat = 100
 	gas_molar_mass = 0.002
 	gas_flags = XGM_GAS_FUEL
-	gas_burn_product = /decl/material/liquid/water
+	burn_product = /decl/material/liquid/water
 	gas_symbol_html = "H<sub>2</sub>"
 	gas_symbol = "H2"
 	dissolves_into = list(
 		/decl/material/liquid/fuel/hydrazine = 1
 	)
+	value = 0.4
 
 /decl/material/gas/hydrogen/tritium
 	name = "tritium"
 	lore_text = "A radioactive isotope of hydrogen. Useful as a fusion reactor fuel material."
-	mechanics_text = "Tritium is useable as a fuel in some forms of portable generator. It can also be converted into a fuel rod suitable for a R-UST fusion plant injector by clicking a stack on a fuel compressor. It fuses hotter than deuterium but is correspondingly more unstable."
-	stack_type = /obj/item/stack/material/tritium
+	mechanics_text = "Tritium is useable as a fuel in some forms of portable generator. It can also be converted into a fuel rod suitable for a R-UST fusion plant injector by using a fuel compressor. It fuses hotter than deuterium but is correspondingly more unstable."
 	color = "#777777"
 	stack_origin_tech = "{'materials':5}"
-	value = 1.5
+	value = 0.45
 	gas_symbol_html = "T"
 	gas_symbol = "T"
 
 /decl/material/gas/hydrogen/deuterium
 	name = "deuterium"
 	lore_text = "One of the two stable isotopes of hydrogen; also known as heavy hydrogen. Useful as a chemically synthesised fusion reactor fuel material."
-	mechanics_text = "Deuterium can be converted into a fuel rod suitable for a R-UST fusion plant injector by clicking a stack on a fuel compressor. It is the most 'basic' fusion fuel."
-	stack_type = /obj/item/stack/material/deuterium
+	mechanics_text = "Deuterium can be converted into a fuel rod suitable for a R-UST fusion plant injector by using a fuel compressor. It is the most 'basic' fusion fuel."
+	flags = MAT_FLAG_FUSION_FUEL | MAT_FLAG_FISSIBLE
 	color = "#999999"
 	stack_origin_tech = "{'materials':3}"
 	gas_symbol_html = "D"
 	gas_symbol = "D"
+	value = 0.5
+
+	neutron_interactions = list(
+		INTERACTION_ABSORPTION = 1250
+	)
+	absorption_products = list(
+		/decl/material/gas/hydrogen/tritium = 1
+	)
+	neutron_absorption = 5
+	neutron_cross_section = 3
+

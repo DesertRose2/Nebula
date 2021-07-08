@@ -14,61 +14,16 @@
 	var/list/climbers
 	var/climb_speed_mult = 1
 	var/explosion_resistance = 0
+	var/icon_scale_x = 1 // Holds state of horizontal scaling applied.
+	var/icon_scale_y = 1 // Ditto, for vertical scaling.
+	var/icon_rotation = 0 // And one for rotation as well.
+	var/transform_animate_time = 0 // If greater than zero, transform-based adjustments (scaling, rotating) will visually occur over this time.
 
-/atom/New(loc, ...)
-	//atom creation method that preloads variables at creation
-	if(GLOB.use_preloader && (src.type == GLOB._preloader.target_path))//in case the instanciated atom is creating other atoms in New()
-		GLOB._preloader.load(src)
+	var/tmp/currently_exploding = FALSE
 
-	var/do_initialize = SSatoms.atom_init_stage
-	var/list/created = SSatoms.created_atoms
-	if(do_initialize > INITIALIZATION_INSSATOMS_LATE)
-		args[1] = do_initialize == INITIALIZATION_INNEW_MAPLOAD
-		if(SSatoms.InitAtom(src, args))
-			//we were deleted
-			return
-	else if(created)
-		var/list/argument_list
-		if(length(args) > 1)
-			argument_list = args.Copy(2)
-		if(argument_list || do_initialize == INITIALIZATION_INSSATOMS_LATE)
-			created[src] = argument_list
-
-	if(atom_flags & ATOM_FLAG_CLIMBABLE)
-		verbs += /atom/proc/climb_on
-
-//Called after New if the map is being loaded. mapload = TRUE
-//Called from base of New if the map is not being loaded. mapload = FALSE
-//This base must be called or derivatives must set initialized to TRUE
-//must not sleep
-//Other parameters are passed from New (excluding loc)
-//Must return an Initialize hint. Defined in __DEFINES/subsystems.dm
-
-/atom/proc/Initialize(mapload, ...)
+// This is called by the maploader prior to Initialize to perform static modifications to vars set on the map. Intended use case: adjust tag vars on duplicate templates.
+/atom/proc/modify_mapped_vars(map_hash)
 	SHOULD_CALL_PARENT(TRUE)
-	if(atom_flags & ATOM_FLAG_INITIALIZED)
-		crash_with("Warning: [src]([type]) initialized multiple times!")
-	atom_flags |= ATOM_FLAG_INITIALIZED
-
-	if(light_max_bright && light_outer_range)
-		update_light()
-
-	if(opacity)
-		updateVisibility(src)
-		var/turf/T = loc
-		if(istype(T))
-			T.RecalculateOpacity()
-
-	return INITIALIZE_HINT_NORMAL
-
-//called if Initialize returns INITIALIZE_HINT_LATELOAD
-/atom/proc/LateInitialize()
-	return
-
-/atom/Destroy()
-	global.is_currently_exploding -= src
-	QDEL_NULL(reagents)
-	. = ..()
 
 /atom/proc/reveal_blood()
 	return
@@ -252,7 +207,7 @@ its easier to just keep the beam vertical.
 			f_name = "a "
 		f_name += "<font color ='[blood_color]'>stained</font> [name][infix]!"
 
-	to_chat(user, "\icon[src] That's [f_name] [suffix]")
+	to_chat(user, "[html_icon(src)] That's [f_name] [suffix]")
 	to_chat(user, desc)
 	return TRUE
 
@@ -264,11 +219,17 @@ its easier to just keep the beam vertical.
 //called to set the atom's dir and used to add behaviour to dir-changes
 /atom/proc/set_dir(new_dir)
 	SHOULD_CALL_PARENT(TRUE)
-	var/old_dir = dir
-	if(new_dir == old_dir)
-		return FALSE
+	. = new_dir != dir
 	dir = new_dir
-	return TRUE
+	if(.)
+		if(light_source_solo)
+			light_source_solo.source_atom.update_light()
+		else if(light_source_multi)
+			var/datum/light_source/L
+			for(var/thing in light_source_multi)
+				L = thing
+				if(L.light_angle)
+					L.source_atom.update_light()
 
 /atom/proc/set_icon_state(var/new_icon_state)
 	SHOULD_CALL_PARENT(TRUE)
@@ -287,7 +248,9 @@ its easier to just keep the beam vertical.
 	return
 
 /atom/proc/get_contained_external_atoms()
-	. = contents
+	for(var/atom/movable/AM in contents)
+		if(!QDELETED(AM) && AM.simulated)
+			LAZYADD(., AM)
 
 /atom/proc/dump_contents()
 	for(var/thing in get_contained_external_atoms())
@@ -299,27 +262,29 @@ its easier to just keep the beam vertical.
 				M.client.eye = M.client.mob
 				M.client.perspective = MOB_PERSPECTIVE
 
-/atom/proc/physically_destroyed()
+/atom/proc/physically_destroyed(var/skip_qdel)
 	SHOULD_CALL_PARENT(TRUE)
 	dump_contents()
+	if(!skip_qdel && !QDELETED(src))
+		qdel(src)
 	. = TRUE
 
 /atom/proc/try_detonate_reagents(var/severity = 3)
 	if(reagents)
 		for(var/rtype in reagents.reagent_volumes)
-			var/decl/material/R = decls_repository.get_decl(rtype)
+			var/decl/material/R = GET_DECL(rtype)
 			R.explosion_act(src, severity)
 
 /atom/proc/explosion_act(var/severity)
 	SHOULD_CALL_PARENT(TRUE)
-	if(!global.is_currently_exploding[src])
-		global.is_currently_exploding[src] = TRUE
+	if(!currently_exploding)
+		currently_exploding = TRUE
 		. = (severity <= 3)
 		if(.)
 			for(var/atom/movable/AM in contents)
 				AM.explosion_act(severity++)
 			try_detonate_reagents(severity)
-		global.is_currently_exploding -= src
+		currently_exploding = FALSE
 
 /atom/proc/emag_act(var/remaining_charges, var/mob/user, var/emag_source)
 	return NO_EMAG_ACT
@@ -337,6 +302,7 @@ its easier to just keep the beam vertical.
 	. = TRUE
 
 /atom/proc/hitby(atom/movable/AM, var/datum/thrownthing/TT)//already handled by throw impact
+	SHOULD_CALL_PARENT(TRUE)
 	if(isliving(AM))
 		var/mob/living/M = AM
 		M.apply_damage(TT.speed*5, BRUTE)
@@ -364,6 +330,7 @@ its easier to just keep the beam vertical.
 	vomit.reagents.add_reagent(/decl/material/liquid/acid/stomach, 5)
 
 /atom/proc/clean_blood()
+	SHOULD_CALL_PARENT(TRUE)
 	if(!simulated)
 		return
 	fluorescent = 0
@@ -375,15 +342,15 @@ its easier to just keep the beam vertical.
 		if(forensics)
 			forensics.remove_data(/datum/forensics/blood_dna)
 			forensics.remove_data(/datum/forensics/gunshot_residue)
-		return 1
+		return TRUE
 
 /atom/proc/get_global_map_pos()
-	if(!islist(GLOB.global_map) || isemptylist(GLOB.global_map)) return
+	if(!islist(global.global_map) || !length(global.global_map)) return
 	var/cur_x = null
 	var/cur_y = null
 	var/list/y_arr = null
-	for(cur_x=1,cur_x<=GLOB.global_map.len,cur_x++)
-		y_arr = GLOB.global_map[cur_x]
+	for(cur_x=1,cur_x<=global.global_map.len,cur_x++)
+		y_arr = global.global_map[cur_x]
 		cur_y = y_arr.Find(src.z)
 		if(cur_y)
 			break
@@ -396,12 +363,6 @@ its easier to just keep the beam vertical.
 
 /atom/proc/checkpass(passflag)
 	return pass_flags&passflag
-
-/atom/proc/isinspace()
-	if(istype(get_turf(src), /turf/space))
-		return 1
-	else
-		return 0
 
 // Show a message to all mobs and objects in sight of this atom
 // Use for objects performing visible actions
@@ -429,7 +390,7 @@ its easier to just keep the beam vertical.
 // message is the message output to anyone who can hear.
 // deaf_message (optional) is what deaf people will see.
 // hearing_distance (optional) is the range, how many tiles away the message can be heard.
-/atom/proc/audible_message(var/message, var/deaf_message, var/hearing_distance = world.view, var/checkghosts = null)
+/atom/proc/audible_message(var/message, var/deaf_message, var/hearing_distance = world.view, var/checkghosts = null, var/radio_message)
 	var/turf/T = get_turf(src)
 	var/list/mobs = list()
 	var/list/objs = list()
@@ -456,11 +417,7 @@ its easier to just keep the beam vertical.
 /atom/movable/onDropInto(var/atom/movable/AM)
 	return loc // If onDropInto returns something, then dropInto will attempt to drop AM there.
 
-/atom/proc/InsertedContents()
-	return contents
-
 //all things climbable
-
 /atom/attack_hand(mob/user)
 	..()
 	if(LAZYLEN(climbers) && !(user in climbers))
@@ -550,14 +507,14 @@ its easier to just keep the beam vertical.
 
 /atom/proc/object_shaken()
 	for(var/mob/living/M in climbers)
-		M.Weaken(1)
+		SET_STATUS_MAX(M, STAT_WEAK, 1)
 		to_chat(M, "<span class='danger'>You topple as you are shaken off \the [src]!</span>")
 		climbers.Cut(1,2)
 
 	for(var/mob/living/M in get_turf(src))
 		if(M.lying) return //No spamming this on people.
 
-		M.Weaken(3)
+		SET_STATUS_MAX(M, STAT_WEAK, 3)
 		to_chat(M, "<span class='danger'>You topple as \the [src] moves under you!</span>")
 
 		if(prob(25))
@@ -569,11 +526,7 @@ its easier to just keep the beam vertical.
 				M.adjustBruteLoss(damage)
 				return
 
-			var/obj/item/organ/external/affecting
-			var/list/limbs = BP_ALL_LIMBS //sanity check, can otherwise be shortened to affecting = pick(BP_ALL_LIMBS)
-			if(limbs.len)
-				affecting = H.get_organ(pick(limbs))
-
+			var/obj/item/organ/external/affecting = pick(H.organs)
 			if(affecting)
 				to_chat(M, "<span class='danger'>You land heavily on your [affecting.name]!</span>")
 				affecting.take_external_damage(damage, 0)
@@ -587,15 +540,11 @@ its easier to just keep the beam vertical.
 			H.updatehealth()
 	return
 
-/atom/MouseDrop_T(mob/target, mob/user)
-	var/mob/living/H = user
-	if(istype(H) && can_climb(H) && target == user)
-		do_climb(target)
-	else
-		return ..()
-
 /atom/proc/get_color()
 	return color
+
+/atom/proc/set_color(new_color)
+	color = new_color
 
 /atom/proc/get_cell()
 	return
@@ -607,7 +556,7 @@ its easier to just keep the beam vertical.
 	var/mob/user = usr
 	if(href_list["look_at_me"] && istype(user))
 		var/turf/T = get_turf(src)
-		if(T.CanUseTopic(user, GLOB.view_state) != STATUS_CLOSE)
+		if(T.CanUseTopic(user, global.view_topic_state) != STATUS_CLOSE)
 			user.examinate(src)
 			return TOPIC_HANDLED
 	. = ..()
@@ -617,3 +566,23 @@ its easier to just keep the beam vertical.
 
 /atom/proc/isflamesource()
 	. = FALSE
+
+// Transform setters.
+/atom/proc/set_rotation(new_rotation)
+	icon_rotation = new_rotation
+	update_transform()
+
+/atom/proc/set_scale(new_scale_x, new_scale_y)
+	if(isnull(new_scale_y))
+		new_scale_y = new_scale_x
+	if(new_scale_x != 0)
+		icon_scale_x = new_scale_x
+	if(new_scale_y != 0)
+		icon_scale_y = new_scale_y
+	update_transform()
+
+/atom/proc/update_transform()
+	var/matrix/M = matrix()
+	M.Scale(icon_scale_x, icon_scale_y)
+	M.Turn(icon_rotation)
+	animate(src, transform = M, transform_animate_time)

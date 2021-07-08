@@ -1,4 +1,4 @@
-//GLOBAL_LIST_INIT(mech_decals, (icon_states('icons/mecha/mech_decals.dmi')-list("template", "mask")))
+//var/list/mech_decals = (icon_states('icons/mecha/mech_decals.dmi')-list("template", "mask")))
 
 /mob/living/exosuit/premade
 	name = "impossible exosuit"
@@ -19,7 +19,7 @@
 		body.decal = decal
 		body.prebuild()
 	if(!material)
-		material = decls_repository.get_decl(/decl/material/solid/metal/steel)
+		material = GET_DECL(/decl/material/solid/metal/steel)
 	. = ..()
 
 	spawn_mech_equipment()
@@ -32,9 +32,6 @@
 	desc = "It seems to have been roughly thrown together and then spraypainted a single colour."
 
 /mob/living/exosuit/premade/random/Initialize(mapload, var/obj/structure/heavy_vehicle_frame/source_frame, var/super_random = FALSE, var/using_boring_colours = FALSE)
-	//if(!prob(100/(LAZYLEN(GLOB.mech_decals)+1)))
-	//	decal = pick(GLOB.mech_decals)
-
 	var/list/use_colours
 	if(using_boring_colours)
 		use_colours = list(
@@ -150,7 +147,7 @@
 /mob/living/exosuit/premade/random/normal
 
 /mob/living/exosuit/premade/random/boring/Initialize(mapload, var/obj/structure/heavy_vehicle_frame/source_frame)
-	..(mapload, source_frame, using_boring_colours = TRUE)
+	. = ..(mapload, source_frame, using_boring_colours = TRUE)
 
 /mob/living/exosuit/premade/random/extra/Initialize(mapload, var/obj/structure/heavy_vehicle_frame/source_frame)
-	..(mapload, source_frame, super_random = TRUE)
+	. = ..(mapload, source_frame, super_random = TRUE)

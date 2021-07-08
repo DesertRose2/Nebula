@@ -1,11 +1,11 @@
-var/list/organ_cache = list()
-
 /obj/item/organ
 	name = "organ"
 	icon = 'icons/obj/surgery.dmi'
 	germ_level = 0
 	w_class = ITEM_SIZE_TINY
 	default_action_type = /datum/action/item_action/organ
+	material = /decl/material/solid/meat
+	origin_tech = "{'materials':1,'biotech':1}"
 
 	// Strings.
 	var/organ_tag = "organ"           // Unique identifier.
@@ -18,23 +18,21 @@ var/list/organ_cache = list()
 	// Reference data.
 	var/mob/living/carbon/human/owner // Current mob owning the organ.
 	var/datum/dna/dna                 // Original DNA.
-	var/datum/species/species         // Original species.
+	var/decl/species/species          // Original species.
+	var/decl/bodytype/bodytype        // Original bodytype.
+	var/list/ailments                 // Current active ailments if any.
 
 	// Damage vars.
 	var/damage = 0                    // Current damage to the organ
 	var/min_broken_damage = 30        // Damage before becoming broken
 	var/max_damage = 30               // Damage cap
 	var/rejecting                     // Is this organ already being rejected?
-
 	var/death_time
-
-	// Bioprinter stats
-	var/can_be_printed = TRUE
-	var/print_cost
 
 /obj/item/organ/Destroy()
 	owner = null
 	dna = null
+	QDEL_NULL_LIST(ailments)
 	return ..()
 
 /obj/item/organ/proc/refresh_action_button()
@@ -70,8 +68,10 @@ var/list/organ_cache = list()
 	if (given_dna)
 		set_dna(given_dna)
 	if (!species)
-		species = get_species_by_key(GLOB.using_map.default_species)
+		species = get_species_by_key(global.using_map.default_species)
+
 	species.resize_organ(src)
+	bodytype = owner?.bodytype || species.default_bodytype
 
 	create_reagents(5 * (w_class-1)**2)
 	reagents.add_reagent(/decl/material/liquid/nutriment/protein, reagents.maximum_volume)
@@ -86,13 +86,15 @@ var/list/organ_cache = list()
 		blood_DNA.Cut()
 		blood_DNA[dna.unique_enzymes] = dna.b_type
 		species = get_species_by_key(dna.species)
+		bodytype = owner?.bodytype || species.default_bodytype
 		if (!species)
-			crash_with("Invalid DNA species. Expected a valid species name as string, was: [log_info_line(dna.species)]")
+			PRINT_STACK_TRACE("Invalid DNA species. Expected a valid species name as string, was: [log_info_line(dna.species)]")
 
 /obj/item/organ/proc/die()
 	damage = max_damage
 	status |= ORGAN_DEAD
 	STOP_PROCESSING(SSobj, src)
+	QDEL_NULL_LIST(ailments)
 	death_time = world.time
 	if(owner && vital)
 		owner.death()
@@ -131,6 +133,24 @@ var/list/organ_cache = list()
 		handle_antibiotics()
 		handle_rejection()
 		handle_germ_effects()
+
+	if(owner && length(ailments))
+		for(var/datum/ailment/ailment in ailments)
+			if(!ailment.treated_by_reagent_type)
+				continue
+			var/treated
+			var/datum/reagents/bloodstr_reagents = owner.get_injected_reagents()
+			if(bloodstr_reagents)
+				if(REAGENT_VOLUME(bloodstr_reagents, ailment.treated_by_reagent_type) >= ailment.treated_by_reagent_dosage)
+					treated = bloodstr_reagents
+				else if(REAGENT_VOLUME(owner.reagents, ailment.treated_by_reagent_type) >= ailment.treated_by_reagent_dosage)
+					treated = owner.reagents
+				else
+					var/datum/reagents/ingested = owner.get_ingested_reagents()
+					if(ingested && REAGENT_VOLUME(ingested, ailment.treated_by_reagent_type) >= ailment.treated_by_reagent_dosage)
+						treated = ingested
+			if(treated)
+				ailment.was_treated_by_medication(treated)
 
 	//check if we've hit max_damage
 	if(damage >= max_damage)
@@ -214,12 +234,10 @@ var/list/organ_cache = list()
 /obj/item/organ/proc/rejuvenate(var/ignore_prosthetic_prefs)
 	damage = 0
 	status = initial(status)
-	if(!ignore_prosthetic_prefs && owner && owner.client && owner.client.prefs && owner.client.prefs.real_name == owner.real_name)
-		var/status = owner.client.prefs.organ_data[organ_tag]
-		if(status == "assisted")
-			mechassist()
-		else if(status == "mechanical")
-			robotize()
+	if(ignore_prosthetic_prefs && ishuman(owner) && owner.client && owner.client.prefs && owner.client.prefs.real_name == owner.real_name)
+		for(var/decl/aspect/aspect as anything in owner.personal_aspects)
+			if(aspect.applies_to_organ(organ_tag))
+				aspect.apply(owner)
 	if(species)
 		species.post_organ_rejuvenate(src, owner)
 
@@ -228,7 +246,7 @@ var/list/organ_cache = list()
 	if(!owner || !germ_level)
 		return
 
-	var/antibiotics = owner.chem_effects[CE_ANTIBIOTIC]
+	var/antibiotics = GET_CHEMICAL_EFFECT(owner, CE_ANTIBIOTIC)
 	if (!antibiotics)
 		return
 
@@ -249,10 +267,12 @@ var/list/organ_cache = list()
 	if (can_recover())
 		damage = between(0, damage - round(amount, 0.1), max_damage)
 
-
-/obj/item/organ/proc/robotize() //Being used to make robutt hearts, etc
+/obj/item/organ/proc/robotize(var/company, var/skip_prosthetics = 0, var/keep_organs = 0, var/apply_material = /decl/material/solid/metal/steel)
 	status = ORGAN_PROSTHETIC
 	reagents?.clear_reagents()
+	material = GET_DECL(apply_material)
+	matter = null
+	create_matter()
 
 /obj/item/organ/proc/mechassist() //Used to add things like pacemakers, etc
 	status = ORGAN_ASSISTED
@@ -268,7 +288,7 @@ var/list/organ_cache = list()
 
 	if(!istype(owner))
 		return
-	GLOB.dismembered_event.raise_event(owner, src)
+	events_repository.raise_event(/decl/observ/dismembered, owner, src)
 
 	action_button_name = null
 
@@ -288,13 +308,20 @@ var/list/organ_cache = list()
 	owner.client?.screen -= src
 	owner = null
 
+	for(var/datum/ailment/ailment in ailments)
+		if(ailment.timer_id)
+			deltimer(ailment.timer_id)
+			ailment.timer_id = null
+
 /obj/item/organ/proc/replaced(var/mob/living/carbon/human/target, var/obj/item/organ/external/affected)
 	owner = target
 	action_button_name = initial(action_button_name)
 	forceMove(owner) //just in case
 	if(BP_IS_PROSTHETIC(src))
 		set_dna(owner.dna)
-	return 1
+	for(var/datum/ailment/ailment in ailments)
+		ailment.begin_ailment_event()
+	return TRUE
 
 /obj/item/organ/attack(var/mob/target, var/mob/user)
 	if(status & ORGAN_PROSTHETIC || !istype(target) || !istype(user) || (user != target && user.a_intent == I_HELP))
@@ -388,3 +415,57 @@ var/list/organ_cache = list()
 
 /obj/item/organ/proc/get_mechanical_assisted_descriptor()
 	return "mechanically-assisted [name]"
+
+var/global/list/ailment_reference_cache = list()
+/proc/get_ailment_reference(var/ailment_type)
+	if(!ispath(ailment_type, /datum/ailment))
+		return
+	if(!global.ailment_reference_cache[ailment_type])
+		global.ailment_reference_cache[ailment_type] = new ailment_type
+	return global.ailment_reference_cache[ailment_type]
+
+/obj/item/organ/proc/get_possible_ailments()
+	. = list()
+	for(var/ailment_type in subtypesof(/datum/ailment))
+		var/datum/ailment/ailment = ailment_type
+		if(initial(ailment.category) == ailment_type)
+			continue
+		ailment = get_ailment_reference(ailment_type)
+		if(ailment.can_apply_to(src))
+			. += ailment_type
+	for(var/datum/ailment/ailment in ailments)
+		. -= ailment.type
+
+/obj/item/organ/emp_act(severity)
+	. = ..()
+	if(BP_IS_PROSTHETIC(src))
+		if(length(ailments) < 3 && prob(15 - (5 * length(ailments))))
+			var/list/possible_ailments = get_possible_ailments()
+			if(length(possible_ailments))
+				add_ailment(pick(possible_ailments))
+
+/obj/item/organ/proc/add_ailment(var/datum/ailment/ailment)
+	if(ispath(ailment, /datum/ailment))
+		ailment = get_ailment_reference(ailment)
+	if(!istype(ailment) || !ailment.can_apply_to(src))
+		return FALSE
+	LAZYADD(ailments, new ailment.type(src))
+	return TRUE
+
+/obj/item/organ/proc/add_random_ailment()
+	var/list/possible_ailments = get_possible_ailments()
+	if(length(possible_ailments))
+		add_ailment(pick(possible_ailments))
+
+/obj/item/organ/proc/remove_ailment(var/datum/ailment/ailment)
+	if(ispath(ailment, /datum/ailment))
+		for(var/datum/ailment/ext_ailment in ailments)
+			if(ailment == ext_ailment.type)
+				LAZYREMOVE(ailments, ext_ailment)
+				return TRUE
+	else if(istype(ailment))
+		for(var/datum/ailment/ext_ailment in ailments)
+			if(ailment == ext_ailment)
+				LAZYREMOVE(ailments, ext_ailment)
+				return TRUE
+	return FALSE

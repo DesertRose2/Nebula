@@ -26,34 +26,38 @@
 	hunger++
 	if(hunger < 100) //stop hunting when satiated
 		prey.Cut()
-	else
+	else if(stat == CONSCIOUS)
 		for(var/mob/living/simple_animal/S in range(src,1))
-			if(S.stat == DEAD)
-				visible_message("[src] consumes \the body of [S]!")
-				var/turf/T = get_turf(S)
-				var/obj/item/remains/xeno/X = new(T)
-				X.desc += "These look like they belong to \a [S.name]."
-				hunger = max(0, hunger - 5*S.maxHealth)
-				if(prob(5))
-					S.gib()
-				else
-					qdel(S)
+			if(S == src)
+				continue
+			if(S.stat != DEAD)
+				continue
+			visible_message(SPAN_DANGER("\The [src] consumes the body of \the [S]!"))
+			var/turf/T = get_turf(S)
+			var/obj/item/remains/xeno/X = new(T)
+			X.desc += "These look like they belong to \a [S.name]."
+			hunger = max(0, hunger - 5*S.maxHealth)
+			if(prob(5))
+				S.gib()
+			else
+				qdel(S)
+			return
 
 /mob/living/simple_animal/proc/name_species()
 	set name = "Name Alien Species"
-	set category = "Exploration"
+	set category = "IC"
 	set src in view()
 
-	if(!GLOB.using_map.use_overmap)
+	if(!global.using_map.use_overmap)
 		return
-	if(!CanInteract(usr, GLOB.conscious_state))
+	if(!CanInteract(usr, global.conscious_topic_state))
 		return
 
 	for(var/obj/effect/overmap/visitable/sector/exoplanet/E)
 		if(src in E.animals)
 			var/newname = input("What do you want to name this species?", "Species naming", E.get_random_species_name()) as text|null
 			newname = sanitizeName(newname, allow_numbers = TRUE, force_first_letter_uppercase = FALSE)
-			if(newname && CanInteract(usr, GLOB.conscious_state))
+			if(newname && CanInteract(usr, global.conscious_topic_state))
 				if(E.rename_species(type, newname))
 					to_chat(usr,"<span class='notice'>This species will be known from now on as '[newname]'.</span>")
 				else
@@ -173,7 +177,7 @@
 	natural_armor = list(
 		melee = ARMOR_MELEE_RESISTANT
 		)
-	
+
 /mob/living/simple_animal/hostile/retaliate/beast/charbaby
 	name = "charbaby"
 	desc = "A huge grubby creature."
@@ -185,9 +189,6 @@
 	maxHealth = 45
 	natural_weapon = /obj/item/natural_weapon/charbaby
 	speed = 2
-	response_help =  "pats briefly"
-	response_disarm = "gently pushes"
-	response_harm = "strikes"
 	return_damage_min = 2
 	return_damage_max = 3
 	harm_intent_damage = 1
@@ -202,9 +203,10 @@
 	force = 5
 	attack_verb = list("singed")
 
-/mob/living/simple_animal/hostile/retaliate/beast/charbaby/attack_hand(mob/living/carbon/human/H)
+/mob/living/simple_animal/hostile/retaliate/beast/charbaby/attack_hand(mob/user)
 	. = ..()
-	reflect_unarmed_damage(H, BURN, "amorphous mass")
+	if(ishuman(user))
+		reflect_unarmed_damage(user, BURN, "amorphous mass")
 
 /mob/living/simple_animal/hostile/retaliate/beast/charbaby/AttackingTarget()
 	. = ..()

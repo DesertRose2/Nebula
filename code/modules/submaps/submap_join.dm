@@ -29,7 +29,7 @@
 		to_chat(joining, SPAN_WARNING("You are banned from playing offstation roles."))
 		return FALSE
 
-	if(job.is_semi_antagonist && jobban_isbanned(joining, MODE_MISC_AGITATOR))
+	if(job.is_semi_antagonist && jobban_isbanned(joining, /decl/special_role/provocateur))
 		to_chat(joining, SPAN_WARNING("You are banned from playing semi-antagonist roles."))
 		return FALSE
 
@@ -81,8 +81,8 @@
 			job.apply_fingerprints(character)
 			var/list/spawn_in_storage = SSjobs.equip_custom_loadout(character, job)
 			if(spawn_in_storage)
-				for(var/datum/gear/G in spawn_in_storage)
-					G.spawn_in_storage_or_drop(user_human, user_human.client.prefs.Gear()[G.display_name])
+				for(var/decl/loadout_option/G in spawn_in_storage)
+					G.spawn_in_storage_or_drop(user_human, user_human.client.prefs.Gear()[G.name])
 			SScustomitems.equip_custom_items(user_human)
 
 		character.job = job.title
@@ -90,6 +90,7 @@
 			character.mind.assigned_job = job
 			character.mind.assigned_role = character.job
 
+		job.create_cash_on_hand(character)
 		to_chat(character, "<B>You are [job.total_positions == 1 ? "the" : "a"] [job.title] of the [name].</B>")
 
 		if(job.supervisors)
@@ -99,7 +100,7 @@
 			to_chat(character, ojob.info)
 
 		if(user_human && user_human.disabilities & NEARSIGHTED)
-			var/equipped = user_human.equip_to_slot_or_del(new /obj/item/clothing/glasses/prescription(user_human), slot_glasses)
+			var/equipped = user_human.equip_to_slot_or_del(new /obj/item/clothing/glasses/prescription(user_human), slot_glasses_str)
 			if(equipped)
 				var/obj/item/clothing/glasses/G = user_human.glasses
 				G.prescription = 7
@@ -109,7 +110,7 @@
 		BITSET(character.hud_updateflag, SPECIALROLE_HUD)
 
 		SSticker.mode.handle_offsite_latejoin(character)
-		GLOB.universe.OnPlayerLatejoin(character)
+		global.universe.OnPlayerLatejoin(character)
 		log_and_message_admins("has joined the round as offsite role [character.mind.assigned_role].", character)
 		if(character.cannot_stand()) equip_wheelchair(character)
 		job.post_equip_rank(character, job.title)

@@ -25,15 +25,17 @@
 	var/stasis_power = 5 KILOWATTS
 	var/list/loaded_canisters
 	var/max_canister_capacity = 5
-	var/global/list/banned_chem_types = list(
+	var/static/list/banned_chem_types = list(
 		/decl/material/liquid/bromide,
 		/decl/material/liquid/mutagenics,
 		/decl/material/liquid/acid
 	)
+	var/open_sound = 'sound/machines/podopen.ogg'
+	var/close_sound = 'sound/machines/podclose.ogg'
 
 /obj/machinery/sleeper/standard/Initialize(mapload, d, populate_parts)
 	. = ..()
-	add_reagent_canister(null, new /obj/item/chems/chem_disp_cartridge/adrenaline()) 
+	add_reagent_canister(null, new /obj/item/chems/chem_disp_cartridge/stabilizer()) 
 	add_reagent_canister(null, new /obj/item/chems/chem_disp_cartridge/sedatives())
 	add_reagent_canister(null, new /obj/item/chems/chem_disp_cartridge/painkillers())
 	add_reagent_canister(null, new /obj/item/chems/chem_disp_cartridge/antitoxins())
@@ -54,7 +56,7 @@
 		return FALSE
 	if(!emagged)
 		for(var/rid in canister.reagents?.reagent_volumes)
-			var/decl/material/reagent = decls_repository.get_decl(rid)
+			var/decl/material/reagent = GET_DECL(rid)
 			for(var/banned_type in banned_chem_types)
 				if(istype(reagent, banned_type))
 					to_chat(user, SPAN_WARNING("Automatic safety checking indicates the present of a prohibited substance in this canister."))
@@ -138,13 +140,13 @@
 	overlays += I
 
 /obj/machinery/sleeper/DefaultTopicState()
-	return GLOB.outside_state
+	return global.outside_topic_state
 
 /obj/machinery/sleeper/interface_interact(var/mob/user)
 	ui_interact(user)
 	return TRUE
 
-/obj/machinery/sleeper/ui_interact(var/mob/user, var/ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = GLOB.outside_state)
+/obj/machinery/sleeper/ui_interact(var/mob/user, var/ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = global.outside_topic_state)
 	var/data[0]
 
 	data["power"] = stat & (NOPOWER|BROKEN) ? 0 : 1
@@ -253,18 +255,17 @@
 		return TRUE
 	return ..()
 
-/obj/machinery/sleeper/MouseDrop_T(var/mob/target, var/mob/user)
-	if(!CanMouseDrop(target, user))
-		return
-	if(!istype(target))
-		return
-	if(target.buckled)
-		to_chat(user, SPAN_WARNING("Unbuckle the subject before attempting to move them."))
-		return
-	if(panel_open)
-		to_chat(user, SPAN_WARNING("Close the maintenance panel before attempting to place the subject in the sleeper."))
-		return
-	go_in(target, user)
+/obj/machinery/sleeper/receive_mouse_drop(var/atom/dropping, var/mob/user)
+	. = ..()
+	if(!. && ismob(dropping))
+		var/mob/target = dropping
+		if(target.buckled)
+			to_chat(user, SPAN_WARNING("Unbuckle the subject before attempting to move them."))
+		else if(panel_open)
+			to_chat(user, SPAN_WARNING("Close the maintenance panel before attempting to place the subject in the sleeper."))
+		else 
+			go_in(target, user)
+		return TRUE
 
 /obj/machinery/sleeper/relaymove(var/mob/user)
 	..()
@@ -314,6 +315,8 @@
 			to_chat(user, SPAN_WARNING("\The [src] is already occupied."))
 			return
 		set_occupant(M)
+		if(close_sound)
+			playsound(src, close_sound, 40)
 
 /obj/machinery/sleeper/proc/go_out()
 	if(!occupant)
@@ -323,6 +326,8 @@
 		occupant.client.perspective = MOB_PERSPECTIVE
 	occupant.dropInto(loc)
 	set_occupant(null)
+	if(open_sound)
+		playsound(src, open_sound, 40)
 
 	for(var/obj/O in (contents - (component_parts + loaded_canisters))) // In case an object was dropped inside or something. Excludes the beaker and component parts.
 		if(O != beaker)
@@ -331,7 +336,6 @@
 
 /obj/machinery/sleeper/proc/set_occupant(var/mob/living/carbon/occupant)
 	src.occupant = occupant
-	update_icon()
 	if(!occupant)
 		SetName(initial(name))
 		update_use_power(POWER_USE_IDLE)

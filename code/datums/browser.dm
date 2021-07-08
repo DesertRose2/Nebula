@@ -32,7 +32,7 @@
 	if (nref)
 		ref = nref
 	// If a client exists, but they have disabled fancy windowing, disable it!
-	if(user && user.client && user.client.get_preference_value(/datum/client_preference/browser_style) == GLOB.PREF_PLAIN)
+	if(user && user.client && user.client.get_preference_value(/datum/client_preference/browser_style) == PREF_PLAIN)
 		return
 	add_stylesheet("common", 'html/browser/common.css') // this CSS sheet is common to all UIs
 
@@ -82,7 +82,7 @@
 
 	return {"<!DOCTYPE html>
 <html>
-	<meta charset=ISO-8859-1">
+	<meta charset=\"utf-8\">
 	<head>
 		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 		[head_content]
@@ -163,10 +163,11 @@
 	var/param = "null"
 	if(ref)
 		param = "\ref[ref]"
+	addtimer(CALLBACK(user, /mob/proc/post_onclose, windowid, param), 2)
 
-	spawn(2)
-		if(!user.client) return
-		winset(user, windowid, "on-close=\".windowclose [param]\"")
+/mob/proc/post_onclose(var/windowid, var/param)
+	if(client)
+		winset(src, windowid, "on-close=\".windowclose [param]\"")
 
 //	log_debug("OnClose [user]: [windowid] : ["on-close=\".windowclose [param]\""]")
 

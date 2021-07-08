@@ -22,31 +22,31 @@
 	// Setup the severe security level
 	if(!(severe_security_level in all_security_levels))
 		severe_security_level = all_security_levels[all_security_levels.len]
-	severe_security_level = decls_repository.get_decl(severe_security_level)
+	severe_security_level = GET_DECL(severe_security_level)
 
 	// Setup the high security level
 	if(!(high_security_level in all_security_levels))
 		high_security_level = all_security_levels[all_security_levels.len - 1]
-	high_security_level = decls_repository.get_decl(high_security_level)
+	high_security_level = GET_DECL(high_security_level)
 
 	// Setup the highest standard security level
 	if(highest_standard_security_level || isnull(highest_standard_security_level))
 		if(!(highest_standard_security_level in all_security_levels))
 			highest_standard_security_level = all_security_levels[all_security_levels.len - 1]
-		highest_standard_security_level = decls_repository.get_decl(highest_standard_security_level)
+		highest_standard_security_level = GET_DECL(highest_standard_security_level)
 	else
 		highest_standard_security_level = null
 
 	// Setup the current security level
 	if(current_security_level in all_security_levels)
-		current_security_level = decls_repository.get_decl(current_security_level)
+		current_security_level = GET_DECL(current_security_level)
 	else
-		current_security_level = decls_repository.get_decl(all_security_levels[1])
+		current_security_level = GET_DECL(all_security_levels[1])
 
 	// Setup the full list of available security levels now that we no longer need to use "x in all_security_levels"
 	var/list/security_level_instances = list()
 	for(var/security_level_type in all_security_levels)
-		security_level_instances += decls_repository.get_decl(security_level_type)
+		security_level_instances += GET_DECL(security_level_type)
 	all_security_levels = security_level_instances
 
 	standard_security_levels = list()
@@ -136,9 +136,8 @@
 	var/name
 
 	// These values are primarily for station alarms and status displays, and which light colors and overlays to use
-	var/light_max_bright = 0.5
-	var/light_inner_range = 0.1
-	var/light_outer_range = 1
+	var/light_range
+	var/light_power
 	var/light_color_alarm
 	var/light_color_status_display
 
@@ -147,6 +146,13 @@
 
 	var/up_description
 	var/down_description
+
+	var/datum/alarm_appearance/alarm_appearance
+
+/decl/security_level/New()
+	. = ..()
+	if(ispath(alarm_appearance, /datum/alarm_appearance))
+		alarm_appearance = new alarm_appearance
 
 // Called when we're switching from a lower security level to this one.
 /decl/security_level/proc/switching_up_to()
@@ -188,16 +194,15 @@
 
 /decl/security_level/default/proc/notify_station()
 	for(var/obj/machinery/firealarm/FA in SSmachines.machinery)
-		if(FA.z in GLOB.using_map.contact_levels)
+		if(FA.z in global.using_map.contact_levels)
 			FA.update_icon()
 	post_status("alert")
 
 /decl/security_level/default/code_green
 	name = "code green"
 
-	light_max_bright = 0.25
-	light_inner_range = 0.1
-	light_outer_range = 1
+	light_range = 2
+	light_power = 1
 
 	light_color_alarm = COLOR_GREEN
 	light_color_status_display = COLOR_GREEN
@@ -205,19 +210,22 @@
 	overlay_alarm = "alarm_green"
 	overlay_status_display = "status_display_green"
 
+	alarm_appearance = /datum/alarm_appearance/green
+
 	down_description = "All threats to the station have passed. Security may not have weapons visible, privacy laws are once again fully enforced."
 
 /decl/security_level/default/code_blue
 	name = "code blue"
 
-	light_max_bright = 0.5
-	light_inner_range = 0.1
-	light_outer_range = 2
+	light_range = 2
+	light_power = 1
 	light_color_alarm = COLOR_BLUE
 	light_color_status_display = COLOR_BLUE
 
 	overlay_alarm = "alarm_blue"
 	overlay_status_display = "status_display_blue"
+
+	alarm_appearance = /datum/alarm_appearance/blue
 
 	up_description = "The station has received reliable information about possible hostile activity on the station. Security staff may have weapons visible, random searches are permitted."
 	down_description = "The immediate threat has passed. Security may no longer have weapons drawn at all times, but may continue to have them visible. Random searches are still allowed."
@@ -225,14 +233,15 @@
 /decl/security_level/default/code_red
 	name = "code red"
 
-	light_max_bright = 0.5
-	light_inner_range = 0.1
-	light_outer_range = 2
+	light_range = 4
+	light_power = 2
 	light_color_alarm = COLOR_RED
 	light_color_status_display = COLOR_RED
 
 	overlay_alarm = "alarm_red"
 	overlay_status_display = "status_display_red"
+
+	alarm_appearance = /datum/alarm_appearance/red
 
 	up_description = "There is an immediate serious threat to the station. Security may have weapons unholstered at all times. Random searches are allowed and advised."
 	down_description = "The self-destruct mechanism has been deactivated, there is still however an immediate serious threat to the station. Security may have weapons unholstered at all times, random searches are allowed and advised."
@@ -240,11 +249,12 @@
 /decl/security_level/default/code_delta
 	name = "code delta"
 
-	light_max_bright = 0.75
-	light_inner_range = 0.1
-	light_outer_range = 3
+	light_range = 4
+	light_power = 2
 	light_color_alarm = COLOR_RED
 	light_color_status_display = COLOR_NAVY_BLUE
+
+	alarm_appearance = /datum/alarm_appearance/delta
 
 	overlay_alarm = "alarm_delta"
 	overlay_status_display = "status_display_delta"
@@ -254,3 +264,65 @@
 /decl/security_level/default/code_delta/switching_up_to()
 	security_announcement_delta.Announce("The self-destruct mechanism has been engaged. All crew are instructed to obey all instructions given by heads of staff. Any violations of these orders can be punished by death. This is not a drill.", "Attention! Delta security level reached!")
 	notify_station()
+
+/datum/alarm_appearance
+	var/display_icon //The icon_state for the displays. Normally only one is used, unless uses_twotone_displays is TRUE.
+	var/display_icon_color //The color for the display icon.
+
+	var/display_icon_twotone //Used for two-tone displays.
+	var/display_icon_twotone_color //The color for the display icon.
+
+	var/display_emblem //The icon_state for the emblem, i.e for delta, a radstorm, alerts.
+	var/display_emblem_color //The color for the emblem.
+
+	var/alarm_icon //The icon_state for the alarms
+	var/alarm_icon_color //the color for the icon_state
+
+	var/alarm_icon_twotone //Used for two-tone alarms (i.e delta).
+	var/alarm_icon_twotone_color //The color for the secondary tone icon.
+
+/datum/alarm_appearance/green
+	display_icon = "status_display_lines"
+	display_icon_color = PIPE_COLOR_GREEN
+
+	display_emblem = "status_display_alert"
+	display_emblem_color = COLOR_WHITE
+
+	alarm_icon = "alarm_normal"
+	alarm_icon_color = PIPE_COLOR_GREEN
+
+/datum/alarm_appearance/blue
+	display_icon = "status_display_lines"
+	display_icon_color = COLOR_BLUE
+
+	display_emblem = "status_display_alert"
+	display_emblem_color = COLOR_WHITE
+
+	alarm_icon = "alarm_normal"
+	alarm_icon_color = COLOR_BLUE
+
+/datum/alarm_appearance/red
+	display_icon = "status_display_lines"
+	display_icon_color = COLOR_RED
+
+	display_emblem = "status_display_alert"
+	display_emblem_color = COLOR_WHITE
+
+	alarm_icon = "alarm_blinking"
+	alarm_icon_color = COLOR_RED
+
+/datum/alarm_appearance/delta
+	display_icon = "status_display_twotone1"
+	display_icon_color = COLOR_RED
+
+	display_icon_twotone = "status_display_twotone2"
+	display_icon_twotone_color = COLOR_YELLOW
+
+	display_emblem = "delta"
+	display_emblem_color = COLOR_WHITE
+
+	alarm_icon = "alarm_blinking_twotone1"
+	alarm_icon_color = COLOR_RED
+
+	alarm_icon_twotone = "alarm_blinking_twotone2"
+	alarm_icon_twotone_color = PIPE_COLOR_YELLOW

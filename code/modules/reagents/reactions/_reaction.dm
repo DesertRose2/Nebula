@@ -74,10 +74,11 @@
 	if(mix_message && container && !ismob(container))
 		var/turf/T = get_turf(container)
 		if(istype(T))
-			T.visible_message(SPAN_NOTICE("\icon[container] [mix_message]"))
+			T.visible_message(SPAN_NOTICE("[html_icon(container)] [mix_message]"))
 		else
-			container.visible_message(SPAN_NOTICE("\icon[container] [mix_message]"))
-		playsound(T || container, reaction_sound, 80, 1)
+			container.visible_message(SPAN_NOTICE("[html_icon(container)] [mix_message]"))
+		if(reaction_sound)
+			playsound(T || container, reaction_sound, 80, 1)
 
 //obtains any special data that will be provided to the reaction products
 //this is called just before reactants are removed.

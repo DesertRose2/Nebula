@@ -23,7 +23,7 @@
 	var/atom/climb_target
 	if(istype(O))
 		for(var/turf/T in RANGE_TURFS(O, 1))
-			if(!isopenspace(T) && T.is_floor())
+			if(!T.is_open() && T.is_floor())
 				climb_target = T
 			else
 				for(var/obj/I in T)
@@ -180,10 +180,10 @@
 		handle_fall_effect(landing)
 
 /atom/movable/proc/handle_fall_effect(var/turf/landing)
-	if(istype(landing, /turf/simulated/open))
+	if(istype(landing) && landing.is_open())
 		visible_message("\The [src] falls through \the [landing]!", "You hear a whoosh of displaced air.")
 	else
-		visible_message("\The [src] slams into \the [landing]!", "You hear something slam into the [GLOB.using_map.ground_noun].")
+		visible_message("\The [src] slams into \the [landing]!", "You hear something slam into the [global.using_map.ground_noun].")
 		if(fall_damage())
 			for(var/mob/living/M in landing.contents)
 				if(M == src)
@@ -217,7 +217,7 @@
 	apply_damage(rand(min_damage, max_damage), BRUTE, BP_R_FOOT, armor_pen = 100)
 	apply_damage(rand(min_damage, max_damage), BRUTE, BP_L_ARM, armor_pen = 75)
 	apply_damage(rand(min_damage, max_damage), BRUTE, BP_R_ARM, armor_pen = 75)
-	weakened = max(weakened, 3)
+	SET_STATUS_MAX(src, STAT_WEAK, 3)
 	if(prob(skill_fail_chance(SKILL_HAULING, 40, SKILL_EXPERT, 2)))
 		var/list/victims = list()
 		for(var/tag in list(BP_L_FOOT, BP_R_FOOT, BP_L_ARM, BP_R_ARM))
@@ -310,7 +310,7 @@
 	. = ..()
 	owner = user
 	follow()
-	GLOB.moved_event.register(owner, src, /atom/movable/z_observer/proc/follow)
+	events_repository.register(/decl/observ/moved, owner, src, /atom/movable/z_observer/proc/follow)
 
 /atom/movable/z_observer/proc/follow()
 
@@ -334,7 +334,7 @@
 	qdel(src)
 
 /atom/movable/z_observer/Destroy()
-	GLOB.moved_event.unregister(owner, src, /atom/movable/z_observer/proc/follow)
+	events_repository.unregister(/decl/observ/moved, owner, src, /atom/movable/z_observer/proc/follow)
 	owner = null
 	. = ..()
 

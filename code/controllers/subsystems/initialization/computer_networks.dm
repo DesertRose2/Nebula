@@ -1,9 +1,12 @@
+/datum/proc/handle_post_network_connection()
+	return
+
 SUBSYSTEM_DEF(networking)
 	name = "Computer Networks"
 	priority = SS_PRIORITY_COMPUTER_NETS
 	flags = SS_BACKGROUND | SS_NO_INIT
 	wait = 2 SECOND
-	runlevels = RUNLEVEL_INIT | RUNLEVELS_DEFAULT
+	runlevels = RUNLEVEL_LOBBY | RUNLEVELS_DEFAULT
 
 	var/list/networks = list()
 	var/list/connection_queue = list()
@@ -23,9 +26,10 @@ SUBSYSTEM_DEF(networking)
 				connected = device.connect()
 			else
 				connected = device.connect_to_any()
-			if(!connected)
+			if(connected)
+				device.holder?.handle_post_network_connection()
+			else
 				connection_queue += device
-
 		if(MC_TICK_CHECK)
 			return
 

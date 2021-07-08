@@ -6,7 +6,7 @@
 	item_state = "cleaner"
 	item_flags = ITEM_FLAG_NO_BLUDGEON
 	atom_flags = ATOM_FLAG_OPEN_CONTAINER
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	throwforce = 3
 	w_class = ITEM_SIZE_SMALL
 	throw_speed = 2
@@ -124,8 +124,7 @@
 	name = "pepperspray"
 	desc = "Manufactured by Uhang Inc., it fires a mist of condensed capsaicin to blind and down an opponent quickly."
 	icon = 'icons/obj/items/weapon/pepperspray.dmi'
-	icon_state = "pepperspray"
-	item_state = "pepperspray"
+	icon_state = ICON_STATE_WORLD
 	possible_transfer_amounts = null
 	volume = 60
 	var/safety = 1
@@ -177,7 +176,7 @@
 	origin_tech = "{'combat':3,'materials':3,'engineering':3}"
 	step_delay = 8
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
+	matter = list(/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT)
 
 /obj/item/chems/spray/chemsprayer/Spray_at(atom/A)
 	var/direction = get_dir(src, A)

@@ -1,5 +1,12 @@
 /mob/living/simple_animal/hostile
 	faction = "hostile"
+	stop_automated_movement_when_pulled = 0
+	a_intent = I_HURT
+	response_help_3p = "$USER$ pokes $TARGET$."
+	response_help_1p = "You poke $TARGET$."
+	response_disarm =  "shoves"
+	response_harm =    "strikes"
+
 	var/stance = HOSTILE_STANCE_IDLE	//Used to determine behavior
 	var/mob/living/target_mob
 	var/attack_same = 0
@@ -16,9 +23,7 @@
 	var/attack_delay = DEFAULT_ATTACK_COOLDOWN
 	var/list/friends = list()
 	var/break_stuff_probability = 10
-	stop_automated_movement_when_pulled = 0
 	var/destroy_surroundings = 1
-	a_intent = I_HURT
 
 	var/shuttletarget = null
 	var/enroute = 0
@@ -39,7 +44,7 @@
 												/obj/structure/railing)
 
 /mob/living/simple_animal/hostile/proc/can_act()
-	if(stat || stop_automation || incapacitated())
+	if(QDELETED(src) || stat || stop_automation || incapacitated())
 		return FALSE
 	return TRUE
 
@@ -92,7 +97,7 @@
 /mob/living/simple_animal/hostile/proc/MoveToTarget()
 	if(!can_act())
 		return
-	if(confused)
+	if(HAS_STATUS(src, STAT_CONFUSE))
 		walk_to(src, pick(orange(2, src)), 1, move_to_delay)
 		return
 	stop_automated_movement = 1
@@ -203,7 +208,7 @@
 		target_mob = user
 		MoveToTarget()
 
-/mob/living/simple_animal/hostile/attack_hand(mob/living/carbon/human/M)
+/mob/living/simple_animal/hostile/attack_hand(mob/M)
 	. = ..()
 	if(M.a_intent == I_HURT && !incapacitated(INCAPACITATION_KNOCKOUT))
 		target_mob = M
@@ -263,14 +268,14 @@
 
 		var/obj/effect/shield/S = locate(/obj/effect/shield) in targ
 		if(S && S.gen && S.gen.check_flag(MODEFLAG_NONHUMANS))
-			S.attackby(natural_weapon, src)
+			S.attackby(get_natural_weapon(), src)
 			return
 
 		for(var/type in valid_obstacles_by_priority)
 			var/obj/obstacle = locate(type) in targ
 			if(obstacle)
 				face_atom(obstacle)
-				obstacle.attackby(natural_weapon, src)
+				obstacle.attackby(get_natural_weapon(), src)
 				return
 
 		if(can_pry)

@@ -1,13 +1,10 @@
-//This file was auto-corrected by findeclaration.exe on 25.5.2012 20:42:32
-
 /obj/item/mmi/digital/Initialize()
-	src.brainmob = new(src)
-	src.brainmob.set_stat(CONSCIOUS)
-	src.brainmob.add_language("Robot Talk")
-	src.brainmob.add_language("Encoded Audio Language")
-
-	src.brainmob.container = src
-	src.brainmob.silent = 0
+	brainmob = new(src)
+	brainmob.set_stat(CONSCIOUS)
+	brainmob.add_language(/decl/language/binary)
+	brainmob.add_language(/decl/language/machine)
+	brainmob.container = src
+	brainmob.set_status(STAT_SILENCE, 0)
 	PickName()
 	. = ..()
 
@@ -18,14 +15,6 @@
 	return
 
 /obj/item/mmi/digital/attack_self()
-	return
-
-/obj/item/mmi/digital/transfer_identity(var/mob/living/carbon/H)
-	brainmob.dna = H.dna
-	brainmob.timeofhostdeath = H.timeofdeath
-	brainmob.set_stat(CONSCIOUS)
-	if(H.mind)
-		H.mind.transfer_to(brainmob)
 	return
 
 /obj/item/mmi
@@ -119,14 +108,15 @@
 	brainmob.real_name = H.real_name
 	brainmob.dna = H.dna
 	brainmob.container = src
+	brainmob.timeofhostdeath = H.timeofdeath
+	brainmob.set_stat(CONSCIOUS)
 
 	SetName("[initial(name)]: [brainmob.real_name]")
 	update_icon()
 	locked = 1
-	return
 
 /obj/item/mmi/relaymove(var/mob/user, var/direction)
-	if(user.stat || user.stunned)
+	if(user.incapacitated(INCAPACITATION_KNOCKOUT))
 		return
 	var/obj/item/rig/rig = src.get_rig()
 	if(rig)

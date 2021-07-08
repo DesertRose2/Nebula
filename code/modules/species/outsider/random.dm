@@ -1,24 +1,38 @@
-/datum/species/alium
+/decl/bodytype/alium
+	name =              "humanoid"
+	bodytype_category = BODYTYPE_HUMANOID
+	icon_base =         'icons/mob/human_races/species/humanoid/body.dmi'
+	bandages_icon =     'icons/mob/bandage.dmi'
+	limb_blend =        ICON_MULTIPLY
+
+/decl/species/alium
 	name = SPECIES_ALIEN
 	name_plural = "Humanoids"
 	description = "Some alien humanoid species, unknown to humanity. How exciting."
 	rarity_value = 5
-	bodytype = BODYTYPE_HUMANOID
 
 	species_flags = SPECIES_FLAG_NO_SCAN
 	spawn_flags = SPECIES_IS_RESTRICTED
 
-	icobase = 'icons/mob/human_races/species/humanoid/body.dmi'
-	deform = 'icons/mob/human_races/species/humanoid/body.dmi'
-	bandages_icon = 'icons/mob/bandage.dmi'
+	available_bodytypes = list(/decl/bodytype/alium)
+
 	appearance_flags = HAS_SKIN_COLOR
-	limb_blend = ICON_MULTIPLY
 
 	force_cultural_info = list(
-		TAG_CULTURE = CULTURE_ALIUM
+		TAG_CULTURE = /decl/cultural_info/culture/hidden/alium
 	)
 
-/datum/species/alium/New()
+	exertion_effect_chance = 10
+	exertion_hydration_scale = 1
+	exertion_reagent_scale = 1
+	exertion_reagent_path = /decl/material/liquid/lactate
+	exertion_emotes_biological = list(
+		/decl/emote/exertion/biological,
+		/decl/emote/exertion/biological/breath,
+		/decl/emote/exertion/biological/pant
+	)
+
+/decl/species/alium/New()
 	//Coloring
 	blood_color = RANDOM_RGB
 	flesh_color = RANDOM_RGB
@@ -72,9 +86,8 @@
 
 	//Misc traits
 	darksight_range = rand(1,8)
-	darksight_tint = pick(DARKTINT_NONE,DARKTINT_MODERATE,DARKTINT_GOOD)
 	if(prob(40))
-		genders = list(PLURAL)
+		available_pronouns = list(/decl/pronouns)
 	if(prob(10))
 		slowdown += pick(-1,1)
 	if(prob(10))
@@ -86,7 +99,7 @@
 
 	..()
 
-/datum/species/alium/proc/adapt_to_atmosphere(var/datum/gas_mixture/atmosphere)
+/decl/species/alium/proc/adapt_to_atmosphere(var/datum/gas_mixture/atmosphere)
 	var/temp_comfort_shift = atmosphere.temperature - body_temperature
 
 	cold_level_1 += temp_comfort_shift
@@ -116,7 +129,7 @@
 	newgases = newgases.Copy()
 	newgases ^= atmosphere.gas
 	for(var/gas in newgases)
-		var/decl/material/mat = decls_repository.get_decl(gas)
+		var/decl/material/mat = GET_DECL(gas)
 		if(mat.gas_flags & (XGM_GAS_OXIDIZER|XGM_GAS_FUEL))
 			newgases -= gas
 	if(newgases.len)
@@ -131,22 +144,26 @@
 	icon_state = "ano51"
 	anchored = 1
 
-/obj/structure/aliumizer/attack_hand(mob/living/carbon/human/user)
-	if(!istype(user))
-		to_chat(user, "You got no business touching this.")
+/obj/structure/aliumizer/attack_hand(mob/user)
+	if(!ishuman(user))
+		to_chat(user, SPAN_WARNING("You've got no business touching this."))
 		return
-	if(user.species.name == SPECIES_ALIEN)
-		to_chat(user, "You're already a [SPECIES_ALIEN].")
+	var/decl/species/species = user.get_species()
+	if(!species)
+		return
+	if(species.name == SPECIES_ALIEN)
+		to_chat(user, SPAN_WARNING("You're already a [SPECIES_ALIEN]."))
 		return
 	if(alert("Are you sure you want to be an alien?", "Mom Look I'm An Alien!", "Yes", "No") == "No")
-		to_chat(user, "Okie dokie.")
+		to_chat(user, SPAN_NOTICE("<b>You are now a [SPECIES_ALIEN]!</b>"))
 		return
-	if(user && user.species.name == SPECIES_ALIEN) //no spamming it to get free implants
+	if(species.name == SPECIES_ALIEN) //no spamming it to get free implants
 		return
 	to_chat(user, "You're now an alien humanoid of some undiscovered species. Make up what lore you want, no one knows a thing about your species! You can check info about your traits with Check Species Info verb in IC tab.")
-	to_chat(user, "You can't speak GalCom or any other languages by default. You can use translator implant that spawns on top of this monolith - it will give you knowledge of any language if you hear it enough times.")
-	new/obj/item/implanter/translator(get_turf(src))
-	user.set_species(SPECIES_ALIEN)
-	var/decl/cultural_info/culture = user.get_cultural_value(TAG_CULTURE)
-	user.fully_replace_character_name(culture.get_random_name(user.gender))
-	user.rename_self("Humanoid Alien", 1)
+	to_chat(user, "You can't speak any other languages by default. You can use translator implant that spawns on top of this monolith - it will give you knowledge of any language if you hear it enough times.")
+	var/mob/living/carbon/human/H = user
+	new /obj/item/implanter/translator(get_turf(src))
+	H.set_species(SPECIES_ALIEN)
+	var/decl/cultural_info/culture = H.get_cultural_value(TAG_CULTURE)
+	H.fully_replace_character_name(culture.get_random_name(H, H.gender))
+	H.rename_self("Humanoid Alien", 1)

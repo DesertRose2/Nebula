@@ -123,11 +123,11 @@
 			if(power_failure || !draw_power(IC.power_draw_idle))
 				IC.power_fail()
 
-/obj/item/electronic_assembly/MouseDrop_T(atom/dropping, mob/user)
-	if(user == dropping)
+/obj/item/electronic_assembly/receive_mouse_drop(atom/dropping, mob/user)
+	. = ..()
+	if(!. && user == dropping)
 		interact(user)
-	else
-		..()
+		return TRUE
 
 /obj/item/electronic_assembly/interact(mob/user)
 	if(!check_interactivity(user))
@@ -410,8 +410,8 @@
 				visible_message("<span class='notice'>\The [user] points \the [src] towards \the [target].</span>")
 
 
-/obj/item/electronic_assembly/attackby(obj/item/I, mob/living/user)
-	if(istype(I, /obj/item/wrench))
+/obj/item/electronic_assembly/attackby(obj/item/I, mob/user)
+	if(isWrench(I))
 		if(istype(loc, /turf) && (IC_FLAG_ANCHORABLE & circuit_flags))
 			user.visible_message("\The [user] wrenches \the [src]'s anchoring bolts [anchored ? "back" : "into position"].")
 			playsound(get_turf(user), 'sound/items/Ratchet.ogg',50)
@@ -426,7 +426,7 @@
 			for(var/obj/item/integrated_circuit/input/S in assembly_components)
 				S.attackby_react(I,user,user.a_intent)
 			return ..()
-	else if(istype(I, /obj/item/multitool) || istype(I, /obj/item/integrated_electronics/wirer) || istype(I, /obj/item/integrated_electronics/debugger))
+	else if(isMultitool(I) || istype(I, /obj/item/integrated_electronics/wirer) || istype(I, /obj/item/integrated_electronics/debugger))
 		if(opened)
 			interact(user)
 			return TRUE
@@ -459,7 +459,7 @@
 		var/obj/item/integrated_electronics/detailer/D = I
 		detail_color = D.detail_color
 		update_icon()
-	else if(istype(I, /obj/item/screwdriver))
+	else if(isScrewdriver(I))
 		var/hatch_locked = FALSE
 		for(var/obj/item/integrated_circuit/manipulation/hatchlock/H in assembly_components)
 			// If there's more than one hatch lock, only one needs to be enabled for the assembly to be locked
@@ -546,13 +546,13 @@
 	name = "type-e electronic assembly"
 	icon_state = "setup_small_hook"
 	desc = "It's a case, for building small electronics with. This one looks like it has a belt clip."
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 
 /obj/item/electronic_assembly/pda
 	name = "type-f electronic assembly"
 	icon_state = "setup_small_pda"
 	desc = "It's a case, for building small electronics with. This one resembles a PDA."
-	slot_flags = SLOT_BELT | SLOT_ID
+	slot_flags = SLOT_LOWER_BODY | SLOT_ID
 
 /obj/item/electronic_assembly/augment
 	name = "augment electronic assembly"
@@ -712,7 +712,7 @@
 
 /obj/item/electronic_assembly/wallmount/proc/mount_assembly(turf/on_wall, mob/user) //Yeah, this is admittedly just an abridged and kitbashed version of the wallframe attach procs.
 	var/ndir = get_dir(on_wall, user)
-	if(!(ndir in GLOB.cardinal))
+	if(!(ndir in global.cardinal))
 		return
 	var/turf/T = get_turf(user)
 	if(T.density)

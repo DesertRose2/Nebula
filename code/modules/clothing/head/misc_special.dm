@@ -17,12 +17,15 @@
 	icon_state = ICON_STATE_WORLD
 	icon = 'icons/clothing/head/welding/default.dmi'
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
+	matter = list(
+		/decl/material/solid/glass = MATTER_AMOUNT_SECONDARY,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT
+	)
 	armor = list(
 		melee = ARMOR_MELEE_SMALL
-		)
+	)
 	flags_inv = (HIDEMASK|HIDEEARS|HIDEEYES|HIDEFACE)
-	body_parts_covered = HEAD|FACE|EYES
+	body_parts_covered = SLOT_HEAD|SLOT_FACE|SLOT_EYES
 	action_button_name = "Flip Welding Mask"
 	siemens_coefficient = 0.9
 	w_class = ITEM_SIZE_NORMAL
@@ -44,14 +47,14 @@
 	if(CanPhysicallyInteract(usr))
 		if(src.up)
 			src.up = !src.up
-			body_parts_covered |= (EYES|FACE)
+			body_parts_covered |= (SLOT_EYES|SLOT_FACE)
 			flags_inv |= (HIDEMASK|HIDEEARS|HIDEEYES|HIDEFACE)
 			flash_protection = initial(flash_protection)
 			tint = initial(tint)
 			to_chat(usr, "You flip the [src] down to protect your eyes.")
 		else
 			src.up = !src.up
-			body_parts_covered &= ~(EYES|FACE)
+			body_parts_covered &= ~(SLOT_EYES|SLOT_FACE)
 			flash_protection = FLASH_PROTECTION_NONE
 			tint = TINT_NONE
 			flags_inv &= ~(HIDEMASK|HIDEEARS|HIDEEYES|HIDEFACE)
@@ -67,9 +70,9 @@
 		icon_state = "[icon_state]_up"
 	update_clothing_icon()	//so our mob-overlays
 
-/obj/item/clothing/head/welding/experimental_mob_overlay()
+/obj/item/clothing/head/welding/get_mob_overlay()
 	var/image/ret = ..()
-	if(up && check_state_in_icon("[ret.icon_state]_up", icon))
+	if(ret && up && check_state_in_icon("[ret.icon_state]_up", icon))
 		ret.icon_state = "[ret.icon_state]_up"
 	return ret
 
@@ -107,7 +110,7 @@
 	icon_state = ICON_STATE_WORLD
 	icon = 'icons/clothing/head/ushanka.dmi'
 	flags_inv = HIDEEARS|BLOCKHEADHAIR
-	cold_protection = HEAD
+	cold_protection = SLOT_HEAD
 	min_cold_protection_temperature = HELMET_MIN_COLD_PROTECTION_TEMPERATURE
 	var/up = FALSE
 
@@ -124,9 +127,9 @@
 		icon_state = "[icon_state]_up"
 	update_clothing_icon()
 
-/obj/item/clothing/head/ushanka/experimental_mob_overlay()
+/obj/item/clothing/head/ushanka/get_mob_overlay()
 	var/image/ret = ..()
-	if(up && check_state_in_icon("[ret.icon_state]_up", icon))
+	if(ret && up && check_state_in_icon("[ret.icon_state]_up", icon))
 		ret.icon_state = "[ret.icon_state]_up"
 	return ret
 
@@ -139,8 +142,8 @@
 	icon_state = ICON_STATE_WORLD
 	icon = 'icons/clothing/head/pumpkin.dmi'
 	flags_inv = HIDEMASK|HIDEEARS|HIDEEYES|HIDEFACE|BLOCKHAIR
-	body_parts_covered = HEAD|FACE|EYES
-	brightness_on = 0.2
+	body_parts_covered = SLOT_HEAD|SLOT_FACE|SLOT_EYES
+	brightness_on = 2
 	light_overlay = "helmet_light"
 	w_class = ITEM_SIZE_NORMAL
 
@@ -152,7 +155,6 @@
 	desc = "A pair of kitty ears. Meow!"
 	icon_state = ICON_STATE_WORLD
 	icon = 'icons/clothing/head/cat.dmi'
-	icon_state = "kitty"
 	body_parts_covered = 0
 	siemens_coefficient = 1.5
 
@@ -161,5 +163,5 @@
 	desc = "You can hear the distant sounds of rhythmic electronica."
 	icon_state = ICON_STATE_WORLD
 	icon = 'icons/clothing/head/richard.dmi'
-	body_parts_covered = HEAD|FACE
+	body_parts_covered = SLOT_HEAD|SLOT_FACE
 	flags_inv = BLOCKHAIR

@@ -4,6 +4,7 @@
 	health = 20
 	maxHealth = 20
 	universal_speak = FALSE
+	mob_sort_value = 12
 
 	mob_bump_flag = SIMPLE_ANIMAL
 	mob_swap_flags = MONKEY|SLIME|SIMPLE_ANIMAL
@@ -16,6 +17,7 @@
 	skin_material = /decl/material/solid/skin 
 	skin_amount = 5
 
+	var/gene_damage = 0 // Set to -1 to disable gene damage for the mob.
 	var/show_stat_health = 1	//does the percentage health show in the stat panel for the mob
 
 	var/icon_living = ""
@@ -34,9 +36,10 @@
 	var/stop_automated_movement_when_pulled = 1 //When set to 1 this stops the animal from moving when someone is grabbing it.
 
 	//Interaction
-	var/response_help   = "tries to help"
-	var/response_disarm = "tries to disarm"
-	var/response_harm   = "tries to hurt"
+	var/response_help_1p = "You pet $TARGET$."
+	var/response_help_3p = "$USER$ pets $TARGET$."
+	var/response_disarm =  "pushes aside"
+	var/response_harm =    "kicks"
 	var/harm_intent_damage = 3
 	var/can_escape = FALSE // 'smart' simple animals such as human enemies, or things small, big, sharp or strong enough to power out of a net
 
@@ -91,6 +94,8 @@
 	. = ..()
 	if(LAZYLEN(natural_armor))
 		set_extension(src, armor_type, natural_armor)
+	if(holder_type)
+		set_extension(src, /datum/extension/base_icon_state, icon_living || icon_state)
 
 /mob/living/simple_animal/Destroy()
 	if(istype(natural_weapon))
@@ -121,10 +126,6 @@
 	if(health > maxHealth)
 		health = maxHealth
 
-	handle_stunned()
-	handle_weakened()
-	handle_paralysed()
-	handle_confused()
 	handle_supernatural()
 	handle_impaired_vision()
 	
@@ -161,7 +162,7 @@
 		if(isturf(src.loc) && !resting)		//This is so it only moves if it's not inside a closet, gentics machine, etc.
 			turns_since_move++
 			if(turns_since_move >= turns_per_move && (!(stop_automated_movement_when_pulled) || !LAZYLEN(grabbed_by))) //Some animals don't move when pulled
-				SelfMove(pick(GLOB.cardinal))
+				SelfMove(pick(global.cardinal))
 				turns_since_move = 0
 
 	//Speaking
@@ -250,7 +251,7 @@
 	if(Proj.agony)
 		damage += Proj.agony / 6
 		if(health < Proj.agony * 3)
-			Paralyse(Proj.agony / 20)
+			SET_STATUS_MAX(src, STAT_PARA, Proj.agony / 20)
 			visible_message("<span class='warning'>[src] is stunned momentarily!</span>")
 
 	bullet_impact_visuals(Proj)
@@ -258,26 +259,29 @@
 	Proj.on_hit(src)
 	return 0
 
-/mob/living/simple_animal/attack_hand(mob/living/carbon/human/M)
+/mob/living/simple_animal/get_hug_zone_messages(var/zone)
+	. = ..() || list(response_help_3p, response_help_1p)
+
+/mob/living/simple_animal/attack_hand(mob/user)
 	..()
 
-	switch(M.a_intent)
+	switch(user.a_intent)
 
 		if(I_HELP)
-			if (health > 0)
-				M.visible_message("<span class='notice'>[M] [response_help] \the [src].</span>")
-				M.update_personal_goal(/datum/goal/achievement/specific_object/pet, type)
+			if(health > 0 && user.attempt_hug(src))
+				user.update_personal_goal(/datum/goal/achievement/specific_object/pet, type)
 
 		if(I_DISARM)
-			M.visible_message("<span class='notice'>[M] [response_disarm] \the [src].</span>")
-			M.do_attack_animation(src)
+			user.visible_message(SPAN_NOTICE("\The [user] [response_disarm] \the [src]."))
+			user.do_attack_animation(src)
 			//TODO: Push the mob away or something
 
 		if(I_HURT)
 			var/dealt_damage = harm_intent_damage
 			var/harm_verb = response_harm
-			if(ishuman(M))
-				var/decl/natural_attack/attack = M.get_unarmed_attack(src)
+			if(ishuman(user))
+				var/mob/living/carbon/human/H = user
+				var/decl/natural_attack/attack = H.get_unarmed_attack(src)
 				if(istype(attack))
 					dealt_damage = attack.damage <= dealt_damage ? dealt_damage : attack.damage
 					harm_verb = pick(attack.attack_verb)
@@ -285,25 +289,24 @@
 						adjustBleedTicks(dealt_damage)
 
 			adjustBruteLoss(dealt_damage)
-			M.visible_message("<span class='warning'>[M] [harm_verb] \the [src]!</span>")
-			M.do_attack_animation(src)
-
-	return
+			user.visible_message(SPAN_DANGER("\The [user] [harm_verb] \the [src]!"))
+			user.do_attack_animation(src)
 
 /mob/living/simple_animal/attackby(var/obj/item/O, var/mob/user)
 	if(istype(O, /obj/item/stack/medical))
 		if(stat != DEAD)
 			var/obj/item/stack/medical/MED = O
 			if(!MED.animal_heal)
-				to_chat(user, "<span class='notice'>That [MED] won't help \the [src] at all!</span>")
+				to_chat(user, SPAN_WARNING("\The [MED] won't help \the [src] at all!"))
 				return
 			if(health < maxHealth)
 				if(MED.can_use(1))
 					adjustBruteLoss(-MED.animal_heal)
-					visible_message("<span class='notice'>[user] applies the [MED] on [src].</span>")
+					visible_message(SPAN_NOTICE("\The [user] applies \the [MED] to \the [src]."))
 					MED.use(1)
 		else
-			to_chat(user, "<span class='notice'>\The [src] is dead, medical items won't bring \him back to life.</span>")
+			var/decl/pronouns/G = get_pronouns()
+			to_chat(user, SPAN_WARNING("\The [src] is dead, medical items won't bring [G.him] back to life."))
 		return
 
 	if(istype(O, /obj/item/flash))
@@ -315,35 +318,35 @@
 		if(istype(O, /obj/item/knife/kitchen/cleaver))
 			var/victim_turf = get_turf(src)
 			if(!locate(/obj/structure/table, victim_turf))
-				to_chat(user, SPAN_NOTICE("You need to place \the [src] on a table to butcher it."))
+				to_chat(user, SPAN_WARNING("You need to place \the [src] on a table to butcher it."))
 				return
 			var/time_to_butcher = (mob_size)
-			to_chat(user, SPAN_NOTICE("You begin harvesting \the [src]."))
+			to_chat(user, SPAN_WARNING("You begin harvesting \the [src]."))
 			if(do_after(user, time_to_butcher, src, same_direction = TRUE))
 				if(prob(user.skill_fail_chance(SKILL_COOKING, 60, SKILL_ADEPT)))
-					to_chat(user, SPAN_NOTICE("You botch harvesting \the [src], and ruin some of the meat in the process."))
+					to_chat(user, SPAN_DANGER("You botch harvesting \the [src], and ruin some of the meat in the process."))
 					subtract_meat(user)
 					return
 				else	
 					harvest(user, user.get_skill_value(SKILL_COOKING))
 					return
 			else
-				to_chat(user, SPAN_NOTICE("Your hand slips with your movement, and some of the meat is ruined."))
+				to_chat(user, SPAN_DANGER("Your hand slips with your movement, and some of the meat is ruined."))
 				subtract_meat(user)
 				return
 				
 	else
 		if(!O.force)
-			visible_message("<span class='notice'>[user] gently taps [src] with \the [O].</span>")
+			visible_message(SPAN_NOTICE("\The [user] gently taps [src] with \the [O]."))
 		else
 			O.attack(src, user, user.zone_sel?.selecting || ran_zone())
 
 /mob/living/simple_animal/hit_with_weapon(obj/item/O, mob/living/user, var/effective_force, var/hit_zone)
 
-	visible_message("<span class='danger'>\The [src] has been attacked with \the [O] by [user]!</span>")
+	visible_message(SPAN_DANGER("\The [src] has been attacked with \the [O] by \the [user]!"))
 
 	if(O.force <= resistance)
-		to_chat(user, "<span class='danger'>This weapon is ineffective; it does no damage.</span>")
+		to_chat(user, SPAN_WARNING("This weapon is ineffective; it does no damage."))
 		return 0
 
 	var/damage = O.force
@@ -465,8 +468,7 @@
 				B.icon_state = pick("dir_splatter_1","dir_splatter_2")
 				B.basecolor = bleed_colour
 				var/scale = min(1, round(mob_size / MOB_SIZE_MEDIUM, 0.1))
-				var/matrix/M = new()
-				B.transform = M.Scale(scale)
+				B.set_scale(scale)
 				B.update_icon()
 
 /mob/living/simple_animal/handle_fire()
@@ -517,17 +519,29 @@
 
 /mob/living/simple_animal/proc/reflect_unarmed_damage(var/mob/living/carbon/human/attacker, var/damage_type, var/description)
 	if(attacker.a_intent == I_HURT)
-		var/hand_hurtie
-		if(attacker.hand)
-			hand_hurtie = BP_L_HAND
-		else
-			hand_hurtie = BP_R_HAND
-		attacker.apply_damage(rand(return_damage_min, return_damage_max), damage_type, hand_hurtie, used_weapon = description)
+		attacker.apply_damage(rand(return_damage_min, return_damage_max), damage_type, attacker.get_active_held_item_slot(), used_weapon = description)
 		if(rand(25))
 			to_chat(attacker, SPAN_WARNING("Your attack has no obvious effect on \the [src]'s [description]!"))
-
 
 /mob/living/simple_animal/proc/get_natural_weapon()
 	if(ispath(natural_weapon))
 		natural_weapon = new natural_weapon(src)
 	return natural_weapon
+
+/mob/living/simple_animal/getCloneLoss()
+	. = max(0, gene_damage)
+
+/mob/living/simple_animal/adjustCloneLoss(var/amount)
+	setCloneLoss(gene_damage + amount)
+
+/mob/living/simple_animal/setCloneLoss(amount)
+	if(gene_damage >= 0)
+		gene_damage = Clamp(amount, 0, maxHealth)
+		if(gene_damage >= maxHealth)
+			death()
+
+/mob/living/simple_animal/get_admin_job_string()
+	return "Animal"
+
+/mob/living/simple_animal/get_telecomms_race_info()
+	return list("Domestic Animal", FALSE)

@@ -7,11 +7,8 @@
 	mob_size = MOB_SIZE_SMALL
 	speak_chance = 0
 	turns_per_move = 1
-	maxHealth = 5
 	health = 5
-	response_help  = "pets"
-	response_disarm = "gently pushes aside"
-	response_harm   = "whacks"
+	maxHealth = 5
 	harm_intent_damage = 5
 	pass_flags = PASS_FLAG_TABLE
 
@@ -24,7 +21,7 @@
 	var/datum/seed/seed
 	var/harvest_time
 	var/min_explode_time = 1200
-	var/global/total_mushrooms = 0
+	var/static/total_mushrooms = 0
 
 /mob/living/simple_animal/mushroom/Initialize()
 	. = ..()

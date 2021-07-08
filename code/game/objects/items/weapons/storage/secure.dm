@@ -33,18 +33,24 @@
 		. = ..()
 
 
-/obj/item/storage/secure/MouseDrop(over_object, src_location, over_location)
+/obj/item/storage/secure/handle_mouse_drop(atom/over, mob/user)
 	var/datum/extension/lockable/lock = get_extension(src, /datum/extension/lockable)
-	if (lock.locked)
-		src.add_fingerprint(usr)
+	if(lock.locked)
+		add_fingerprint(user)
+		return TRUE
+	. = ..()
+
+/obj/item/storage/secure/AltClick(mob/user)
+	var/datum/extension/lockable/lock = get_extension(src, /datum/extension/lockable)
+	if(lock.locked)
+		src.add_fingerprint(user)
 		return
 	..()
 
-
 /obj/item/storage/secure/attack_self(var/mob/user)
 	var/datum/extension/lockable/lock = get_extension(src, /datum/extension/lockable)
-	lock.ui_interact(user)		
-	
+	lock.ui_interact(user)
+
 /obj/item/storage/secure/examine(mob/user, distance)
 	. = ..()
 	if(distance <= 1)
@@ -62,7 +68,7 @@
 	var/datum/extension/lockable/lock = get_extension(src, /datum/extension/lockable)
 	if(!istype(lock))
 		return
-		
+
 	overlays.Cut()
 	if(lock.emagged)
 		overlays += image(icon, icon_locking)

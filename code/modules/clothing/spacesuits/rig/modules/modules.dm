@@ -16,7 +16,7 @@
 	material = /decl/material/solid/metal/steel
 	matter = list(
 		/decl/material/solid/plastic = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/glass = MATTER_AMOUNT_TRACE
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_TRACE
 	)
 
 	var/damage = 0
@@ -164,7 +164,7 @@
 		to_chat(usr, "<span class='warning'>The suit is not initialized.</span>")
 		return 0
 
-	if(usr.lying || usr.stat || usr.stunned || usr.paralysis || usr.weakened)
+	if(usr.lying || usr.incapacitated(INCAPACITATION_DISRUPTED))
 		to_chat(usr, "<span class='warning'>You cannot use the suit in this state.</span>")
 		return 0
 

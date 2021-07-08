@@ -68,9 +68,9 @@
 	if(health <= 0)
 		death()
 		return
-	weakened = 0
-	stunned = 0
-	paralysis = 0
+	set_status(STAT_WEAK, 0)
+	set_status(STAT_STUN, 0)
+	set_status(STAT_PARA, 0)
 
 	if(on && !client && !busy)
 		handleAI()
@@ -81,8 +81,6 @@
 		set_stat(CONSCIOUS)
 	else
 		health = maxHealth - getFireLoss() - getBruteLoss()
-	setOxyLoss(0)
-	setToxLoss(0)
 
 /mob/living/bot/death()
 	explode()
@@ -119,7 +117,7 @@
 	else
 		..()
 
-/mob/living/bot/attack_ai(var/mob/user)
+/mob/living/bot/attack_ai(var/mob/living/user)
 	Interact(user)
 
 /mob/living/bot/attack_hand(var/mob/user)
@@ -153,7 +151,7 @@
 	popup.open()
 
 /mob/living/bot/DefaultTopicState()
-	return GLOB.default_state
+	return global.default_topic_state
 
 /mob/living/bot/OnTopic(mob/user, href_list)
 	if(href_list["command"])
@@ -348,7 +346,7 @@
 	if(stat)
 		return 0
 	on = 1
-	set_light(0.5, 0.1, light_strength)
+	set_light(light_strength)
 	update_icons()
 	resetTarget()
 	patrol_path = list()
@@ -375,7 +373,7 @@
 
 	//	for(var/turf/simulated/t in oview(src,1))
 
-	for(var/d in GLOB.cardinal)
+	for(var/d in global.cardinal)
 		var/turf/simulated/T = get_step(src, d)
 		if(istype(T) && !T.density)
 			if(!LinkBlockedWithAccess(src, T, ID))

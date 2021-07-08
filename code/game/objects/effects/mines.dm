@@ -21,15 +21,12 @@
 	if(triggered) return
 
 	if(istype(M, /mob/living/carbon/human))
-		for(var/mob/O in viewers(world.view, src.loc))
-			to_chat(O, "<span class='warning'>\The [M] triggered the \icon[src] [src]</span>")
+		visible_message(SPAN_DANGER("\The [M] triggered \the [src]!"))
 		triggered = 1
 		call(src,triggerproc)(M)
 
 /obj/effect/mine/proc/triggerrad(obj)
-	var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread()
-	s.set_up(3, 1, src)
-	s.start()
+	spark_at(src, cardinal_only = TRUE)
 	obj:radiation += 50
 	randmutb(obj)
 	domutcheck(obj,null)
@@ -39,10 +36,8 @@
 /obj/effect/mine/proc/triggerstun(obj)
 	if(ismob(obj))
 		var/mob/M = obj
-		M.Stun(30)
-	var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread()
-	s.set_up(3, 1, src)
-	s.start()
+		SET_STATUS_MAX(M, STAT_STUN, 30)
+	spark_at(src, cardinal_only = TRUE)
 	spawn(0)
 		qdel(src)
 
@@ -67,9 +62,7 @@
 		qdel(src)
 
 /obj/effect/mine/proc/triggerkick(obj)
-	var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread()
-	s.set_up(3, 1, src)
-	s.start()
+	spark_at(src, cardinal_only = TRUE)
 	qdel(obj:client)
 	spawn(0)
 		qdel(src)

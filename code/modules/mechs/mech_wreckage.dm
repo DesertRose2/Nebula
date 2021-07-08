@@ -23,7 +23,10 @@
 						thing.forceMove(src)
 
 /obj/structure/mech_wreckage/powerloader/Initialize(mapload)
-	. = ..(mapload, new /mob/living/exosuit/premade/powerloader(loc), FALSE)
+	var/mob/living/exosuit/premade/powerloader/new_mech = new(loc)
+	. = ..(mapload, new_mech, FALSE)
+	if(!QDELETED(new_mech))
+		qdel(new_mech)
 
 /obj/structure/mech_wreckage/attack_hand(var/mob/user)
 	if(contents.len)
@@ -58,7 +61,7 @@
 	else if(isWrench(W))
 		if(prepared)
 			to_chat(user, SPAN_NOTICE("You finish dismantling \the [src]."))
-			new /obj/item/stack/material/steel(get_turf(src),rand(5,10))
+			SSmaterials.create_object(/decl/material/solid/metal/steel, get_turf(src), rand(5, 10))
 			qdel(src)
 		else
 			to_chat(user, SPAN_WARNING("It's too solid to dismantle. Try cutting through some of the bigger bits."))
@@ -66,8 +69,7 @@
 	else if(istype(W) && W.force > 20)
 		visible_message(SPAN_DANGER("\The [src] has been smashed with \the [W] by \the [user]!"))
 		if(prob(20))
-			new /obj/item/stack/material/steel(get_turf(src),rand(1,3))
-			qdel(src)
+			physically_destroyed()
 		return 1
 	return ..()
 

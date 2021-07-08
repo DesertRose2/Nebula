@@ -22,7 +22,7 @@
 	if(!istype(material))
 		return INITIALIZE_HINT_QDEL
 	if(ispath(padding_material, /decl/material))
-		padding_material = decls_repository.get_decl(padding_material)
+		padding_material = GET_DECL(padding_material)
 	force = round(material.get_blunt_damage()*0.4)
 	update_icon()
 
@@ -62,12 +62,12 @@
 		desc = "A stool. Apply butt with care. It's made of [material.use_name]."
 
 /obj/item/stool/proc/add_padding(var/padding_type)
-	padding_material = decls_repository.get_decl(padding_type)
+	padding_material = GET_DECL(padding_type)
 	update_icon()
 
 /obj/item/stool/proc/remove_padding()
 	if(padding_material)
-		padding_material.place_sheet(get_turf(src))
+		padding_material.create_object(get_turf(src))
 		padding_material = null
 	update_icon()
 
@@ -79,7 +79,7 @@
 		dismantle() //This deletes self.
 
 		var/blocked = target.get_blocked_ratio(hit_zone, BRUTE, damage = 20)
-		target.Weaken(10 * (1 - blocked))
+		SET_STATUS_MAX(target, STAT_WEAK, (10 * (1 - blocked)))
 		target.apply_damage(20, BRUTE, hit_zone, src)
 		return 1
 
@@ -88,13 +88,13 @@
 /obj/item/stool/explosion_act(severity)
 	. = ..()
 	if(. && !QDELETED(src) && (severity == 1 || (severity == 2 && prob(50)) || (severity == 3 && prob(5))))
-		physically_destroyed(src)
+		physically_destroyed()
 
 /obj/item/stool/proc/dismantle()
 	if(material)
-		material.place_sheet(get_turf(src))
+		material.create_object(get_turf(src))
 	if(padding_material)
-		padding_material.place_sheet(get_turf(src))
+		padding_material.create_object(get_turf(src))
 	qdel(src)
 
 /obj/item/stool/attackby(obj/item/W, mob/user)
@@ -116,7 +116,7 @@
 		else if(istype(W,/obj/item/stack/material))
 			var/obj/item/stack/material/M = W
 			if(M.material && (M.material.flags & MAT_FLAG_PADDING))
-				padding_type = "[M.material.type]"
+				padding_type = M.material.type
 		if(!padding_type)
 			to_chat(user, "You cannot pad \the [src] with that.")
 			return

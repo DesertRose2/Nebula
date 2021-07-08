@@ -10,6 +10,7 @@
 	var/list/clothing_choices = list()
 	siemens_coefficient = 0.8
 	bodytype_restricted = null
+	matter = list(/decl/material/solid/metal/steel = MATTER_AMOUNT_REINFORCEMENT)
 
 /obj/item/clothing/shoes/jackboots/swat
 	name = "\improper SWAT boots"
@@ -94,21 +95,20 @@
 	desc = "A pair of magic, black shoes."
 	icon = 'icons/clothing/feet/generic_shoes.dmi'
 	color = COLOR_GRAY40
-	body_parts_covered = FEET
+	body_parts_covered = SLOT_FEET
 
 /obj/item/clothing/shoes/clown_shoes
 	desc = "The prankster's standard-issue clowning shoes. Damn they're huge!"
 	name = "clown shoes"
-	icon_state = "clown"
-	item_state = "clown"
+	icon = 'icons/clothing/feet/clown.dmi'
 	force = 0
-	var/footstep = 1	//used for squeeks whilst walking
 	bodytype_restricted = null
 	can_add_hidden_item = FALSE
+	var/footstep = 1	//used for squeeks whilst walking
 
 /obj/item/clothing/shoes/clown_shoes/Initialize()
 	. = ..()
-	slowdown_per_slot[slot_shoes]  = 1
+	LAZYSET(slowdown_per_slot, slot_shoes_str, 1)
 
 /obj/item/clothing/shoes/clown_shoes/handle_movement(var/turf/walking, var/running)
 	if(running)
@@ -127,9 +127,9 @@
 	force = 2
 	siemens_coefficient = 0.7
 
-	cold_protection = FEET
+	cold_protection = SLOT_FEET
 	min_cold_protection_temperature = SHOE_MIN_COLD_PROTECTION_TEMPERATURE
-	heat_protection = FEET
+	heat_protection = SLOT_FEET
 	max_heat_protection_temperature = SHOE_MAX_HEAT_PROTECTION_TEMPERATURE
 	bodytype_restricted = null
 
@@ -154,12 +154,12 @@
 
 /obj/item/clothing/shoes/swimmingfins/Initialize()
 	. = ..()
-	slowdown_per_slot[slot_shoes] = 1
+	LAZYSET(slowdown_per_slot, slot_shoes_str, 1)
 
 /obj/item/clothing/shoes/athletic
 	name = "athletic shoes"
 	desc = "A pair of sleek atheletic shoes. Made by and for the sporty types."
-	icon_state = "sportshoe"
+	icon = 'icons/clothing/feet/sports.dmi'
 
 /obj/item/clothing/shoes/dress/sneakies
 	desc = "The height of fashion, and they're pre-polished. Upon further inspection, the soles appear to be on backwards. They look uncomfortable."
@@ -177,7 +177,7 @@
 	desc = "A pair of black high heels."
 	color = COLOR_GRAY15
 
-obj/item/clothing/shoes/heels/red
+/obj/item/clothing/shoes/heels/red
 	name = "red high heels"
 	desc = "A pair of red high heels."
 	color = COLOR_RED

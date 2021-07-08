@@ -337,21 +337,20 @@
 	name = "destination tagger"
 	desc = "Used to set the destination of properly wrapped packages."
 	icon = 'icons/obj/items/device/destination_tagger.dmi'
-	icon_state = "dest_tagger"
-	var/currTag = 0
+	icon_state = ICON_STATE_WORLD
 	w_class = ITEM_SIZE_SMALL
-	item_state = "electronic"
 	obj_flags = OBJ_FLAG_CONDUCTIBLE
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
+	matter = list(/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT)
+	var/currTag = 0
 
 /obj/item/destTagger/proc/openwindow(mob/user)
 	var/dat = "<tt><center><h1><b>TagMaster 2.3</b></h1></center>"
 
 	dat += "<table style='width:100%; padding:4px;'><tr>"
-	for(var/i = 1, i <= GLOB.tagger_locations.len, i++)
-		dat += "<td><a href='?src=\ref[src];nextTag=[GLOB.tagger_locations[i]]'>[GLOB.tagger_locations[i]]</a></td>"
+	for(var/i = 1, i <= global.tagger_locations.len, i++)
+		dat += "<td><a href='?src=\ref[src];nextTag=[global.tagger_locations[i]]'>[global.tagger_locations[i]]</a></td>"
 
 		if (i%4==0)
 			dat += "</tr><tr>"
@@ -365,7 +364,7 @@
 	openwindow(user)
 
 /obj/item/destTagger/OnTopic(user, href_list, state)
-	if(href_list["nextTag"] && (href_list["nextTag"] in GLOB.tagger_locations))
+	if(href_list["nextTag"] && (href_list["nextTag"] in global.tagger_locations))
 		src.currTag = href_list["nextTag"]
 		to_chat(user, "<span class='notice'>You set [src] to <b>[src.currTag]</b>.</span>")
 		playsound(src.loc, 'sound/machines/chime.ogg', 50, 1)
@@ -389,7 +388,7 @@
 		openwindow(user)
 
 /obj/machinery/disposal/deliveryChute
-	name = "Delivery chute"
+	name = "delivery chute"
 	desc = "A chute for big and small packages alike!"
 	density = 1
 	icon_state = "intake"
@@ -413,17 +412,16 @@
 /obj/machinery/disposal/deliveryChute/on_update_icon()
 	return
 
+/obj/machinery/disposal/deliveryChute/CanPass(atom/movable/mover, turf/target, height=1.5, air_group = 0)
+	. = (get_dir(src, mover) != dir) && ..()
+
 /obj/machinery/disposal/deliveryChute/Bumped(var/atom/movable/AM) //Go straight into the chute
-	if(istype(AM, /obj/item/projectile) || istype(AM, /obj/effect))	return
-	switch(dir)
-		if(NORTH)
-			if(AM.loc.y != src.loc.y+1) return
-		if(EAST)
-			if(AM.loc.x != src.loc.x+1) return
-		if(SOUTH)
-			if(AM.loc.y != src.loc.y-1) return
-		if(WEST)
-			if(AM.loc.x != src.loc.x-1) return
+
+	if(istype(AM, /obj/item/projectile) || istype(AM, /obj/effect))	
+		return
+
+	if(get_dir(src, AM) != dir)
+		return
 
 	var/mob/living/L = AM
 	if (istype(L) && L.ckey)
@@ -503,7 +501,7 @@
 /obj/machinery/disposal/deliveryChute/Destroy()
 	if(trunk)
 		trunk.linked = null
-	..()
+	return ..()
 
 /obj/item/stack/package_wrap/cyborg
 	name = "package wrapper synthesizer"
@@ -513,4 +511,4 @@
 	matter = null
 	uses_charge = 1
 	charge_costs = list(1)
-	stacktype = /obj/item/stack/package_wrap
+	stack_merge_type = /obj/item/stack/package_wrap

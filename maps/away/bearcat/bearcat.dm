@@ -25,7 +25,7 @@
 	name = "[pick("FTV","ITV","IEV")] [pick("Bearcat", "Firebug", "Defiant", "Unsinkable","Horizon","Vagrant")]"
 	for(var/area/ship/scrap/A)
 		A.name = "\improper [name] - [A.name]"
-		GLOB.using_map.area_purity_test_exempt_areas += A.type
+		global.using_map.area_purity_test_exempt_areas += A.type
 	name = "[name], \a [initial(name)]"
 	. = ..()
 
@@ -83,20 +83,6 @@
 	base_area = /area/ship/scrap/cargo/lower
 	base_turf = /turf/simulated/floor
 
-/obj/machinery/power/apc/derelict
-	lighting = 0
-	equipment = 0
-	environ = 0
-	locked = 0
-	uncreated_component_parts = list(
-		/obj/item/cell/crap/empty
-	)
-
-/obj/machinery/power/apc/derelict/full
-	uncreated_component_parts = list(
-		/obj/item/cell/crap
-	)
-
 /obj/machinery/door/airlock/autoname/command
 	door_color = COLOR_COMMAND_BLUE
 
@@ -141,7 +127,7 @@
 
 /decl/hierarchy/outfit/deadcap
 	name = "Derelict Captain"
-	uniform = /obj/item/clothing/under/casual_pants/classicjeans
+	uniform = /obj/item/clothing/pants/baggy/casual/classicjeans
 	suit = /obj/item/clothing/suit/storage/hooded/wintercoat
 	shoes = /obj/item/clothing/shoes/color/black
 	r_pocket = /obj/item/radio
@@ -156,4 +142,4 @@
 		else
 			qdel(eyegore)
 	var/obj/item/cell/super/C = new()
-	H.put_in_any_hand_if_possible(C)
+	H.put_in_hands(C)

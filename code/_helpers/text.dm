@@ -29,18 +29,17 @@
 		return
 
 	if(max_length)
-		//testing shows that just looking for > max_length alone will actually cut off the final character if message is precisely max_length, so >= instead
-		if(length(input) >= max_length)
-			var/overflow = ((length(input)+1) - max_length)
-			to_chat(usr, "<span class='warning'>Your message is too long by [overflow] character\s.</span>")
+		var/input_length = length_char(input)
+		if(input_length > max_length)
+			to_chat(usr, SPAN_WARNING("Your message is too long by [input_length - max_length] character\s."))
 			return
-		input = copytext(input,1,max_length)
+		input = copytext_char(input, 1, max_length + 1)
 
 	if(extra)
 		input = replace_characters(input, list("\n"=" ","\t"=" "))
 
 	if(encode)
-		// The below \ escapes have a space inserted to attempt to enable Travis auto-checking of span class usage. Please do not remove the space.
+		// The below \ escapes have a space inserted to attempt to enable unit testing of span class usage. Please do not remove the space.
 		//In addition to processing html, html_encode removes byond formatting codes like "\ red", "\ i" and other.
 		//It is important to avoid double-encode text, it can "break" quotes and some other characters.
 		//Also, keep in mind that escaped characters don't work in the interface (window titles, lower left corner of the main window, etc.)
@@ -129,6 +128,8 @@
 
 	return output
 
+// UNICODE: Convert to regex?
+
 //Used to strip text of everything but letters and numbers, make letters lowercase, and turn spaces into .'s.
 //Make sure the text hasn't been encoded if using this.
 /proc/sanitize_for_email(text)
@@ -154,6 +155,8 @@
 	if(dat[length(dat)] == ".")	//kill trailing .
 		dat.Cut(length(dat))
 	return jointext(dat, null)
+
+// UNICODE: Convert to regex?
 
 //Returns null if there is any bad text in the string
 /proc/reject_bad_text(var/text, var/max_length=512)
@@ -268,7 +271,7 @@
 
 //Returns a string with the first element of the string capitalized.
 /proc/capitalize(var/t as text)
-	return uppertext(copytext(t, 1, 2)) + copytext(t, 2)
+	return uppertext(copytext_char(t, 1, 2)) + copytext_char(t, 2)
 
 //This proc strips html properly, remove < > and all text between
 //for complete text sanitizing should be used sanitize()
@@ -336,7 +339,7 @@
 
 //Used in preferences' SetFlavorText and human's set_flavor verb
 //Previews a string of len or less length
-proc/TextPreview(var/string,var/len=40)
+/proc/TextPreview(var/string,var/len=40)
 	if(length(string) <= len)
 		if(!length(string))
 			return "\[...\]"
@@ -350,7 +353,7 @@ proc/TextPreview(var/string,var/len=40)
 	return html_encode(copytext(html_decode(text), first, last))
 
 /proc/create_text_tag(var/tagname, var/tagdesc = tagname, var/client/C = null)
-	if(!(C && C.get_preference_value(/datum/client_preference/chat_tags) == GLOB.PREF_SHOW))
+	if(!(C && C.get_preference_value(/datum/client_preference/chat_tags) == PREF_SHOW))
 		return tagdesc
 	return "<IMG src='\ref['./icons/chattags.dmi']' class='text_tag' iconstate='[tagname]'" + (tagdesc ? " alt='[tagdesc]'" : "") + ">"
 
@@ -378,8 +381,6 @@ proc/TextPreview(var/string,var/len=40)
 	. = jointext(.,null)
 
 #define starts_with(string, substring) (copytext(string,1,1+length(substring)) == substring)
-
-#define gender2text(gender) capitalize(gender)
 
 /**
  * Strip out the special beyond characters for \proper and \improper
@@ -429,8 +430,8 @@ proc/TextPreview(var/string,var/len=40)
 /proc/digitalPencode2html(var/text)
 	text = replacetext(text, "\[pre\]", "<pre>")
 	text = replacetext(text, "\[/pre\]", "</pre>")
-	text = replacetext(text, "\[fontred\]", "<font color=\"red\">") //</font> to pass travis html tag integrity check
-	text = replacetext(text, "\[fontblue\]", "<font color=\"blue\">")//</font> to pass travis html tag integrity check
+	text = replacetext(text, "\[fontred\]", "<font color=\"red\">") //</font> to pass html tag unit test
+	text = replacetext(text, "\[fontblue\]", "<font color=\"blue\">")//</font> to pass html tag unit test
 	text = replacetext(text, "\[fontgreen\]", "<font color=\"green\">")
 	text = replacetext(text, "\[/font\]", "</font>")
 	text = replacetext(text, "\[redacted\]", "<span class=\"redacted\">R E D A C T E D</span>")
@@ -440,8 +441,8 @@ proc/TextPreview(var/string,var/len=40)
 /proc/html2pencode(t)
 	t = replacetext(t, "<pre>", "\[pre\]")
 	t = replacetext(t, "</pre>", "\[/pre\]")
-	t = replacetext(t, "<font color=\"red\">", "\[fontred\]")//</font> to pass travis html tag integrity check
-	t = replacetext(t, "<font color=\"blue\">", "\[fontblue\]")//</font> to pass travis html tag integrity check
+	t = replacetext(t, "<font color=\"red\">", "\[fontred\]")//</font> to pass html tag unit test
+	t = replacetext(t, "<font color=\"blue\">", "\[fontblue\]")//</font> to pass html tag unit test
 	t = replacetext(t, "<font color=\"green\">", "\[fontgreen\]")
 	t = replacetext(t, "</font>", "\[/font\]")
 	t = replacetext(t, "<BR>", "\[br\]")
@@ -558,6 +559,9 @@ proc/TextPreview(var/string,var/len=40)
 	text = replacetext(text, "&", "")
 	return text
 
-// Switch to use copytext_char() when 513 is in
-var/list/fullstop_alternatives = list(".", "!", "?")
-#define APPEND_FULLSTOP_IF_NEEDED(TXT) ((copytext(TXT, -1, 0) in global.fullstop_alternatives) ? TXT : "[TXT].")
+var/global/list/fullstop_alternatives = list(".", "!", "?")
+#define APPEND_FULLSTOP_IF_NEEDED(TXT) ((copytext_char(TXT, -1, 0) in global.fullstop_alternatives) ? TXT : "[TXT].")
+
+/proc/make_rainbow(var/msg)
+	for(var/i = 1 to length(msg))
+		. += "<font color='[get_random_colour(1)]'>[copytext(msg, i, i+1)]</font>"

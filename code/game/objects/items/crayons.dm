@@ -55,7 +55,7 @@
 	color_description = "white crayon"
 	uses = 0
 
-/obj/item/pen/crayon/mime/attack_self(mob/living/user) //inversion
+/obj/item/pen/crayon/mime/attack_self(mob/user) //inversion
 	if(colour != "#ffffff" && shadeColour != "#000000")
 		colour = "#ffffff"
 		shadeColour = "#000000"
@@ -74,7 +74,7 @@
 	color_description = "rainbow crayon"
 	uses = 0
 
-/obj/item/pen/crayon/rainbow/attack_self(mob/living/user)
+/obj/item/pen/crayon/rainbow/attack_self(mob/user)
 	colour = input(user, "Please select the main colour.", "Crayon colour") as color
 	shadeColour = input(user, "Please select the shade colour.", "Crayon colour") as color
 	return
@@ -109,7 +109,7 @@
 	if(istype(M) && M == user)
 		to_chat(M, "You take a bite of the crayon and swallow it.")
 		M.adjust_nutrition(1)
-		M.reagents.add_reagent(/decl/material/pigment,min(5,uses)/3)
+		M.reagents.add_reagent(/decl/material/liquid/pigment,min(5,uses)/3)
 		if(uses)
 			uses -= 5
 			if(uses <= 0)

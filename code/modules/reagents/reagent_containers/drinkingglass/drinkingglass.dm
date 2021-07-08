@@ -1,8 +1,8 @@
-/var/const/DRINK_FIZZ = "fizz"
-/var/const/DRINK_ICE = "ice"
-/var/const/DRINK_VAPOR = "vapor"
-/var/const/DRINK_ICON_DEFAULT = ""
-/var/const/DRINK_ICON_NOISY = "noise"
+var/global/const/DRINK_FIZZ = "fizz"
+var/global/const/DRINK_ICE = "ice"
+var/global/const/DRINK_VAPOR = "vapor"
+var/global/const/DRINK_ICON_DEFAULT = ""
+var/global/const/DRINK_ICON_NOISY = "noise"
 
 /obj/item/chems/food/drinks/glass2
 	name = "glass" // Name when empty
@@ -15,11 +15,14 @@
 	volume = 30
 	material = /decl/material/solid/glass
 
+	drop_sound = 'sound/foley/bottledrop1.ogg'
+	pickup_sound = 'sound/foley/bottlepickup1.ogg'
+
 	var/list/extras = list() // List of extras. Two extras maximum
 
 	var/rim_pos // Position of the rim for fruit slices. list(y, x_left, x_right)
 	var/filling_overlayed //if filling should go on top of the icon (e.g. opaque cups)
-	var/global/list/filling_icons_cache = list()
+	var/static/list/filling_icons_cache = list()
 
 	center_of_mass =@"{'x':16,'y':9}"
 
@@ -27,6 +30,7 @@
 	possible_transfer_amounts = @"[5,10,15,30]"
 	atom_flags = ATOM_FLAG_OPEN_CONTAINER | ATOM_FLAG_SHOW_REAGENT_NAME
 	temperature_coefficient = 4
+	item_flags = ITEM_FLAG_HOLLOW
 
 	var/custom_name
 	var/custom_desc
@@ -64,7 +68,7 @@
 			return 1
 		var/totalfizzy = 0
 		for(var/rtype in reagents.reagent_volumes)
-			var/decl/material/re = decls_repository.get_decl(rtype)
+			var/decl/material/re = GET_DECL(rtype)
 			if("fizz" in re.glass_special)
 				totalfizzy += REAGENT_VOLUME(reagents, rtype)
 		if(totalfizzy >= reagents.total_volume / 5) // 20% fizzy by volume
@@ -79,7 +83,7 @@
 		if(!("vapor" in R.glass_special))
 			var/totalvape = 0
 			for(var/rtype in reagents.reagent_volumes)
-				var/decl/material/re = decls_repository.get_decl(rtype)
+				var/decl/material/re = GET_DECL(rtype)
 				if("vapor" in re.glass_special)
 					totalvape += REAGENT_VOLUME(reagents, type)
 			if(totalvape >= volume * 0.6) // 60% vapor by container volume

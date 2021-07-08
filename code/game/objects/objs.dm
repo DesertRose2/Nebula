@@ -16,6 +16,11 @@
 	var/anchor_fall = FALSE
 	var/holographic = 0 //if the obj is a holographic object spawned by the holodeck
 
+/obj/hitby(atom/movable/AM, var/datum/thrownthing/TT)
+	..()
+	if(!anchored)
+		step(src, AM.last_move)
+
 /obj/proc/create_matter()
 	if(length(matter))
 		for(var/mat in matter)
@@ -27,7 +32,7 @@
 	return ..()
 
 /obj/proc/get_matter_amount_modifier()
-	. = ceil(w_class * 0.25)
+	. = ceil(w_class * BASE_OBJECT_MATTER_MULTPLIER)
 
 /obj/item/proc/is_used_on(obj/O, mob/user)
 	return
@@ -154,7 +159,7 @@
 		anchored = !anchored
 	return 1
 
-/obj/attack_hand(mob/living/user)
+/obj/attack_hand(mob/user)
 	if(Adjacent(user))
 		add_fingerprint(user)
 	..()
@@ -196,3 +201,6 @@
 
 /obj/get_mass()
 	return min(2**(w_class-1), 100)
+
+/obj/get_object_size()
+	return w_class

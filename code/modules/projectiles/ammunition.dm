@@ -5,7 +5,7 @@
 	icon_state = "pistolcasing"
 	randpixel = 10
 	obj_flags = OBJ_FLAG_CONDUCTIBLE
-	slot_flags = SLOT_BELT | SLOT_EARS
+	slot_flags = SLOT_LOWER_BODY | SLOT_EARS
 	throwforce = 1
 	w_class = ITEM_SIZE_TINY
 
@@ -33,7 +33,7 @@
 /obj/item/ammo_casing/proc/expend()
 	. = BB
 	BB = null
-	set_dir(pick(GLOB.alldirs)) //spin spent casings
+	set_dir(pick(global.alldirs)) //spin spent casings
 
 	// Aurora forensics port, gunpowder residue.
 	if(leaves_residue)
@@ -41,21 +41,36 @@
 
 	update_icon()
 
+/obj/item/ammo_casing/Crossed(atom/AM)
+	..()
+
+	if(isliving(AM))
+		var/mob/living/L = AM
+
+		if(L.buckled)
+			return
+
+		if(!MOVING_DELIBERATELY(L) && prob(10))
+			playsound(src, pick(fall_sounds), 50, 1)
+			var/turf/turf_current = get_turf(src)
+			var/turf/turf_destiinaton = get_step(turf_current, AM.dir)
+			if(turf_destiinaton.Adjacent(turf_current))
+				throw_at(turf_destiinaton, 2, 2, spin = FALSE)
+				animate(src, pixel_x = rand(-16, 16), pixel_y = rand(-16, 16), transform = turn(matrix(), rand(120, 300)), time = rand(3, 8))
+
 /obj/item/ammo_casing/proc/leave_residue()
 	var/mob/living/carbon/human/H = get_holder_of_type(src, /mob/living/carbon/human)
 	var/obj/item/gun/G = get_holder_of_type(src, /obj/item/gun)
 	put_residue_on(G)
 	if(H)
-		var/zone
-		if(H.l_hand == G)
-			zone = BP_L_HAND
-		else if(H.r_hand == G)
-			zone = BP_R_HAND
-		if(zone)
-			var/target = H.get_covering_equipped_item_by_zone(zone)
-			if(!target)
-				target = H.get_organ(zone)
-			put_residue_on(target)
+		for(var/bp in H.held_item_slots)
+			var/datum/inventory_slot/inv_slot = H.held_item_slots[bp]
+			if(G == inv_slot?.holding)
+				var/target = H.get_covering_equipped_item_by_zone(bp)
+				if(!target)
+					target = H.get_organ(bp)
+				put_residue_on(target)
+				break
 	if(prob(30))
 		put_residue_on(get_turf(src))
 
@@ -110,7 +125,7 @@
 	icon_state = "357"
 	icon = 'icons/obj/ammo.dmi'
 	obj_flags = OBJ_FLAG_CONDUCTIBLE
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	item_state = "syringe_kit"
 	material = /decl/material/solid/metal/steel
 	throwforce = 5
@@ -174,13 +189,13 @@
 	to_chat(user, "<span class='notice'>You empty [src].</span>")
 	for(var/obj/item/ammo_casing/C in stored_ammo)
 		C.forceMove(user.loc)
-		C.set_dir(pick(GLOB.alldirs))
+		C.set_dir(pick(global.alldirs))
 	stored_ammo.Cut()
 	update_icon()
 
 
 /obj/item/ammo_magazine/attack_hand(mob/user)
-	if(user.get_inactive_hand() == src)
+	if(user.is_holding_offhand(src))
 		if(!stored_ammo.len)
 			to_chat(user, "<span class='notice'>[src] is already empty!</span>")
 		else
@@ -209,8 +224,8 @@
 	to_chat(user, "There [(stored_ammo.len == 1)? "is" : "are"] [stored_ammo.len] round\s left!")
 
 //magazine icon state caching
-/var/global/list/magazine_icondata_keys = list()
-/var/global/list/magazine_icondata_states = list()
+var/global/list/magazine_icondata_keys = list()
+var/global/list/magazine_icondata_states = list()
 
 /proc/initialize_magazine_icondata(var/obj/item/ammo_magazine/M)
 	var/typestr = "[M.type]"

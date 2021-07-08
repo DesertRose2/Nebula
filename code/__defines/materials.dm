@@ -2,16 +2,17 @@
 #define DEFAULT_WALL_MATERIAL       /decl/material/solid/metal/steel
 #define DEFAULT_FURNITURE_MATERIAL  /decl/material/solid/metal/aluminium
 
-#define MAT_FLAG_ALTERATION_NONE    0x1
-#define MAT_FLAG_ALTERATION_NAME    0x2
-#define MAT_FLAG_ALTERATION_DESC    0x4
-#define MAT_FLAG_ALTERATION_COLOR   0x8
+#define MAT_FLAG_ALTERATION_NONE    BITFLAG(0)
+#define MAT_FLAG_ALTERATION_NAME    BITFLAG(1)
+#define MAT_FLAG_ALTERATION_DESC    BITFLAG(2)
+#define MAT_FLAG_ALTERATION_COLOR   BITFLAG(3)
 #define MAT_FLAG_ALTERATION_ALL     (~MAT_FLAG_ALTERATION_NONE)
 
-#define MAT_FLAG_UNMELTABLE         0x1
-#define MAT_FLAG_BRITTLE            0x2
-#define MAT_FLAG_PADDING            0x4
-#define MAT_FLAG_FUSION_FUEL        0x8
+#define MAT_FLAG_UNMELTABLE         BITFLAG(0)
+#define MAT_FLAG_BRITTLE            BITFLAG(1)
+#define MAT_FLAG_PADDING            BITFLAG(2)
+#define MAT_FLAG_FUSION_FUEL        BITFLAG(3)
+#define MAT_FLAG_FISSIBLE           BITFLAG(4)	// This material has use in a fission reactor.
 
 #define SHARD_SHARD                 "shard"
 #define SHARD_SHRAPNEL              "shrapnel"
@@ -33,11 +34,6 @@
 #define MAT_VALUE_HARD_DIY          2
 #define MAT_VALUE_VERY_HARD_DIY     3
 
-//Stack flags
-#define USE_MATERIAL_COLOR          0x1
-#define USE_MATERIAL_SINGULAR_NAME  0x2
-#define USE_MATERIAL_PLURAL_NAME    0x4
-
 //Arbitrary hardness thresholds
 #define MAT_VALUE_SOFT              10
 #define MAT_VALUE_FLEXIBLE          20
@@ -52,9 +48,28 @@
 #define MAT_VALUE_VERY_SHINY        60
 #define MAT_VALUE_MIRRORED          80
 
+// Wall layering flags
+#define PAINT_PAINTABLE BITFLAG(0)
+#define PAINT_STRIPABLE BITFLAG(1)
+#define PAINT_DETAILABLE BITFLAG(2)
+#define PAINT_WINDOW_PAINTABLE BITFLAG(3)
+#define WALL_HAS_EDGES BITFLAG(4)
+
 #define STRUCTURE_BRITTLE_MATERIAL_DAMAGE_MULTIPLIER 4 // Amount table damage is multiplied by if it is made of a brittle material (e.g. glass)
 
 #define ORE_SURFACE  "surface minerals"
 #define ORE_PRECIOUS "precious metals"
 #define ORE_NUCLEAR  "nuclear fuel"
 #define ORE_EXOTIC   "exotic matter"
+
+//Phase of matter placeholders
+#define MAT_PHASE_SOLID     "solid"
+#define MAT_PHASE_LIQUID    "liquid"
+#define MAT_PHASE_GAS       "gas"
+#define MAT_PHASE_PLASMA    "plasma"
+
+// Fission interactions.
+// For these, associated value is ideal neutron energy for reaction.
+#define INTERACTION_FISSION        "fission"
+#define INTERACTION_ABSORPTION     "absorption"
+#define INTERACTION_SCATTER        "scatter"

@@ -23,12 +23,12 @@
 	. = ..()
 	radio = new(src)
 	camera = new(src)
-	GLOB.listening_objects += src
+	global.listening_objects += src
 
 /obj/item/spy_bug/Destroy()
 	QDEL_NULL(radio)
 	QDEL_NULL(camera)
-	GLOB.listening_objects -= src
+	global.listening_objects -= src
 	return ..()
 
 /obj/item/spy_bug/examine(mob/user, distance)
@@ -40,7 +40,7 @@
 /obj/item/spy_bug/attack_self(mob/user)
 	radio.attack_self(user)
 
-/obj/item/spy_bug/attackby(obj/W, mob/living/user)
+/obj/item/spy_bug/attackby(obj/W, mob/user)
 	if(istype(W, /obj/item/spy_monitor))
 		var/obj/item/spy_monitor/SM = W
 		SM.pair(src, user)
@@ -70,10 +70,10 @@
 /obj/item/spy_monitor/Initialize()
 	. = ..()
 	radio = new(src)
-	GLOB.listening_objects += src
+	global.listening_objects += src
 
 /obj/item/spy_monitor/Destroy()
-	GLOB.listening_objects -= src
+	global.listening_objects -= src
 	return ..()
 
 /obj/item/spy_monitor/examine(mob/user, distance)
@@ -88,7 +88,7 @@
 	radio.attack_self(user)
 	view_cameras(user)
 
-/obj/item/spy_monitor/attackby(obj/W, mob/living/user)
+/obj/item/spy_monitor/attackby(obj/W, mob/user)
 	if(istype(W, /obj/item/spy_bug))
 		pair(W, user)
 	else

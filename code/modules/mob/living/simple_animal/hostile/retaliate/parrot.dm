@@ -43,10 +43,7 @@
 	natural_weapon = /obj/item/natural_weapon/beak
 	speak_chance = 1//1% (1 in 100) chance every tick; So about once per 150 seconds, assuming an average tick is 1.5s
 	turns_per_move = 5
-
-	response_help  = "pets"
-	response_disarm = "gently moves aside"
-	response_harm   = "swats"
+	response_harm = "swats"
 	stop_automated_movement = 1
 	universal_speak = TRUE
 
@@ -146,7 +143,7 @@
 	return
 
 /mob/living/simple_animal/hostile/retaliate/parrot/DefaultTopicState()
-	return GLOB.physical_state
+	return global.physical_topic_state
 
 /mob/living/simple_animal/hostile/retaliate/parrot/OnTopic(mob/user, href_list)
 	//Is the user's mob type able to do this?
@@ -197,7 +194,7 @@
 						src.ears = headset_to_add
 						to_chat(user, "You fit the headset onto [src].")
 
-						clearlist(available_channels)
+						available_channels = list()
 						for(var/ch in headset_to_add.channels)
 							switch(ch)
 								if("Engineering")
@@ -223,29 +220,21 @@
  * Attack responces
  */
 //Humans, monkeys, aliens
-/mob/living/simple_animal/hostile/retaliate/parrot/attack_hand(mob/living/carbon/M)
-	..()
-	if(client)
-		return
-
-	if(simple_parrot) //all the real stuff gets handled in /hostile/retaliate
-		return
-
-	if(!stat && M.a_intent == I_HURT)
+/mob/living/simple_animal/hostile/retaliate/parrot/attack_hand(mob/user)
+	. = ..()
+	if(!client && !simple_parrot && !stat && user.a_intent == I_HURT)
 		icon_state = "[icon_set]_fly" //It is going to be flying regardless of whether it flees or attacks
-
 		if(parrot_state == PARROT_PERCH)
 			parrot_sleep_dur = parrot_sleep_max //Reset it's sleep timer if it was perched
-
-		parrot_interest = M
+		parrot_interest = user
 		parrot_state = PARROT_SWOOP //The parrot just got hit, it WILL move, now to pick a direction..
-
-		if(M.health < 50) //Weakened mob? Fight back!
-			parrot_state |= PARROT_ATTACK
-		else
-			parrot_state |= PARROT_FLEE		//Otherwise, fly like a bat out of hell!
-			drop_held_item(0)
-	return
+		if(isliving(user))
+			var/mob/living/M = user
+			if(M.health < 50) //Weakened mob? Fight back!
+				parrot_state |= PARROT_ATTACK
+				return
+		parrot_state |= PARROT_FLEE		//Otherwise, fly like a bat out of hell!
+		drop_held_item(0)
 
 //Mobs with objects
 /mob/living/simple_animal/hostile/retaliate/parrot/attackby(var/obj/item/O, var/mob/user)
@@ -301,7 +290,7 @@
 			speak.Remove(pick(speak))
 
 		speak.Add(pick(speech_buffer))
-		clearlist(speech_buffer)
+		speech_buffer = list()
 
 
 //-----SLEEPING
@@ -366,7 +355,7 @@
 		//Wander around aimlessly. This will help keep the loops from searches down
 		//and possibly move the mob into a new are in view of something they can use
 		if(prob(90))
-			SelfMove(pick(GLOB.cardinal))
+			SelfMove(pick(global.cardinal))
 			return
 
 		if(!held_item && !parrot_perch) //If we've got nothing to do.. look for something to do.
@@ -519,8 +508,10 @@
 
 		if(iscarbon(AM))
 			var/mob/living/carbon/C = AM
-			if((C.l_hand && can_pick_up(C.l_hand)) || (C.r_hand && can_pick_up(C.r_hand)))
-				return C
+			for(var/bp in C.held_item_slots)
+				var/datum/inventory_slot/inv_slot = C.held_item_slots[bp]
+				if(inv_slot?.holding && can_pick_up(inv_slot.holding))
+					return C
 	return null
 
 /mob/living/simple_animal/hostile/retaliate/parrot/proc/search_for_perch()
@@ -546,14 +537,16 @@
 
 		if(iscarbon(AM))
 			var/mob/living/carbon/C = AM
-			if((C.l_hand && can_pick_up(C.l_hand)) || (C.r_hand && can_pick_up(C.r_hand)))
-				return C
+			for(var/bp in C.held_item_slots)
+				var/datum/inventory_slot/inv_slot = C.held_item_slots[bp]
+				if(inv_slot?.holding && can_pick_up(inv_slot.holding))
+					return C
 	return null
 
 /mob/living/simple_animal/hostile/retaliate/parrot/proc/give_up()
 	enemies = list()
 	LoseTarget()
-	visible_message("<span class='notice'>\The [src] seems to calm down.</span>")
+	visible_message(SPAN_NOTICE("\The [src] seems to calm down."))
 	relax_chance -= impatience
 
 /*
@@ -600,14 +593,11 @@
 		return 1
 
 	var/obj/item/stolen_item = null
-
 	for(var/mob/living/carbon/C in view(1,src))
-		if(C.l_hand && can_pick_up(C.l_hand))
-			stolen_item = C.l_hand
-
-		if(C.r_hand && can_pick_up(C.r_hand))
-			stolen_item = C.r_hand
-
+		for(var/obj/item/thing in C.get_held_items())
+			if(can_pick_up(thing))
+				stolen_item = thing
+				break
 		if(stolen_item && C.unEquip(stolen_item, src))
 			held_item = stolen_item
 			visible_message("[src] grabs the [held_item] out of [C]'s hand!", "<span class='warning'>You snag the [held_item] out of [C]'s hand!</span>", "You hear the sounds of wings flapping furiously.")

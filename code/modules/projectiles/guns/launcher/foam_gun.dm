@@ -6,7 +6,7 @@
 	force = 1
 	w_class = ITEM_SIZE_SMALL
 	obj_flags = null
-	slot_flags = SLOT_BELT | SLOT_HOLSTER
+	slot_flags = SLOT_LOWER_BODY | SLOT_HOLSTER
 	release_force = 1.5
 	throw_distance = 6
 	accuracy = 1
@@ -42,6 +42,12 @@
 			darts -= D
 			D.dropInto(user.loc)
 			D.mix_up()
+
+/obj/item/gun/launcher/foam/crossbow
+	name = "foam dart crossbow"
+	desc = "A weapon favored by many overactive children. Ages 8 and up."
+	icon = 'icons/obj/guns/energy_crossbow.dmi'
+	max_darts = 5
 
 /obj/item/gun/launcher/foam/burst
 	name = "foam machine pistol"
@@ -91,7 +97,7 @@
 /obj/item/foam_dart/proc/mix_up()
 	pixel_x = rand(-randpixel, randpixel)
 	pixel_y = rand(-randpixel, randpixel)
-	set_dir(pick(GLOB.alldirs))
+	set_dir(pick(global.alldirs))
 
 /obj/item/foam_dart/tampered
 	throwforce = 4

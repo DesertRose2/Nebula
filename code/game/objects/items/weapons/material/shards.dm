@@ -20,12 +20,16 @@
 	item_flags = ITEM_FLAG_CAN_HIDE_IN_SHOES
 	var/has_handle
 
+/obj/item/shard/Initialize(ml, material_key)
+	. = ..()
+	set_extension(src, /datum/extension/tool, list(TOOL_SCALPEL = TOOL_QUALITY_BAD))
+
 /obj/item/shard/attack(mob/living/M, mob/living/user, var/target_zone)
 	. = ..()
 	if(. && !has_handle)
 		var/mob/living/carbon/human/H = user
 		if(istype(H) && !H.gloves && !(H.species.species_flags & SPECIES_FLAG_NO_MINOR_CUT))
-			var/obj/item/organ/external/hand = H.get_organ(H.hand ? BP_L_HAND : BP_R_HAND)
+			var/obj/item/organ/external/hand = H.get_organ(H.get_active_held_item_slot())
 			if(istype(hand) && !BP_IS_PROSTHETIC(hand))
 				to_chat(H, SPAN_DANGER("You slice your hand on \the [src]!"))
 				hand.take_external_damage(rand(5,10), used_weapon = src)
@@ -62,7 +66,7 @@
 	if(isWelder(W) && material.shard_can_repair)
 		var/obj/item/weldingtool/WT = W
 		if(WT.remove_fuel(0, user))
-			material.place_sheet(get_turf(src))
+			material.create_object(get_turf(src))
 			qdel(src)
 			return
 	if(istype(W, /obj/item/stack/cable_coil))
@@ -108,7 +112,7 @@
 			if(H.species.siemens_coefficient<0.5 || (H.species.species_flags & (SPECIES_FLAG_NO_EMBED|SPECIES_FLAG_NO_MINOR_CUT))) //Thick skin.
 				return
 
-			if( H.shoes || ( H.wear_suit && (H.wear_suit.body_parts_covered & FEET) ) )
+			if( H.shoes || ( H.wear_suit && (H.wear_suit.body_parts_covered & SLOT_FEET) ) )
 				return
 
 			to_chat(M, "<span class='danger'>You step on \the [src]!</span>")
@@ -123,7 +127,7 @@
 					affecting.take_external_damage(5, 0)
 					H.updatehealth()
 					if(affecting.can_feel_pain())
-						H.Weaken(3)
+						SET_STATUS_MAX(H, STAT_WEAK, 3)
 					return
 				check -= picked
 			return

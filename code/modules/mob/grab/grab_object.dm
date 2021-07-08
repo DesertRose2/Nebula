@@ -4,6 +4,10 @@
 	item_flags = ITEM_FLAG_NO_BLUDGEON
 	w_class = ITEM_SIZE_NO_CONTAINER
 
+	pickup_sound = null
+	drop_sound =   null
+	equip_sound =  null
+
 	var/atom/movable/affecting = null
 	var/mob/assailant = null
 	var/decl/grab/current_grab
@@ -22,7 +26,7 @@
 	if(. == INITIALIZE_HINT_QDEL)
 		return
 
-	current_grab = decls_repository.get_decl(use_grab_state)
+	current_grab = GET_DECL(use_grab_state)
 	if(!istype(current_grab))
 		return INITIALIZE_HINT_QDEL
 	assailant = loc
@@ -33,7 +37,7 @@
 		return INITIALIZE_HINT_QDEL
 	target_zone = assailant.zone_sel?.selecting
 
-	var/mob/affecting_mob = get_affecting_mob()
+	var/mob/living/affecting_mob = get_affecting_mob()
 	if(affecting_mob)
 		affecting_mob.UpdateLyingBuckledAndVerbStatus()
 		if(ishuman(affecting_mob))
@@ -48,33 +52,34 @@
 	playsound(affecting.loc, 'sound/weapons/thudswoosh.ogg', 50, 1, -1)
 	update_icon()
 
-	GLOB.moved_event.register(affecting, src, .proc/on_affecting_move)
+	events_repository.register(/decl/observ/moved, affecting, src, .proc/on_affecting_move)
 	if(assailant.zone_sel)
-		GLOB.zone_selected_event.register(assailant.zone_sel, src, .proc/on_target_change)
-	var/obj/item/organ/O = get_targeted_organ()
+		events_repository.register(/decl/observ/zone_selected, assailant.zone_sel, src, .proc/on_target_change)
 
-	var/datum/gender/T = gender_datums[assailant.get_gender()]
-	if(O)
-		SetName("[name] ([O.name])")
-		GLOB.dismembered_event.register(affecting, src, .proc/on_organ_loss)
-		if(affecting != assailant)
-			visible_message(SPAN_DANGER("\The [assailant] has grabbed [affecting]'s [O.name]!"))
+	var/obj/item/organ/O = get_targeted_organ()
+	var/decl/pronouns/G = assailant.get_pronouns()
+	if(affecting_mob && O) // may have grabbed a buckled mob, so may be grabbing their holder
+		SetName("[name] (\the [affecting_mob]'s [O.name])")
+		events_repository.register(/decl/observ/dismembered, affecting_mob, src, .proc/on_organ_loss)
+		if(affecting_mob != assailant)
+			visible_message(SPAN_DANGER("\The [assailant] has grabbed [affecting_mob]'s [O.name]!"))
 		else
-			visible_message(SPAN_NOTICE("\The [assailant] has grabbed [T.his] [O.name]!"))
+			visible_message(SPAN_NOTICE("\The [assailant] has grabbed [G.his] [O.name]!"))
 	else
 		if(affecting != assailant)
 			visible_message(SPAN_DANGER("\The [assailant] has grabbed \the [affecting]!"))
 		else
-			visible_message(SPAN_NOTICE("\The [assailant] has grabbed [T.self]!"))
+			visible_message(SPAN_NOTICE("\The [assailant] has grabbed [G.self]!"))
 
 	if(affecting_mob && affecting_mob.a_intent != I_HELP)
 		upgrade(TRUE)
 
 /obj/item/grab/examine(mob/user)
 	. = ..()
+	var/mob/M = get_affecting_mob()
 	var/obj/item/O = get_targeted_organ()
-	if(O)
-		to_chat(user, "A grip on \the [affecting]'s [O.name].")
+	if(M && O)
+		to_chat(user, "A grip on \the [M]'s [O.name].")
 	else
 		to_chat(user, "A grip on \the [affecting].")
 
@@ -92,6 +97,8 @@
 	current_grab.hit_with_grab(src)
 
 /obj/item/grab/resolve_attackby(atom/A, mob/user, var/click_params)
+	if(QDELETED(src) || !assailant)
+		return TRUE
 	assailant.setClickCooldown(DEFAULT_ATTACK_COOLDOWN)
 	if(!A.grab_attack(src))
 		return ..()
@@ -111,15 +118,15 @@
 
 /obj/item/grab/Destroy()
 	if(affecting)
-		GLOB.dismembered_event.unregister(affecting, src)
-		GLOB.moved_event.unregister(affecting, src)
+		events_repository.unregister(/decl/observ/dismembered, affecting, src)
+		events_repository.unregister(/decl/observ/moved, affecting, src)
 		reset_position()
 		LAZYREMOVE(affecting.grabbed_by, src)
 		affecting.reset_plane_and_layer()
 		affecting = null
 	if(assailant)
 		if(assailant.zone_sel)
-			GLOB.zone_selected_event.unregister(assailant.zone_sel, src)
+			events_repository.unregister(/decl/observ/zone_selected, assailant.zone_sel, src)
 		assailant = null
 	return ..()
 
@@ -141,7 +148,7 @@
 
 /obj/item/grab/proc/on_organ_loss(mob/victim, obj/item/organ/lost)
 	if(affecting != victim)
-		crash_with("A grab switched affecting targets without properly re-registering for dismemberment updates.")
+		PRINT_STACK_TRACE("A grab switched affecting targets without properly re-registering for dismemberment updates.")
 		return
 	var/obj/item/organ/O = get_targeted_organ()
 	if(!istype(O))
@@ -159,12 +166,16 @@
 	assailant.drop_from_inventory(src)
 
 /obj/item/grab/proc/get_affecting_mob()
-	. = ismob(affecting) && affecting
+	if(isobj(affecting))
+		var/obj/O = affecting
+		return O.buckled_mob
+	if(isliving(affecting))
+		return affecting
 
 // Returns the organ of the grabbed person that the grabber is targeting
 /obj/item/grab/proc/get_targeted_organ()
-	if(ishuman(affecting))
-		var/mob/living/carbon/human/affecting_mob = affecting
+	var/mob/affecting_mob = get_affecting_mob()
+	if(istype(affecting_mob))
 		. = affecting_mob.get_organ(target_zone)
 
 /obj/item/grab/proc/resolve_item_attack(var/mob/living/M, var/obj/item/I, var/target_zone)
@@ -225,7 +236,7 @@
 	current_grab.handle_resist(src)
 
 /obj/item/grab/proc/adjust_position(var/force = 0)
-	if(force)	
+	if(force)
 		affecting.forceMove(assailant.loc)
 	if(!assailant || !affecting || !assailant.Adjacent(affecting))
 		qdel(src)
@@ -270,9 +281,10 @@
 	return current_grab.force_danger
 
 /obj/item/grab/proc/grab_slowdown()
-	return current_grab.grab_slowdown
+	return max(ceil(affecting?.get_object_size() * current_grab.grab_slowdown), 1)
 
 /obj/item/grab/proc/assailant_moved()
+	affecting.glide_size = assailant.glide_size // Note that this is called _after_ the Move() call resolves, so while it adjusts affecting's move animation, it won't adjust anything else depending on it.
 	current_grab.assailant_moved(src)
 
 /obj/item/grab/proc/restrains()

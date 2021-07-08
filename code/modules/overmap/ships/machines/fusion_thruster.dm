@@ -14,13 +14,19 @@
 	var/obj/machinery/power/fusion_core/harvest_from
 
 /obj/machinery/atmospherics/unary/engine/fusion/Initialize()
-	. = ..()
-
+	..()
 	set_extension(src, /datum/extension/local_network_member)
 	if(initial_id_tag)
 		var/datum/extension/local_network_member/lanm = get_extension(src, /datum/extension/local_network_member)
 		lanm.set_tag(null, initial_id_tag)
+	return INITIALIZE_HINT_LATELOAD
+
+/obj/machinery/atmospherics/unary/engine/fusion/LateInitialize()
 	find_core()
+
+/obj/machinery/atmospherics/unary/engine/fusion/modify_mapped_vars(map_hash)
+	..()
+	ADJUST_TAG_VAR(initial_id_tag, map_hash)
 
 /obj/machinery/atmospherics/unary/engine/fusion/proc/find_core()
 	harvest_from = null

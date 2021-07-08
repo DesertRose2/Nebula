@@ -11,7 +11,7 @@
 	program_menu_icon = "notice"
 	extended_desc = "This program connects to specially calibrated supermatter sensors to provide information on the status of supermatter-based engines."
 	ui_header = "smmon_0.gif"
-	required_access = access_engine
+	required_access = list(access_engine)
 	network_destination = "supermatter monitoring system"
 	size = 5
 	category = PROG_ENG
@@ -107,7 +107,7 @@
 		else
 			return value
 
-/datum/nano_module/program/supermatter_monitor/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = GLOB.default_state)
+/datum/nano_module/program/supermatter_monitor/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = global.default_topic_state)
 	var/list/data = host.initial_data()
 	var/engine_skill = user.get_skill_value(SKILL_ENGINES)
 

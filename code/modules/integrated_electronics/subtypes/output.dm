@@ -48,7 +48,7 @@
 	var/list/nearby_things = range(0, get_turf(src))
 	for(var/mob/M in nearby_things)
 		var/obj/O = assembly ? assembly : src
-		to_chat(M, "<span class='notice'>\icon[O] [stuff_to_display]</span>")
+		to_chat(M, "<span class='notice'>[html_icon(O)] [stuff_to_display]</span>")
 
 /obj/item/integrated_circuit/output/screen/large
 	name = "large screen"
@@ -60,7 +60,7 @@
 /obj/item/integrated_circuit/output/screen/large/do_work()
 	..()
 	var/obj/O = assembly ? get_turf(assembly) : loc
-	O.visible_message("<span class='notice'>\icon[O]  [stuff_to_display]</span>")
+	O.visible_message("<span class='notice'>[html_icon(O)]  [stuff_to_display]</span>")
 
 /obj/item/integrated_circuit/output/light
 	name = "light"
@@ -75,6 +75,7 @@
 	var/light_brightness = 1
 	var/light_rgb = "#ffffff"
 	power_draw_idle = 0 // Adjusted based on brightness.
+	light_wedge = LIGHT_WIDE
 
 /obj/item/integrated_circuit/output/light/do_work()
 	light_toggled = !light_toggled
@@ -83,7 +84,7 @@
 /obj/item/integrated_circuit/output/light/proc/update_lighting()
 	if(light_toggled)
 		if(assembly)
-			assembly.set_light(light_brightness, 1, 4, 2, light_rgb)
+			assembly.set_light(4, light_brightness, light_rgb, light_wedge)
 	else
 		if(assembly)
 			assembly.set_light(0)

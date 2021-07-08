@@ -1,12 +1,12 @@
-datum/unit_test/loadout_test_shall_have_name_cost_path
+/datum/unit_test/loadout_test_shall_have_name_cost_path
 	name = "LOADOUT: Entries shall have name, cost, and path definitions"
 
-datum/unit_test/loadout_test_shall_have_name_cost_path/start_test()
+/datum/unit_test/loadout_test_shall_have_name_cost_path/start_test()
 	var/failed = 0
-	for(var/gear_name in gear_datums)
-		var/datum/gear/G = gear_datums[gear_name]
+	for(var/gear_name in global.gear_datums)
+		var/decl/loadout_option/G = global.gear_datums[gear_name]
 
-		if(!G.display_name)
+		if(!G.name)
 			log_unit_test("[G]: Missing display name.")
 			failed = 1
 		else if(isnull(G.cost) || G.cost < 0)
@@ -17,18 +17,19 @@ datum/unit_test/loadout_test_shall_have_name_cost_path/start_test()
 			failed = 1
 
 	if(failed)
-		fail("One or more /datum/gear definitions had invalid display names, costs, or path definitions")
+		fail("One or more /decl/loadout_option definitions had invalid display names, costs, or path definitions")
 	else
-		pass("All /datum/gear definitions had correct settings.")
+		pass("All /decl/loadout_option definitions had correct settings.")
 	return  1
 
-datum/unit_test/loadout_test_shall_have_valid_icon_states
+
+/datum/unit_test/loadout_test_shall_have_valid_icon_states
 	name = "LOADOUT: Entries shall have valid icon states"
 
-datum/unit_test/loadout_test_shall_have_valid_icon_states/start_test()
+/datum/unit_test/loadout_test_shall_have_valid_icon_states/start_test()
 	var/failed = FALSE
-	for(var/gear_name in gear_datums)
-		var/datum/gear/G = gear_datums[gear_name]
+	for(var/gear_name in global.gear_datums)
+		var/decl/loadout_option/G = global.gear_datums[gear_name]
 		var/list/path_tweaks = list()
 		for(var/datum/gear_tweak/path/p in G.gear_tweaks)
 			path_tweaks += p
@@ -46,7 +47,7 @@ datum/unit_test/loadout_test_shall_have_valid_icon_states/start_test()
 				var/obj/O = G.path
 				if(ispath(G.path, /obj))
 					O = new G.path()
-					if(!(O.icon_state in icon_states(O.icon)))
+					if(!is_string_in_list(O.icon_state, icon_states(O.icon)))
 						log_unit_test("[G] - [G.path]: Did not find the icon state '[O.icon_state]' in the icon '[O.icon]'.")
 						failed = TRUE
 					qdel(O)
@@ -55,18 +56,18 @@ datum/unit_test/loadout_test_shall_have_valid_icon_states/start_test()
 					failed = TRUE
 
 	if(failed)
-		fail("One or more /datum/gear definitions had paths with invalid icon states.")
+		fail("One or more /decl/loadout_option definitions had paths with invalid icon states.")
 	else
-		pass("All /datum/gear definitions had correct icon states.")
+		pass("All /decl/loadout_option definitions had correct icon states.")
 	return  1
 
-datum/unit_test/loadout_test_gear_path_tweaks_shall_be_of_gear_path
+/datum/unit_test/loadout_test_gear_path_tweaks_shall_be_of_gear_path
 	name = "LOADOUT: Gear path tweaks shall be of gear path."
 
-datum/unit_test/loadout_test_gear_path_tweaks_shall_be_of_gear_path/start_test()
+/datum/unit_test/loadout_test_gear_path_tweaks_shall_be_of_gear_path/start_test()
 	var/failed = 0
-	for(var/gear_name in gear_datums)
-		var/datum/gear/G = gear_datums[gear_name]
+	for(var/gear_name in global.gear_datums)
+		var/decl/loadout_option/G = global.gear_datums[gear_name]
 		for(var/datum/gear_tweak/path/p in G.gear_tweaks)
 			for(var/path_name in p.valid_paths)
 				var/path_type = p.valid_paths[path_name]
@@ -80,14 +81,14 @@ datum/unit_test/loadout_test_gear_path_tweaks_shall_be_of_gear_path/start_test()
 		pass("All /datum/gear_tweak/paths had valid paths.")
 	return  1
 
-datum/unit_test/loadout_test_gear_path_tweaks_shall_have_unique_keys
+/datum/unit_test/loadout_test_gear_path_tweaks_shall_have_unique_keys
 	name = "LOADOUT: Gear path tweaks shall have unique keys"
 
-datum/unit_test/loadout_test_gear_path_tweaks_shall_have_unique_keys/start_test()
+/datum/unit_test/loadout_test_gear_path_tweaks_shall_have_unique_keys/start_test()
 	var/path_entries_by_gear_path_and_name = list()
 
-	for(var/gear_name in gear_datums)
-		var/datum/gear/G = gear_datums[gear_name]
+	for(var/gear_name in global.gear_datums)
+		var/decl/loadout_option/G = global.gear_datums[gear_name]
 		for(var/datum/gear_tweak/path/p in G.gear_tweaks)
 			for(var/path_name in p.valid_paths)
 				group_by(path_entries_by_gear_path_and_name, "[G] - [p] - [path_name]", path_name)
@@ -104,12 +105,12 @@ datum/unit_test/loadout_test_gear_path_tweaks_shall_have_unique_keys/start_test(
 	return (initial(A.icon_state) in icon_states(initial(A.icon)))
 
 
-datum/unit_test/loadout_custom_setup_tweaks_shall_have_valid_procs
+/datum/unit_test/loadout_custom_setup_tweaks_shall_have_valid_procs
 	name = "LOADOUT: Custom setup tweaks shall have valid procs"
 
-datum/unit_test/loadout_custom_setup_tweaks_shall_have_valid_procs/start_test()
-	for(var/gear_name in gear_datums)
-		var/datum/gear/G = gear_datums[gear_name]
+/datum/unit_test/loadout_custom_setup_tweaks_shall_have_valid_procs/start_test()
+	for(var/gear_name in global.gear_datums)
+		var/decl/loadout_option/G = global.gear_datums[gear_name]
 		var/datum/instance
 		var/mob/user
 		for(var/datum/gear_tweak/custom_setup/cs in G.gear_tweaks)
@@ -122,3 +123,40 @@ datum/unit_test/loadout_custom_setup_tweaks_shall_have_valid_procs/start_test()
 
 	pass("Succesfully called all custom setup procs without runtimes")
 	return  1
+
+
+/datum/unit_test/loadout_custom_setup_tweak_shall_be_applied_as_expected
+	name = "LOADOUT: Custom setup tweak shall be applied as expected"
+
+/datum/unit_test/loadout_custom_setup_tweak_shall_be_applied_as_expected/start_test()
+	var/decl/loadout_option/G = GET_DECL(/decl/loadout_option/loadout_test)
+	var/obj/unit_test/loadout/instance = new G.path()
+	var/mob/user = new()
+	for(var/datum/gear_tweak/custom_setup/cs in G.gear_tweaks)
+		cs.tweak_item(user, instance)
+
+	if(instance.loadout_mob == user && instance.loadout_var == G.custom_setup_proc_arguments[1])
+		pass("Succesfully applied custom tweak")
+	else
+		fail("Failed to apply custom tweak")
+	QDEL_NULL(instance)
+	QDEL_NULL(user)
+	return TRUE
+
+/decl/loadout_option/loadout_test
+	path = /obj/unit_test/loadout
+	custom_setup_proc = /obj/unit_test/loadout/proc/loadout_proc
+	custom_setup_proc_arguments = list(5)
+
+/obj/unit_test/loadout
+	var/loadout_mob
+	var/loadout_var
+
+/obj/unit_test/loadout/Destroy()
+	loadout_mob = null
+	loadout_var = null
+	return ..()
+
+/obj/unit_test/loadout/proc/loadout_proc(user, arg)
+	loadout_mob = user
+	loadout_var = arg

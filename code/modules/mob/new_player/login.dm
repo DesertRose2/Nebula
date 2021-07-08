@@ -10,12 +10,12 @@
 		mind.current = src
 
 	loc = null
-	GLOB.using_map.show_titlescreen(client)
+	global.using_map.show_titlescreen(client)
 	my_client = client
 	set_sight(sight|SEE_TURFS)
-	GLOB.player_list |= src
+	global.player_list |= src
 
-	new_player_panel()
+	show_lobby_menu()
 
 	if(!SScharacter_setup.initialized)
 		SScharacter_setup.newplayers_requiring_init += src
@@ -27,17 +27,11 @@
 // It is safe to assume that any UI or sound related calls will fall into that category.
 /mob/new_player/proc/deferred_login()
 	if(client)
-		handle_privacy_poll()
 		client.playtitlemusic()
+		client.prefs?.apply_post_login_preferences()
 		maybe_send_staffwarns("connected as new player")
 
-		if(get_preference_value(/datum/client_preference/chat_position) == GLOB.PREF_YES)
-			client.update_chat_position(TRUE)
-
-		if(get_preference_value(/datum/client_preference/fullscreen_mode) != GLOB.PREF_OFF)
-			client.toggle_fullscreen(get_preference_value(/datum/client_preference/fullscreen_mode))
-
-	var/decl/security_state/security_state = decls_repository.get_decl(GLOB.using_map.security_state)
+	var/decl/security_state/security_state = GET_DECL(global.using_map.security_state)
 	var/decl/security_level/SL = security_state.current_security_level
 	var/alert_desc = ""
 	if(SL.up_description)

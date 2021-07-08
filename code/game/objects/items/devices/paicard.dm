@@ -1,12 +1,11 @@
 /obj/item/paicard
 	name = "personal AI device"
 	icon = 'icons/obj/items/device/pai.dmi'
-	icon_state = "pai"
-	item_state = "electronic"
+	icon_state = ICON_STATE_WORLD
 	w_class = ITEM_SIZE_SMALL
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	origin_tech = "{'programming':2}"
-	material = /decl/material/solid/glass
+	material = /decl/material/solid/fiberglass
 	matter = list(/decl/material/solid/metal/steel = MATTER_AMOUNT_REINFORCEMENT)
 
 	var/current_emotion = 1
@@ -15,7 +14,7 @@
 	var/mob/living/silicon/pai/pai
 
 /obj/item/paicard/relaymove(var/mob/user, var/direction)
-	if(user.stat || user.stunned)
+	if(user.incapacitated(INCAPACITATION_KNOCKOUT))
 		return
 	var/obj/item/rig/rig = src.get_rig()
 	if(istype(rig))
@@ -47,7 +46,7 @@
 					    color:white;
 					    font-size:13px;
 					    background-image:url('uiBackground.png');
-					    background-repeat:repeat-x;
+					    background-repeat:repeat;
 					    background-color:#272727;
 						background-position:center top;
 					}
@@ -293,29 +292,32 @@
 
 /obj/item/paicard/proc/setEmotion(var/emotion)
 	if(pai)
-		src.overlays.Cut()
-		switch(emotion)
-			if(1) src.overlays += "pai-happy"
-			if(2) src.overlays += "pai-cat"
-			if(3) src.overlays += "pai-extremely-happy"
-			if(4) src.overlays += "pai-face"
-			if(5) src.overlays += "pai-laugh"
-			if(6) src.overlays += "pai-off"
-			if(7) src.overlays += "pai-sad"
-			if(8) src.overlays += "pai-angry"
-			if(9) src.overlays += "pai-what"
-			if(10) src.overlays += "pai-neutral"
-			if(11) src.overlays += "pai-silly"
-			if(12) src.overlays += "pai-nose"
-			if(13) src.overlays += "pai-smirk"
-			if(14) src.overlays += "pai-exclamation"
-			if(15) src.overlays += "pai-question"
 		current_emotion = emotion
 
+/obj/item/paicard/on_update_icon()
+	cut_overlays()
+	if(pai)
+		switch(current_emotion)
+			if(1)  add_overlay("pai-happy")
+			if(2)  add_overlay("pai-cat")
+			if(3)  add_overlay("pai-extremely-happy")
+			if(4)  add_overlay("pai-face")
+			if(5)  add_overlay("pai-laugh")
+			if(6)  add_overlay("pai-off")
+			if(7)  add_overlay("pai-sad")
+			if(8)  add_overlay("pai-angry")
+			if(9)  add_overlay("pai-what")
+			if(10) add_overlay("pai-neutral")
+			if(11) add_overlay("pai-silly")
+			if(12) add_overlay("pai-nose")
+			if(13) add_overlay("pai-smirk")
+			if(14) add_overlay("pai-exclamation")
+			if(15) add_overlay("pai-question")
+
 /obj/item/paicard/proc/alertUpdate()
-	var/turf/T = get_turf_or_move(src.loc)
-	for (var/mob/M in viewers(T))
-		M.show_message("<span class='notice'>\The [src] flashes a message across its screen, \"Additional personalities available for download.\"</span>", 3, "<span class='notice'>\The [src] bleeps electronically.</span>", 2)
+	visible_message( \
+		message = SPAN_NOTICE("\The [src] flashes a message across its screen, \"Additional personalities available for download.\""), \
+		blind_message = SPAN_NOTICE("\The [src] bleeps electronically."))
 
 /obj/item/paicard/emp_act(severity)
 	for(var/mob/M in src)

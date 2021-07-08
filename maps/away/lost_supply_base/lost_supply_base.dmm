@@ -37,7 +37,6 @@
 	icon_state = "0-2"
 	},
 /obj/machinery/power/solar{
-	id = "auxsolarstarboard";
 	name = "Starboard Auxiliary Solar Array"
 	},
 /obj/effect/floor_decal/solarpanel,
@@ -49,7 +48,7 @@
 	d2 = 2;
 	icon_state = "1-2"
 	},
-/obj/item/stack/material/steel,
+/obj/item/stack/material/sheet/mapped/steel,
 /turf/simulated/floor/airless,
 /area/space)
 "ai" = (
@@ -143,7 +142,6 @@
 "ao" = (
 /obj/structure/cable/yellow,
 /obj/machinery/power/solar{
-	id = "auxsolarstarboard";
 	name = "Starboard Auxiliary Solar Array"
 	},
 /obj/effect/floor_decal/solarpanel,
@@ -162,15 +160,12 @@
 	d2 = 8;
 	icon_state = "4-8"
 	},
-/obj/item/stack/material/rods{
-	amount = 50
-	},
-/obj/item/stack/material/steel,
+/obj/item/stack/material/rods/fifty,
+/obj/item/stack/material/sheet/mapped/steel,
 /turf/simulated/floor/airless,
 /area/space)
 "as" = (
 /obj/machinery/power/solar{
-	id = "auxsolarstarboard";
 	name = "Starboard Auxiliary Solar Array"
 	},
 /obj/effect/floor_decal/solarpanel,
@@ -182,7 +177,6 @@
 /area/space)
 "au" = (
 /obj/machinery/power/solar{
-	id = "auxsolarstarboard";
 	name = "Starboard Auxiliary Solar Array"
 	},
 /obj/structure/cable/yellow,
@@ -314,7 +308,6 @@
 /area/lost_supply_base/solar)
 "aL" = (
 /obj/machinery/power/solar_control{
-	id = "suuplybasesolar";
 	name = "Solar Control";
 	track = 0
 	},
@@ -469,8 +462,7 @@
 /area/lost_supply_base)
 "aZ" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/cyan{
-	dir = 4;
-	icon_state = "intact"
+	dir = 4
 	},
 /turf/simulated/wall/r_wall,
 /area/lost_supply_base)
@@ -479,8 +471,7 @@
 	dir = 1
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/cyan{
-	dir = 9;
-	icon_state = "intact"
+	dir = 9
 	},
 /turf/simulated/floor/airless,
 /area/lost_supply_base)
@@ -561,7 +552,7 @@
 	pixel_x = 5;
 	pixel_y = -3
 	},
-/obj/item/stack/material/steel,
+/obj/item/stack/material/sheet/mapped/steel,
 /turf/simulated/floor/tiled/airless{
 	icon_state = "steel_burned0"
 	},
@@ -734,7 +725,7 @@
 /area/lost_supply_base/office)
 "bI" = (
 /obj/effect/wallframe_spawn/reinforced,
-/turf/simulated/wall/r_wall,
+/turf/simulated/floor/airless,
 /area/lost_supply_base/office)
 "bJ" = (
 /obj/machinery/embedded_controller/radio/airlock/airlock_controller{
@@ -795,7 +786,7 @@
 /area/lost_supply_base/office)
 "bR" = (
 /obj/effect/wallframe_spawn/reinforced,
-/turf/simulated/wall/r_wall,
+/turf/simulated/floor/airless,
 /area/lost_supply_base)
 "bS" = (
 /obj/random/trash,
@@ -850,7 +841,7 @@
 	},
 /area/lost_supply_base/office)
 "cc" = (
-/obj/item/stack/material/steel,
+/obj/item/stack/material/sheet/mapped/steel,
 /turf/space,
 /area/space)
 "cd" = (
@@ -867,7 +858,7 @@
 /area/lost_supply_base)
 "cf" = (
 /obj/item/stack/material/rods,
-/obj/item/stack/material/steel,
+/obj/item/stack/material/sheet/mapped/steel,
 /turf/simulated/floor/airless,
 /area/lost_supply_base)
 "cg" = (
@@ -1041,7 +1032,7 @@
 /turf/simulated/floor/airless,
 /area/lost_supply_base)
 "cE" = (
-/obj/item/stack/material/cardboard,
+/obj/item/stack/material/cardstock/mapped/cardboard,
 /turf/simulated/floor/airless,
 /area/lost_supply_base)
 "cF" = (
@@ -1083,12 +1074,8 @@
 /area/lost_supply_base/common)
 "cM" = (
 /obj/effect/wallframe_spawn/reinforced,
-/turf/space,
-/area/lost_supply_base/common)
-"cN" = (
-/obj/item/frame/light,
 /turf/simulated/floor/airless,
-/area/lost_supply_base)
+/area/lost_supply_base/common)
 "cO" = (
 /obj/structure/closet/crate/freezer/rations,
 /turf/simulated/floor/airless,
@@ -1138,10 +1125,6 @@
 "cV" = (
 /obj/random/junk,
 /turf/simulated/floor/tiled/airless,
-/area/lost_supply_base/common)
-"cW" = (
-/obj/effect/wallframe_spawn/reinforced,
-/turf/simulated/wall/r_wall,
 /area/lost_supply_base/common)
 "cX" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
@@ -1242,7 +1225,7 @@
 /turf/simulated/floor/airless,
 /area/lost_supply_base)
 "dm" = (
-/obj/item/stack/material/steel,
+/obj/item/stack/material/sheet/mapped/steel,
 /turf/simulated/floor/airless,
 /area/lost_supply_base)
 "dn" = (
@@ -1607,7 +1590,7 @@
 /turf/simulated/floor/shuttle/blue,
 /area/space)
 "ey" = (
-/obj/item/stack/material/cardboard,
+/obj/item/stack/material/cardstock/mapped/cardboard,
 /obj/item/grenade/fake,
 /turf/simulated/floor/airless,
 /area/lost_supply_base)
@@ -1702,15 +1685,6 @@
 	dir = 8
 	},
 /area/space)
-"eQ" = (
-/turf/simulated/floor/airless,
-/area/lost_supply_base)
-"eS" = (
-/obj/machinery/atmospherics/portables_connector{
-	dir = 1
-	},
-/turf/simulated/floor/airless,
-/area/lost_supply_base)
 "eT" = (
 /obj/structure/cable{
 	d1 = 1;
@@ -2017,7 +1991,7 @@
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 4
 	},
-/obj/item/stack/material/steel,
+/obj/item/stack/material/sheet/mapped/steel,
 /turf/simulated/floor/tiled/airless,
 /area/lost_supply_base)
 "fO" = (
@@ -2033,7 +2007,7 @@
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 9
 	},
-/turf/space,
+/turf/simulated/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fQ" = (
 /obj/structure/door_assembly,
@@ -2110,22 +2084,19 @@
 /area/lost_supply_base)
 "fZ" = (
 /obj/machinery/atmospherics/pipe/simple/hidden{
-	dir = 4;
-	icon_state = "intact"
+	dir = 4
 	},
 /turf/simulated/floor/airless,
 /area/lost_supply_base)
 "ga" = (
 /obj/machinery/atmospherics/pipe/simple/hidden{
-	dir = 4;
-	icon_state = "intact"
+	dir = 4
 	},
 /turf/simulated/wall/r_wall,
 /area/lost_supply_base)
 "gb" = (
 /obj/machinery/atmospherics/pipe/simple/hidden{
-	dir = 4;
-	icon_state = "intact"
+	dir = 4
 	},
 /obj/machinery/embedded_controller/radio/airlock/airlock_controller{
 	id_tag = "solar_starboard_airlock";
@@ -2157,8 +2128,7 @@
 	dir = 6
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden{
-	dir = 4;
-	icon_state = "intact"
+	dir = 4
 	},
 /turf/simulated/floor/airless,
 /area/lost_supply_base)
@@ -2237,7 +2207,7 @@
 /turf/simulated/floor/tiled/airless,
 /area/lost_supply_base)
 "go" = (
-/obj/item/stack/material/steel,
+/obj/item/stack/material/sheet/mapped/steel,
 /turf/simulated/floor/tiled/airless,
 /area/lost_supply_base)
 "gq" = (
@@ -7527,7 +7497,7 @@ aG
 aG
 cl
 cC
-cN
+aH
 cO
 aG
 ds
@@ -7740,7 +7710,7 @@ dY
 el
 aG
 aG
-eQ
+aG
 eZ
 aG
 fw
@@ -7748,7 +7718,7 @@ aG
 aG
 bq
 ge
-eQ
+aG
 aA
 aa
 aa
@@ -8352,7 +8322,7 @@ dv
 em
 ez
 eD
-eS
+ed
 bq
 aG
 aG
@@ -8557,7 +8527,7 @@ eo
 eo
 eD
 ed
-eQ
+aG
 bK
 aG
 bT
@@ -8760,7 +8730,7 @@ ed
 ep
 aG
 eD
-eS
+ed
 aG
 bK
 dm
@@ -9873,7 +9843,7 @@ aC
 ck
 ck
 cM
-cW
+cM
 ck
 ck
 cM

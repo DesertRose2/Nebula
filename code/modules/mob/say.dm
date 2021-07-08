@@ -10,19 +10,20 @@
 	set name = "Say"
 	set category = "IC"
 	remove_typing_indicator()
-	usr.say(message)
+	if(!filter_block_message(usr, message))
+		usr.say(message)
 
 /mob/verb/me_verb(message as text)
 	set name = "Me"
 	set category = "IC"
 
-	message = sanitize(message)
-
 	remove_typing_indicator()
-	if(use_me)
-		usr.emote("me",usr.emote_type,message)
-	else
-		usr.emote(message)
+	if(!filter_block_message(usr, message))
+		message = sanitize(message)
+		if(use_me)
+			usr.emote("me",usr.emote_type,message)
+		else
+			usr.emote(message)
 
 /mob/proc/say_dead(var/message)
 	communicate(/decl/communication_channel/dsay, client, message)
@@ -91,11 +92,11 @@
 //returns the message mode string or null for no message mode.
 //standard mode is the mode returned for the special ';' radio code.
 /mob/proc/parse_message_mode(var/message, var/standard_mode="headset")
-	if(length(message) >= 1 && copytext(message,1,2) == get_prefix_key(/decl/prefix/radio_main_channel))
+	if(length(message) >= 1 && copytext_char(message,1,2) == get_prefix_key(/decl/prefix/radio_main_channel))
 		return standard_mode
 
 	if(length(message) >= 2)
-		var/channel_prefix = copytext(message, 1 ,3)
+		var/channel_prefix = copytext_char(message, 1 ,3)
 		return department_radio_keys[channel_prefix]
 
 	return null
@@ -103,14 +104,19 @@
 //parses the language code (e.g. :j) from text, such as that supplied to say.
 //returns the language object only if the code corresponds to a language that src can speak, otherwise null.
 /mob/proc/parse_language(var/message)
-	var/prefix = copytext(message,1,2)
+
+	var/prefix = copytext_char(message,1,2)
 	if(length(message) >= 1 && prefix == get_prefix_key(/decl/prefix/audible_emote))
-		return decls_repository.get_decl(/decl/language/noise)
+		return GET_DECL(/decl/language/noise)
 
 	if(length(message) >= 2 && is_language_prefix(prefix))
-		var/language_prefix = lowertext(copytext(message, 2 ,3))
+		var/language_prefix = lowertext(copytext_char(message, 2 ,3))
 		var/decl/language/L = SSlore.get_language_by_key(language_prefix)
 		if (can_speak(L))
 			return L
 
-	return null
+/mob/proc/is_silenced()
+	. = is_muzzled()
+
+/mob/proc/is_muzzled()
+	return istype(wear_mask, /obj/item/clothing/mask/muzzle) || istype(wear_mask, /obj/item/clothing/sealant)

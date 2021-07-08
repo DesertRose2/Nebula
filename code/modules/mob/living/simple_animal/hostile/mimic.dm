@@ -25,9 +25,6 @@ var/global/list/protected_objects = list(/obj/machinery,
 	icon_living = "crate"
 
 	meat_type = /obj/item/chems/food/snacks/fish
-	response_help = "touches"
-	response_disarm = "pushes"
-	response_harm = "hits"
 	speed = 4
 	maxHealth = 100
 	health = 100
@@ -128,7 +125,7 @@ var/global/list/protected_objects = list(/obj/machinery,
 		var/mob/living/L = .
 		if(istype(L))
 			if(prob(15))
-				L.Weaken(1)
+				SET_STATUS_MAX(L, STAT_WEAK, 1)
 				L.visible_message("<span class='danger'>\the [src] knocks down \the [L]!</span>")
 
 /mob/living/simple_animal/hostile/mimic/Destroy()

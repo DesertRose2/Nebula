@@ -9,10 +9,8 @@
 	)
 	var/build_time = 5 SECONDS
 	var/max_amount = 1 // How many instances can be queued at once
-	var/ignore_materials = list(
-		/decl/material/solid/slag = TRUE
-	)
 	var/list/required_technology
+	var/list/species_locked
 
 // Populate name and resources from the product type.
 /datum/fabricator_recipe/proc/get_product_name()
@@ -27,10 +25,13 @@
 		name = get_product_name()
 	if(required_technology == TRUE)
 		if(ispath(path, /obj/item))
-			var/obj/item/O = path
-			var/tech = initial(O.origin_tech)
-			if(tech)
-				required_technology = json_decode(tech)
+			var/list/res = build(null, 1)
+			if(length(res))
+				var/obj/item/O = res[1]
+				var/tech = O.get_origin_tech()
+				if(tech)
+					required_technology = cached_json_decode(tech)
+				QDEL_NULL_LIST(res)
 		if(!islist(required_technology))
 			required_technology = list()
 	if(!resources)
@@ -50,14 +51,13 @@
 	resources = list()
 	var/list/building_cost = atom_info_repository.get_matter_for(path)
 	for(var/mat in building_cost)
-		if(!ignore_materials[mat])
-			resources[mat] = building_cost[mat] * FABRICATOR_EXTRA_COST_FACTOR
+		resources[mat] = building_cost[mat] * FABRICATOR_EXTRA_COST_FACTOR
 
 /obj/building_cost()
 	. = ..()
 	if(length(matter))
 		for(var/material in matter)
-			var/decl/material/M = decls_repository.get_decl(material)
+			var/decl/material/M = GET_DECL(material)
 			if(istype(M))
 				.[M.type] = matter[material]
 	if(reagents && length(reagents.reagent_volumes))

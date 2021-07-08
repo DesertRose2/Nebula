@@ -31,7 +31,7 @@
 		if(1 to 4)	overlays += "hydrogen-[hydrogentanks]"
 		if(5 to INFINITY) overlays += "hydrogen-5"
 
-/obj/structure/dispenser/attack_ai(mob/user)
+/obj/structure/dispenser/attack_ai(mob/living/silicon/ai/user)
 	if(user.Adjacent(src))
 		return attack_hand(user)
 	..()
@@ -49,7 +49,7 @@
 /obj/structure/dispenser/attackby(obj/item/I, mob/user)
 	. = ..()
 	if(!.)
-		if(istype(I, /obj/item/tank/oxygen) || istype(I, /obj/item/tank/air) || istype(I, /obj/item/tank/anesthetic))
+		if(istype(I, /obj/item/tank/oxygen) || istype(I, /obj/item/tank/air))
 			if(oxygentanks < 10)
 				if(!user.unEquip(I, src))
 					return

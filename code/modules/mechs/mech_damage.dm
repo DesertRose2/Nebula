@@ -26,12 +26,12 @@
 					return AR
 
 	return def_zone //Careful with effects, mechs shouldn't be stunned
-	
+
 /mob/living/exosuit/hitby(atom/movable/AM, var/datum/thrownthing/TT)
+	..()
 	if(LAZYLEN(pilots) && (!hatch_closed || !prob(body.pilot_coverage)))
 		var/mob/living/pilot = pick(pilots)
 		return pilot.hitby(AM, TT)
-	. = ..()
 
 /mob/living/exosuit/bullet_act(obj/item/projectile/P, def_zone, used_weapon)
 	switch(def_zone)
@@ -84,7 +84,7 @@
 	var/list/after_armor = modify_damage_by_armor(def_zone, damage, damagetype, damage_flags, src, armor_pen, TRUE)
 	damage = after_armor[1]
 	damagetype = after_armor[2]
-	
+
 	if(!damage)
 		return 0
 
@@ -99,8 +99,7 @@
 			radiation += damage
 
 	if((damagetype == BRUTE || damagetype == BURN) && prob(25+(damage*2)))
-		sparks.set_up(3,0,src)
-		sparks.start()
+		spark_at(src)
 	updatehealth()
 
 	return 1

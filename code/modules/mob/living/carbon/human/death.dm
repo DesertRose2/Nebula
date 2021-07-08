@@ -2,17 +2,17 @@
 	for(var/obj/item/organ/I in internal_organs)
 		I.removed()
 		if(!QDELETED(I) && isturf(loc))
-			I.throw_at(get_edge_target_turf(src,pick(GLOB.alldirs)),rand(1,3),30)
+			I.throw_at(get_edge_target_turf(src,pick(global.alldirs)),rand(1,3),30)
 
 	for(var/obj/item/organ/external/E in src.organs)
-		E.droplimb(0,DROPLIMB_EDGE,1)
+		E.dismember(0,DISMEMBER_METHOD_EDGE,1)
 
 	sleep(1)
 
 	for(var/obj/item/I in src)
 		drop_from_inventory(I)
 		if(!QDELETED(I))
-			I.throw_at(get_edge_target_turf(src,pick(GLOB.alldirs)), rand(1,3), round(30/I.w_class))
+			I.throw_at(get_edge_target_turf(src,pick(global.alldirs)), rand(1,3), round(30/I.w_class))
 
 	..(species.gibbed_anim)
 	gibs(loc, dna, null, species.get_flesh_colour(src), species.get_blood_colour(src))
@@ -44,7 +44,11 @@
 	if(wearing_rig)
 		wearing_rig.notify_ai("<span class='danger'>Warning: user death event. Mobility control passed to integrated intelligence system.</span>")
 
-	. = ..(gibbed,"no message")
+	if(config.show_human_death_message)
+		deathmessage = species.get_death_message(src) || "seizes up and falls limp..."
+	else
+		deathmessage = "no message"
+	. = ..(gibbed, deathmessage, show_dead_message)
 	if(!gibbed)
 		handle_organs()
 		if(species.death_sound)
@@ -85,3 +89,14 @@
 		E.status |= ORGAN_DISFIGURED
 	update_body(1)
 	return
+
+/mob/living/carbon/human/physically_destroyed(var/skip_qdel, var/droplimb_type = DISMEMBER_METHOD_BLUNT)
+	for(var/obj/item/organ/external/limb in organs)
+		var/limb_can_amputate = (limb.limb_flags & ORGAN_FLAG_CAN_AMPUTATE)
+		limb.limb_flags |= ORGAN_FLAG_CAN_AMPUTATE
+		limb.dismember(TRUE, droplimb_type, TRUE, TRUE)
+		if(!QDELETED(limb) && !limb_can_amputate)
+			limb.limb_flags &= ~ORGAN_FLAG_CAN_AMPUTATE
+	dump_contents()
+	if(!skip_qdel && !QDELETED(src))
+		qdel(src)

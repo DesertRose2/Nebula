@@ -21,7 +21,8 @@ avoid code duplication. This includes items that may sometimes act as a standard
 
 // Called when the item is in the active hand, and clicked; alternately, there is an 'activate held object' verb or you can hit pagedown.
 /obj/item/proc/attack_self(mob/user)
-	return
+	var/datum/extension/tool/tool = get_extension(src, /datum/extension/tool)
+	return (tool?.handle_physical_manipulation(user)) || FALSE
 
 //I would prefer to rename this to attack(), but that would involve touching hundreds of files.
 /obj/item/proc/resolve_attackby(atom/A, mob/user, var/click_params)
@@ -47,7 +48,7 @@ avoid code duplication. This includes items that may sometimes act as a standard
 /mob/living/attackby(obj/item/I, mob/user)
 	if(!ismob(user))
 		return 0
-	if(can_operate(src,user) && I.do_surgery(src,user)) //Surgery
+	if(can_operate(src,user) != OPERATE_DENY && I.do_surgery(src,user)) //Surgery
 		return 1
 
 	if(user.a_intent == I_HELP && istype(I, /obj/item/clothing/head))
@@ -63,13 +64,20 @@ avoid code duplication. This includes items that may sometimes act as a standard
 	return I.attack(src, user, user.zone_sel ? user.zone_sel.selecting : ran_zone())
 
 /mob/living/carbon/human/attackby(obj/item/I, mob/user)
-	if(user == src && zone_sel.selecting == BP_MOUTH && can_devour(I, silent = TRUE))
+	if(user == src && user.zone_sel.selecting == BP_MOUTH && can_devour(I, silent = TRUE))
 		var/obj/item/blocked = src.check_mouth_coverage()
 		if(blocked)
 			to_chat(user, SPAN_WARNING("\The [blocked] is in the way!"))
 			return TRUE
 		if(devour(I))
 			return TRUE
+	if(user.a_intent == I_HELP)
+		var/obj/item/organ/external/E = get_organ(user.zone_sel.selecting)
+		if(istype(E) && !E.is_stump())
+			for(var/datum/ailment/ailment in E.ailments)
+				if(ailment.treated_by_item(I))
+					ailment.was_treated_by_item(I, user, src)
+					return TRUE
 	return ..()
 
 // Proximity_flag is 1 if this afterattack was called on something adjacent, in your square, or on your person.
@@ -125,3 +133,5 @@ avoid code duplication. This includes items that may sometimes act as a standard
 		power *= 2
 	return target.hit_with_weapon(src, user, power, hit_zone)
 
+/obj/item/proc/handle_reflexive_fire(var/mob/user, var/atom/aiming_at)
+	return istype(user) && istype(aiming_at)

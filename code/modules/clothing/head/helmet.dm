@@ -6,7 +6,7 @@
 	valid_accessory_slots = list(ACCESSORY_SLOT_HELM_C)
 	restricted_accessory_slots = list(ACCESSORY_SLOT_HELM_C)
 	item_flags = ITEM_FLAG_THICKMATERIAL
-	body_parts_covered = HEAD
+	body_parts_covered = SLOT_HEAD
 	armor = list(
 		melee = ARMOR_MELEE_RESISTANT,
 		bullet = ARMOR_BALLISTIC_RESISTANT,
@@ -15,15 +15,15 @@
 		bomb = ARMOR_BOMB_PADDED
 		)
 	flags_inv = HIDEEARS|BLOCKHEADHAIR
-	cold_protection = HEAD
+	cold_protection = SLOT_HEAD
 	min_cold_protection_temperature = HELMET_MIN_COLD_PROTECTION_TEMPERATURE
-	heat_protection = HEAD
+	heat_protection = SLOT_HEAD
 	max_heat_protection_temperature = HELMET_MAX_HEAT_PROTECTION_TEMPERATURE
 	siemens_coefficient = 0.7
 	w_class = ITEM_SIZE_NORMAL
-	matter = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
-	origin_tech = "{'materials':2,'engineering':2}"
+	material = /decl/material/solid/metal/steel
+	matter = list(/decl/material/solid/metal/plasteel = MATTER_AMOUNT_TRACE)
+	origin_tech = "{'materials':1,'engineering':1,'combat':1}"
 
 /obj/item/clothing/head/helmet/tactical
 	name = "tactical helmet"
@@ -37,6 +37,8 @@
 		bomb = ARMOR_BOMB_PADDED
 		)
 	siemens_coefficient = 0.6
+	material = /decl/material/solid/metal/plasteel
+	origin_tech = "{'materials':2,'engineering':2,'combat':2}"
 
 /obj/item/clothing/head/helmet/merc
 	name = "combat helmet"
@@ -50,13 +52,16 @@
 		bomb = ARMOR_BOMB_PADDED
 		)
 	siemens_coefficient = 0.5
+	material = /decl/material/solid/metal/plasteel
+	matter = list(/decl/material/solid/gemstone/diamond = MATTER_AMOUNT_REINFORCEMENT)
+	origin_tech = "{'materials':2,'engineering':2,'combat':2}"
 
 /obj/item/clothing/head/helmet/riot
 	name = "riot helmet"
 	desc = "It's a helmet specifically designed to protect against close range attacks."
 	icon = 'icons/clothing/head/armor/riot.dmi'
 	valid_accessory_slots = null
-	body_parts_covered = HEAD|FACE|EYES //face shield
+	body_parts_covered = SLOT_HEAD|SLOT_FACE|SLOT_EYES //face shield
 	armor = list(
 		melee = ARMOR_MELEE_VERY_HIGH,
 		bullet = ARMOR_BALLISTIC_MINOR
@@ -64,6 +69,7 @@
 	siemens_coefficient = 0.7
 	action_button_name = "Toggle Visor"
 	var/up = 0
+	matter = list(/decl/material/solid/cloth = MATTER_AMOUNT_SECONDARY)
 
 /obj/item/clothing/head/helmet/riot/attack_self(mob/user)
 	up = !up
@@ -80,9 +86,9 @@
 		icon_state = "[icon_state]_up"
 	update_clothing_icon()
 
-/obj/item/clothing/head/helmet/riot/experimental_mob_overlay()
+/obj/item/clothing/head/helmet/riot/get_mob_overlay()
 	var/image/ret = ..()
-	if(up && check_state_in_icon("[ret.icon_state]_up", icon))
+	if(ret && up && check_state_in_icon("[ret.icon_state]_up", icon))
 		ret.icon_state = "[ret.icon_state]_up"
 	return ret
 
@@ -98,6 +104,7 @@
 		energy = ARMOR_ENERGY_RESISTANT
 		)
 	siemens_coefficient = 0
+	matter = list(/decl/material/solid/metal/plasteel = MATTER_AMOUNT_TRACE)
 
 /obj/item/clothing/head/helmet/ballistic
 	name = "ballistic helmet"
@@ -111,6 +118,12 @@
 		bomb = ARMOR_BOMB_PADDED
 		)
 	siemens_coefficient = 0.7
+	material = /decl/material/solid/metal/plasteel
+	matter = list(
+		/decl/material/solid/metal/titanium = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/gemstone/diamond = MATTER_AMOUNT_TRACE
+		)
+	origin_tech = "{'materials':3,'engineering':2,'combat':3}"
 
 /obj/item/clothing/head/helmet/swat
 	name = "\improper SWAT helmet"
@@ -123,9 +136,12 @@
 		energy = ARMOR_ENERGY_RESISTANT,
 		bomb = ARMOR_BOMB_PADDED
 		)
-	cold_protection = HEAD
+	cold_protection = SLOT_HEAD
 	min_cold_protection_temperature = SPACE_HELMET_MIN_COLD_PROTECTION_TEMPERATURE
 	siemens_coefficient = 0.5
+	material = /decl/material/solid/metal/plasteel
+	matter = list(/decl/material/solid/metal/titanium = MATTER_AMOUNT_REINFORCEMENT)
+	origin_tech = "{'materials':4,'engineering':2,'combat':4}"
 
 /obj/item/clothing/head/helmet/thunderdome
 	name = "\improper Thunderdome helmet"
@@ -139,9 +155,12 @@
 		energy = ARMOR_ENERGY_RESISTANT,
 		bomb = ARMOR_BOMB_PADDED
 		)
-	cold_protection = HEAD
+	cold_protection = SLOT_HEAD
 	min_cold_protection_temperature = SPACE_HELMET_MIN_COLD_PROTECTION_TEMPERATURE
 	siemens_coefficient = 1
+	material = /decl/material/solid/metal/plasteel
+	matter = list(/decl/material/solid/metal/titanium = MATTER_AMOUNT_REINFORCEMENT)
+	origin_tech = "{'materials':4,'engineering':2,'combat':4}"
 
 /obj/item/clothing/head/helmet/gladiator
 	name = "gladiator helmet"
@@ -149,7 +168,7 @@
 	icon = 'icons/clothing/head/armor/gladiator.dmi'
 	valid_accessory_slots = null
 	flags_inv = HIDEMASK|HIDEEARS|HIDEEYES|BLOCKHAIR
-	body_parts_covered = HEAD|FACE
+	body_parts_covered = SLOT_HEAD|SLOT_FACE
 	siemens_coefficient = 1
 
 /obj/item/clothing/head/helmet/augment
@@ -165,7 +184,8 @@
 		bomb = ARMOR_BOMB_PADDED
 		)
 	flags_inv = HIDEEARS|HIDEEYES
-	body_parts_covered = HEAD|EYES|BLOCKHEADHAIR
-	cold_protection = HEAD
+	body_parts_covered = SLOT_HEAD|SLOT_EYES|BLOCKHEADHAIR
+	cold_protection = SLOT_HEAD
 	min_cold_protection_temperature = SPACE_HELMET_MIN_COLD_PROTECTION_TEMPERATURE
 	siemens_coefficient = 0.5
+	matter = list(/decl/material/solid/metal/plasteel = MATTER_AMOUNT_REINFORCEMENT)

@@ -16,7 +16,7 @@
 	name = "fiend's cowl"
 	desc = "A charred black duster with red trim. In its fabric, you can see the faint outline of millions of eyes."
 	icon = 'icons/clothing/suit/wizard/servant/fiend_cowl.dmi'
-	body_parts_covered = UPPER_TORSO|LOWER_TORSO|LEGS|ARMS
+	body_parts_covered = SLOT_UPPER_BODY|SLOT_LOWER_BODY|SLOT_LEGS|SLOT_ARMS
 	armor = list(
 		melee = ARMOR_MELEE_RESISTANT, 
 		bullet = ARMOR_BALLISTIC_PISTOL, 
@@ -28,7 +28,7 @@
 /obj/item/clothing/under/lawyer/fiendsuit
 	name = "black suit"
 	desc = "A snappy black suit with red trim. The undershirt's stained with something, though..."
-	icon_state = "fiendsuit"
+	icon = 'icons/clothing/under/suits/suit_fiend.dmi'
 	bodytype_restricted = list(BODYTYPE_HUMANOID)
 
 /obj/item/clothing/shoes/dress/devilshoes
@@ -51,4 +51,4 @@
 /obj/item/clothing/under/devildress
 	name = "old dress"
 	desc = "An elegant - if tattered - black and red dress. There's nothing visible through the holes in the fabric; nothing but darkness."
-	icon_state = "fienddress"
+	icon = 'icons/clothing/under/dresses/dress_fiend.dmi'

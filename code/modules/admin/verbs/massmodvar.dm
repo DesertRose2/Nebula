@@ -37,7 +37,7 @@
 	for (var/V in O.vars)
 		names += V
 
-	names = sortList(names)
+	names = sortTim(names, /proc/cmp_text_asc)
 
 	var/variable = ""
 
@@ -72,7 +72,7 @@
 
 	else if(isicon(var_value))
 		to_chat(usr, "Variable appears to be <b>ICON</b>.")
-		var_value = "\icon[var_value]"
+		var_value = "[html_icon(var_value)]"
 		default = "icon"
 
 	else if(istype(var_value,/atom) || istype(var_value,/datum))

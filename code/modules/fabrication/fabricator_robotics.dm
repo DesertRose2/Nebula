@@ -13,8 +13,14 @@
 		/decl/material/solid/metal/aluminium =  SHEET_MATERIAL_AMOUNT * 100,
 		/decl/material/solid/plastic =          SHEET_MATERIAL_AMOUNT * 100,
 		/decl/material/solid/glass =            SHEET_MATERIAL_AMOUNT * 100,
+		/decl/material/solid/fiberglass =       SHEET_MATERIAL_AMOUNT * 100,
 		/decl/material/solid/metal/gold =       SHEET_MATERIAL_AMOUNT * 100,
 		/decl/material/solid/metal/silver =     SHEET_MATERIAL_AMOUNT * 100,
 		/decl/material/solid/metal/uranium =    SHEET_MATERIAL_AMOUNT * 100,
 		/decl/material/solid/gemstone/diamond = SHEET_MATERIAL_AMOUNT * 100
 	)
+
+/obj/machinery/fabricator/robotics/do_build(var/datum/fabricator_recipe/recipe, var/amount)
+	. = ..()
+	for(var/obj/item/organ/O in .)
+		O.status |= ORGAN_CUT_AWAY

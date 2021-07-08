@@ -1,7 +1,7 @@
 /atom/movable
 	layer = OBJ_LAYER
-	appearance_flags = TILE_BOUND
-	glide_size = 4
+	appearance_flags = TILE_BOUND|PIXEL_SCALE
+	glide_size = 8
 	var/movable_flags
 	var/last_move = null
 	var/anchored = 0
@@ -64,7 +64,7 @@
 	return 0
 
 /atom/movable/hitby(var/atom/movable/AM, var/datum/thrownthing/TT)
-	. = ..()
+	..()
 	process_momentum(AM,TT)
 
 /atom/movable/proc/process_momentum(var/atom/movable/AM, var/datum/thrownthing/TT)//physic isn't an exact science
@@ -110,30 +110,6 @@
 
 /atom/movable/proc/get_mass()
 	return 1.5
-
-/atom/movable/Destroy()
-	. = ..()
-#ifdef DISABLE_DEBUG_CRASH
-	// meh do nothing. we know what we're doing. pro engineers.
-#else
-	if(!(atom_flags & ATOM_FLAG_INITIALIZED))
-		crash_with("Was deleted before initialization")
-#endif
-
-	for(var/A in src)
-		qdel(A)
-
-	forceMove(null)
-
-	if(LAZYLEN(movement_handlers) && !ispath(movement_handlers[1]))
-		QDEL_NULL_LIST(movement_handlers)
-
-	if (bound_overlay)
-		QDEL_NULL(bound_overlay)
-
-	if(virtual_mob && !ispath(virtual_mob))
-		qdel(virtual_mob)
-		virtual_mob = null
 
 /atom/movable/Bump(var/atom/A, yes)
 	if(!QDELETED(throwing))
@@ -186,15 +162,20 @@
 	if (.)
 		// observ
 		if(!loc)
-			GLOB.moved_event.raise_event(src, old_loc, null)
+			events_repository.raise_event(/decl/observ/moved, src, old_loc, null)
 
 		// freelook
 		if(opacity)
 			updateVisibility(src)
 
 		// lighting
-		if (light_sources)	// Yes, I know you can for-null safely, but this is slightly faster. Hell knows why.
-			for (var/datum/light_source/L in light_sources)
+		if (light_source_solo)
+			light_source_solo.source_atom.update_light()
+		else if (light_source_multi)
+			var/datum/light_source/L
+			var/thing
+			for (thing in light_source_multi)
+				L = thing
 				L.source_atom.update_light()
 
 /atom/movable/Move(...)
@@ -202,32 +183,27 @@
 	. = ..()
 	if (.)
 		if(!loc)
-			GLOB.moved_event.raise_event(src, old_loc, null)
+			events_repository.raise_event(/decl/observ/moved, src, old_loc, null)
 
 		// freelook
 		if(opacity)
 			updateVisibility(src)
 
 		// lighting
-		if (light_sources)	// Yes, I know you can for-null safely, this is slightly faster. Hell knows why.
-			for (var/datum/light_source/L in light_sources)
+		if (light_source_solo)
+			light_source_solo.source_atom.update_light()
+		else if (light_source_multi)
+			var/datum/light_source/L
+			var/thing
+			for (thing in light_source_multi)
+				L = thing
 				L.source_atom.update_light()
 
 //called when src is thrown into hit_atom
 /atom/movable/proc/throw_impact(atom/hit_atom, var/datum/thrownthing/TT)
-	if(istype(hit_atom,/mob/living))
-		var/mob/living/M = hit_atom
-		M.hitby(src,TT)
-
-	else if(isobj(hit_atom))
-		var/obj/O = hit_atom
-		if(!O.anchored)
-			step(O, src.last_move)
-		O.hitby(src,TT)
-
-	else if(isturf(hit_atom))
-		var/turf/T = hit_atom
-		T.hitby(src,TT)
+	SHOULD_CALL_PARENT(TRUE)
+	if(istype(hit_atom) && !QDELETED(hit_atom))
+		hit_atom.hitby(src, TT)
 
 /atom/movable/proc/throw_at(atom/target, range, speed, mob/thrower, spin = TRUE, datum/callback/callback) //If this returns FALSE then callback will not be called.
 	. = TRUE
@@ -256,18 +232,18 @@
 
 /atom/movable/overlay/Initialize()
 	if(!loc)
-		crash_with("[type] created in nullspace.")
+		PRINT_STACK_TRACE("[type] created in nullspace.")
 		return INITIALIZE_HINT_QDEL
 	master = loc
 	SetName(master.name)
 	set_dir(master.dir)
 
 	if(istype(master, /atom/movable))
-		GLOB.moved_event.register(master, src, follow_proc)
+		events_repository.register(/decl/observ/moved, master, src, follow_proc)
 		SetInitLoc()
 
-	GLOB.destroyed_event.register(master, src, /datum/proc/qdel_self)
-	GLOB.dir_set_event.register(master, src, /atom/proc/recursive_dir_set)
+	events_repository.register(/decl/observ/destroyed, master, src, /datum/proc/qdel_self)
+	events_repository.register(/decl/observ/dir_set, master, src, /atom/proc/recursive_dir_set)
 
 	. = ..()
 
@@ -276,9 +252,9 @@
 
 /atom/movable/overlay/Destroy()
 	if(istype(master, /atom/movable))
-		GLOB.moved_event.unregister(master, src)
-	GLOB.destroyed_event.unregister(master, src)
-	GLOB.dir_set_event.unregister(master, src)
+		events_repository.unregister(/decl/observ/moved, master, src)
+	events_repository.unregister(/decl/observ/destroyed, master, src)
+	events_repository.unregister(/decl/observ/dir_set, master, src)
 	master = null
 	. = ..()
 
@@ -294,19 +270,19 @@
 	if(!simulated)
 		return
 
-	if(!z || (z in GLOB.using_map.sealed_levels))
+	if(!z || (z in global.using_map.sealed_levels))
 		return
 
-	if(!GLOB.universe.OnTouchMapEdge(src))
+	if(!global.universe.OnTouchMapEdge(src))
 		return
 
-	if(GLOB.using_map.use_overmap)
+	if(global.using_map.use_overmap)
 		overmap_spacetravel(get_turf(src), src)
 		return
 
 	var/new_x
 	var/new_y
-	var/new_z = GLOB.using_map.get_transit_zlevel(z)
+	var/new_z = global.using_map.get_transit_zlevel(z)
 	if(new_z)
 		if(x <= TRANSITIONEDGE)
 			new_x = world.maxx - TRANSITIONEDGE - 2
@@ -331,12 +307,14 @@
 /atom/movable/proc/get_bullet_impact_effect_type()
 	return BULLET_IMPACT_NONE
 
-/atom/movable/attack_hand(mob/living/user)
+/atom/movable/attack_hand(mob/user)
 	// Anchored check so we can operate switches etc on grab intent without getting grab failure msgs.
-	if(istype(user) && !user.lying && user.a_intent == I_GRAB && !anchored)
-		user.make_grab(src)
+	if(isliving(user) && !user.lying && user.a_intent == I_GRAB && !anchored)
+		var/mob/living/M = user
+		M.make_grab(src)
 		return 0
 	. = ..()
 
-/atom/movable/CanPass(atom/movable/mover, turf/target, height=1.5, air_group = 0)
-	. = ..() || (mover && !(mover.movable_flags & MOVABLE_FLAG_NONDENSE_COLLISION) && !mover.density)
+/atom/movable/proc/pushed(var/pushdir)
+	set waitfor = FALSE
+	step(src, pushdir)

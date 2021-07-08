@@ -1,23 +1,22 @@
-GLOBAL_DATUM_INIT(using_map, /datum/map, new USING_MAP_DATUM)
-GLOBAL_LIST_EMPTY(all_maps)
+var/global/datum/map/using_map = new USING_MAP_DATUM
+var/global/list/all_maps = list()
 
-var/const/MAP_HAS_BRANCH = 1	//Branch system for occupations, togglable
-var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
+var/global/const/MAP_HAS_BRANCH = 1	//Branch system for occupations, togglable
+var/global/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 
 /hook/startup/proc/initialise_map_list()
 	for(var/type in subtypesof(/datum/map))
 		var/datum/map/M
-		if(type == GLOB.using_map.type)
-			M = GLOB.using_map
+		if(type == global.using_map.type)
+			M = global.using_map
 			M.setup_map()
 		else
 			M = new type
 		if(!M.path)
 			log_error("Map '[M]' ([type]) does not have a defined path, not adding to map list!")
 		else
-			GLOB.all_maps[M.path] = M
+			global.all_maps[M.path] = M
 	return 1
-
 
 /datum/map
 	var/name = "Unnamed Map"
@@ -59,6 +58,9 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 	var/system_name = "Uncharted System"
 	var/ground_noun = "ground"
 
+	// Current game year. Uses current system year + game_year num.
+	var/game_year = 288
+
 	var/map_admin_faxes = list()
 
 	var/shuttle_docked_message
@@ -78,8 +80,14 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 	                                              // as defined in holodeck_programs
 	var/list/holodeck_restricted_programs = list() // as above... but EVIL!
 
-	var/allowed_spawns = list("Arrivals Shuttle","Gateway", "Cryogenic Storage", "Robot Storage")
-	var/default_spawn = "Arrivals Shuttle"
+	var/allowed_spawns = list(
+		/decl/spawnpoint/arrivals,
+		/decl/spawnpoint/gateway,
+		/decl/spawnpoint/cryo,
+		/decl/spawnpoint/cyborg
+	)
+	var/default_spawn = /decl/spawnpoint/arrivals
+
 	var/flags = 0
 	var/evac_controller_type = /datum/evacuation_controller
 	var/use_overmap = 0		//If overmap should be used (including overmap space travel override)
@@ -87,12 +95,22 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 	var/overmap_z = 0		//If 0 will generate overmap zlevel on init. Otherwise will populate the zlevel provided.
 	var/overmap_event_areas = 0 //How many event "clouds" will be generated
 	var/pray_reward_type = /obj/item/chems/food/snacks/cookie // What reward should be given by admin when a prayer is received?
+	var/list/map_markers_to_load
 
-	var/list/lobby_screens = list('icons/default_lobby.png')    // The list of lobby screen images to pick() from.
+	// The list of lobby screen images to pick() from.
+	var/list/lobby_screens = list('icons/default_lobby.png')
 	var/current_lobby_screen
-	var/music_track/lobby_track                     // The track that will play in the lobby screen.
-	var/list/lobby_tracks = list()                  // The list of lobby tracks to pick() from. If left unset will randomly select among all available /music_track subtypes.
-	var/welcome_sound = 'sound/AI/welcome.ogg'		// Sound played on roundstart
+	// The track that will play in the lobby screen.
+	var/decl/music_track/lobby_track
+	// The list of lobby tracks to pick() from. If left unset will randomly select among all available /music_track subtypes.
+	var/list/lobby_tracks = list()
+
+	// Sounds played on roundstart
+	var/list/welcome_sound = 'sound/AI/welcome.ogg'
+	// Sounds played with end titles (credits)
+	var/list/credit_sound = list('sound/music/THUNDERDOME.ogg', 'sound/music/europa/Chronox_-_03_-_In_Orbit.ogg', 'sound/music/europa/asfarasitgets.ogg')
+	// Sounds played on server reboot
+	var/list/reboot_sound = list('sound/AI/newroundsexy.ogg','sound/misc/apcdestroyed.ogg','sound/misc/bangindonk.ogg')
 
 	var/default_law_type = /datum/ai_laws/asimov  // The default lawset use by synth units, if not overriden by their laws var.
 	var/security_state = /decl/security_state/default // The default security state system to use.
@@ -100,7 +118,7 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 	var/id_hud_icons = 'icons/mob/hud.dmi' // Used by the ID HUD (primarily sechud) overlay.
 
 	var/num_exoplanets = 0
-	//dimensions of planet zlevels, defaults to world size if smaller, INCREASES world size if larger. 
+	//dimensions of planet zlevels, defaults to world size if smaller, INCREASES world size if larger.
 	//Due to how maps are generated, must be (2^n+1) e.g. 17,33,65,129 etc. Map will just round up to those if set to anything other.
 	var/list/planet_size = list()
 	var/away_site_budget = 0
@@ -108,33 +126,28 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 	var/list/loadout_blacklist	//list of types of loadout items that will not be pickable
 
 	//Economy stuff
-	var/starting_money = 75000		//Money in station account
-	var/department_money = 5000		//Money in department accounts
-	var/salary_modifier	= 1			//Multiplier to starting character money
+	var/starting_money = 75000		       // Money in station account
+	var/department_money = 5000		       // Money in department accounts
+	var/salary_modifier	= 1			       // Multiplier to starting character money
+	var/passport_type = /obj/item/passport // Item type to grant people on join.
+
 	var/list/station_departments = list()//Gets filled automatically depending on jobs allowed
 
 	var/default_species = SPECIES_HUMAN
+	var/default_bodytype = BODYTYPE_HUMANOID
 
 	var/list/available_cultural_info = list(
-		TAG_HOMEWORLD = list(
-			HOME_SYSTEM_OTHER
-		),
-		TAG_FACTION = list(
-			FACTION_OTHER
-		),
-		TAG_CULTURE = list(
-			CULTURE_OTHER
-		),
-		TAG_RELIGION = list(
-			RELIGION_OTHER
-		)
+		TAG_HOMEWORLD = list(/decl/cultural_info/location/other),
+		TAG_FACTION =   list(/decl/cultural_info/faction/other),
+		TAG_CULTURE =   list(/decl/cultural_info/culture/other),
+		TAG_RELIGION =  list(/decl/cultural_info/religion/other)
 	)
 
 	var/list/default_cultural_info = list(
-		TAG_HOMEWORLD = HOME_SYSTEM_OTHER,
-		TAG_FACTION =   FACTION_OTHER,
-		TAG_CULTURE =   CULTURE_OTHER,
-		TAG_RELIGION =  RELIGION_OTHER
+		TAG_HOMEWORLD = /decl/cultural_info/location/other,
+		TAG_FACTION =   /decl/cultural_info/faction/other,
+		TAG_CULTURE =   /decl/cultural_info/culture/other,
+		TAG_RELIGION =  /decl/cultural_info/religion/other
 	)
 
 	var/access_modify_region = list(
@@ -148,17 +161,32 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 	)
 
 /datum/map/New()
+
+	if(default_spawn && !(default_spawn in allowed_spawns))
+		PRINT_STACK_TRACE("Map datum [type] has default spawn point [default_spawn] not in the allowed spawn list.")
+	for(var/spawn_type in allowed_spawns)
+		allowed_spawns -= spawn_type
+		allowed_spawns += GET_DECL(spawn_type)
+
 	if(!map_levels)
 		map_levels = station_levels.Copy()
+
 	if(!allowed_jobs)
 		allowed_jobs = list()
 		for(var/jtype in subtypesof(/datum/job))
 			var/datum/job/job = jtype
 			if(initial(job.available_by_default))
 				allowed_jobs += jtype
+
 	if(!LAZYLEN(planet_size))
 		planet_size = list(world.maxx, world.maxy)
+
 	current_lobby_screen = pick(lobby_screens)
+	game_year = (text2num(time2text(world.realtime, "YYYY")) + game_year)
+
+	if(ispath(default_job_type, /datum/job))
+		var/datum/job/J = default_job_type
+		default_job_title = initial(J.title)
 
 /datum/map/proc/get_lobby_track(var/exclude)
 	var/lobby_track_type
@@ -167,8 +195,8 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 	else if(LAZYLEN(lobby_tracks))
 		lobby_track_type = pickweight(lobby_tracks - exclude)
 	else
-		lobby_track_type = pick(subtypesof(/music_track) - exclude)
-	return decls_repository.get_decl(lobby_track_type)
+		lobby_track_type = pick(subtypesof(/decl/music_track) - exclude)
+	return GET_DECL(lobby_track_type)
 
 /datum/map/proc/setup_map()
 	lobby_track = get_lobby_track()
@@ -242,7 +270,7 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 
 // By default transition randomly to another zlevel
 /datum/map/proc/get_transit_zlevel(var/current_z_level)
-	var/list/candidates = GLOB.using_map.accessible_z_levels.Copy()
+	var/list/candidates = global.using_map.accessible_z_levels.Copy()
 	candidates.Remove(num2text(current_z_level))
 
 	if(!candidates.len)
@@ -265,14 +293,14 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 
 	for(var/job in allowed_jobs)
 		var/datum/job/J = SSjobs.get_by_path(job)
-		var/list/dept = J.department_refs
+		var/list/dept = J.department_types
 		if(LAZYLEN(dept))
 			station_departments |= dept
 
 	for(var/department in station_departments)
-		var/datum/department/dept = SSdepartments.departments[department]
+		var/decl/department/dept = SSjobs.get_department_by_type(department)
 		if(istype(dept))
-			department_accounts[department] = create_account("[dept.title] Account", "[dept.title]", department_money, ACCOUNT_TYPE_DEPARTMENT)
+			department_accounts[department] = create_account("[dept.name] Account", "[dept.name]", department_money, ACCOUNT_TYPE_DEPARTMENT)
 
 	department_accounts["Vendor"] = create_account("Vendor Account", "Vendor", 0, ACCOUNT_TYPE_DEPARTMENT)
 	vendor_account = department_accounts["Vendor"]
@@ -319,7 +347,7 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 
 /datum/map/proc/show_titlescreen(client/C)
 	winset(C, "lobbybrowser", "is-disabled=false;is-visible=true")
-	
+
 	show_browser(C, current_lobby_screen, "file=titlescreen.png;display=0")
 	show_browser(C, file('html/lobby_titlescreen.html'), "window=lobbybrowser")
 
@@ -327,3 +355,24 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 	if(C.mob) // Check if the client is still connected to something
 		// Hide title screen, allowing player to see the map
 		winset(C, "lobbybrowser", "is-disabled=true;is-visible=false")
+
+/datum/map/proc/create_trade_hubs()
+	new /datum/trade_hub/singleton
+
+/datum/map/proc/get_radio_chatter_types()
+	return
+
+/datum/map/proc/get_universe_end_evac_areas()
+	. = list(/area/space)
+
+/datum/map/proc/get_specops_area()
+	return
+
+/datum/map/proc/create_passport(var/mob/living/carbon/human/H)
+	if(!passport_type)
+		return
+	var/obj/item/passport/pass = new passport_type(get_turf(H))
+	if(istype(pass))
+		pass.set_info(H)
+	if(!H.equip_to_slot(pass, slot_in_backpack_str))
+		H.put_in_hands(pass)

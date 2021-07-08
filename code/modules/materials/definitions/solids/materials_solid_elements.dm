@@ -1,7 +1,17 @@
 /decl/material/solid/boron
 	name = "boron"
 	lore_text = "Boron is a chemical element with the symbol B and atomic number 5."
-	flags = MAT_FLAG_FUSION_FUEL
+	flags = MAT_FLAG_FUSION_FUEL | MAT_FLAG_FISSIBLE
+
+	neutron_cross_section = 10
+	neutron_interactions = list(
+		INTERACTION_ABSORPTION = 2500
+	)
+	absorption_products = list(
+		/decl/material/solid/lithium = 0.5,
+		/decl/material/gas/helium = 0.5
+	)
+	neutron_absorption = 20
 
 /decl/material/solid/lithium
 	name = "lithium"
@@ -21,7 +31,7 @@
 	value = 0.5
 	dirtiness = 30
 
-/decl/material/solid/carbon/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/solid/carbon/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	var/datum/reagents/ingested = M.get_ingested_reagents()
 	if(ingested && LAZYLEN(ingested.reagent_volumes) > 1)
 		var/effect = 1 / (LAZYLEN(ingested.reagent_volumes) - 1)
@@ -63,7 +73,7 @@
 	color = "#a0a0a0"
 	value = 0.5
 
-/decl/material/solid/potassium/affect_blood(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/solid/potassium/affect_blood(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	var/volume = REAGENT_VOLUME(holder, type)
 	if(volume > 3)
 		M.add_chemical_effect(CE_PULSE, 1)

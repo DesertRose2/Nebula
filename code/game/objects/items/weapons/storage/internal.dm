@@ -7,7 +7,7 @@
 	. = ..()
 	master_item = loc
 	name = master_item.name
-	verbs -= /obj/item/verb/verb_pickup	//make sure this is never picked up.
+	verbs -= /obj/item/verb/verb_pickup
 
 /obj/item/storage/internal/Destroy()
 	master_item = null
@@ -17,7 +17,7 @@
 	return		//make sure this is never picked up
 
 /obj/item/storage/internal/mob_can_equip()
-	return 0	//make sure this is never picked up
+	return FALSE //make sure this is never picked up
 
 //Helper procs to cleanly implement internal storages - storage items that provide inventory slots for other items.
 //These procs are completely optional, it is up to the master item to decide when it's storage get's opened by calling open()
@@ -25,17 +25,17 @@
 //If you are using these you will probably want to override attackby() as well.
 //See /obj/item/clothing/suit/storage for an example.
 
-//items that use internal storage have the option of calling this to emulate default storage MouseDrop behaviour.
-//returns 1 if the master item's parent's MouseDrop() should be called, 0 otherwise. It's strange, but no other way of
+//items that use internal storage have the option of calling this to emulate default storage handle_mouse_drop behaviour.
+//returns 1 if the master item's parent's handle_mouse_drop() should be called, 0 otherwise. It's strange, but no other way of
 //doing it without the ability to call another proc's parent, really.
-/obj/item/storage/internal/proc/handle_mousedrop(mob/user, obj/over_object)
+/obj/item/storage/internal/proc/handle_storage_internal_mouse_drop(mob/user, obj/over_object)
 	if (ishuman(user) || issmall(user)) //so monkeys can take off their backpacks -- Urist
 
 		if(over_object == user && Adjacent(user)) // this must come before the screen objects only block
 			src.open(user)
 			return 0
 
-		if (!( istype(over_object, /obj/screen) ))
+		if (!( istype(over_object, /obj/screen/inventory) ))
 			return 1
 
 		//makes sure master_item is equipped before putting it in hand, so that we can't drag it into our hand from miles away.
@@ -43,16 +43,11 @@
 		if (!(master_item.loc == user) || (master_item.loc && master_item.loc.loc == user))
 			return 0
 
-		//TODO make this less terrible
 		if (!( user.restrained() ) && !( user.stat ))
-			switch(over_object.name)
-				if(BP_R_HAND)
-					if(user.unEquip(master_item))
-						user.put_in_r_hand(master_item)
-				if(BP_L_HAND)
-					if(user.unEquip(master_item))
-						user.put_in_l_hand(master_item)
+			var/obj/screen/inventory/inv = over_object
 			master_item.add_fingerprint(user)
+			if(user.unEquip(master_item))
+				user.equip_to_slot_if_possible(master_item, inv.slot_id)
 			return 0
 	return 0
 

@@ -24,6 +24,16 @@
 	var/warning = ""
 	var/hidden_from_codex			  // If it should not show up in Codex
 	var/category = /decl/language    // Used to point at root language types that shouldn't be visible
+	var/list/scramble_cache = list()
+	var/list/speech_sounds
+	var/allow_repeated_syllables = TRUE
+
+/decl/language/proc/get_spoken_sound()
+	if(speech_sounds)
+		var/list/result[2]
+		result[1] = pick(speech_sounds)
+		result[2] = 40
+		return result
 
 /decl/language/proc/can_be_spoken_properly_by(var/mob/speaker)
 	return TRUE
@@ -32,25 +42,21 @@
 	return message
 
 /decl/language/proc/get_random_name(var/gender, name_count=2, syllable_count=4, syllable_divisor=2)
-	if(!syllables || !syllables.len)
+	if(!length(syllables))
 		if(gender==FEMALE)
-			return capitalize(pick(GLOB.first_names_female)) + " " + capitalize(pick(GLOB.last_names))
+			return capitalize(pick(global.first_names_female)) + " " + capitalize(pick(global.last_names))
 		else
-			return capitalize(pick(GLOB.first_names_male)) + " " + capitalize(pick(GLOB.last_names))
+			return capitalize(pick(global.first_names_male)) + " " + capitalize(pick(global.last_names))
 
-	var/full_name = ""
-	var/new_name = ""
-
+	var/possible_syllables = allow_repeated_syllables ? syllables : syllables.Copy()
 	for(var/i = 0;i<name_count;i++)
-		new_name = ""
+		var/new_name = ""
 		for(var/x = rand(Floor(syllable_count/syllable_divisor),syllable_count);x>0;x--)
-			new_name += pick(syllables)
-		full_name += " [capitalize(lowertext(new_name))]"
-
-	return "[trim(full_name)]"
-
-/decl/language
-	var/list/scramble_cache = list()
+			if(!length(possible_syllables))
+				break
+			new_name += allow_repeated_syllables ? pick(possible_syllables) : pick_n_take(possible_syllables)
+		LAZYADD(., capitalize(lowertext(new_name)))
+	. = "[trim(jointext(., " "))]"
 
 /decl/language/proc/scramble(var/input, var/list/known_languages)
 
@@ -137,8 +143,7 @@
 
 	if(!speaker_mask) speaker_mask = speaker.name
 	message = format_message(message, get_spoken_verb(message))
-
-	for(var/mob/player in GLOB.player_list)
+	for(var/mob/player in global.player_list)
 		player.hear_broadcast(src, speaker, speaker_mask, message)
 
 /mob/proc/hear_broadcast(var/decl/language/language, var/mob/speaker, var/speaker_name, var/message)
@@ -171,19 +176,19 @@
 
 // Language handling.
 /mob/proc/add_language(var/language)
-	var/decl/language/new_language = decls_repository.get_decl(language)
+	var/decl/language/new_language = GET_DECL(language)
 	if(!istype(new_language) || (new_language in languages))
 		return 0
 	languages.Add(new_language)
 	return 1
 
 /mob/proc/remove_language(var/rem_language)
-	var/decl/language/L = decls_repository.get_decl(rem_language)
+	var/decl/language/L = GET_DECL(rem_language)
 	. = (L in languages)
 	languages.Remove(L)
 
 /mob/living/remove_language(rem_language)
-	var/decl/language/L = decls_repository.get_decl(rem_language)
+	var/decl/language/L = GET_DECL(rem_language)
 	if(default_language == L)
 		default_language = null
 	return ..()
@@ -193,7 +198,7 @@
 	if(!speaking)
 		return 0
 
-	if (only_species_language && speaking != decls_repository.get_decl(species_language))
+	if (only_species_language && speaking != GET_DECL(species_language))
 		return 0
 
 	return (speaking.can_speak_special(src) && (universal_speak || (speaking && speaking.flags & INNATE) || (speaking in src.languages)))
@@ -223,7 +228,7 @@
 	var/dat = "<b><font size = 5>Known Languages</font></b><br/><br/>"
 
 	if(default_language)
-		var/decl/language/lang = decls_repository.get_decl(default_language)
+		var/decl/language/lang = GET_DECL(default_language)
 		dat += "Current default language: [lang.name] - <a href='byond://?src=\ref[src];default_lang=reset'>reset</a><br/><br/>"
 
 	for(var/decl/language/L in languages)

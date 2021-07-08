@@ -6,10 +6,12 @@
 	applies_material_name = FALSE
 
 /obj/item/sword/cultblade/attack(mob/living/M, mob/living/user, var/target_zone)
-	if(iscultist(user) || (user.mind in GLOB.godcult.current_antagonists))
+
+	var/decl/special_role/godcult = GET_DECL(/decl/special_role/godcultist)
+	if(iscultist(user) || (user.mind in godcult.current_antagonists))
 		return ..()
 
-	var/zone = (user.hand ? BP_L_ARM : BP_R_ARM)
+	var/zone = user.get_active_held_item_slot()
 
 	var/obj/item/organ/external/affecting = null
 	if(ishuman(user))
@@ -23,10 +25,10 @@
 
 	//random amount of damage between half of the blade's force and the full force of the blade.
 	user.apply_damage(rand(force/2, force), BRUTE, zone, (DAM_SHARP|DAM_EDGE), armor_pen = 100)
-	user.Weaken(5)
+	SET_STATUS_MAX(user, STAT_WEAK, 5)
 
 	if(user.unEquip(src))
-		throw_at(get_edge_target_turf(src, pick(GLOB.alldirs)), rand(1,3), throw_speed)
+		throw_at(get_edge_target_turf(src, pick(global.alldirs)), rand(1,3), throw_speed)
 
 	var/spooky = pick('sound/hallucinations/growl1.ogg', 'sound/hallucinations/growl2.ogg', 'sound/hallucinations/growl3.ogg', 'sound/hallucinations/wail.ogg')
 	playsound(loc, spooky, 50, 1)
@@ -36,8 +38,7 @@
 /obj/item/sword/cultblade/pickup(mob/living/user)
 	if(!iscultist(user))
 		to_chat(user, "<span class='warning'>An overwhelming feeling of dread comes over you as you pick up the cultist's sword. It would be wise to be rid of this blade quickly.</span>")
-		user.make_dizzy(120)
-
+		SET_STATUS_MAX(user, STAT_DIZZY, 120)
 
 /obj/item/clothing/head/culthood
 	name = "cult hood"
@@ -45,12 +46,12 @@
 
 	icon = 'icons/clothing/head/cult.dmi'
 	flags_inv = HIDEFACE
-	body_parts_covered = HEAD
+	body_parts_covered = SLOT_HEAD
 	armor = list(
 		melee = ARMOR_MELEE_RESISTANT,
 		bullet = ARMOR_BALLISTIC_SMALL
 	)
-	cold_protection = HEAD
+	cold_protection = SLOT_HEAD
 	min_cold_protection_temperature = SPACE_HELMET_MIN_COLD_PROTECTION_TEMPERATURE
 	siemens_coefficient = 0.8 //That's a pretty cool opening in the hood. Also: Cloth making physical contact to the skull.
 
@@ -59,7 +60,7 @@
 	desc = "A helm worn by the followers of Nar-Sie."
 	icon = 'icons/clothing/head/wizard/magus.dmi'
 	flags_inv = HIDEFACE | BLOCKHAIR
-	body_parts_covered = HEAD|FACE|EYES
+	body_parts_covered = SLOT_HEAD|SLOT_FACE|SLOT_EYES
 	armor = list(
 		melee = ARMOR_MELEE_RESISTANT,
 		bullet = ARMOR_BALLISTIC_PISTOL,
@@ -69,11 +70,12 @@
 
 /obj/item/clothing/head/culthood/alt
 	icon = 'icons/clothing/head/cult_alt.dmi'
+
 /obj/item/clothing/suit/cultrobes
 	name = "cult robes"
+	icon = 'icons/clothing/suit/cult.dmi'
 	desc = "A set of durable robes worn by the followers of Nar-Sie."
-	icon_state = "cultrobes"
-	body_parts_covered = UPPER_TORSO|LOWER_TORSO|LEGS|ARMS
+	body_parts_covered = SLOT_UPPER_BODY|SLOT_LOWER_BODY|SLOT_LEGS|SLOT_ARMS
 	allowed = list(/obj/item/book/tome,/obj/item/sword/cultblade)
 	armor = list(
 		melee = ARMOR_MELEE_RESISTANT,
@@ -86,13 +88,13 @@
 	siemens_coefficient = 0.6
 
 /obj/item/clothing/suit/cultrobes/alt
-	icon_state = "cultrobesalt"
+	icon = 'icons/clothing/suit/cult_alt.dmi'
 
 /obj/item/clothing/suit/cultrobes/magusred
 	name = "magus robes"
 	desc = "A set of plated robes worn by the followers of Nar-Sie."
-	icon_state = "magusred"
-	body_parts_covered = UPPER_TORSO|LOWER_TORSO|LEGS|FEET|ARMS|HANDS
+	icon = 'icons/clothing/suit/wizard/magusred.dmi'
+	body_parts_covered = SLOT_UPPER_BODY|SLOT_LOWER_BODY|SLOT_LEGS|SLOT_FEET|SLOT_ARMS|SLOT_HANDS
 	flags_inv = HIDEGLOVES|HIDESHOES|HIDEJUMPSUIT
 	armor = list(
 		melee = ARMOR_MELEE_VERY_HIGH,
@@ -104,7 +106,7 @@
 
 /obj/item/clothing/suit/cultrobes/magusred/Initialize()
 	. = ..()
-	slowdown_per_slot[slot_wear_suit] = 1
+	LAZYSET(slowdown_per_slot, slot_wear_suit_str, 1)
 
 /obj/item/clothing/head/helmet/space/cult
 	name = "cult helmet"
@@ -136,8 +138,8 @@
 		rad = ARMOR_RAD_MINOR
 	)
 	siemens_coefficient = 0.2
-	body_parts_covered = UPPER_TORSO|LOWER_TORSO|LEGS|ARMS|HANDS
+	body_parts_covered = SLOT_UPPER_BODY|SLOT_LOWER_BODY|SLOT_LEGS|SLOT_ARMS|SLOT_HANDS
 
 /obj/item/clothing/suit/space/cult/Initialize()
 	. = ..()
-	slowdown_per_slot[slot_wear_suit] = 1
+	LAZYSET(slowdown_per_slot, slot_wear_suit_str, 1)

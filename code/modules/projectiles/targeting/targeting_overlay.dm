@@ -88,7 +88,7 @@
 	owner = null
 	return ..()
 
-obj/aiming_overlay/proc/update_aiming_deferred()
+/obj/aiming_overlay/proc/update_aiming_deferred()
 	set waitfor = 0
 	sleep(0)
 	update_aiming()
@@ -109,18 +109,18 @@ obj/aiming_overlay/proc/update_aiming_deferred()
 
 	var/cancel_aim = 1
 
-	if(!(aiming_with in owner) || (istype(owner, /mob/living/carbon/human) && (owner.l_hand != aiming_with && owner.r_hand != aiming_with)))
-		to_chat(owner, "<span class='warning'>You must keep hold of your weapon!</span>")
-	else if(owner.eye_blind)
-		to_chat(owner, "<span class='warning'>You are blind and cannot see your target!</span>")
+	if(!(aiming_with in owner) || (istype(owner, /mob/living/carbon/human) && !(aiming_with in owner.get_held_items())))
+		to_chat(owner, SPAN_WARNING("You must keep hold of your weapon!"))
+	else if(GET_STATUS(owner, STAT_BLIND))
+		to_chat(owner, SPAN_WARNING("You are blind and cannot see your target!"))
 	else if(!aiming_at || !istype(aiming_at.loc, /turf))
-		to_chat(owner, "<span class='warning'>You have lost sight of your target!</span>")
+		to_chat(owner, SPAN_WARNING("You have lost sight of your target!"))
 	else if(owner.incapacitated() || owner.lying || owner.restrained())
-		to_chat(owner, "<span class='warning'>You must be conscious and standing to keep track of your target!</span>")
+		to_chat(owner, SPAN_WARNING("You must be conscious and standing to keep track of your target!"))
 	else if(aiming_at.is_invisible_to(owner))
-		to_chat(owner, "<span class='warning'>Your target has become invisible!</span>")
+		to_chat(owner, SPAN_WARNING("Your target has become invisible!"))
 	else if(!(aiming_at in view(owner)))
-		to_chat(owner, "<span class='warning'>Your target is too far away to track!</span>")
+		to_chat(owner, SPAN_WARNING("Your target is too far away to track!"))
 	else
 		cancel_aim = 0
 
@@ -169,14 +169,15 @@ obj/aiming_overlay/proc/update_aiming_deferred()
 	forceMove(get_turf(target))
 	START_PROCESSING(SSobj, src)
 
-	aiming_at.aimed |= src
+	LAZYDISTINCTADD(aiming_at.aimed_at_by, src)
 	toggle_active(1)
 	locked = 0
+	
 	update_icon()
 	lock_time = world.time + 35
-	GLOB.moved_event.register(owner, src, /obj/aiming_overlay/proc/update_aiming)
-	GLOB.moved_event.register(aiming_at, src, /obj/aiming_overlay/proc/target_moved)
-	GLOB.destroyed_event.register(aiming_at, src, /obj/aiming_overlay/proc/cancel_aiming)
+	events_repository.register(/decl/observ/moved, owner, src, /obj/aiming_overlay/proc/update_aiming)
+	events_repository.register(/decl/observ/moved, aiming_at, src, /obj/aiming_overlay/proc/target_moved)
+	events_repository.register(/decl/observ/destroyed, aiming_at, src, /obj/aiming_overlay/proc/cancel_aiming)
 
 /obj/aiming_overlay/on_update_icon()
 	if(locked)
@@ -184,7 +185,7 @@ obj/aiming_overlay/proc/update_aiming_deferred()
 	else
 		icon_state = "locking"
 
-/obj/aiming_overlay/proc/toggle_active(var/force_state = null)
+/obj/aiming_overlay/proc/toggle_active(var/force_state = null, var/no_message = FALSE)
 	if(!isnull(force_state))
 		if(active == force_state)
 			return
@@ -193,31 +194,33 @@ obj/aiming_overlay/proc/update_aiming_deferred()
 		active = !active
 
 	if(!active)
-		cancel_aiming()
+		cancel_aiming(no_message)
 
 	if(owner.client)
 		if(active)
-			to_chat(owner, "<span class='notice'>You will now aim rather than fire.</span>")
+			if(!no_message)
+				to_chat(owner, "<span class='notice'>You will now aim rather than fire.</span>")
 			owner.client.add_gun_icons()
 		else
-			to_chat(owner, "<span class='notice'>You will no longer aim rather than fire.</span>")
+			if(!no_message)
+				to_chat(owner, "<span class='notice'>You will no longer aim rather than fire.</span>")
 			owner.client.remove_gun_icons()
 		owner.gun_setting_icon.icon_state = "gun[active]"
 
 /obj/aiming_overlay/proc/cancel_aiming(var/no_message = 0)
 	if(!aiming_with || !aiming_at)
 		return
-	if(istype(aiming_with, /obj/item/gun))
-		sound_to(aiming_at, sound('sound/weapons/TargetOff.ogg'))
-		sound_to(owner, sound('sound/weapons/TargetOff.ogg'))
 	if(!no_message)
 		owner.visible_message("<span class='notice'>\The [owner] lowers \the [aiming_with].</span>")
+		if(istype(aiming_with, /obj/item/gun))
+			sound_to(aiming_at, sound('sound/weapons/TargetOff.ogg'))
+			sound_to(owner, sound('sound/weapons/TargetOff.ogg'))
 
-	GLOB.moved_event.unregister(owner, src)
+	events_repository.unregister(/decl/observ/moved, owner, src)
 	if(aiming_at)
-		GLOB.moved_event.unregister(aiming_at, src)
-		GLOB.destroyed_event.unregister(aiming_at, src)
-		aiming_at.aimed -= src
+		events_repository.unregister(/decl/observ/moved, aiming_at, src)
+		events_repository.unregister(/decl/observ/destroyed, aiming_at, src)
+		LAZYREMOVE(aiming_at.aimed_at_by, src)
 		aiming_at = null
 
 	aiming_with = null

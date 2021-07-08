@@ -40,20 +40,15 @@
 	breather = null
 	return ..()
 
-/obj/machinery/oxygen_pump/MouseDrop(var/mob/living/carbon/human/target, src_location, over_location)
-	..()
-	if(istype(target) && CanMouseDrop(target))
-		if(!can_apply_to_target(target, usr)) // There is no point in attempting to apply a mask if it's impossible.
-			return
-		usr.visible_message("\The [usr] begins placing the mask onto [target]..")
-		if(do_mob(usr, target, 25))
-			if(!can_apply_to_target(target, usr))
-				return
-			// place mask and add fingerprints
-			usr.visible_message("\The [usr] has placed \the mask on [target]'s mouth.")
-			attach_mask(target)
-			src.add_fingerprint(usr)
-
+/obj/machinery/oxygen_pump/handle_mouse_drop(var/atom/over, var/mob/user)
+	if(ishuman(over) && can_apply_to_target(over, user))
+		user.visible_message(SPAN_NOTICE("\The [user] begins placing the mask onto \the [over].."))
+		if(do_mob(user, over, 25) && can_apply_to_target(over, user))
+			user.visible_message(SPAN_NOTICE("\The [user] has placed \the [src] over \the [over]'s face."))
+			attach_mask(over)
+			add_fingerprint(user)
+		return TRUE
+	. = ..()
 
 /obj/machinery/oxygen_pump/physical_attack_hand(mob/user)
 	if((stat & MAINT) && tank)
@@ -74,7 +69,7 @@
 /obj/machinery/oxygen_pump/proc/attach_mask(var/mob/living/carbon/C)
 	if(C && istype(C))
 		contained.dropInto(C.loc)
-		C.equip_to_slot(contained, slot_wear_mask)
+		C.equip_to_slot(contained, slot_wear_mask_str)
 		if(tank)
 			tank.forceMove(C)
 		breather = C
@@ -111,7 +106,7 @@
 	if(target.wear_mask && target != breather)
 		to_chat(user, "<span class='warning'>\The [target] is already wearing a mask.</span>")
 		return
-	if(target.head && (target.head.body_parts_covered & FACE))
+	if(target.head && (target.head.body_parts_covered & SLOT_FACE))
 		to_chat(user, "<span class='warning'>Remove their [target.head] first.</span>")
 		return
 	if(!tank)

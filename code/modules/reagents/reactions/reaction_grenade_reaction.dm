@@ -29,18 +29,16 @@
 /datum/chemical_reaction/grenade_reaction/flash_powder/on_reaction(var/datum/reagents/holder, var/created_volume, var/reaction_flags)
 	..()
 	var/location = get_turf(holder.my_atom)
-	var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-	s.set_up(2, 1, location)
-	s.start()
+	spark_at(location, amount=2, cardinal_only = TRUE)
 	for(var/mob/living/carbon/M in viewers(world.view, location))
 		if(M.eyecheck() < FLASH_PROTECTION_MODERATE)
 			switch(get_dist(M, location))
 				if(0 to 3)
 					M.flash_eyes()
-					M.Weaken(15)
+					SET_STATUS_MAX(M, STAT_WEAK, 15)
 				if(4 to 5)
 					M.flash_eyes()
-					M.Stun(5)
+					SET_STATUS_MAX(M, STAT_STUN, 5)
 
 /datum/chemical_reaction/grenade_reaction/emp_pulse
 	name = "EMP Pulse"
@@ -74,9 +72,7 @@
 	var/turf/location = get_turf(holder.my_atom.loc)
 	if(istype(location))
 		location.assume_gas(/decl/material/gas/hydrogen, created_volume, FLAMMABLE_GAS_FLASHPOINT + 10)
-		var/datum/effect/effect/system/spark_spread/sparks = new
-		sparks.set_up(1, 1, location)
-		sparks.start()
+		spark_at(location, amount=1, cardinal_only = TRUE)
 
 /datum/chemical_reaction/grenade_reaction/chemsmoke
 	name = "Chemical Smoke"
@@ -118,10 +114,16 @@
 	lore_text = "This mixture explodes in a burst of metallic foam. Good for hull repair!"
 	required_reagents = list(/decl/material/solid/metal/aluminium = 3, /decl/material/liquid/foaming_agent = 1, /decl/material/liquid/acid/polyacid = 1)
 	result_amount = 5
-	mix_message = "The solution bubbles vigorously!"
+	mix_message = "The solution foams up violently!"
 
 /datum/chemical_reaction/grenade_reaction/metalfoam/on_reaction(var/datum/reagents/holder, var/created_volume, var/reaction_flags)
 	..()
+
+	if(istype(holder.my_atom, /obj/item/sealant_tank))
+		var/obj/item/sealant_tank/foam = holder.my_atom
+		foam.foam_charges = Clamp(foam.foam_charges + created_volume, 0, foam.max_foam_charges)
+		return
+
 	var/location = get_turf(holder.my_atom)
 	for(var/mob/M in viewers(5, location))
 		to_chat(M, "<span class='warning'>The solution spews out a metalic foam!</span>")

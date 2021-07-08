@@ -60,7 +60,7 @@
 	return null
 
 /obj/get_req_access()
-	return req_access
+	return req_access?.Copy()
 
 /proc/get_centcom_access(job)
 	switch(job)
@@ -83,7 +83,7 @@
 		if("Supreme Commander")
 			return get_all_centcom_access()
 
-/var/list/datum/access/priv_all_access_datums
+var/global/list/datum/access/priv_all_access_datums
 /proc/get_all_access_datums()
 	if(!priv_all_access_datums)
 		priv_all_access_datums = init_subtypes(/datum/access)
@@ -91,7 +91,7 @@
 
 	return priv_all_access_datums.Copy()
 
-/var/list/datum/access/priv_all_access_datums_id
+var/global/list/datum/access/priv_all_access_datums_id
 /proc/get_all_access_datums_by_id()
 	if(!priv_all_access_datums_id)
 		priv_all_access_datums_id = list()
@@ -100,7 +100,7 @@
 
 	return priv_all_access_datums_id.Copy()
 
-/var/list/datum/access/priv_all_access_datums_region
+var/global/list/datum/access/priv_all_access_datums_region
 /proc/get_all_access_datums_by_region()
 	if(!priv_all_access_datums_region)
 		priv_all_access_datums_region = list()
@@ -118,35 +118,35 @@
 			L += A.id
 	return L
 
-/var/list/priv_all_access
+var/global/list/priv_all_access
 /proc/get_all_accesses()
 	if(!priv_all_access)
 		priv_all_access = get_access_ids()
 
 	return priv_all_access?.Copy()
 
-/var/list/priv_station_access
+var/global/list/priv_station_access
 /proc/get_all_station_access()
 	if(!priv_station_access)
 		priv_station_access = get_access_ids(ACCESS_TYPE_STATION)
 
 	return priv_station_access.Copy()
 
-/var/list/priv_centcom_access
+var/global/list/priv_centcom_access
 /proc/get_all_centcom_access()
 	if(!priv_centcom_access)
 		priv_centcom_access = get_access_ids(ACCESS_TYPE_CENTCOM)
 
 	return priv_centcom_access.Copy()
 
-/var/list/priv_syndicate_access
+var/global/list/priv_syndicate_access
 /proc/get_all_syndicate_access()
 	if(!priv_syndicate_access)
 		priv_syndicate_access = get_access_ids(ACCESS_TYPE_SYNDICATE)
 
 	return priv_syndicate_access.Copy()
 
-/var/list/priv_region_access
+var/global/list/priv_region_access
 /proc/get_region_accesses(var/code)
 	if(code == ACCESS_REGION_ALL)
 		return get_all_station_access()
@@ -222,21 +222,23 @@
 /mob/living/bot/GetIdCard()
 	return botcard
 
-#define HUMAN_ID_CARDS list(get_active_hand(), wear_id, get_inactive_hand())
-/mob/living/carbon/human/GetIdCard()
-	for(var/item_slot in HUMAN_ID_CARDS)
-		var/obj/item/I = item_slot
+// Gets the ID card of a mob, but will not check types in the exceptions list
+/mob/living/carbon/human/GetIdCard(exceptions = null)
+	var/list/id_cards = get_held_items()
+	LAZYDISTINCTADD(id_cards, wear_id)
+	for(var/obj/item/I in id_cards)
+		if(is_type_in_list(I, exceptions))
+			continue
 		var/obj/item/card/id = I ? I.GetIdCard() : null
-		if(id)
+		if(istype(id))
 			return id
 
 /mob/living/carbon/human/GetAccess()
 	. = list()
-	for(var/item_slot in HUMAN_ID_CARDS)
-		var/obj/item/I = item_slot
-		if(I)
-			. |= I.GetAccess()
-#undef HUMAN_ID_CARDS
+	var/list/id_cards = get_held_items()
+	LAZYDISTINCTADD(id_cards, wear_id)
+	for(var/obj/item/I in id_cards)
+		. |= I.GetAccess()
 
 /mob/living/silicon/GetIdCard()
 	if(stat || (ckey && !client))

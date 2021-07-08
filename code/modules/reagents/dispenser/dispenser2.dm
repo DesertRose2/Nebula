@@ -63,7 +63,7 @@
 
 	C.forceMove(src)
 	cartridges[C.label] = C
-	cartridges = sortAssoc(cartridges)
+	cartridges = sortTim(cartridges, /proc/cmp_text_asc)
 	SSnano.update_uis(src)
 
 /obj/machinery/chemical_dispenser/proc/remove_cartridge(label)
@@ -117,7 +117,7 @@
 	var beakerD[0]
 	if(LAZYLEN(container?.reagents?.reagent_volumes))
 		for(var/rtype in container.reagents.reagent_volumes)
-			var/decl/material/R = decls_repository.get_decl(rtype)
+			var/decl/material/R = GET_DECL(rtype)
 			beakerD[++beakerD.len] = list("name" = R.name, "volume" = REAGENT_VOLUME(container.reagents, rtype))
 	data["beakerContents"] = beakerD
 

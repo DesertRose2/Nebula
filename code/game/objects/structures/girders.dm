@@ -17,11 +17,10 @@
 
 /obj/structure/girder/can_unanchor(var/mob/user)
 	. = ..()
-	if(!anchored && .)
-		var/turf/simulated/open/T = loc
-		if(istype(T))
-			to_chat(user, SPAN_WARNING("You can only secure \the [src] to solid ground."))
-			return FALSE
+	var/turf/T = loc
+	if(!anchored && . && (!istype(T) || T.is_open()))
+		to_chat(user, SPAN_WARNING("You can only secure \the [src] to solid ground."))
+		return FALSE
 
 /obj/structure/girder/handle_default_screwdriver_attackby(var/mob/user, var/obj/item/screwdriver)
 
@@ -93,41 +92,36 @@
 	. = ..()
 
 /obj/structure/girder/attackby(var/obj/item/W, var/mob/user)
-	. = ..()
-	if(!.)
-
-		// Other methods of quickly destroying a girder.
-		if(W.is_special_cutting_tool(TRUE))
-			if(istype(W, /obj/item/gun/energy/plasmacutter))
-				var/obj/item/gun/energy/plasmacutter/cutter = W
-				if(!cutter.slice(user))
-					return
-			playsound(src.loc, 'sound/items/Welder.ogg', 100, 1)
-			visible_message(SPAN_NOTICE("\The [user] begins slicing apart \the [src] with \the [W]."))
-			if(do_after(user,reinf_material ? 40: 20,src))
-				visible_message(SPAN_NOTICE("\The [user] slices apart \the [src] with \the [W]."))
-				dismantle()
-			return TRUE
-		if(istype(W, /obj/item/pickaxe/diamonddrill))
-			playsound(src.loc, 'sound/weapons/Genhit.ogg', 100, 1)
-			visible_message(SPAN_NOTICE("\The [user] begins drilling through \the [src] with \the [W]."))
-			if(do_after(user,reinf_material ? 60 : 40,src))
-				visible_message(SPAN_NOTICE("\The [user] drills through \the [src] with \the [W]."))
-				dismantle()
-			return TRUE
-		// Reinforcing a girder, or turning it into a wall.
-		if(istype(W, /obj/item/stack/material))
-			if(anchored)
-				return construct_wall(W, user)
-			else
-				if(reinf_material)
-					to_chat(user, SPAN_WARNING("\The [src] is already reinforced with [reinf_material.solid_name]."))
-				else
-					return reinforce_with_material(W, user)
-			return TRUE
-		// Other objects.
-		take_damage(W.force)
+	// Other methods of quickly destroying a girder.
+	if(W.is_special_cutting_tool(TRUE))
+		if(istype(W, /obj/item/gun/energy/plasmacutter))
+			var/obj/item/gun/energy/plasmacutter/cutter = W
+			if(!cutter.slice(user))
+				return
+		playsound(src.loc, 'sound/items/Welder.ogg', 100, 1)
+		visible_message(SPAN_NOTICE("\The [user] begins slicing apart \the [src] with \the [W]."))
+		if(do_after(user,reinf_material ? 40: 20,src))
+			visible_message(SPAN_NOTICE("\The [user] slices apart \the [src] with \the [W]."))
+			dismantle()
 		return TRUE
+	if(istype(W, /obj/item/pickaxe/diamonddrill))
+		playsound(src.loc, 'sound/weapons/Genhit.ogg', 100, 1)
+		visible_message(SPAN_NOTICE("\The [user] begins drilling through \the [src] with \the [W]."))
+		if(do_after(user,reinf_material ? 60 : 40,src))
+			visible_message(SPAN_NOTICE("\The [user] drills through \the [src] with \the [W]."))
+			dismantle()
+		return TRUE
+	// Reinforcing a girder, or turning it into a wall.
+	if(istype(W, /obj/item/stack/material))
+		if(anchored)
+			return construct_wall(W, user)
+		else
+			if(reinf_material)
+				to_chat(user, SPAN_WARNING("\The [src] is already reinforced with [reinf_material.solid_name]."))
+			else
+				return reinforce_with_material(W, user)
+		return TRUE
+	. = ..()
 
 /obj/structure/girder/proc/construct_wall(obj/item/stack/material/S, mob/user)
 	if(S.get_amount() < 2)

@@ -1,4 +1,7 @@
-var/list/limb_icon_cache = list()
+var/global/list/limb_icon_cache = list()
+
+/obj/item/organ/external
+	var/tmp/icon_cache_key
 
 /obj/item/organ/external/set_dir(var/direction, var/forced)
 	SHOULD_CALL_PARENT(FALSE)
@@ -18,10 +21,10 @@ var/list/limb_icon_cache = list()
 /obj/item/organ/external/proc/sync_colour_to_human(var/mob/living/carbon/human/human)
 	skin_tone = null
 	skin_colour = null
-	skin_base = ""
 	hair_colour = human.hair_colour
-	if(BP_IS_PROSTHETIC(src) && !(human.species.appearance_flags & HAS_BASE_SKIN_COLOURS))
-		var/datum/robolimb/franchise = all_robolimbs[model]
+	bodytype = human.bodytype
+	if(BP_IS_PROSTHETIC(src) && model)
+		var/decl/prosthetics_manufacturer/franchise = GET_DECL(model)
 		if(!(franchise && franchise.skintone))
 			return
 		skin_blend = franchise.limb_blend
@@ -29,18 +32,15 @@ var/list/limb_icon_cache = list()
 		return
 	if(!isnull(human.skin_tone) && (human.species.appearance_flags & HAS_A_SKIN_TONE))
 		skin_tone = human.skin_tone
-	if(!isnull(human.skin_base) && (human.species.appearance_flags & HAS_BASE_SKIN_COLOURS))
-		skin_base = human.skin_base
 	if(human.species.appearance_flags & HAS_SKIN_COLOR)
 		skin_colour = human.skin_colour
 
 /obj/item/organ/external/proc/sync_colour_to_dna()
 	skin_tone = null
 	skin_colour = null
-	skin_base = dna.skin_base
 	hair_colour = rgb(dna.GetUIValue(DNA_UI_HAIR_R),dna.GetUIValue(DNA_UI_HAIR_G),dna.GetUIValue(DNA_UI_HAIR_B))
-	if(BP_IS_PROSTHETIC(src))
-		var/datum/robolimb/franchise = all_robolimbs[model]
+	if(BP_IS_PROSTHETIC(src) && model)
+		var/decl/prosthetics_manufacturer/franchise = GET_DECL(model)
 		if(!(franchise && franchise.skintone))
 			return
 	if(!isnull(dna.GetUIValue(DNA_UI_SKIN_TONE)) && (species.appearance_flags & HAS_A_SKIN_TONE))
@@ -50,7 +50,7 @@ var/list/limb_icon_cache = list()
 
 /obj/item/organ/external/head/sync_colour_to_human(var/mob/living/carbon/human/human)
 	..()
-	var/obj/item/organ/internal/eyes/eyes = owner.internal_organs_by_name[BP_EYES]
+	var/obj/item/organ/internal/eyes/eyes = owner.get_internal_organ(BP_EYES)
 	if(eyes) eyes.update_colour()
 
 /obj/item/organ/external/head/removed()
@@ -69,36 +69,28 @@ var/list/limb_icon_cache = list()
 			mob_icon.Blend(mark_s, mark_style.layer_blend) //So when it's on your body, it has icons
 			icon_cache_key += "[M][markings[M]["color"]]"
 
-/obj/item/organ/external/var/icon_cache_key
-/obj/item/organ/external/on_update_icon(var/regenerate = 0)
-	var/gender = "_m"
-	if(!(limb_flags & ORGAN_FLAG_GENDERED_ICON))
-		gender = null
-	else if (dna && dna.GetUIState(DNA_UI_GENDER))
-		gender = "_f"
-	else if(owner && owner.gender == FEMALE)
-		gender = "_f"
+/obj/item/organ/external/proc/update_limb_icon_file()
+	if (BP_IS_PROSTHETIC(src))
+		if(!model)
+			icon = 'icons/mob/human_races/cyberlimbs/robotic.dmi'
+		else
+			var/decl/prosthetics_manufacturer/R = GET_DECL(model)
+			icon = R.icon
+	else if(status & ORGAN_MUTATED)
+		icon = bodytype.get_base_icon(owner, get_deform = TRUE)
+	else if(owner && (MUTATION_SKELETON in owner.mutations))
+		icon = bodytype.get_skeletal_icon(owner)
+	else
+		icon = bodytype.get_base_icon(owner)
 
-	icon_state = "[icon_name][gender]"
-	if(species.base_skin_colours && !isnull(species.base_skin_colours[skin_base]))
-		icon_state += species.base_skin_colours[skin_base]
+/obj/item/organ/external/on_update_icon(var/regenerate = 0)
+
+	icon_state = "[icon_name]"
 	icon_cache_key = "[icon_state]_[species ? species.name : "unknown"]"
 	if(model)
 		icon_cache_key += "_model_[model]"
 
-	if(force_icon)
-		icon = force_icon
-	else if (BP_IS_PROSTHETIC(src))
-		icon = 'icons/mob/human_races/cyberlimbs/robotic.dmi'
-	else if (!dna)
-		icon = 'icons/mob/human_races/species/human/body.dmi'
-	else if (status & ORGAN_MUTATED)
-		icon = species.deform
-	else if (owner && (MUTATION_SKELETON in owner.mutations))
-		icon = 'icons/mob/human_races/species/human/skeleton.dmi'
-	else
-		icon = species.get_icobase(owner)
-
+	update_limb_icon_file()
 	mob_icon = apply_colouration(new/icon(icon, icon_state))
 
 	//Body markings, does not include head, duplicated (sadly) above.
@@ -110,14 +102,6 @@ var/list/limb_icon_cache = list()
 			overlays |= mark_s //So when it's not on your body, it has icons
 			mob_icon.Blend(mark_s, mark_style.layer_blend) //So when it's on your body, it has icons
 			icon_cache_key += "[M][markings[M]["color"]]"
-
-	if(body_hair && hair_colour)
-		var/cache_key = "[body_hair]-[icon_name]-[hair_colour]"
-		if(!limb_icon_cache[cache_key])
-			var/icon/I = icon(species.get_icobase(owner), "[icon_name]_[body_hair]")
-			I.Blend(hair_colour, ICON_ADD)
-			limb_icon_cache[cache_key] = I
-		mob_icon.Blend(limb_icon_cache[cache_key], ICON_OVERLAY)
 
 	set_dir(EAST, TRUE)
 	icon = mob_icon
@@ -131,8 +115,8 @@ var/list/limb_icon_cache = list()
 // amount to represent the obfuscation of being in agonizing pain.
 
 // Global scope, used in code below.
-var/list/flesh_hud_colours = list("#00ff00","#aaff00","#ffff00","#ffaa00","#ff0000","#aa0000","#660000")
-var/list/robot_hud_colours = list("#ffffff","#cccccc","#aaaaaa","#888888","#666666","#444444","#222222","#000000")
+var/global/list/flesh_hud_colours = list("#00ff00","#aaff00","#ffff00","#ffaa00","#ff0000","#aa0000","#660000")
+var/global/list/robot_hud_colours = list("#ffffff","#cccccc","#aaaaaa","#888888","#666666","#444444","#222222","#000000")
 
 /obj/item/organ/external/proc/get_damage_hud_image()
 
@@ -146,9 +130,9 @@ var/list/robot_hud_colours = list("#ffffff","#cccccc","#aaaaaa","#888888","#6666
 		var/image/temp = image(limb_icon_cache[cache_key])
 		if(species)
 			// Calculate the required colour matrix.
-			var/r = 0.30 * species.health_hud_intensity
-			var/g = 0.59 * species.health_hud_intensity
-			var/b = 0.11 * species.health_hud_intensity
+			var/r = 0.30 * bodytype.health_hud_intensity
+			var/g = 0.59 * bodytype.health_hud_intensity
+			var/b = 0.11 * bodytype.health_hud_intensity
 			temp.color = list(r, r, r, g, g, g, b, b, b)
 		temp.pixel_x = owner.default_pixel_x
 		temp.pixel_y = owner.default_pixel_y
@@ -167,15 +151,8 @@ var/list/robot_hud_colours = list("#ffffff","#cccccc","#aaaaaa","#888888","#6666
 
 /obj/item/organ/external/proc/apply_colouration(var/icon/applying)
 
-	if(species.limbs_are_nonsolid)
-		applying.MapColors("#4d4d4d","#969696","#1c1c1c", "#000000")
-		if(species)
-			applying.SetIntensity(species.limb_icon_intensity)
-		else
-			applying.SetIntensity(0.7)
-		applying += rgb(,,,180) // Makes the icon translucent, SO INTUITIVE TY BYOND
-
-	else if(status & ORGAN_DEAD)
+	applying = bodytype.apply_limb_colouration(src, applying)
+	if(status & ORGAN_DEAD)
 		icon_cache_key += "_dead"
 		applying.ColorTone(rgb(10,50,0))
 		applying.SetIntensity(0.7)

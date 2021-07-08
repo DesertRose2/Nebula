@@ -48,7 +48,7 @@
 
 /obj/item/rig_module/device/flash/installed()
 	. = ..()
-	if(!holder.glove_type)//gives select option for gloveless suits, why even use rig at this point
+	if(!holder.gloves)//gives select option for gloveless suits, why even use rig at this point
 		selectable = 1
 		activates_on_touch = 0
 		toggleable = 0
@@ -265,7 +265,7 @@
 	origin_tech = "{'powerstorage':6,'combat':6,'engineering':6}"
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/plastic = MATTER_AMOUNT_TRACE,
 		/decl/material/solid/metal/gold = MATTER_AMOUNT_TRACE,
 		/decl/material/solid/metal/silver = MATTER_AMOUNT_TRACE
@@ -288,7 +288,7 @@
 	material = /decl/material/solid/metal/steel
 	matter = list(
 		/decl/material/solid/plastic = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/glass = MATTER_AMOUNT_TRACE,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_TRACE,
 		/decl/material/solid/metal/gold = MATTER_AMOUNT_TRACE
 	)
 	gun = /obj/item/gun/energy/taser/mounted
@@ -309,7 +309,7 @@
 	gun = /obj/item/gun/energy/plasmacutter/mounted
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/plastic = MATTER_AMOUNT_TRACE,
 		/decl/material/solid/metal/gold = MATTER_AMOUNT_TRACE,
 		/decl/material/solid/metal/uranium = MATTER_AMOUNT_TRACE
@@ -364,8 +364,8 @@
 /obj/item/rig_module/mounted/energy_blade/activate()
 	var/mob/living/M = holder.wearer
 
-	if(M.l_hand && M.r_hand)
-		to_chat(M, "<span class='danger'>Your hands are full.</span>")
+	if(!M.get_empty_hand_slot())
+		to_chat(M, SPAN_WARNING("Your hands are full."))
 		deactivate()
 		return
 
@@ -416,11 +416,11 @@
 	if(target)
 		var/obj/item/firing = new fabrication_type()
 		firing.dropInto(loc)
-		H.visible_message("<span class='danger'>[H] launches \a [firing]!</span>")
+		H.visible_message(SPAN_DANGER("\The [H] launches \a [firing]!"))
 		firing.throw_at(target,fire_force,fire_distance)
 	else
-		if(H.l_hand && H.r_hand)
-			to_chat(H, "<span class='danger'>Your hands are full.</span>")
+		if(!H.get_empty_hand_slot())
+			to_chat(H, SPAN_WARNING("Your hands are full."))
 		else
 			var/obj/item/new_weapon = new fabrication_type()
 			new_weapon.forceMove(H)

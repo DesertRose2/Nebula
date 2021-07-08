@@ -5,8 +5,8 @@
 	origin_tech = "{'magnets':1}"
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/slag = MATTER_AMOUNT_TRACE
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/metal/copper = MATTER_AMOUNT_TRACE
 	)
 
 	wires = WIRE_PULSE
@@ -43,7 +43,7 @@
 	if(!secured)	return 0
 	pulse(0)
 	if(!holder)
-		visible_message("\icon[src] *beep* *beep*", "*beep* *beep*")
+		visible_message("[html_icon(src)] *beep* *beep*", "*beep* *beep*")
 	cooldown = 2
 	spawn(10)
 		process_cooldown()
@@ -86,7 +86,7 @@
 	return
 
 
-/obj/item/assembly/timer/Topic(href, href_list, state = GLOB.physical_state)
+/obj/item/assembly/timer/Topic(href, href_list, state = global.physical_topic_state)
 	if((. = ..()))
 		close_browser(usr, "window=timer")
 		onclose(usr, "timer")

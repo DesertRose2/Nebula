@@ -73,8 +73,6 @@
 
 			if(result.len>0)
 				for(var/obj/machinery/atmospherics/pipe/item in result)
-					if(item.in_stasis)
-						continue
 					if(!members.Find(item))
 						members += item
 						possible_expansions += item
@@ -104,7 +102,7 @@
 		return
 
 	if(network == new_network) // Should be caught by the above check in all reasonable cases, so we crash and try to clean up as best we can.
-		crash_with("pipeline - pipenet reference mismatch.")
+		PRINT_STACK_TRACE("pipeline - pipenet reference mismatch.")
 	else
 		qdel(network)
 
@@ -115,7 +113,7 @@
 
 	for(var/obj/machinery/atmospherics/pipe/edge in edges)
 		for(var/obj/machinery/atmospherics/result in edge.pipeline_expansion())
-			if(!istype(result,/obj/machinery/atmospherics/pipe) && (result!=reference))
+			if(!istype(result,/obj/machinery/atmospherics/pipe))
 				result.network_expand(new_network, edge)
 
 /datum/pipeline/proc/return_network(obj/machinery/atmospherics/reference)

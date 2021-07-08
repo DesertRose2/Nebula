@@ -5,7 +5,7 @@
 	allow_quick_gather = 1
 	allow_quick_empty = 1
 	use_to_pickup = 1
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 
 /obj/item/storage/bag/handle_item_insertion(obj/item/W, prevent_warning = 0)
 	. = ..()
@@ -72,6 +72,7 @@
 		/decl/material/solid/metal/gold = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/metal/uranium = MATTER_AMOUNT_TRACE
 	)
+	origin_tech = "{'exoticmatter':5,'materials':6}"
 
 /obj/item/storage/bag/trash/advanced/attackby(obj/item/W, mob/user)
 	if(istype(W, /obj/item/storage/backpack/holding) || istype(W, /obj/item/storage/bag/trash/advanced))
@@ -108,4 +109,4 @@
 	max_storage_space = 100
 	max_w_class = ITEM_SIZE_HUGE
 	w_class = ITEM_SIZE_SMALL
-	can_hold = list(/obj/item/coin,/obj/item/cash)
+	can_hold = list(/obj/item/coin, /obj/item/cash)

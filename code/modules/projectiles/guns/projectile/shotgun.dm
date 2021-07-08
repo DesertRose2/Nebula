@@ -29,7 +29,7 @@
 		return chambered.BB
 	return null
 
-/obj/item/gun/projectile/shotgun/pump/attack_self(mob/living/user)
+/obj/item/gun/projectile/shotgun/pump/attack_self(mob/user)
 	if(world.time >= recentpump + 10)
 		pump(user)
 		recentpump = world.time
@@ -103,7 +103,7 @@
 	name = "sawn-off shotgun"
 	desc = "Omar's coming!"
 	icon = 'icons/obj/guns/shotgun/sawnoff.dmi'
-	slot_flags = SLOT_BELT|SLOT_HOLSTER
+	slot_flags = SLOT_LOWER_BODY|SLOT_HOLSTER
 	ammo_type = /obj/item/ammo_casing/shotgun/pellet
 	w_class = ITEM_SIZE_NORMAL
 	force = 5

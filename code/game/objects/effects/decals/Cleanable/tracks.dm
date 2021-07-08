@@ -86,7 +86,7 @@ var/global/list/image/fluidtrack_cache=list()
 
 	// Process 4 bits
 	for(var/bi=0;bi<4;bi++)
-		b=1<<bi
+		b=BITFLAG(bi)
 		// COMING BIT
 		// If setting
 		if(comingdir&b)
@@ -165,8 +165,8 @@ var/global/list/image/fluidtrack_cache=list()
 	going_state = "human1"
 
 /obj/effect/decal/cleanable/blood/tracks/footprints/reversed/AddTracks(var/list/DNA, var/comingdir, var/goingdir, var/bloodcolor=COLOR_BLOOD_HUMAN)
-	comingdir = comingdir && GLOB.reverse_dir[comingdir]
-	goingdir = goingdir && GLOB.reverse_dir[goingdir]
+	comingdir = comingdir && global.reverse_dir[comingdir]
+	goingdir = goingdir && global.reverse_dir[goingdir]
 	..(DNA, comingdir, goingdir, bloodcolor)
 
 /obj/effect/decal/cleanable/blood/tracks/snake

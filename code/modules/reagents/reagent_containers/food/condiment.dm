@@ -15,7 +15,7 @@
 	center_of_mass = @"{'x':16,'y':6}"
 	volume = 50
 	var/list/starting_reagents
-	var/global/list/special_bottles = list(
+	var/static/list/special_bottles = list(
 		/decl/material/liquid/nutriment/ketchup = /obj/item/chems/food/condiment/ketchup,
 		/decl/material/liquid/nutriment/barbecue = /obj/item/chems/food/condiment/barbecue,
 		/decl/material/liquid/capsaicin = /obj/item/chems/food/condiment/capsaicin,
@@ -45,7 +45,7 @@
 			else
 				to_chat(user, "<span class='notice'>You remove the label.</span>")
 				label_text = null
-				SSmaterials.queue_reagent_change(src)
+				on_reagent_change()
 		return
 
 
@@ -299,23 +299,23 @@
 /obj/item/chems/food/condiment/small/packet/crayon
 	name = "crayon powder packet"
 	desc = "Contains 10u of powdered crayon. Mix with 30u of water."
-	starting_reagents = list(/decl/material/pigment = 10)
+	starting_reagents = list(/decl/material/liquid/pigment = 10)
 /obj/item/chems/food/condiment/small/packet/crayon/red
-	starting_reagents = list(/decl/material/pigment/red = 10)
+	starting_reagents = list(/decl/material/liquid/pigment/red = 10)
 /obj/item/chems/food/condiment/small/packet/crayon/orange
-	starting_reagents = list(/decl/material/pigment/orange = 10)
+	starting_reagents = list(/decl/material/liquid/pigment/orange = 10)
 /obj/item/chems/food/condiment/small/packet/crayon/yellow
-	starting_reagents = list(/decl/material/pigment/yellow = 10)
+	starting_reagents = list(/decl/material/liquid/pigment/yellow = 10)
 /obj/item/chems/food/condiment/small/packet/crayon/green
-	starting_reagents = list(/decl/material/pigment/green = 10)
+	starting_reagents = list(/decl/material/liquid/pigment/green = 10)
 /obj/item/chems/food/condiment/small/packet/crayon/blue
-	starting_reagents = list(/decl/material/pigment/blue = 10)
+	starting_reagents = list(/decl/material/liquid/pigment/blue = 10)
 /obj/item/chems/food/condiment/small/packet/crayon/purple
-	starting_reagents = list(/decl/material/pigment/purple = 10)
+	starting_reagents = list(/decl/material/liquid/pigment/purple = 10)
 /obj/item/chems/food/condiment/small/packet/crayon/grey
-	starting_reagents = list(/decl/material/pigment/grey = 10)
+	starting_reagents = list(/decl/material/liquid/pigment/grey = 10)
 /obj/item/chems/food/condiment/small/packet/crayon/brown
-	starting_reagents = list(/decl/material/pigment/brown = 10)
+	starting_reagents = list(/decl/material/liquid/pigment/brown = 10)
 
 //End of MRE stuff.
 

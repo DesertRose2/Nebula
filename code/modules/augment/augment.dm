@@ -1,14 +1,17 @@
 /obj/item/organ/internal/augment
 	name = "embedded augment"
-	desc = "Embedded augment."
+	desc = "An embedded augment."
 	icon = 'icons/obj/augment.dmi'
 	//By default these fit on both flesh and robotic organs and are robotic
 	status = ORGAN_PROSTHETIC
-	var/augment_flags = AUGMENTATION_MECHANIC | AUGMENTATION_ORGANIC
-	var/list/allowed_organs = list(BP_AUGMENT_R_ARM, BP_AUGMENT_L_ARM)
 	default_action_type = /datum/action/item_action/organ/augment
+	material = /decl/material/solid/metal/steel
+	origin_tech = "{'materials':1,'magnets':2,'engineering':2,'biotech':1}"
+
 	var/descriptor = ""
 	var/known = TRUE
+	var/augment_flags = AUGMENTATION_MECHANIC | AUGMENTATION_ORGANIC
+	var/list/allowed_organs = list(BP_AUGMENT_R_ARM, BP_AUGMENT_L_ARM)
 
 /obj/item/organ/internal/augment/Initialize()
 	. = ..()
@@ -38,7 +41,6 @@
 		playsound(src.loc, 'sound/items/Screwdriver.ogg', 50, 1)
 		return
 	..()
-
 
 /obj/item/organ/internal/augment/proc/update_parent_organ()
 	//This tries to match a parent organ to an augment slot

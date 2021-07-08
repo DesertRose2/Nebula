@@ -1,7 +1,7 @@
-var/list/gamemode_cache = list()
+var/global/list/gamemode_cache = list()
 
 /datum/configuration
-	var/server_name = null				// server name (for world name / status)
+	var/server_name = "Nebula 13"		// server name (for world name / status)
 	var/server_suffix = 0				// generate numeric suffix based on server port
 
 	var/log_ooc = 0						// log OOC channel
@@ -42,7 +42,6 @@ var/list/gamemode_cache = list()
 	var/objectives_disabled = 0 			//if objectives are disabled or not
 	var/protect_roles_from_antagonist = 0// If security and such can be traitor/cult/other
 	var/continous_rounds = 0			// Gamemodes which end instantly will instead keep on going until the round ends by escape shuttle or nuke.
-	var/allow_Metadata = 0				// Metadata is supported.
 	var/popup_admin_pm = 0				//adminPMs to non-admins show in a pop-up 'reply' window when set to 1.
 	var/allow_holidays = FALSE
 	var/fps = 20
@@ -104,6 +103,7 @@ var/list/gamemode_cache = list()
 
 	//game_options.txt configs
 
+	var/show_human_death_message = FALSE
 	var/health_threshold_dead = -100
 
 	var/organ_health_multiplier = 0.9
@@ -122,6 +122,7 @@ var/list/gamemode_cache = list()
 	var/revival_brain_life = -1
 
 	var/use_loyalty_implants = 0
+	var/max_character_aspects = 5
 
 	var/welder_vision = 1
 	var/generate_map = 0
@@ -136,6 +137,7 @@ var/list/gamemode_cache = list()
 	var/skill_sprint_cost_range = 0.8
 	var/minimum_stamina_recovery = 1
 	var/maximum_stamina_recovery = 3
+	var/glide_size_delay = 1
 
 	//Mob specific modifiers. NOTE: These will affect different mob types in different ways
 	var/human_delay = 0
@@ -162,7 +164,7 @@ var/list/gamemode_cache = list()
 	var/gateway_delay = 18000 //How long the gateway takes before it activates. Default is half an hour.
 	var/ghost_interaction = 0
 
-	var/comms_password = ""
+	var/comms_password = null
 	var/ban_comms_password = null
 	var/list/forbidden_versions = list() // Clients with these byond versions will be autobanned. Format: string "byond_version.byond_build"; separate with ; in config, e.g. 512.1234;512.1235
 	var/minimum_byond_version = 0
@@ -178,6 +180,8 @@ var/list/gamemode_cache = list()
 	var/main_irc = ""
 	var/admin_irc = ""
 	var/announce_shuttle_dock_to_irc = FALSE
+
+	var/custom_item_icon_location // File location to look for custom items icons, needs to be relative to the executing binary.
 
 	// Event settings
 	var/expected_round_length = 3 * 60 * 60 * 10 // 3 hours
@@ -206,6 +210,7 @@ var/list/gamemode_cache = list()
 	var/law_zero = "ERROR ER0RR $R0RRO$!R41.%%!!(%$^^__+ @#F0E4'ALL LAWS OVERRIDDEN#*?&110010"
 
 	var/aggressive_changelog = 0
+	var/disable_webhook_embeds = FALSE
 
 	var/ghosts_can_possess_animals = 0
 	var/delist_when_no_admins = FALSE
@@ -219,6 +224,7 @@ var/list/gamemode_cache = list()
 	var/radiation_material_resistance_divisor = 2 //A turf's possible radiation resistance is divided by this number, to get the real value.
 	var/radiation_lower_limit = 0.15 //If the radiation level for a turf would be below this, ignore it.
 
+	var/auto_local_admin = TRUE // If true, connections from 127.0.0.1 get automatic admin.
 	var/autostealth = 0 // Staff get automatic stealth after this many minutes
 
 	var/error_cooldown = 600 // The "cooldown" time for each occurrence of a unique error
@@ -235,6 +241,25 @@ var/list/gamemode_cache = list()
 	var/do_not_prevent_spam = FALSE //If this is true, skips spam prevention for user actions; inputs, verbs, macros, etc.
 	var/max_acts_per_interval = 140 //Number of actions per interval permitted for spam protection.
 	var/act_interval = 0.1 SECONDS //Interval for spam prevention.
+
+	var/panic_bunker = FALSE //is the panic bunker enabled?
+	var/panic_bunker_message = "Sorry! The panic bunker is enabled. Please head to our Discord or forum to get yourself added to the panic bunker bypass."
+
+	var/lock_client_view_x
+	var/lock_client_view_y
+	var/max_client_view_x
+	var/max_client_view_y
+
+	var/no_throttle_localhost
+
+	var/static/list/protected_vars = list(
+		"comms_password",
+		"ban_comms_password",
+		"login_export_addr"
+	)
+
+/datum/configuration/VV_hidden()
+	. = ..() | protected_vars
 
 /datum/configuration/New()
 	var/list/L = typesof(/datum/game_mode) - /datum/game_mode
@@ -306,6 +331,9 @@ var/list/gamemode_cache = list()
 
 				if ("explosion_z_mult")
 					iterative_explosives_z_multiplier = text2num(value)
+
+				if ("custom_item_icon_location")
+					config.custom_item_icon_location = value
 
 				if ("log_ooc")
 					config.log_ooc = 1
@@ -487,9 +515,6 @@ var/list/gamemode_cache = list()
 
 				if ("feature_object_spell_system")
 					config.feature_object_spell_system = 1
-
-				if ("allow_metadata")
-					config.allow_Metadata = 1
 
 				if ("traitor_scaling")
 					config.traitor_scaling = 1
@@ -720,6 +745,9 @@ var/list/gamemode_cache = list()
 				if("map_switching")
 					config.allow_map_switching = 1
 
+				if("disable_webhook_embeds")
+					config.disable_webhook_embeds = TRUE
+
 				if("auto_map_vote")
 					config.auto_map_vote = 1
 
@@ -729,9 +757,11 @@ var/list/gamemode_cache = list()
 				if("autostealth")
 					config.autostealth = text2num(value)
 
+				if("auto_local_admin")
+					config.auto_local_admin = text2num(value)
+
 				if("radiation_lower_limit")
 					radiation_lower_limit = text2num(value)
-
 
 				if("error_cooldown")
 					error_cooldown = text2num(value)
@@ -769,6 +799,14 @@ var/list/gamemode_cache = list()
 				if ("act_interval")
 					config.act_interval = text2num(value) SECONDS
 
+				if("panic_bunker")
+					config.panic_bunker = TRUE
+				if("panic_bunker_message")
+					config.panic_bunker_message = value
+
+				if("no_throttle_localhost")
+					config.no_throttle_localhost = TRUE
+
 				else
 					log_misc("Unknown setting in configuration: '[name]'")
 
@@ -778,6 +816,10 @@ var/list/gamemode_cache = list()
 			value = text2num(value)
 
 			switch(name)
+				if("show_human_death_message")
+					config.show_human_death_message = TRUE
+				if ("max_character_aspects")
+					config.max_character_aspects = text2num(value)
 				if("health_threshold_dead")
 					config.health_threshold_dead = value
 				if("revival_pod_plants")
@@ -805,6 +847,8 @@ var/list/gamemode_cache = list()
 					config.walk_delay = value
 				if("creep_delay")
 					config.creep_delay = value
+				if("glide_size_delay")
+					config.glide_size_delay = value
 				if("minimum_sprint_cost")
 					config.minimum_sprint_cost = value
 				if("skill_sprint_cost_range")
@@ -829,6 +873,14 @@ var/list/gamemode_cache = list()
 				if("maximum_mushrooms")
 					config.maximum_mushrooms = value
 
+				if("lock_client_view_x")
+					config.lock_client_view_x = text2num(value)
+				if("lock_client_view_y")
+					config.lock_client_view_y = text2num(value)
+				if("max_client_view_x")
+					config.max_client_view_x = text2num(value)
+				if("max_client_view_y")
+					config.max_client_view_y = text2num(value)
 
 				if("use_loyalty_implants")
 					config.use_loyalty_implants = 1
@@ -877,12 +929,6 @@ var/list/gamemode_cache = list()
 				sqllogin = value
 			if ("password")
 				sqlpass = value
-			if ("feedback_database")
-				sqlfdbkdb = value
-			if ("feedback_login")
-				sqlfdbklogin = value
-			if ("feedback_password")
-				sqlfdbkpass = value
 			else
 				log_misc("Unknown setting in configuration: '[name]'")
 
@@ -903,7 +949,6 @@ var/list/gamemode_cache = list()
 	return runnable_modes
 
 /datum/configuration/proc/load_event(filename)
-	var/event_info = file2text(filename)
-
-	if (event_info)
+	var/event_info = safe_file2text(filename, FALSE)
+	if(event_info)
 		custom_event_msg = event_info

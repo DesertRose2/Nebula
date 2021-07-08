@@ -1,5 +1,4 @@
 //Recipes that produce items which aren't stacks or storage.
-
 /datum/stack_recipe/baseball_bat
 	title = "baseball bat"
 	result_type = /obj/item/twohanded/baseballbat
@@ -24,7 +23,19 @@
 /datum/stack_recipe/coin
 	title = "coin"
 	result_type = /obj/item/coin
-	one_per_turf = 1
+	var/datum/denomination/denomination
+
+/datum/stack_recipe/coin/New(decl/material/material, reinforce_material, datum/denomination/_denomination)
+	denomination = _denomination
+	. = ..()
+	title = denomination.name
+
+/datum/stack_recipe/coin/spawn_result(mob/user, location, amount)
+	var/obj/item/coin/coin = ..()
+	if(denomination)
+		coin.denomination = denomination
+		coin.SetName(coin.denomination.name)
+	return coin
 
 /datum/stack_recipe/ring
 	title = "ring"
@@ -223,38 +234,48 @@
 	result_type = /obj/item/cross
 	on_floor = 1
 
-/datum/stack_recipe/wooden_prosthetic
-	title = "left arm"
-	result_type = /obj/item/organ/external/arm/wooden
+/datum/stack_recipe/prosthetic
 	difficulty = 0
+	var/prosthetic_model = /decl/prosthetics_manufacturer/wooden
 
-/datum/stack_recipe/wooden_prosthetic/right_arm
+/datum/stack_recipe/prosthetic/spawn_result(mob/user, location, amount)
+	var/obj/item/organ/external/limb = ..()
+	if(limb)
+		limb.species = get_species_by_key(SPECIES_HUMAN)
+		limb.robotize(prosthetic_model, apply_material = use_material)
+	return limb
+
+/datum/stack_recipe/prosthetic/left_arm
+	title = "left arm"
+	result_type = /obj/item/organ/external/arm
+
+/datum/stack_recipe/prosthetic/right_arm
 	title = "right arm"
-	result_type = /obj/item/organ/external/arm/right/wooden
+	result_type = /obj/item/organ/external/arm/right
 
-/datum/stack_recipe/wooden_prosthetic/left_leg
+/datum/stack_recipe/prosthetic/left_leg
 	title = "left leg"
-	result_type = /obj/item/organ/external/leg/wooden
+	result_type = /obj/item/organ/external/leg
 
-/datum/stack_recipe/wooden_prosthetic/right_leg
+/datum/stack_recipe/prosthetic/right_leg
 	title = "right leg"
-	result_type = /obj/item/organ/external/leg/right/wooden
+	result_type = /obj/item/organ/external/leg/right
 
-/datum/stack_recipe/wooden_prosthetic/left_hand
+/datum/stack_recipe/prosthetic/left_hand
 	title = "left hand"
-	result_type = /obj/item/organ/external/hand/wooden
+	result_type = /obj/item/organ/external/hand
 
-/datum/stack_recipe/wooden_prosthetic/right_hand
+/datum/stack_recipe/prosthetic/right_hand
 	title = "right hand"
-	result_type = /obj/item/organ/external/hand/right/wooden
+	result_type = /obj/item/organ/external/hand/right
 
-/datum/stack_recipe/wooden_prosthetic/left_foot
+/datum/stack_recipe/prosthetic/left_foot
 	title = "left foot"
-	result_type = /obj/item/organ/external/foot/wooden
+	result_type = /obj/item/organ/external/foot
 
-/datum/stack_recipe/wooden_prosthetic/right_foot
+/datum/stack_recipe/prosthetic/right_foot
 	title = "right foot"
-	result_type = /obj/item/organ/external/foot/right/wooden
+	result_type = /obj/item/organ/external/foot/right
 
 /datum/stack_recipe/cloak
 	title = "cloak"

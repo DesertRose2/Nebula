@@ -5,11 +5,17 @@
 /datum/fabricator_recipe/imprinter/circuit/get_product_name()
 	. = "machine circuit design ([..()])"
 
+/datum/fabricator_recipe/imprinter/circuit/fission_core
+	path = /obj/item/stock_parts/circuitboard/unary_atmos/fission_core
+
+/datum/fabricator_recipe/imprinter/circuit/fission_core_control
+	path = /obj/item/stock_parts/circuitboard/fission_core_control
+
 /datum/fabricator_recipe/imprinter/circuit/fusion
 	path = /obj/item/stock_parts/circuitboard/fusion/core_control
 
-/datum/fabricator_recipe/imprinter/circuit/fusion_fuel_compressor
-	path = /obj/item/stock_parts/circuitboard/fusion_fuel_compressor
+/datum/fabricator_recipe/imprinter/circuit/fuel_compressor
+	path = /obj/item/stock_parts/circuitboard/fuel_compressor
 
 /datum/fabricator_recipe/imprinter/circuit/fusion_fuel_control
 	path = /obj/item/stock_parts/circuitboard/fusion_fuel_control
@@ -55,9 +61,6 @@
 
 /datum/fabricator_recipe/imprinter/circuit/bioprinter
 	path = /obj/item/stock_parts/circuitboard/bioprinter
-
-/datum/fabricator_recipe/imprinter/circuit/roboprinter
-	path = /obj/item/stock_parts/circuitboard/roboprinter
 
 /datum/fabricator_recipe/imprinter/circuit/teleconsole
 	path = /obj/item/stock_parts/circuitboard/teleporter
@@ -119,11 +122,11 @@
 /datum/fabricator_recipe/imprinter/circuit/autobinder
 	path = /obj/item/stock_parts/circuitboard/autolathe/book
 
-/datum/fabricator_recipe/imprinter/circuit/mining_console
-	path = /obj/item/stock_parts/circuitboard/mineral_processing
-
 /datum/fabricator_recipe/imprinter/circuit/mining_processor
 	path = /obj/item/stock_parts/circuitboard/mining_processor
+
+/datum/fabricator_recipe/imprinter/circuit/mining_compressor
+	path = /obj/item/stock_parts/circuitboard/mining_compressor
 
 /datum/fabricator_recipe/imprinter/circuit/mining_unloader
 	path = /obj/item/stock_parts/circuitboard/mining_unloader
@@ -166,9 +169,6 @@
 
 /datum/fabricator_recipe/imprinter/circuit/dronecontrol
 	path = /obj/item/stock_parts/circuitboard/drone_control
-
-/datum/fabricator_recipe/imprinter/circuit/powermonitor
-	path = /obj/item/stock_parts/circuitboard/powermonitor
 
 /datum/fabricator_recipe/imprinter/circuit/solarcontrol
 	path = /obj/item/stock_parts/circuitboard/solar_control
@@ -245,6 +245,12 @@
 /datum/fabricator_recipe/imprinter/circuit/helms
 	path = /obj/item/stock_parts/circuitboard/helm
 
+/datum/fabricator_recipe/imprinter/circuit/ftl
+	path = /obj/item/stock_parts/circuitboard/ftl
+
+/datum/fabricator_recipe/imprinter/circuit/ftl_shunt
+	path = /obj/item/stock_parts/circuitboard/ftl_shunt
+
 /datum/fabricator_recipe/imprinter/circuit/nav
 	path = /obj/item/stock_parts/circuitboard/nav
 
@@ -259,6 +265,9 @@
 
 /datum/fabricator_recipe/imprinter/circuit/engine
 	path = /obj/item/stock_parts/circuitboard/engine
+
+/datum/fabricator_recipe/imprinter/circuit/ion_engine
+	path = /obj/item/stock_parts/circuitboard/engine/ion
 
 /datum/fabricator_recipe/imprinter/circuit/shuttle
 	path = /obj/item/stock_parts/circuitboard/shuttle_console
@@ -446,5 +455,11 @@
 /datum/fabricator_recipe/imprinter/circuit/relay
 	path = /obj/item/stock_parts/circuitboard/relay
 
+/datum/fabricator_recipe/imprinter/circuit/relay_wall_mounted
+	path = /obj/item/stock_parts/circuitboard/relay/wall_mounted
+
 /datum/fabricator_recipe/imprinter/circuit/inertial_damper
 	path = /obj/item/stock_parts/circuitboard/inertial_damper
+
+/datum/fabricator_recipe/imprinter/circuit/docking_beacon
+	path = /obj/item/stock_parts/circuitboard/docking_beacon

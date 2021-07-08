@@ -9,7 +9,7 @@
 	density = 0
 	anchored = 0.0
 	obj_flags = OBJ_FLAG_CONDUCTIBLE
-	slot_flags = SLOT_BELT|SLOT_HOLSTER
+	slot_flags = SLOT_LOWER_BODY|SLOT_HOLSTER
 	force = 10.0
 	throwforce = 10.0
 	throw_speed = 1
@@ -17,7 +17,6 @@
 	w_class = ITEM_SIZE_NORMAL
 	origin_tech = "{'engineering':4,'materials':2}"
 	material = /decl/material/solid/metal/steel
-	var/datum/effect/effect/system/spark_spread/spark_system
 	var/stored_matter = 0
 	var/max_stored_matter = 120
 
@@ -34,7 +33,7 @@
 	. = ..()
 
 	if(!work_modes)
-		var/decl/hierarchy/h = decls_repository.get_decl(/decl/hierarchy/rcd_mode)
+		var/decl/hierarchy/h = GET_DECL(/decl/hierarchy/rcd_mode)
 		work_modes = h.children
 	work_mode = work_modes[1]
 
@@ -52,14 +51,9 @@
 
 /obj/item/rcd/Initialize()
 	. = ..()
-	src.spark_system = new /datum/effect/effect/system/spark_spread
-	spark_system.set_up(5, 0, src)
-	spark_system.attach(src)
 	update_icon()	//Initializes the ammo counter
 
 /obj/item/rcd/Destroy()
-	qdel(spark_system)
-	spark_system = null
 	return ..()
 
 /obj/item/rcd/attackby(obj/item/W, mob/user)
@@ -93,14 +87,19 @@
 	work_mode = next_in_list(work_mode, work_modes)
 	to_chat(user, "<span class='notice'>Changed mode to '[work_mode]'</span>")
 	playsound(src.loc, 'sound/effects/pop.ogg', 50, 0)
-	if(prob(20)) src.spark_system.start()
+	if(prob(20))
+		spark_at(src, amount = 5)
 
 /obj/item/rcd/afterattack(atom/A, mob/user, proximity)
-	if(!proximity) return
+	if(!proximity)
+		return FALSE
 	if(disabled && !isrobot(user))
-		return 0
-	if(istype(get_area(A),/area/shuttle)||istype(get_area(A),/turf/space/transit))
-		return 0
+		return FALSE
+	if(istype(get_turf(A), /turf/space/transit))
+		return FALSE
+	var/area/area = get_area(A)
+	if(!istype(area) || (area.area_flags & AREA_FLAG_SHUTTLE))
+		return FALSE
 	work_id++
 	work_mode.do_work(src, A, user)
 
@@ -270,7 +269,7 @@
 	work_type = /turf/simulated/floor/airless
 
 /decl/hierarchy/rcd_mode/floor_and_walls/base_turf/can_handle_work(var/rcd, var/turf/target)
-	return istype(target) && (isspace(target) || istype(target, get_base_turf_by_area(target)))
+	return istype(target) && (isspaceturf(target) || istype(target, get_base_turf_by_area(target)))
 
 /decl/hierarchy/rcd_mode/floor_and_walls/floor_turf
 	cost = 3

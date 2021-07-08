@@ -5,9 +5,10 @@
 	injury_debuffs = list(SKILL_COMBAT = -1)
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/metal/silver = MATTER_AMOUNT_TRACE
 	)
+	origin_tech = "{'materials':2,'magnets':3,'programming':5,'biotech':2}"
 
 /obj/item/organ/internal/augment/boost/reflex/buff()
 	if((. = ..()))

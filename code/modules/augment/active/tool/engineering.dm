@@ -1,11 +1,11 @@
 
 
 /obj/item/organ/internal/augment/active/polytool/engineer
-	name = "\improper Engineering toolset"
+	name = "engineering toolset"
 	action_button_name = "Deploy Engineering Tool"
 	desc = "A lightweight augmentation for the engineer on-the-go. This one comes with a series of common tools."
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
+	matter = list(/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT)
 	paths = list(
 		/obj/item/screwdriver/finger,
 		/obj/item/wrench/finger,
@@ -14,16 +14,12 @@
 		/obj/item/wirecutters/finger,
 		/obj/item/multitool/finger
 	)
+	origin_tech = "{'materials':4,'magnets':3,'engineering':3}"
 
 /obj/item/weldingtool/finger
 	name = "digital welder"
 	desc = "A precise, high quality welding tool."
-	icon_state = "welder_finger"
-	icon = 'icons/obj/augment_tools.dmi'
-
-
-/obj/item/weldingtool/finger/on_update_icon()
-	icon_state = welding ? "welder_finger_on" : "welder_finger"
+	icon = 'icons/obj/items/tool/welders/welder_finger.dmi'
 
 /obj/item/wirecutters/finger
 	name = "digital splicer"

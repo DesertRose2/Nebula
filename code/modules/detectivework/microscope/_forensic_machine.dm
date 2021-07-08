@@ -27,13 +27,13 @@
 /obj/machinery/forensic/proc/set_sample(var/obj/O)
 	if(O != sample && O)
 		clear_sample()
-		GLOB.destroyed_event.register(O, src, /obj/machinery/forensic/proc/clear_sample)
+		events_repository.register(/decl/observ/destroyed, O, src, /obj/machinery/forensic/proc/clear_sample)
 		sample = O
 		update_icon()
 
 /obj/machinery/forensic/proc/clear_sample()
 	if(sample)
-		GLOB.destroyed_event.unregister(sample, src)
+		events_repository.unregister(/decl/observ/destroyed, sample, src)
 		sample = null
 		update_icon()
 
@@ -111,8 +111,8 @@
 /obj/machinery/forensic/AltClick()
 	remove_sample(usr)
 
-/obj/machinery/forensic/MouseDrop(var/atom/other)
-	if(usr == other)
+/obj/machinery/forensic/handle_mouse_drop(var/atom/over, var/mob/user)
+	if(user == over)
 		remove_sample(usr)
-	else
-		return ..()
+		return TRUE
+	. = ..()

@@ -22,7 +22,7 @@
 /mob/living/bot/remotebot/examine(mob/user)
 	. = ..()
 	if(holding)
-		to_chat(user, "<span class='notice'>It is holding \the \icon[holding] [holding].</span>")
+		to_chat(user, "<span class='notice'>It is holding \the [html_icon(holding)] [holding].</span>")
 
 /mob/living/bot/remotebot/explode()
 	on = 0
@@ -32,16 +32,14 @@
 		controller.bot = null
 		controller = null
 	for(var/i in 1 to rand(3,5))
-		var/obj/item/stack/material/cardboard/C = new(src.loc)
+		var/obj/item/stack/material/cardstock/mapped/cardboard/C = new(src.loc)
 		if(prob(50))
-			C.forceMove(get_step(src, pick(GLOB.alldirs)))
+			C.forceMove(get_step(src, pick(global.alldirs)))
 
-	var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-	s.set_up(3, 1, src)
-	s.start()
+	spark_at(src, cardinal_only = TRUE)
 	qdel(src)
 
-/mob/living/bot/remotebot/attackby(var/obj/item/I, var/mob/living/user)
+/mob/living/bot/remotebot/attackby(var/obj/item/I, var/mob/user)
 	if(istype(I, /obj/item/bot_controller) && !controller)
 		user.visible_message("\The [user] waves \the [I] over \the [src].")
 		to_chat(user, "<span class='notice'>You link \the [src] to \the [I].</span>")
@@ -96,10 +94,10 @@
 /obj/item/bot_controller
 	name = "remote control"
 	desc = "Used to control something remotely. Even has a tiny screen!"
-	icon_state = "forensic1"
+	icon = 'icons/obj/items/remote_control.dmi'
+	icon_state = ICON_STATE_WORLD
 	w_class = ITEM_SIZE_SMALL
-	slot_flags = SLOT_BELT
-	item_state = "electronic"
+	slot_flags = SLOT_LOWER_BODY
 	var/mob/living/bot/remotebot/bot
 
 /obj/item/bot_controller/attack_self(var/mob/user)
@@ -162,7 +160,7 @@
 	icon = 'icons/obj/items/bot_kit.dmi'
 	icon_state = "remotebot"
 
-/obj/item/bot_kit/attack_self(var/mob/living/user)
+/obj/item/bot_kit/attack_self(var/mob/user)
 	to_chat(user, "You quickly dismantle the box and retrieve the controller and the remote bot itself.")
 	var/turf/T = get_turf(src.loc)
 	new /mob/living/bot/remotebot(T)

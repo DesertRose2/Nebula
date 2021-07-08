@@ -83,8 +83,8 @@
 		else //Otherwise bad luck!!
 			to_chat(user, "<span class='warning'>It's dirty!</span>")
 			return 1
-	else if(is_type_in_list(O, SScuisine.microwave_accepts_items))
-		if (LAZYLEN(ingredients) >= SScuisine.microwave_maximum_item_storage)
+	else if(is_type_in_list(O, global.microwave_accepts_items))
+		if (LAZYLEN(ingredients) >= global.microwave_maximum_item_storage)
 			to_chat(user, "<span class='warning'>This [src] is full of ingredients, you cannot put more.</span>")
 			return 1
 		if(istype(O, /obj/item/stack)) // This is bad, but I can't think of how to change it
@@ -111,7 +111,7 @@
 		if (!O.reagents)
 			return 1
 		for (var/R in O.reagents.reagent_volumes)
-			if (!(R in SScuisine.microwave_accepts_reagents))
+			if (!(R in global.microwave_accepts_reagents))
 				to_chat(user, "<span class='warning'>Your [O] contains components unsuitable for cookery.</span>")
 				return 1
 		return
@@ -133,7 +133,7 @@
 		else
 			to_chat(user, "<span class='notice'>You decide not to do that.</span>")
 	else
-		to_chat(user, "<span class='warning'>You have no idea what you can cook with this [O].</span>")
+		to_chat(user, SPAN_WARNING("You have no idea what you can cook with \the [O]."))
 	src.updateUsrDialog()
 
 /obj/machinery/microwave/components_are_accessible(path)
@@ -150,7 +150,7 @@
 
 // need physical proximity for our interface.
 /obj/machinery/microwave/DefaultTopicState()
-	return GLOB.physical_state
+	return global.physical_topic_state
 
 /obj/machinery/microwave/interface_interact(mob/user)
 	interact(user)
@@ -160,7 +160,7 @@
 *   Microwave Menu
 ********************/
 
-/obj/machinery/microwave/InsertedContents()
+/obj/machinery/microwave/get_contained_external_atoms()
 	return ingredients
 
 /obj/machinery/microwave/interact(mob/user) // The microwave Menu
@@ -176,7 +176,7 @@
 		var/list/items_counts = new
 		var/list/items_measures = new
 		var/list/items_measures_p = new
-		for (var/obj/O in InsertedContents())
+		for (var/obj/O in get_contained_external_atoms())
 			var/display_name = O.name
 			if (istype(O,/obj/item/chems/food/snacks/egg))
 				items_measures[display_name] = "egg"
@@ -212,14 +212,14 @@
 			if (R == /decl/material/liquid/frostoil)
 				display_name = "Coldsauce"
 			else
-				var/decl/material/reagent = decls_repository.get_decl(R)
+				var/decl/material/reagent = GET_DECL(R)
 				display_name = reagent.name
 			dat += "<B>[display_name]:</B> [REAGENT_VOLUME(reagents, R)] unit\s"
 
 		if (items_counts.len==0 && LAZYLEN(reagents?.reagent_volumes))
 			dat += "<B>The microwave is empty</B>"
 		else
-			dat += "<b>Ingredients:</b><br>[dat]"
+			dat += "<b>Ingredients:</b><br>[english_list(dat)]"
 		dat += "<HR><BR><A href='?src=\ref[src];action=cook'>Turn on!<BR><A href='?src=\ref[src];action=dispose'>Eject ingredients!"
 
 	show_browser(user, "<HEAD><TITLE>Microwave Controls</TITLE></HEAD><TT>[jointext(dat,"<br>")]</TT>", "window=microwave")
@@ -231,6 +231,23 @@
 /***********************************
 *   Microwave Menu Handling/Cooking
 ************************************/
+/obj/machinery/microwave/proc/select_recipe()
+
+	var/list/possible_recipes = list()
+	var/list/all_recipes = decls_repository.get_decls_of_subtype(/decl/recipe)
+	for(var/rtype in all_recipes)
+		var/decl/recipe/recipe = all_recipes[rtype]
+		if(istype(recipe) && recipe.check_reagents(reagents) && recipe.check_items(src) && recipe.check_fruit(src))
+			possible_recipes += recipe
+
+	//okay, let's select the most complicated recipe
+	if(length(possible_recipes))
+		var/highest_count = 0
+		for(var/decl/recipe/recipe in possible_recipes)
+			var/count = length(recipe.items) + length(recipe.reagents) + length(recipe.fruit)
+			if(count >= highest_count)
+				highest_count = count
+				. = recipe
 
 /obj/machinery/microwave/proc/cook()
 	if(stat & (NOPOWER|BROKEN))
@@ -243,7 +260,7 @@
 		stop()
 		return
 
-	var/datum/recipe/recipe = select_recipe(SScuisine.microwave_recipes, src)
+	var/decl/recipe/recipe = select_recipe()
 	var/obj/cooked
 	if (!recipe)
 		dirty += 1
@@ -348,9 +365,7 @@
 	src.update_icon()
 
 /obj/machinery/microwave/proc/broke()
-	var/datum/effect/effect/system/spark_spread/s = new
-	s.set_up(2, 1, src)
-	s.start()
+	spark_at(src, amount=2, cardinal_only = TRUE)
 	src.visible_message("<span class='warning'>The microwave breaks!</span>") //Let them know they're stupid
 	src.broken = 2 // Make it broken so it can't be used util fixed
 	src.obj_flags = null //So you can't add condiments

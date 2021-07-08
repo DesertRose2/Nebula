@@ -13,7 +13,7 @@
 	if(!QDELETED(src) && (severity == 1 || (severity == 2 && prob(50) || (severity == 3 && prob(5)))))
 		qdel(src)
 
-/obj/effect/spider/attack_hand(mob/living/user)
+/obj/effect/spider/attack_hand(mob/user)
 
 	user.setClickCooldown(DEFAULT_ATTACK_COOLDOWN)
 	user.do_attack_animation(src)
@@ -167,7 +167,7 @@
 		dormant = FALSE
 
 	if(dormant)
-		GLOB.moved_event.register(src, src, /obj/effect/spider/proc/disturbed)
+		events_repository.register(/decl/observ/moved, src, src, /obj/effect/spider/proc/disturbed)
 	else
 		START_PROCESSING(SSobj, src)
 
@@ -182,7 +182,7 @@
 
 /obj/effect/spider/spiderling/Destroy()
 	if(dormant)
-		GLOB.moved_event.unregister(src, src, /obj/effect/spider/proc/disturbed)
+		events_repository.unregister(/decl/observ/moved, src, src, /obj/effect/spider/proc/disturbed)
 	STOP_PROCESSING(SSobj, src)
 	walk(src, 0) // Because we might have called walk_to, we must stop the walk loop or BYOND keeps an internal reference to us forever.
 	. = ..()
@@ -200,7 +200,7 @@
 	if(!dormant)
 		return
 	dormant = FALSE
-	GLOB.moved_event.unregister(src, src, /obj/effect/spider/proc/disturbed)
+	events_repository.unregister(/decl/observ/moved, src, src, /obj/effect/spider/proc/disturbed)
 	START_PROCESSING(SSobj, src)
 
 /obj/effect/spider/spiderling/Bump(atom/user)
@@ -248,9 +248,10 @@
 			entry_vent = null
 	else if(entry_vent)
 		if(get_dist(src, entry_vent) <= 1)
-			if(entry_vent.network && entry_vent.network.normal_members.len)
+			var/datum/pipe_network/network = entry_vent.network_in_dir(entry_vent.dir)
+			if(network && network.normal_members.len)
 				var/list/vents = list()
-				for(var/obj/machinery/atmospherics/unary/vent_pump/temp_vent in entry_vent.network.normal_members)
+				for(var/obj/machinery/atmospherics/unary/vent_pump/temp_vent in network.normal_members)
 					vents.Add(temp_vent)
 				if(!vents.len)
 					entry_vent = null

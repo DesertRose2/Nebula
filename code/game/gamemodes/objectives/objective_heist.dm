@@ -9,10 +9,10 @@
 	var/list/priority_targets = list()
 
 	for(var/datum/mind/possible_target in SSticker.minds)
-		if(possible_target != owner && ishuman(possible_target.current) && (possible_target.current.stat != DEAD) && (!possible_target.special_role))
+		if(possible_target != owner && ishuman(possible_target.current) && (possible_target.current.stat != DEAD) && !possible_target.assigned_special_role)
 			possible_targets += possible_target
 			if(length(roles))
-				for(var/datum/job/role in SSjobs.get_by_path(roles))
+				for(var/datum/job/role in SSjobs.get_by_paths(roles))
 					if(possible_target.assigned_role == role.title)
 						priority_targets += possible_target
 						continue
@@ -77,7 +77,7 @@
 		/decl/material/solid/gemstone/diamond = 20
 	)
 
-	var/decl/material/mat = decls_repository.get_decl(pick(loot))
+	var/decl/material/mat = GET_DECL(pick(loot))
 	explanation_text = "Ransack the [station_name()] and escape with [loot[mat.type]] unit\s of [mat.solid_name]."
 
 /datum/objective/heist/preserve_crew

@@ -249,7 +249,6 @@
 "aH" = (
 /obj/structure/table/standard,
 /obj/item/stock_parts/circuitboard/solar_control,
-/obj/item/stock_parts/circuitboard/roboprinter,
 /obj/item/bot_kit,
 /turf/simulated/floor,
 /area/unishi/common)
@@ -260,7 +259,6 @@
 /area/unishi/common)
 "aJ" = (
 /obj/structure/table/standard,
-/obj/item/stock_parts/circuitboard/roboprinter,
 /obj/item/stock_parts/circuitboard/helm,
 /turf/simulated/floor,
 /area/unishi/common)
@@ -1039,7 +1037,6 @@
 /area/unishi/toxins)
 "cI" = (
 /obj/machinery/atmospherics/pipe/simple/visible/red{
-	icon_state = "intact";
 	dir = 4
 	},
 /turf/simulated/wall/ocp_wall,
@@ -1384,14 +1381,12 @@
 /area/unishi/common)
 "dF" = (
 /obj/machinery/atmospherics/pipe/simple/visible/green{
-	icon_state = "intact";
 	dir = 6
 	},
 /turf/simulated/wall/r_wall,
 /area/unishi/toxins)
 "dG" = (
 /obj/machinery/atmospherics/pipe/simple/visible/green{
-	icon_state = "intact";
 	dir = 4
 	},
 /turf/simulated/wall/r_wall,
@@ -1405,7 +1400,6 @@
 /area/unishi/toxins)
 "dI" = (
 /obj/machinery/atmospherics/pipe/simple/visible/green{
-	icon_state = "intact";
 	dir = 10
 	},
 /turf/simulated/wall/titanium,
@@ -1560,10 +1554,11 @@
 	pixel_y = -22;
 	req_access = newlist()
 	},
-/obj/item/stack/material/diamond/ten,
-/obj/item/stack/material/steel/fifty,
-/obj/item/stack/material/silver/ten,
-/obj/item/stack/material/glass/fifty,
+/obj/item/stack/material/gemstone/mapped/diamond/ten,
+/obj/item/stack/material/sheet/mapped/steel/fifty,
+/obj/item/stack/material/ingot/mapped/silver/ten,
+/obj/item/stack/material/pane/mapped/glass/fifty,
+/obj/item/stack/material/reinforced/mapped/fiberglass/fifty,
 /turf/simulated/floor/tiled,
 /area/unishi/rnd)
 "eb" = (
@@ -1630,7 +1625,6 @@
 /area/unishi/hydro)
 "ek" = (
 /obj/machinery/atmospherics/pipe/simple/visible/green{
-	icon_state = "intact";
 	dir = 10
 	},
 /turf/simulated/floor/tiled,
@@ -1678,8 +1672,8 @@
 /turf/simulated/floor/tiled,
 /area/unishi/hydro)
 "es" = (
-/mob/living/carbon/slime,
-/mob/living/carbon/slime,
+/mob/living/slime,
+/mob/living/slime,
 /mob/living/carbon/human/monkey,
 /mob/living/carbon/human/monkey,
 /mob/living/carbon/human/monkey,
@@ -1689,7 +1683,7 @@
 /obj/structure/window/borosilicate_reinforced{
 	dir = 4
 	},
-/mob/living/carbon/slime,
+/mob/living/slime,
 /mob/living/carbon/human/monkey,
 /mob/living/carbon/human/monkey,
 /turf/simulated/floor/reinforced,
@@ -1755,7 +1749,7 @@
 /turf/simulated/floor/tiled,
 /area/unishi/hydro)
 "eB" = (
-/mob/living/carbon/slime,
+/mob/living/slime,
 /mob/living/carbon/human/monkey,
 /mob/living/carbon/human/monkey,
 /turf/simulated/floor/reinforced,
@@ -1949,7 +1943,6 @@
 "fb" = (
 /obj/effect/vine,
 /obj/machinery/atmospherics/pipe/simple/visible/green{
-	icon_state = "intact";
 	dir = 5
 	},
 /obj/machinery/seed_extractor,
@@ -2407,7 +2400,7 @@
 /area/unishi/smresearch)
 "gg" = (
 /obj/effect/decal/remains,
-/obj/item/clothing/under/rank/chief_engineer,
+/obj/item/clothing/under/chief_engineer,
 /obj/random/shoes,
 /obj/item/clothing/suit/storage/toggle/labcoat/science{
 	name = "\improper labcoat"
@@ -2703,7 +2696,7 @@
 /obj/effect/decal/cleanable/blood,
 /obj/effect/decal/remains,
 /obj/random/shoes,
-/obj/item/clothing/under/bluepyjamas,
+/obj/item/clothing/under/pj/blue,
 /turf/simulated/floor/tiled/techfloor,
 /area/unishi/smresearch)
 "gN" = (
@@ -2907,7 +2900,6 @@
 "hm" = (
 /obj/effect/wingrille_spawn/reinforced_borosilicate/full,
 /obj/machinery/atmospherics/pipe/simple/visible/red{
-	icon_state = "intact";
 	dir = 4
 	},
 /turf/simulated/floor,

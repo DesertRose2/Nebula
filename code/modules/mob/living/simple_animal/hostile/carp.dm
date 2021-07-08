@@ -6,9 +6,6 @@
 	icon_gib = "carp_gib"
 	speak_chance = 0
 	turns_per_move = 3
-	response_help = "pets the"
-	response_disarm = "gently pushes aside the"
-	response_harm = "hits the"
 	speed = 2
 	maxHealth = 50
 	health = 50
@@ -59,11 +56,3 @@
 	. = ..()
 	if(.)
 		custom_emote(1,"nashes at [.]")
-
-/mob/living/simple_animal/hostile/carp/AttackingTarget()
-	. =..()
-	var/mob/living/L = .
-	if(istype(L))
-		if(prob(15))
-			L.Weaken(3)
-			L.visible_message("<span class='danger'>\the [src] knocks down \the [L]!</span>")

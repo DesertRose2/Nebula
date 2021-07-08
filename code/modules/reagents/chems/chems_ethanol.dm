@@ -22,6 +22,7 @@
 		/decl/material/liquid/water =   0.25
 	)
 	bypass_cooling_products_for_root_type = /decl/material/liquid/ethanol
+	affect_blood_on_ingest = FALSE // prevents automatic toxins/inebriation as though injected
 
 	var/nutriment_factor = 0
 	var/hydration_factor = 0
@@ -35,39 +36,45 @@
 	glass_desc = "A well-known alcohol with a variety of applications."
 	value = 1.2
 
-/decl/material/liquid/ethanol/affect_blood(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/ethanol/affect_blood(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
 	M.adjustToxLoss(removed * 2 * alcohol_toxicity)
+	M.add_chemical_effect(CE_ALCOHOL_TOXIC, alcohol_toxicity)
 
-/decl/material/liquid/ethanol/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/ethanol/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
+
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+
 	M.adjust_nutrition(nutriment_factor * removed)
 	M.adjust_hydration(hydration_factor * removed)
-	var/strength_mod = 1
+
 	M.add_chemical_effect(CE_ALCOHOL, 1)
-	var/effective_dose = M.chem_doses[type] * strength_mod * (1 + REAGENT_VOLUME(holder, type)/60) //drinking a LOT will make you go down faster
+	var/strength_mod = (M.GetTraitLevel(/decl/trait/malus/ethanol) * 2.5) || 1
+
+	var/effective_dose = LAZYACCESS(M.chem_doses, type) * strength_mod * (1 + REAGENT_VOLUME(holder, type)/60) //drinking a LOT will make you go down faster
 	if(effective_dose >= strength) // Early warning
-		M.make_dizzy(6) // It is decreased at the speed of 3 per tick
+		ADJ_STATUS(M, STAT_DIZZY, 6) // It is decreased at the speed of 3 per tick
 	if(effective_dose >= strength * 2) // Slurring
 		M.add_chemical_effect(CE_PAINKILLER, 150/strength)
-		M.slurring = max(M.slurring, 30)
+		SET_STATUS_MAX(M, STAT_SLUR, 30)
 	if(effective_dose >= strength * 3) // Confusion - walking in random directions
 		M.add_chemical_effect(CE_PAINKILLER, 150/strength)
-		M.confused = max(M.confused, 20)
+		SET_STATUS_MAX(M, STAT_CONFUSE, 20)
 	if(effective_dose >= strength * 4) // Blurry vision
 		M.add_chemical_effect(CE_PAINKILLER, 150/strength)
-		M.eye_blurry = max(M.eye_blurry, 10)
+		SET_STATUS_MAX(M, STAT_BLURRY, 10)
 	if(effective_dose >= strength * 5) // Drowsyness - periodically falling asleep
 		M.add_chemical_effect(CE_PAINKILLER, 150/strength)
-		M.drowsyness = max(M.drowsyness, 20)
+		SET_STATUS_MAX(M, STAT_DROWSY, 20)
 	if(effective_dose >= strength * 6) // Toxic dose
 		M.add_chemical_effect(CE_ALCOHOL_TOXIC, alcohol_toxicity)
 	if(effective_dose >= strength * 7) // Pass out
-		M.Paralyse(20)
-		M.Sleeping(30)
-
+		SET_STATUS_MAX(M, STAT_PARA, 20)
+		SET_STATUS_MAX(M, STAT_ASLEEP, 30)
 	if(euphoriant)
-		M.adjust_drugged(euphoriant, euphoriant_max)
+		SET_STATUS_MAX(M, STAT_DRUGGY, euphoriant)
 
 	if(adj_temp > 0 && M.bodytemperature < targ_temp) // 310 is the normal bodytemp. 310.055
 		M.bodytemperature = min(targ_temp, M.bodytemperature + (adj_temp * TEMPERATURE_DAMAGE_COEFFICIENT))
@@ -112,9 +119,11 @@
 /decl/material/liquid/ethanol/beer/good
 	taste_description = "beer"
 
-/decl/material/liquid/ethanol/beer/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/ethanol/beer/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
-	M.jitteriness = max(M.jitteriness - 3, 0)
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+	ADJ_STATUS(M, STAT_JITTER, -3)
 
 /decl/material/liquid/ethanol/bluecuracao
 	name = "blue curacao"
@@ -152,16 +161,20 @@
 /decl/material/liquid/ethanol/coffee
 	overdose = 45
 
-/decl/material/liquid/ethanol/coffee/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/ethanol/coffee/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
-	M.dizziness = max(0, M.dizziness - 5)
-	M.drowsyness = max(0, M.drowsyness - 3)
-	M.sleeping = max(0, M.sleeping - 2)
+
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+
+	ADJ_STATUS(M, STAT_DIZZY, -5)
+	ADJ_STATUS(M, STAT_DROWSY, -3)
+	ADJ_STATUS(M, STAT_ASLEEP, -2)
 	if(M.bodytemperature > 310)
 		M.bodytemperature = max(310, M.bodytemperature - (5 * TEMPERATURE_DAMAGE_COEFFICIENT))
 
-/decl/material/liquid/ethanol/coffee/affect_overdose(var/mob/living/carbon/M, var/alien, var/datum/reagents/holder)
-	M.make_jittery(5)
+/decl/material/liquid/ethanol/coffee/affect_overdose(var/mob/living/M, var/alien, var/datum/reagents/holder)
+	ADJ_STATUS(M, STAT_JITTER, 5)
 
 /decl/material/liquid/ethanol/coffee/kahlua
 	name = "coffee liqueur"
@@ -205,14 +218,14 @@
 	glass_name = "sake"
 	glass_desc = "A glass of sake."
 
-/decl/material/liquid/ethanol/tequilla
+/decl/material/liquid/ethanol/tequila
 	name = "tequila"
 	lore_text = "A strong and mildly flavoured, mexican produced spirit. Feeling thirsty hombre?"
 	taste_description = "paint stripper"
 	color = "#ffff91"
 	strength = 25
 
-	glass_name = "tequilla"
+	glass_name = "tequila"
 	glass_desc = "Now all that's missing is the weird colored shades!"
 
 /decl/material/liquid/ethanol/thirteenloko
@@ -226,12 +239,16 @@
 	glass_name = "Thirteen Loko"
 	glass_desc = "This is a glass of Thirteen Loko, it appears to be of the highest quality. The drink, not the glass."
 
-/decl/material/liquid/ethanol/thirteenloko/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/ethanol/thirteenloko/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
-	M.drowsyness = max(0, M.drowsyness - 7)
-	if (M.bodytemperature > 310)
+
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+
+	ADJ_STATUS(M, STAT_DROWSY, -7)
+	if(M.bodytemperature > 310)
 		M.bodytemperature = max(310, M.bodytemperature - (5 * TEMPERATURE_DAMAGE_COEFFICIENT))
-	M.make_jittery(5)
+	ADJ_STATUS(M, STAT_JITTER, 5)
 	M.add_chemical_effect(CE_PULSE, 2)
 
 /decl/material/liquid/ethanol/vermouth
@@ -352,17 +369,21 @@
 	glass_name = "???"
 	glass_desc = "A black ichor with an oily purple sheer on top. Are you sure you should drink this?"
 	euphoriant = 50
-	euphoriant_max = 50
 
-/decl/material/liquid/ethanol/pwine/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/ethanol/pwine/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
-	if(M.chem_doses[type] > 30)
+
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+
+	var/dose = LAZYACCESS(M.chem_doses, type)
+	if(dose > 30)
 		M.adjustToxLoss(2 * removed)
-	if(M.chem_doses[type] > 60 && ishuman(M) && prob(5))
+	if(dose > 60 && ishuman(M) && prob(5))
 		var/mob/living/carbon/human/H = M
-		var/obj/item/organ/internal/heart/L = H.internal_organs_by_name[BP_HEART]
+		var/obj/item/organ/internal/heart/L = H.get_internal_organ(BP_HEART)
 		if (L && istype(L))
-			if(M.chem_doses[type] < 120)
+			if(dose < 120)
 				L.take_internal_damage(10 * removed, 0)
 			else
 				L.take_internal_damage(100, 0)
@@ -376,7 +397,7 @@
 	glass_name = "aged whiskey"
 	glass_desc = "A well-aged whiskey of high quality. Probably imported."
 
-/decl/material/liquid/ethanol/applecider
+/decl/material/liquid/ethanol/cider_apple
 	name = "apple cider"
 	lore_text = "A refreshing glass of apple cider."
 	taste_description = "cool apple cider"
@@ -385,6 +406,16 @@
 
 	glass_name = "apple cider"
 	glass_desc = "A refreshing glass of apple cider."
+
+/decl/material/liquid/ethanol/cider_pear
+	name = "pear cider"
+	lore_text = "A refreshing glass of pear cider."
+	taste_description = "cool pear cider"
+	color = "#cac089"
+	strength = 50
+
+	glass_name = "pear cider"
+	glass_desc = "A refreshing glass of pear cider."
 
 /decl/material/liquid/ethanol/champagne
 	name = "champagne"

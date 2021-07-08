@@ -1,16 +1,14 @@
 /obj/item/clothing/accessory/cloak // A colorable cloak
 	name = "plain cloak"
 	desc = "A simple, bland cloak."
-	icon_state = ICON_STATE_WORLD
 	icon = 'icons/clothing/suit/cloaks/_cloak.dmi'
 	w_class = ITEM_SIZE_NORMAL
 	slot = ACCESSORY_SLOT_OVER
-	slot_flags = SLOT_OCLOTHING
+	slot_flags = SLOT_OVER_BODY
 	allowed = list(/obj/item/tank/emergency/oxygen)
 	high_visibility = TRUE
-	made_of_cloth = TRUE
 	armor = list(melee = 0, bullet = 0, laser = 0,energy = 0, bomb = 0, bio = 0, rad = 0)
-	body_parts_covered = UPPER_TORSO|LOWER_TORSO|ARMS|LEGS
+	body_parts_covered = SLOT_UPPER_BODY|SLOT_LOWER_BODY|SLOT_ARMS|SLOT_LEGS
 	siemens_coefficient = 0.9
 
 /obj/item/clothing/accessory/cloak/on_update_icon()
@@ -34,13 +32,12 @@
 		var/image/underlay
 		var/image/cloverlay
 
-		if(ishuman(user_mob) && bodytype != user_mob.get_bodytype())
+		var/bodyicon = get_icon_for_bodytype(bodytype)
+		if(user_mob && bodytype != user_mob.get_bodytype_category())
 			var/mob/living/carbon/human/H = user_mob
-			var/bodyicon = get_icon_for_bodytype(BODYTYPE_HUMANOID)
-			underlay =  H.species.get_offset_overlay_image(FALSE, bodyicon, "[bodytype]-underlay", color, slot)
-			cloverlay = H.species.get_offset_overlay_image(FALSE, bodyicon, "[bodytype]-overlay", color, slot)
+			underlay =  H.bodytype.get_offset_overlay_image(FALSE, bodyicon, "[bodytype]-underlay", color, slot)
+			cloverlay = H.bodytype.get_offset_overlay_image(FALSE, bodyicon, "[bodytype]-overlay", color, slot)
 		else
-			var/bodyicon = get_icon_for_bodytype(bodytype)
 			underlay = image(bodyicon, "[bodytype]-underlay")
 			cloverlay = image(bodyicon, "[bodytype]-overlay")
 
@@ -114,31 +111,27 @@
 /obj/item/clothing/accessory/cloak/atmos
 	name = "yellow cloak"
 	desc = "A trimmed yellow and blue cloak."
-	icon_state = "cloak_atmos"
 	icon = 'icons/clothing/suit/cloaks/cloak_atmospherics.dmi'
 
 /obj/item/clothing/accessory/cloak/research
 	name = "purple cloak"
 	desc = "A simple purple and white cloak."
-	icon_state = "cloak_sci"
 	icon = 'icons/clothing/suit/cloaks/cloak_research.dmi'
 
 /obj/item/clothing/accessory/cloak/medical
 	name = "blue cloak"
 	desc = "A simple blue and white cloak."
-	icon_state = "cloak_med"
 	icon = 'icons/clothing/suit/cloaks/cloak_medical.dmi'
 
 /obj/item/clothing/accessory/cloak/hide
 	name = "cloak"
 	desc = "A ragged cloak made of some sort of thick hide."
-	icon_state = "cloak_hide"
 	icon = 'icons/clothing/suit/cloaks/cloak_hide.dmi'
 	material = /decl/material/solid/leather
 	applies_material_colour = TRUE
 	applies_material_name = TRUE
 	armor_type = /datum/extension/armor/ablative
-	body_parts_covered = UPPER_TORSO|LOWER_TORSO
+	body_parts_covered = SLOT_UPPER_BODY|SLOT_LOWER_BODY
 	material_armor_multiplier = 0.5
 
 /obj/item/clothing/accessory/cloak/hide/set_material(var/new_material)

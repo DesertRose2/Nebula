@@ -45,7 +45,7 @@
 	if(--amount < 0)
 		return
 
-	for(var/direction in GLOB.cardinal)
+	for(var/direction in global.cardinal)
 		var/turf/T = get_step(src, direction)
 		if(!T)
 			continue
@@ -149,7 +149,7 @@
 /obj/structure/foamedmetal/explosion_act(severity)
 	..()
 	if(!QDELETED(src))
-		physically_destroyed(src)
+		physically_destroyed()
 
 /obj/structure/foamedmetal/bullet_act()
 	if(metal == 1 || prob(50))

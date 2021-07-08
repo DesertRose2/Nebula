@@ -4,10 +4,10 @@
 /obj/item/borg/upgrade
 	name = "robot upgrade module"
 	desc = "Protected by FRM."
-	icon = 'icons/obj/module.dmi'
-	icon_state = "cyborg_upgrade"
+	icon = 'icons/obj/modules/module_cyborg_0.dmi'
+	icon_state = ICON_STATE_WORLD
 	material = /decl/material/solid/metal/steel
-
+	origin_tech = "{'materials':2,'engineering':3,'programming':3,'magnets':1}"
 	var/locked = 0
 	var/require_module = 0
 	var/installed = 0
@@ -21,7 +21,7 @@
 /obj/item/borg/upgrade/reset
 	name = "robotic module reset board"
 	desc = "Used to reset a cyborg's module. Destroys any other upgrades applied to the robot."
-	icon_state = "cyborg_upgrade1"
+	icon = 'icons/obj/modules/module_cyborg_1.dmi'
 	require_module = 1
 
 /obj/item/borg/upgrade/reset/action(var/mob/living/silicon/robot/R)
@@ -33,7 +33,7 @@
 /obj/item/borg/upgrade/uncertified
 	name = "uncertified robotic module"
 	desc = "You shouldn't be seeing this!"
-	icon_state = "cyborg_upgrade5"
+	icon = 'icons/obj/modules/module_cyborg_2.dmi'
 	require_module = 0
 	var/new_module = null
 
@@ -57,6 +57,7 @@
 		/decl/material/solid/metal/aluminium = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/gemstone/diamond = MATTER_AMOUNT_TRACE
 	)
+	origin_tech = "{'materials':2,'engineering':2,'programming':3,'magnets':2}"
 
 /obj/item/borg/upgrade/uncertified/combat
 	name = "ancient module"
@@ -66,7 +67,7 @@
 /obj/item/borg/upgrade/rename
 	name = "robot reclassification board"
 	desc = "Used to rename a cyborg."
-	icon_state = "cyborg_upgrade1"
+	icon = 'icons/obj/modules/module_cyborg_1.dmi'
 	var/heldname = "default name"
 
 /obj/item/borg/upgrade/rename/attack_self(mob/user)
@@ -84,7 +85,7 @@
 /obj/item/borg/upgrade/floodlight
 	name = "robot floodlight module"
 	desc = "Used to boost cyborg's light intensity."
-	icon_state = "cyborg_upgrade1"
+	icon = 'icons/obj/modules/module_cyborg_1.dmi'
 
 /obj/item/borg/upgrade/floodlight/action(var/mob/living/silicon/robot/R)
 	if(..()) return 0
@@ -101,9 +102,9 @@
 /obj/item/borg/upgrade/restart
 	name = "robot emergency restart module"
 	desc = "Used to force a restart of a disabled-but-repaired robot, bringing it back online."
-	icon_state = "cyborg_upgrade1"
+	icon = 'icons/obj/modules/module_cyborg_1.dmi'
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
+	matter = list(/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT)
 
 /obj/item/borg/upgrade/restart/action(var/mob/living/silicon/robot/R)
 	if(R.health < 0)
@@ -111,7 +112,7 @@
 		return 0
 
 	if(!R.key)
-		for(var/mob/observer/ghost/ghost in GLOB.player_list)
+		for(var/mob/observer/ghost/ghost in global.player_list)
 			if(ghost.mind && ghost.mind.current == R)
 				R.key = ghost.key
 
@@ -124,11 +125,11 @@
 /obj/item/borg/upgrade/vtec
 	name = "robotic VTEC Module"
 	desc = "Used to kick in a robot's VTEC systems, increasing their speed."
-	icon_state = "cyborg_upgrade2"
+	icon = 'icons/obj/modules/module_cyborg_2.dmi'
 	require_module = 1
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/metal/gold = MATTER_AMOUNT_TRACE
 	)
 
@@ -146,14 +147,15 @@
 /obj/item/borg/upgrade/weaponcooler
 	name = "robotic Rapid Weapon Cooling Module"
 	desc = "Used to cool a mounted energy gun, increasing the potential current in it and thus its recharge rate."
-	icon_state = "cyborg_upgrade3"
+	icon = 'icons/obj/modules/module_cyborg_3.dmi'
 	require_module = 1
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/metal/gold = MATTER_AMOUNT_TRACE,
 		/decl/material/solid/gemstone/diamond = MATTER_AMOUNT_TRACE
 	)
+	origin_tech = "{'materials':2,'engineering':3,'programming':3,'powerstorage':2,'combat':2}"
 
 /obj/item/borg/upgrade/weaponcooler/action(var/mob/living/silicon/robot/R)
 	if(..()) return 0
@@ -183,13 +185,14 @@
 /obj/item/borg/upgrade/jetpack
 	name = "mining robot jetpack"
 	desc = "A carbon dioxide jetpack suitable for low-gravity mining operations."
-	icon_state = "cyborg_upgrade3"
+	icon = 'icons/obj/modules/module_cyborg_3.dmi'
 	require_module = 1
 	material = /decl/material/solid/metal/steel
 	matter = list(
 		/decl/material/solid/plastic = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/metal/uranium = MATTER_AMOUNT_TRACE
 	)
+	origin_tech = "{'materials':2,'engineering':3,'programming':3,'magnets':3}"
 
 /obj/item/borg/upgrade/jetpack/action(var/mob/living/silicon/robot/R)
 	if(..()) return 0
@@ -208,13 +211,14 @@
 /obj/item/borg/upgrade/rcd
 	name = "engineering robot RCD"
 	desc = "A rapid construction device module for use during construction operations."
-	icon_state = "cyborg_upgrade3"
+	icon = 'icons/obj/modules/module_cyborg_3.dmi'
 	require_module = 1
 	material = /decl/material/solid/metal/steel
 	matter = list(
 		/decl/material/solid/metal/silver = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/metal/gold = MATTER_AMOUNT_TRACE
 	)
+	origin_tech = "{'materials':4,'engineering':4,'programming':3}"
 
 /obj/item/borg/upgrade/rcd/action(var/mob/living/silicon/robot/R)
 	if(..()) return 0
@@ -230,13 +234,14 @@
 /obj/item/borg/upgrade/syndicate
 	name = "illegal equipment module"
 	desc = "Unlocks the hidden, deadlier functions of a robot."
-	icon_state = "cyborg_upgrade3"
+	icon = 'icons/obj/modules/module_cyborg_3.dmi'
 	require_module = 1
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/gemstone/diamond = MATTER_AMOUNT_TRACE
 	)
+	origin_tech = "{'materials':2,'engineering':2,'programming':3,'esoteric':2,'combat':2}"
 
 /obj/item/borg/upgrade/syndicate/action(var/mob/living/silicon/robot/R)
 	if(..()) return 0

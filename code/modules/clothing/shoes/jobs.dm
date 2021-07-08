@@ -8,7 +8,7 @@
 
 /obj/item/clothing/shoes/galoshes/Initialize()
 	. = ..()
-	slowdown_per_slot[slot_shoes] = 1
+	LAZYSET(slowdown_per_slot, slot_shoes_str, 1)
 
 /obj/item/clothing/shoes/jackboots
 	name = "jackboots"
@@ -27,13 +27,15 @@
 	siemens_coefficient = 0.7
 	gas_transfer_coefficient = 0.90
 	permeability_coefficient = 0.50
-	cold_protection = FEET
-	body_parts_covered = FEET
-	heat_protection = FEET
+	cold_protection = SLOT_FEET
+	body_parts_covered = SLOT_FEET
+	heat_protection = SLOT_FEET
 	min_cold_protection_temperature = HELMET_MIN_COLD_PROTECTION_TEMPERATURE
 	max_heat_protection_temperature = FIRESUIT_MAX_HEAT_PROTECTION_TEMPERATURE
 	max_pressure_protection = FIRESUIT_MAX_PRESSURE
 	var/artificail_shine = 20
+	matter = list(/decl/material/solid/metal/steel = MATTER_AMOUNT_REINFORCEMENT)
+	origin_tech = "{'materials':2,'engineering':2}"
 
 /obj/item/clothing/shoes/jackboots/set_material(var/new_material)
 	..()
@@ -54,7 +56,9 @@
 	siemens_coefficient = 0.7
 	gas_transfer_coefficient = 0.90
 	permeability_coefficient = 0.50
-	body_parts_covered = FEET
-	heat_protection = FEET
+	body_parts_covered = SLOT_FEET
+	heat_protection = SLOT_FEET
 	max_heat_protection_temperature = FIRESUIT_MAX_HEAT_PROTECTION_TEMPERATURE
 	max_pressure_protection = FIRESUIT_MAX_PRESSURE
+	matter = list(/decl/material/solid/metal/steel = MATTER_AMOUNT_REINFORCEMENT)
+	origin_tech = "{'materials':2,'engineering':2}"

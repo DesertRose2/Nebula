@@ -38,12 +38,12 @@
 	else
 		icon_state = get_world_inventory_state()
 
-/obj/item/gun/projectile/dartgun/experimental_mob_overlay(mob/user_mob, slot)
-	var/image/I = ..()
-	if(slot == slot_r_hand_str || slot == slot_l_hand_str)
-		if(ammo_magazine)
-			I.icon_state += "-[Clamp(length(ammo_magazine.stored_ammo.len), 0, 5)]"
-	return I
+/obj/item/gun/projectile/dartgun/get_mob_overlay(mob/living/user_mob, slot, bodypart)
+	var/image/ret = ..()
+	if(ret && (slot in user_mob.held_item_slots) && ammo_magazine)
+		ret.icon_state += "-[Clamp(length(ammo_magazine.stored_ammo.len), 0, 5)]"
+	return ret
+
 /obj/item/gun/projectile/dartgun/consume_next_projectile()
 	. = ..()
 	var/obj/item/projectile/bullet/chemdart/dart = .
@@ -57,7 +57,7 @@
 		for(var/obj/item/chems/glass/beaker/B in beakers)
 			if(B.reagents && LAZYLEN(B.reagents?.reagent_volumes))
 				for(var/rtype in B.reagents.reagent_volumes)
-					var/decl/material/R = decls_repository.get_decl(rtype)
+					var/decl/material/R = GET_DECL(rtype)
 					to_chat(user, "<span class='notice'>[REAGENT_VOLUME(B.reagents, rtype)] units of [R.name]</span>")
 
 /obj/item/gun/projectile/dartgun/attackby(obj/item/I, mob/user)
@@ -108,7 +108,7 @@
 			dat += "Beaker [i] contains: "
 			if(B.reagents && LAZYLEN(B.reagents.reagent_volumes))
 				for(var/rtype in B.reagents.reagent_volumes)
-					var/decl/material/R = decls_repository.get_decl(rtype)
+					var/decl/material/R = GET_DECL(rtype)
 					dat += "<br>    [REAGENT_VOLUME(B.reagents, rtype)] units of [R.name], "
 				if(B in mixing)
 					dat += "<A href='?src=\ref[src];stop_mix=[i]'><font color='green'>Mixing</font></A> "

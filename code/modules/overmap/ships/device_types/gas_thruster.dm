@@ -8,7 +8,7 @@
 	var/obj/machinery/atmospherics/unary/engine/E = holder
 	if(!is_on())
 		return 0
-	if(!has_fuel() || (0 < E.use_power_oneoff(charge_per_burn)) || check_blockage())
+	if(!has_fuel() || (0 < E.use_power_oneoff(charge_per_burn * thrust_limit)) || check_blockage())
 		E.audible_message(src, SPAN_WARNING("[holder] coughs once and goes silent!"))
 		E.update_use_power(POWER_USE_OFF)
 		return 0
@@ -18,14 +18,14 @@
 		return 0
 	. = get_exhaust_velocity(removed)
 	playsound(E.loc, 'sound/machines/thruster.ogg', 100 * thrust_limit * partial, 0, world.view * 4, 0.1)
-	if(E.network)
-		E.network.update = 1
+	E.update_networks()
+	E.update_icon()
 
-	var/exhaust_dir = GLOB.reverse_dir[E.dir]
+	var/exhaust_dir = global.reverse_dir[E.dir]
 	var/turf/T = get_step(holder, exhaust_dir)
 	if(T)
 		T.assume_air(removed)
-		new/obj/effect/engine_exhaust(T, exhaust_dir, removed.check_combustibility() && removed.temperature >= FLAMMABLE_GAS_MINIMUM_BURN_TEMPERATURE)
+		new/obj/effect/engine_exhaust(T, E.dir)
 
 /datum/extension/ship_engine/gas/proc/get_propellant(var/sample_only = TRUE, var/partial = 1)
 	var/obj/machinery/atmospherics/unary/engine/E = holder
@@ -58,7 +58,7 @@
 
 /datum/extension/ship_engine/gas/proc/get_nozzle_exit_pressure()
 	var/obj/machinery/atmospherics/unary/engine/E = holder
-	var/exhaust_dir = GLOB.reverse_dir[E.dir]
+	var/exhaust_dir = global.reverse_dir[E.dir]
 	var/turf/A = get_step(holder, exhaust_dir)
 	var/datum/gas_mixture/nozzle_exit_air = A.return_air()
 	var/exit_pressure = 0
@@ -74,7 +74,7 @@
 		return 0.01 // Divide by zero protection.
 
 	for(var/mat in propellant.gas)
-		var/decl/material/gas/G = decls_repository.get_decl(mat)
+		var/decl/material/gas/G = GET_DECL(mat)
 		// 0.08 chosen to get the RATIO of the specific heat, we don't have cV/cP here, so this is a rough approximate.
 		var/ratio = (G.gas_specific_heat / 25) + 0.8// These numbers are meaningless, just magic numbers to calibrate range.
 		ratio_specific_heat += ratio * (propellant.gas[mat] / propellant.total_moles)
@@ -111,5 +111,5 @@
 
 	var/exit_pressure = get_nozzle_exit_pressure()
 	.+= exit_pressure ? "Nozzle exit pressure: [exit_pressure] kPA" : "Nozzle exit pressure: VACUUM"
-	
+
 	return jointext(.,"<br>")

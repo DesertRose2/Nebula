@@ -42,7 +42,11 @@
 		return
 	
 	// Update our own marker icon regardless of power or sensor connections.
-	var/sensor_range = round(sensors.range,1)
+	var/sensor_range = 0
+
+	var/obj/machinery/shipsensors/sensors = get_sensors()
+	if(sensors?.use_power)
+		sensor_range = round(sensors.range,1)
 	var/datum/overmap_contact/self_record = contact_datums[linked]
 	self_record.update_marker_icon(sensor_range)
 	self_record.show()
@@ -139,11 +143,11 @@
 	
 	if(tracker in trackers)
 		trackers -= tracker
-		GLOB.destroyed_event.unregister(tracker, src, .proc/remove_tracker)
+		events_repository.unregister(/decl/observ/destroyed, tracker, src, .proc/remove_tracker)
 		to_chat(user, SPAN_NOTICE("You unlink the tracker in \the [P]'s buffer from \the [src]"))
 		return
 	trackers += tracker
-	GLOB.destroyed_event.register(tracker, src, .proc/remove_tracker)
+	events_repository.register(/decl/observ/destroyed, tracker, src, .proc/remove_tracker)
 	to_chat(user, SPAN_NOTICE("You link the tracker in \the [P]'s buffer to \the [src]"))
 
 /obj/machinery/computer/ship/sensors/proc/remove_tracker(var/obj/item/ship_tracker/tracker)

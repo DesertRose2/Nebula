@@ -3,7 +3,7 @@
 	desc = "What are you standing around staring at this for? Get to killing!"
 	icon_state = ICON_STATE_WORLD
 	icon = 'icons/obj/items/weapon/swords/claymore.dmi'
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	w_class = ITEM_SIZE_LARGE
 	material_force_multiplier = 0.5 // 30 when wielded with hardnes 60 (steel)
 	armor_penetration = 10
@@ -17,6 +17,10 @@
 	material = /decl/material/solid/metal/steel
 	applies_material_colour = TRUE
 	applies_material_name = TRUE
+
+	pickup_sound = 'sound/foley/knife1.ogg' 
+	drop_sound = 'sound/foley/knifedrop3.ogg'
+
 	var/draw_handle
 
 /obj/item/sword/update_force()
@@ -33,17 +37,17 @@
 /obj/item/sword/on_update_icon()
 	. = ..()
 	if(applies_material_colour)
-		if(draw_handle)
-			add_overlay(get_mutable_overlay(icon, "[icon_state]_handle"))
-		if(material.reflectiveness >= MAT_VALUE_SHINY)
-			add_overlay(get_mutable_overlay(icon, "[icon_state]_shine"), adjust_brightness(color, 20 + material.reflectiveness))
+		if(draw_handle && check_state_in_icon("[icon_state]_handle", icon))
+			add_overlay(mutable_appearance(icon, "[icon_state]_handle"))
+		if(material.reflectiveness >= MAT_VALUE_SHINY && check_state_in_icon("[icon_state]_shine", icon))
+			add_overlay(mutable_appearance(icon, "[icon_state]_shine"), adjust_brightness(color, 20 + material.reflectiveness))
 
-/obj/item/sword/experimental_mob_overlay(mob/user_mob, slot)
-	var/image/res = ..()
+/obj/item/sword/get_mob_overlay(mob/user_mob, slot, bodypart)
+	var/image/ret = ..()
 	//Do not color scabbarded blades
-	if(applies_material_colour && (slot == slot_back_str || slot == slot_belt_str))
-		res.color = null
-	return res
+	if(ret && applies_material_colour && (slot == slot_back_str || slot == slot_belt_str))
+		ret.color = null
+	return ret
 
 /obj/item/sword/wood
 	material = /decl/material/solid/wood
@@ -56,7 +60,7 @@
 	name = "katana"
 	desc = "Woefully underpowered in D20. This one looks pretty sharp."
 	icon = 'icons/obj/items/weapon/swords/katana.dmi'
-	slot_flags = SLOT_BELT | SLOT_BACK
+	slot_flags = SLOT_LOWER_BODY | SLOT_BACK
 
 /obj/item/sword/katana/set_material(new_material)
 	. = ..()
@@ -75,10 +79,10 @@
 /obj/item/sword/katana/vibro
 	name = "vibrokatana"
 	desc = "A high-tech take on a woefully underpowered weapon. Can't mistake its sound for anything."
-	material = /decl/material/solid/metal/plasteel/titanium
+	material = /decl/material/solid/metal/titanium
 	hitsound = 'sound/weapons/anime_sword.wav'
+	pickup_sound = 'sound/weapons/katana_out.wav'
 
-/obj/item/sword/katana/vibro/equipped(mob/user, slot)
-	if(slot == slot_l_hand || slot == slot_r_hand)
-		playsound(src, 'sound/weapons/katana_out.wav', 50, 1, -5)
-	
+/obj/item/sword/katana/vibro/pickup_sound_callback()
+	if(ismob(loc) && pickup_sound)
+		playsound(src, pickup_sound, 50, -1, 5)

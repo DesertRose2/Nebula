@@ -53,7 +53,7 @@
 /obj/structure/table/get_material_health_modifier()
 	. = 0.5
 
-/obj/structure/table/physically_destroyed()
+/obj/structure/table/physically_destroyed(var/skip_qdel)
 	SHOULD_CALL_PARENT(FALSE)
 	visible_message(SPAN_DANGER("\The [src] breaks down!"))
 	. = break_to_parts()
@@ -143,11 +143,11 @@
 
 	return ..()
 
-/obj/structure/table/MouseDrop_T(obj/item/stack/material/what)
-	if(can_reinforce && isliving(usr) && (!usr.stat) && istype(what) && usr.get_active_hand() == what && Adjacent(usr))
-		reinforce_table(what, usr)
-	else
-		return ..()
+/obj/structure/table/receive_mouse_drop(atom/dropping, mob/living/user)
+	. = ..()
+	if(!. && can_reinforce && user.get_active_hand() == dropping)
+		reinforce_table(dropping, user)
+		return TRUE
 
 /obj/structure/table/proc/reinforce_table(obj/item/stack/material/S, mob/user)
 	if(reinf_material)
@@ -201,9 +201,6 @@
 
 // Returns the material to set the table to.
 /obj/structure/table/proc/common_material_remove(mob/user, decl/material/M, delay, what, type_holding, sound)
-	if(!M.stack_type)
-		to_chat(user, "<span class='warning'>You are unable to remove the [what] from this table!</span>")
-		return M
 
 	if(manipulating) return M
 	manipulating = 1
@@ -216,7 +213,7 @@
 		return M
 	user.visible_message("<span class='notice'>\The [user] removes the [M.solid_name] [what] from \the [src].</span>",
 	                              "<span class='notice'>You remove the [M.solid_name] [what] from \the [src].</span>")
-	M.place_sheet(src.loc)
+	M.create_object(src.loc)
 	manipulating = 0
 	return null
 
@@ -239,23 +236,23 @@
 	var/list/shards = list()
 	var/obj/item/shard/S = null
 	if(reinf_material)
-		if(reinf_material.stack_type && (full_return || prob(20)))
-			reinf_material.place_sheet(loc)
+		if(full_return || prob(20))
+			reinf_material.create_object(loc)
 		else
 			S = reinf_material.place_shard(loc)
 			if(S) shards += S
 	if(material)
-		if(material.stack_type && (full_return || prob(20)))
-			material.place_sheet(loc)
+		if(full_return || prob(20))
+			material.create_object(loc)
 		else
 			S = material.place_shard(loc)
 			if(S) shards += S
 	if(carpeted && (full_return || prob(50))) // Higher chance to get the carpet back intact, since there's no non-intact option
 		new /obj/item/stack/tile/carpet(src.loc)
+	var/decl/material/M = GET_DECL(/decl/material/solid/metal/steel)
 	if(full_return || prob(20))
-		new /obj/item/stack/material/steel(src.loc)
+		M.create_object(src.loc)
 	else
-		var/decl/material/M = decls_repository.get_decl(/decl/material/solid/metal/steel)
 		S = M.place_shard(loc)
 		if(S) shards += S
 	qdel(src)
@@ -347,7 +344,7 @@
 	for(var/D in list(NORTH, SOUTH, EAST, WEST) - blocked_dirs)
 		var/turf/T = get_step(src, D)
 		for(var/obj/structure/window/W in T)
-			if(W.is_fulltile() || W.dir == GLOB.reverse_dir[D])
+			if(W.is_fulltile() || W.dir == global.reverse_dir[D])
 				blocked_dirs |= D
 				break
 			else
@@ -358,7 +355,7 @@
 		var/turf/T = get_step(src, D)
 
 		for(var/obj/structure/window/W in T)
-			if(W.is_fulltile() || (W.dir & GLOB.reverse_dir[D]))
+			if(W.is_fulltile() || (W.dir & global.reverse_dir[D]))
 				blocked_dirs |= D
 				break
 

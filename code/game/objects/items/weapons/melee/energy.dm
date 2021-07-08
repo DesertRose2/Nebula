@@ -46,13 +46,14 @@
 	throwforce = active_throwforce
 	sharp = 1
 	edge = 1
-	slot_flags |= SLOT_DENYPOCKET
+	w_class = max(w_class, ITEM_SIZE_NORMAL)
+	slot_flags &= ~SLOT_POCKET
 	attack_verb = active_attack_verb
 	update_icon()
 	if(user)
 		playsound(user, 'sound/weapons/saberon.ogg', 50, 1)
 		to_chat(user, "<span class='notice'>\The [src] is now energised.</span>")
-	set_light(0.8, 1, 2, 4, lighting_color)
+	set_light(2, 0.8, lighting_color)
 
 /obj/item/energy_blade/proc/deactivate(mob/living/user)
 	if(!active)
@@ -62,6 +63,7 @@
 	throwforce = initial(throwforce)
 	sharp = initial(sharp)
 	edge = initial(edge)
+	w_class = initial(w_class)
 	slot_flags = initial(slot_flags)
 	attack_verb = inactive_attack_verb
 	update_icon()
@@ -70,20 +72,23 @@
 		to_chat(user, "<span class='notice'>\The [src] deactivates!</span>")
 	set_light(0)
 
-/obj/item/energy_blade/attack_self(mob/living/user)
+/obj/item/energy_blade/attack_self(mob/user)
 	if(active)
 		if((MUTATION_CLUMSY in user.mutations) && prob(50))
-			user.visible_message("<span class='danger'>\The [user] accidentally cuts \himself with \the [src].</span>",\
-			"<span class='danger'>You accidentally cut yourself with \the [src].</span>")
-			user.take_organ_damage(5,5)
+			var/decl/pronouns/G = user.get_pronouns()
+			user.visible_message( \
+				SPAN_DANGER("\The [user] accidentally cuts [G.self] with \the [src]."), \
+				SPAN_DANGER("You accidentally cut yourself with \the [src]."))
+			if(isliving(user))
+				var/mob/living/M = user
+				M.take_organ_damage(5,5)
 		deactivate(user)
 	else
 		activate(user)
 
 	if(istype(user,/mob/living/carbon/human))
 		var/mob/living/carbon/human/H = user
-		H.update_inv_l_hand()
-		H.update_inv_r_hand()
+		H.update_inv_hands()
 
 	add_fingerprint(user)
 	return
@@ -153,7 +158,7 @@
 	if(!lighting_color)
 		var/color_hex = list("red" = COLOR_SABER_RED,  "blue" = COLOR_SABER_BLUE, "green" = COLOR_SABER_GREEN, "purple" = COLOR_SABER_PURPLE)
 		lighting_color = color_hex[blade_color]
-	
+	set_extension(src, /datum/extension/tool, list(TOOL_SCALPEL = TOOL_QUALITY_WORST))
 	. = ..()
 
 /obj/item/energy_blade/sword/green
@@ -179,9 +184,7 @@
 
 /obj/item/energy_blade/sword/handle_shield(mob/user, var/damage, atom/damage_source = null, mob/attacker = null, var/def_zone = null, var/attack_text = "the attack")
 	if(.)
-		var/datum/effect/effect/system/spark_spread/spark_system = new /datum/effect/effect/system/spark_spread()
-		spark_system.set_up(5, 0, user.loc)
-		spark_system.start()
+		spark_at(src, amount = 5, holder = src)
 		playsound(user.loc, 'sound/weapons/blade1.ogg', 50, 1)
 
 /obj/item/energy_blade/sword/get_parry_chance(mob/user)
@@ -223,13 +226,9 @@
 	active_attack_verb = list("attacked", "slashed", "stabbed", "sliced", "torn", "ripped", "diced", "cut")
 	hitsound = 'sound/weapons/blade1.ogg'
 	var/mob/living/creator
-	var/datum/effect/effect/system/spark_spread/spark_system
 
 /obj/item/energy_blade/blade/Initialize()
 	. = ..()
-	spark_system = new /datum/effect/effect/system/spark_spread()
-	spark_system.set_up(5, 0, src)
-	spark_system.attach(src)
 	START_PROCESSING(SSobj, src)
 
 /obj/item/energy_blade/blade/Destroy()
@@ -250,7 +249,7 @@
 	QDEL_IN(src, 0)
 
 /obj/item/energy_blade/blade/Process()
-	if(!creator || loc != creator || (creator.l_hand != src && creator.r_hand != src))
+	if(!creator || loc != creator || !(src in creator.get_held_items()))
 		// Tidy up a bit.
 		if(istype(loc,/mob/living))
 			var/mob/living/carbon/human/host = loc

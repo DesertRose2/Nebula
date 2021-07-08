@@ -2,18 +2,22 @@
 	name = "atmoalter"
 	use_power = POWER_USE_OFF
 	construct_state = /decl/machine_construction/default/panel_closed
+	atom_flags = ATOM_FLAG_NO_TEMP_CHANGE | ATOM_FLAG_CLIMBABLE
 
 	var/datum/gas_mixture/air_contents = new
-
 	var/obj/machinery/atmospherics/portables_connector/connected_port
 	var/obj/item/tank/holding
-
 	var/volume = 0
 	var/destroyed = 0
-
 	var/start_pressure = ONE_ATMOSPHERE
 	var/maximum_pressure = 90 * ONE_ATMOSPHERE
-	atom_flags = ATOM_FLAG_NO_TEMP_CHANGE | ATOM_FLAG_CLIMBABLE
+
+/obj/machinery/portable_atmospherics/get_single_monetary_worth()
+	. = ..()
+	for(var/gas in air_contents?.gas)
+		var/decl/material/gas_data = GET_DECL(gas)
+		. += gas_data.get_value() * air_contents.gas[gas] * GAS_WORTH_MULTIPLIER
+	. = max(1, round(.))
 
 /obj/machinery/portable_atmospherics/Initialize()
 	..()
@@ -152,16 +156,13 @@
 	return panel_open
 
 /obj/machinery/portable_atmospherics/proc/log_open()
-	if(air_contents.gas.len == 0)
-		return
-
-	var/gases = ""
-	for(var/gas in air_contents.gas)
-		if(gases)
-			gases += ", [gas]"
-		else
-			gases = gas
-	log_and_message_admins("opened [src.name], containing [gases].")
+	if(length(air_contents?.gas))
+		var/list/gases
+		for(var/gas in air_contents.gas)
+			var/decl/material/gasdata = GET_DECL(gas)
+			LAZYADD(gases, gasdata.gas_name)
+		if(length(gases))
+			log_and_message_admins("opened \the [src], containing [english_list(gases)].")
 
 /obj/machinery/portable_atmospherics/powered/dismantle()
 	if(isturf(loc))

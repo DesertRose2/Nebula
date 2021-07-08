@@ -30,7 +30,7 @@ hr {
     height: 1px;
 }
 
-.link, .linkOn, .linkOff, .selected, .disabled, .yellowButton, .redButton {
+.link, .linkOn, .linkOff, .selected, .disabled, .yellowButton, .redButton, .greenButton{
     float: left;
     min-width: 15px;
     height: 16px;
@@ -166,6 +166,11 @@ abbr {
     font-weight: bold;
 }
 
+.mild {
+	color: #cda500;
+	font-weight: bold;
+}
+
 .average {
     color: #00ff00;
     font-weight: bold;
@@ -187,6 +192,10 @@ abbr {
 
 .yellowButton {
     background: #cacc00;
+}
+
+.greenButton {
+	background: #00aa00;
 }
 
 .highlight {
@@ -576,7 +585,7 @@ div.notice {
     text-align: center;
 }
 
-table.fixed { 
+table.fixed {
 	table-layout:fixed;
 }
 

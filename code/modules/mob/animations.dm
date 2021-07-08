@@ -1,78 +1,7 @@
-/*
-adds a dizziness amount to a mob
-use this rather than directly changing var/dizziness
-since this ensures that the dizzy_process proc is started
-currently only humans get dizzy
-
-value of dizziness ranges from 0 to 1000
-below 100 is not dizzy
-*/
-
-/mob/var/dizziness = 0//Carbon
-/mob/var/is_dizzy = 0
-
-/mob/proc/make_dizzy(var/amount)
-	if(!istype(src, /mob/living/carbon/human)) // for the moment, only humans get dizzy
-		return
-
-	dizziness = min(1000, dizziness + amount)	// store what will be new value
-													// clamped to max 1000
-	if(dizziness > 100 && !is_dizzy)
-		spawn(0)
-			dizzy_process()
-
-
-/*
-dizzy process - wiggles the client's pixel offset over time
-spawned from make_dizzy(), will terminate automatically when dizziness gets <100
-note dizziness decrements automatically in the mob's Life() proc.
-*/
-/mob/proc/dizzy_process()
-	is_dizzy = 1
-	while(dizziness > 100)
-		if(client)
-			var/amplitude = dizziness*(sin(dizziness * 0.044 * world.time) + 1) / 70
-			client.pixel_x = amplitude * sin(0.008 * dizziness * world.time)
-			client.pixel_y = amplitude * cos(0.008 * dizziness * world.time)
-
-		sleep(1)
-	//endwhile - reset the pixel offsets to zero
-	is_dizzy = 0
-	if(client)
-		client.pixel_x = 0
-		client.pixel_y = 0
-
-// jitteriness - copy+paste of dizziness
-/mob/var/is_jittery = FALSE
-/mob/var/jitteriness = 0//Carbon
-
-/mob/proc/make_jittery(var/amount)
-	return //Only for living/carbon/human/
-
-/mob/living/carbon/human/make_jittery(var/amount)
-	if(jittery_damage())
-		jitteriness = Clamp(jitteriness + amount, 0, 1000)
-		if(jitteriness > 100)
-			jittery_process()
-
-// Typo from the original coder here, below lies the jitteriness process. So make of his code what you will, the previous comment here was just a copypaste of the above.
-/mob/proc/jittery_process()
-	set waitfor = 0
-	if(is_jittery)
-		return
-	is_jittery = TRUE
-	while(jitteriness > 100)
-		var/amplitude = min(4, jitteriness / 100)
-		do_jitter(amplitude)
-		sleep(1)
-	//endwhile - reset the pixel offsets to zero
-	is_jittery = FALSE
-	do_jitter(0)
-
 /mob/proc/do_jitter(amplitude)
 	pixel_x = default_pixel_x + rand(-amplitude, amplitude)
 	pixel_y = default_pixel_y + rand(-amplitude/3, amplitude/3)
-
+	
 //handles up-down floaty effect in space and zero-gravity
 /mob/var/is_floating = 0
 /mob/var/floatiness = 0
@@ -119,32 +48,25 @@ note dizziness decrements automatically in the mob's Life() proc.
 	//reset the pixel offsets to zero
 	is_floating = 0
 
-/atom/movable/proc/do_attack_animation(atom/A)
+/atom/movable/proc/do_attack_animation(atom/A, atom/movable/weapon)
 
 	var/pixel_x_diff = 0
 	var/pixel_y_diff = 0
+	var/turn_dir = 1
+
 	var/direction = get_dir(src, A)
-	switch(direction)
-		if(NORTH)
-			pixel_y_diff = 8
-		if(SOUTH)
-			pixel_y_diff = -8
-		if(EAST)
-			pixel_x_diff = 8
-		if(WEST)
-			pixel_x_diff = -8
-		if(NORTHEAST)
-			pixel_x_diff = 8
-			pixel_y_diff = 8
-		if(NORTHWEST)
-			pixel_x_diff = -8
-			pixel_y_diff = 8
-		if(SOUTHEAST)
-			pixel_x_diff = 8
-			pixel_y_diff = -8
-		if(SOUTHWEST)
-			pixel_x_diff = -8
-			pixel_y_diff = -8
+	if(direction & NORTH)
+		pixel_y_diff = 8
+		turn_dir = rand(50) ? -1 : 1
+	else if(direction & SOUTH)
+		pixel_y_diff = -8
+		turn_dir = rand(50) ? -1 : 1
+
+	if(direction & EAST)
+		pixel_x_diff = 8
+	else if(direction & WEST)
+		pixel_x_diff = -8
+		turn_dir = -1
 
 	var/default_pixel_x = initial(pixel_x)
 	var/default_pixel_y = initial(pixel_y)
@@ -153,28 +75,46 @@ note dizziness decrements automatically in the mob's Life() proc.
 		default_pixel_x = mob.default_pixel_x
 		default_pixel_y = mob.default_pixel_y
 
-	animate(src, pixel_x = pixel_x + pixel_x_diff, pixel_y = pixel_y + pixel_y_diff, time = 2)
-	animate(pixel_x = default_pixel_x, pixel_y = default_pixel_y, time = 2)
+	var/matrix/initial_transform = matrix(transform)
+	var/matrix/rotated_transform = transform.Turn(15 * turn_dir)
 
-/mob/do_attack_animation(atom/A)
+	animate(src, pixel_x = pixel_x + pixel_x_diff, pixel_y = pixel_y + pixel_y_diff, transform = rotated_transform, time = 2, easing = BACK_EASING | EASE_IN)
+	animate(pixel_x = default_pixel_x, pixel_y = default_pixel_y, transform = initial_transform, time = 2, easing = SINE_EASING)
+
+/mob/proc/clear_shown_overlays(var/list/show_to, var/image/I)
+	for(var/client/C in show_to)
+		C.images -= I
+
+/mob/do_attack_animation(atom/A, atom/movable/weapon)
 	..()
 	is_floating = 0 // If we were without gravity, the bouncing animation got stopped, so we make sure we restart the bouncing after the next movement.
 
-	// What icon do we use for the attack?
-	var/image/I
-	if(hand && l_hand) // Attacked with item in left hand.
-		I = image(l_hand.icon, A, l_hand.icon_state, A.layer + 1)
-	else if (!hand && r_hand) // Attacked with item in right hand.
-		I = image(r_hand.icon, A, r_hand.icon_state, A.layer + 1)
-	else // Attacked with a fist?
-		return
+	// What are we attacking with?
+	if(!weapon)
+		weapon = get_active_hand()
+		if(!weapon)
+			return
+
+	// Create an image to show to viewers.
+	// Reset plane and layer so that it doesn't inherit the UI settings from equipped items.
+	var/image/I = new(loc = A)
+	I.appearance = weapon
+	I.plane = DEFAULT_PLANE
+	I.layer = A.layer + 0.1
+	I.pixel_x = 0
+	I.pixel_y = 0
+	I.pixel_z = 0
+	I.pixel_w = 0
 
 	// Who can see the attack?
 	var/list/viewing = list()
-	for (var/mob/M in viewers(A))
-		if (M.client)
+	for(var/mob/M in viewers(A))
+		if(M.client)
 			viewing |= M.client
-	flick_overlay(I, viewing, 5) // 5 ticks/half a second
+
+	for(var/client/C in viewing)
+		C.images += I
+	addtimer(CALLBACK(src, .proc/clear_shown_overlays, viewing, I), 5)
 
 	// Scale the icon.
 	I.transform *= 0.75
@@ -247,7 +187,7 @@ note dizziness decrements automatically in the mob's Life() proc.
 		next_x = default_pixel_x + pixel_shift["x"]
 		next_y = default_pixel_y + pixel_shift["y"]
 		next_z = default_pixel_z + pixel_shift["z"]
-	
+
 	if(pixel_x != next_x || pixel_y != next_y || pixel_z != next_z)
 		animate(src, pixel_x = next_x, pixel_y = next_y, pixel_z = next_z, 2, 1, SINE_EASING)
 

@@ -33,6 +33,9 @@
 			engine.prefill()
 	update_icon()
 
+/obj/vehicle/bike/user_buckle_mob(mob/living/M, mob/user)
+	return load(M)
+
 /obj/vehicle/bike/verb/toggle()
 	set name = "Toggle Engine"
 	set category = "Object"
@@ -58,7 +61,7 @@
 	if(kickstand)
 		usr.visible_message("\The [usr] puts up \the [src]'s kickstand.")
 	else
-		if(istype(src.loc,/turf/space))
+		if(isspaceturf(src.loc))
 			to_chat(usr, "<span class='warning'> You don't think kickstands work in space...</span>")
 			return
 		usr.visible_message("\The [usr] puts down \the [src]'s kickstand.")
@@ -120,10 +123,12 @@
 			return 1
 	return ..()
 
-/obj/vehicle/bike/MouseDrop_T(var/atom/movable/C, mob/user)
-	if(!load(C))
-		to_chat(user, "<span class='warning'> You were unable to load \the [C] onto \the [src].</span>")
-		return
+/obj/vehicle/bike/receive_mouse_drop(var/atom/dropping, mob/user)
+	. = ..()
+	if(!. && istype(dropping, /atom/movable))
+		if(!load(dropping))
+			to_chat(user, SPAN_WARNING("You were unable to load \the [dropping] onto \the [src]."))
+		return TRUE
 
 /obj/vehicle/bike/attack_hand(var/mob/user)
 	if(user == load)
@@ -142,7 +147,7 @@
 /obj/vehicle/bike/Move(var/turf/destination)
 	if(kickstand || (world.time <= l_move_time + move_delay)) return
 	//these things like space, not turf. Dragging shouldn't weigh you down.
-	if(istype(destination,/turf/space))
+	if(isspaceturf(destination))
 		if(!space_speed)
 			return 0
 		move_delay = space_speed

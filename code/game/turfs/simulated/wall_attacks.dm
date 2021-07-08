@@ -8,7 +8,6 @@
 
 	if(density)
 		can_open = WALL_OPENING
-		//flick("[material.icon_base]fwall_opening", src)
 		sleep(15)
 		set_density(0)
 		set_opacity(0)
@@ -22,14 +21,13 @@
 			SSair.mark_for_update(turf)
 	else
 		can_open = WALL_OPENING
-		//flick("[material.icon_base]fwall_closing", src)
 		set_density(1)
 		set_opacity(1)
 		blocks_air = AIR_BLOCKED
 		update_icon()
 		update_air()
 		sleep(15)
-		set_light(0.4, 0.1, 1)
+		set_light(1)
 		src.blocks_air = 1
 		set_opacity(1)
 		for(var/turf/simulated/turf in loc)
@@ -95,7 +93,7 @@
 		return TRUE
 	if(ishuman(user))
 		var/mob/living/carbon/human/H = user
-		var/obj/item/hand = H.hand ? H.organs_by_name[BP_L_HAND] : H.organs_by_name[BP_R_HAND]
+		var/obj/item/hand = H.organs_by_name[H.get_active_held_item_slot()]
 		if(hand && try_graffiti(H, hand))
 			return TRUE
 	. = ..()
@@ -231,7 +229,7 @@
 				else if(isWirecutter(W))
 					playsound(src, 'sound/items/Wirecutter.ogg', 100, 1)
 					construction_stage = 5
-					new /obj/item/stack/material/rods( src )
+					SSmaterials.create_object(/decl/material/solid/metal/steel, src, 1, /obj/item/stack/material/rods)
 					to_chat(user, "<span class='notice'>You cut the outer grille.</span>")
 					update_icon()
 					return TRUE
@@ -321,7 +319,7 @@
 						return
 					construction_stage = 0
 					update_icon()
-					new /obj/item/stack/material/rods(src)
+					SSmaterials.create_object(/decl/material/solid/metal/steel, src, 1, /obj/item/stack/material/rods)
 					to_chat(user, "<span class='notice'>The support rods drop out as you cut them loose from the frame.</span>")
 					return
 			if(0)
@@ -341,7 +339,7 @@
 		return TRUE
 
 	// Attack the wall with items
-	if(istype(W,/obj/item/rcd) || !istype(W, /obj/item/chems))
+	if(istype(W,/obj/item/rcd) || istype(W, /obj/item/chems))
 		return
 	if(!W.force)
 		return
@@ -349,18 +347,27 @@
 		var/mob/living/L = user
 		if(L.a_intent == I_HELP)
 			return
-	var/dam_threshhold = material.integrity
-	if(reinf_material)
-		dam_threshhold = ceil(max(dam_threshhold,reinf_material.integrity)/2)
-	var/dam_prob = min(100,material.hardness*1.5)
-	if(dam_prob < 100 && W.force > (dam_threshhold/10))
-		playsound(src, 'sound/effects/metalhit.ogg', 50, 1)
-		if(!prob(dam_prob))
-			visible_message("<span class='danger'>\The [user] attacks \the [src] with \the [W] and it [material.destruction_desc]!</span>")
-			dismantle_wall(1)
-		else
-			visible_message("<span class='danger'>\The [user] attacks \the [src] with \the [W]!</span>")
-	else
-		visible_message("<span class='danger'>\The [user] attacks \the [src] with \the [W], but it bounces off!</span>")
+
+	user.do_attack_animation(src)
+	var/material_divisor = max(material.brute_armor, reinf_material?.brute_armor)
+	if(W.damtype == BURN)
+		material_divisor = max(material.burn_armor, reinf_material?.burn_armor)
+	var/effective_force = round(W.force / material_divisor)
+	if(effective_force < 2)
+		visible_message(SPAN_DANGER("\The [user] [pick(W.attack_verb)] \the [src] with \the [W], but it had no effect!"))
 		playsound(src, hitsound, 25, 1)
+		return
+	// Check for a glancing blow.
+	var/dam_prob = max(0, 100 - material.hardness + effective_force + W.armor_penetration)
+	if(!prob(dam_prob))
+		visible_message(SPAN_DANGER("\The [user] [pick(W.attack_verb)] \the [src] with \the [W], but it bounced off!"))
+		playsound(src, hitsound, 25, 1)
+		if(user.skill_fail_prob(SKILL_HAULING, 40, SKILL_ADEPT))
+			SET_STATUS_MAX(user, STAT_WEAK, 2)
+			visible_message(SPAN_DANGER("\The [user] is knocked back by the force of the blow!"))
+		return
+
+	playsound(src, 'sound/effects/metalhit.ogg', 50, 1)
+	visible_message(SPAN_DANGER("\The [user] [pick(W.attack_verb)] \the [src] with \the [W]!"))
+	take_damage(effective_force)
 	return TRUE

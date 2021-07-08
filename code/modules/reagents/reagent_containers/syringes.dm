@@ -127,9 +127,6 @@
 			to_chat(user, "<span class='notice'>There is already a blood sample in this syringe.</span>")
 			return
 		if(istype(target, /mob/living/carbon))
-			if(istype(target, /mob/living/carbon/slime))
-				to_chat(user, "<span class='warning'>You are unable to locate any blood.</span>")
-				return
 			var/amount = REAGENTS_FREE_SPACE(reagents)
 			var/mob/living/carbon/T = target
 			if(!T.dna)
@@ -138,7 +135,7 @@
 					CRASH("[T] \[[T.type]\] was missing their dna datum!")
 				return
 
-			var/allow = T.can_inject(user, check_zone(user.zone_sel.selecting))
+			var/allow = T.can_inject(user, check_zone(user.zone_sel.selecting, T))
 			if(!allow)
 				return
 
@@ -157,7 +154,7 @@
 
 			if(prob(user.skill_fail_chance(SKILL_MEDICAL, 60, SKILL_BASIC)))
 				to_chat(user, "<span class='warning'>You miss the vein!</span>")
-				var/target_zone = check_zone(user.zone_sel.selecting)
+				var/target_zone = check_zone(user.zone_sel.selecting, T)
 				T.apply_damage(3, BRUTE, target_zone, damage_flags=DAM_SHARP)
 				return
 
@@ -175,7 +172,7 @@
 			to_chat(user, "<span class='notice'>[target] is empty.</span>")
 			return
 
-		if(!ATOM_IS_OPEN_CONTAINER(target) && !istype(target, /obj/structure/reagent_dispensers) && !istype(target, /obj/item/slime_extract))
+		if(!ATOM_IS_OPEN_CONTAINER(target) && !istype(target, /obj/structure/reagent_dispensers))
 			to_chat(user, "<span class='notice'>You cannot directly remove reagents from this object.</span>")
 			return
 
@@ -188,8 +185,10 @@
 		update_icon()
 
 /obj/item/chems/syringe/proc/injectReagents(var/atom/target, var/mob/user)
+
 	if(ismob(target) && !user.skill_check(SKILL_MEDICAL, SKILL_BASIC))
 		syringestab(target, user)
+		return
 
 	if(!reagents.total_volume)
 		to_chat(user, "<span class='notice'>The syringe is empty.</span>")
@@ -198,7 +197,7 @@
 	if(istype(target, /obj/item/implantcase/chem))
 		return
 
-	if(!ATOM_IS_OPEN_CONTAINER(target) && !ismob(target) && !istype(target, /obj/item/chems/food) && !istype(target, /obj/item/slime_extract) && !istype(target, /obj/item/clothing/mask/smokable/cigarette) && !istype(target, /obj/item/storage/fancy/cigarettes))
+	if(!ATOM_IS_OPEN_CONTAINER(target) && !ismob(target) && !istype(target, /obj/item/chems/food) && !istype(target, /obj/item/clothing/mask/smokable/cigarette) && !istype(target, /obj/item/storage/fancy/cigarettes))
 		to_chat(user, "<span class='notice'>You cannot directly fill this object.</span>")
 		return
 	if(!REAGENTS_FREE_SPACE(target.reagents))
@@ -227,7 +226,7 @@
 	if(!trackTarget)
 		trackTarget = target
 
-	var/allow = target.can_inject(user, check_zone(user.zone_sel.selecting))
+	var/allow = target.can_inject(user, check_zone(user.zone_sel.selecting, target))
 	if(!allow)
 		return
 
@@ -270,7 +269,7 @@
 
 		var/mob/living/carbon/human/H = target
 
-		var/target_zone = check_zone(user.zone_sel.selecting)
+		var/target_zone = check_zone(user.zone_sel.selecting, H)
 		var/obj/item/organ/external/affecting = H.get_organ(target_zone)
 
 		if (!affecting || affecting.is_stump())
@@ -283,8 +282,7 @@
 			return
 
 		if (target != user && H.get_blocked_ratio(target_zone, BRUTE, damage_flags=DAM_SHARP) > 0.1 && prob(50))
-			for(var/mob/O in viewers(world.view, user))
-				O.show_message(text("<span class='danger'>[user] tries to stab [target] in \the [hit_area] with [src.name], but the attack is deflected by armor!</span>"), 1)
+			user.visible_message(SPAN_WARNING("\The [user] tries to stab \the [target] in \the [hit_area] with \the [src], but the attack is deflected by armor!"))
 			qdel(src)
 
 			admin_attack_log(user, target, "Attacked using \a [src]", "Was attacked with \a [src]", "used \a [src] to attack")
@@ -406,6 +404,7 @@
 		/decl/material/solid/metal/uranium = MATTER_AMOUNT_TRACE,
 		/decl/material/solid/gemstone/diamond = MATTER_AMOUNT_TRACE
 	)
+	origin_tech = "{'biotech':3,'materials':4,'exoticmatter':2}"
 
 /obj/item/chems/syringe/noreact
 	name = "cryostasis syringe"
@@ -418,3 +417,4 @@
 		/decl/material/solid/metal/gold = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/plastic = MATTER_AMOUNT_TRACE
 	)
+	origin_tech = "{'biotech':4,'materials':4}"

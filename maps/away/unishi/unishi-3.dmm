@@ -587,12 +587,10 @@
 "bR" = (
 /obj/structure/table/reinforced,
 /obj/item/storage/firstaid/surgery,
-/obj/item/tank/anesthetic,
-/obj/item/clothing/mask/breath/anesthetic,
 /obj/structure/window/reinforced{
 	dir = 4
 	},
-/obj/item/scalpel/laser1,
+/obj/item/scalpel/laser,
 /turf/simulated/floor/tiled/white,
 /area/unishi/med)
 "bS" = (

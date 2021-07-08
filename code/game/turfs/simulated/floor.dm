@@ -34,11 +34,27 @@
 	if(!floortype && initial_flooring)
 		floortype = initial_flooring
 	if(floortype)
-		set_flooring(decls_repository.get_decl(floortype))
+		set_flooring(GET_DECL(floortype))
+	if(!ml)
+		RemoveLattice()
 
 /turf/simulated/floor/proc/set_flooring(var/decl/flooring/newflooring)
+	if(flooring == newflooring)
+		return
 	make_plating(defer_icon_update = 1)
 	flooring = newflooring
+
+	var/check_z_flags
+	if(flooring)
+		check_z_flags = flooring.z_flags
+	else
+		check_z_flags = initial(z_flags)
+
+	if(check_z_flags & ZM_MIMIC_BELOW)
+		enable_zmimic(check_z_flags)
+	else
+		disable_zmimic()
+
 	update_icon(1)
 	levelupdate()
 

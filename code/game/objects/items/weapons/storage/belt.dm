@@ -4,13 +4,12 @@
 /obj/item/storage/belt
 	name = "belt"
 	desc = "Can hold various things."
-	icon = 'icons/obj/clothing/obj_belt.dmi'
-	icon_state = "utilitybelt"
-	item_state = "utility"
+	icon = 'icons/clothing/belt/utility.dmi'
+	icon_state = ICON_STATE_WORLD
 	storage_slots = 7
 	item_flags = ITEM_FLAG_IS_BELT
 	max_w_class = ITEM_SIZE_NORMAL
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	var/overlay_flags
 	attack_verb = list("whipped", "lashed", "disciplined")
 
@@ -34,27 +33,20 @@
 			else
 				overlays += image('icons/obj/clothing/obj_belt_overlays.dmi', "[I.icon_state]")
 
-/obj/item/storage/belt/get_mob_overlay(mob/user_mob, slot)
+/obj/item/storage/belt/get_mob_overlay(mob/user_mob, slot, bodypart)
 	var/image/ret = ..()
-	if(slot == slot_belt_str && contents.len)
+	if(ret && slot == slot_belt_str && length(contents))
 		var/list/ret_overlays = list()
 		for(var/obj/item/I in contents)
-			if(I.use_single_icon)
-				ret_overlays += I.get_mob_overlay(user_mob, slot)
-			else
-				var/use_state = (I.item_state ? I.item_state : I.icon_state)
-				if(ishuman(user_mob))
-					var/mob/living/carbon/human/H = user_mob
-					ret_overlays += H.species.get_offset_overlay_image(FALSE, 'icons/mob/onmob/onmob_belt.dmi', use_state, I.color, slot)
-				else
-					ret_overlays += overlay_image('icons/mob/onmob/onmob_belt.dmi', use_state, I.color, RESET_COLOR)
-			ret.overlays += ret_overlays
+			var/image/overlay = I.get_mob_overlay(user_mob, slot, bodypart)
+			if(overlay)
+				ret_overlays += overlay
+		ret.overlays += ret_overlays
 	return ret
 
 /obj/item/storage/belt/holster
 	name = "holster belt"
-	icon_state = "holsterbelt"
-	item_state = "holster"
+	icon = 'icons/clothing/belt/holster.dmi'
 	desc = "Can holster various things."
 	storage_slots = 2
 	overlay_flags = BELT_OVERLAY_ITEMS|BELT_OVERLAY_HOLSTER
@@ -107,8 +99,7 @@
 /obj/item/storage/belt/utility
 	name = "tool belt"
 	desc = "A belt of durable leather, festooned with hooks, slots, and pouches."
-	icon_state = "utilitybelt"
-	item_state = "utility"
+	icon = 'icons/clothing/belt/utility.dmi'
 	overlay_flags = BELT_OVERLAY_ITEMS
 	can_hold = list(
 		///obj/item/combitool,
@@ -131,10 +122,10 @@
 		/obj/item/taperoll,
 		/obj/item/extinguisher/mini,
 		/obj/item/marshalling_wand,
+		/obj/item/geiger,
 		/obj/item/hand_labeler,
 		/obj/item/clothing/gloves
 		)
-
 
 /obj/item/storage/belt/utility/full/Initialize()
 	. = ..()
@@ -146,7 +137,6 @@
 	new /obj/item/stack/cable_coil/random(src, 30)
 	update_icon()
 
-
 /obj/item/storage/belt/utility/atmostech/Initialize()
 	. = ..()
 	new /obj/item/screwdriver(src)
@@ -157,13 +147,10 @@
 	new /obj/item/t_scanner(src)
 	update_icon()
 
-
-
 /obj/item/storage/belt/medical
 	name = "medical belt"
 	desc = "Can hold various medical equipment."
-	icon_state = "medicalbelt"
-	item_state = "medical"
+	icon = 'icons/clothing/belt/medical.dmi'
 	can_hold = list(
 		/obj/item/scanner/health,
 		/obj/item/chems/dropper,
@@ -193,14 +180,12 @@
 /obj/item/storage/belt/medical/emt
 	name = "EMT belt"
 	desc = "A sturdy black webbing belt with attached pouches."
-	icon_state = "emsbelt"
-	item_state = "emsbelt"
+	icon = 'icons/clothing/belt/emt_belt.dmi'
 
 /obj/item/storage/belt/holster/security
 	name = "security holster belt"
 	desc = "Can hold security gear like handcuffs and flashes. This one has a convenient holster."
-	icon_state = "securitybelt"
-	item_state = "security"
+	icon = 'icons/clothing/belt/security_holster.dmi'
 	storage_slots = 8
 	overlay_flags = BELT_OVERLAY_ITEMS|BELT_OVERLAY_HOLSTER
 	can_hold = list(
@@ -233,8 +218,7 @@
 /obj/item/storage/belt/security
 	name = "security belt"
 	desc = "Can hold security gear like handcuffs and flashes."
-	icon_state = "basicsecuritybelt"
-	item_state = "basicsecurity"
+	icon = 'icons/clothing/belt/security.dmi'
 	overlay_flags = BELT_OVERLAY_ITEMS
 	can_hold = list(
 		/obj/item/crowbar,
@@ -266,8 +250,7 @@
 /obj/item/storage/belt/general
 	name = "equipment belt"
 	desc = "Can hold general equipment such as tablets, folders, and other office supplies."
-	icon_state = "gearbelt"
-	item_state = "gear"
+	icon = 'icons/clothing/belt/gearbelt.dmi'
 	overlay_flags = BELT_OVERLAY_ITEMS
 	can_hold = list(
 		/obj/item/flash,
@@ -303,8 +286,7 @@
 /obj/item/storage/belt/janitor
 	name = "janibelt"
 	desc = "A belt used to hold most janitorial supplies."
-	icon_state = "janibelt"
-	item_state = "janibelt"
+	icon = 'icons/clothing/belt/janitor.dmi'
 	can_hold = list(
 		/obj/item/grenade/chem_grenade,
 		/obj/item/lightreplacer,
@@ -315,14 +297,13 @@
 		/obj/item/clothing/gloves,
 		/obj/item/assembly/mousetrap,
 		/obj/item/crowbar,
-		/obj/item/clothing/mask/plunger
+		/obj/item/plunger
 		)
 
 /obj/item/storage/belt/holster/general
 	name = "holster belt"
 	desc = "Can hold general equipment such as tablets, folders, and other office supplies. Comes with a holster."
-	icon_state = "commandbelt"
-	item_state = "command"
+	icon = 'icons/clothing/belt/command.dmi'
 	storage_slots = 7
 	overlay_flags = BELT_OVERLAY_ITEMS|BELT_OVERLAY_HOLSTER
 	can_hold = list(
@@ -359,8 +340,7 @@
 /obj/item/storage/belt/holster/forensic
 	name = "forensic belt"
 	desc = "Can hold forensic gear like fingerprint powder and luminol."
-	icon_state = "forensicbelt"
-	item_state = "forensic"
+	icon = 'icons/clothing/belt/forensic.dmi'
 	storage_slots = 8
 	overlay_flags = BELT_OVERLAY_HOLSTER
 	can_hold = list(
@@ -385,8 +365,7 @@
 /obj/item/storage/belt/holster/machete
 	name = "machete belt"
 	desc = "Can hold general surveying equipment used for exploration, as well as your very own machete."
-	icon_state = "machetebelt"
-	item_state = "machetebelt"
+	icon = 'icons/clothing/belt/machete.dmi'
 	storage_slots = 8
 	overlay_flags = BELT_OVERLAY_HOLSTER
 	can_hold = list(
@@ -417,11 +396,10 @@
 /obj/item/storage/belt/soulstone
 	name = "soul stone belt"
 	desc = "Designed for ease of access to the shards during a fight, as to not let a single enemy spirit slip away."
-	icon_state = "soulstonebelt"
-	item_state = "soulstonebelt"
+	icon = 'icons/clothing/belt/soulstones.dmi'
 	can_hold = list(
 		/obj/item/soulstone
-		)
+	)
 
 /obj/item/storage/belt/soulstone/full/Initialize()
 	. = ..()
@@ -437,8 +415,7 @@
 /obj/item/storage/belt/champion
 	name = "championship belt"
 	desc = "Proves to the world that you are the strongest!"
-	icon_state = "championbelt"
-	item_state = "champion"
+	icon = 'icons/clothing/belt/champion.dmi'
 	storage_slots = null
 	max_storage_space = ITEM_SIZE_SMALL
 	can_hold = list(
@@ -448,42 +425,38 @@
 /obj/item/storage/belt/holster/security/tactical
 	name = "combat belt"
 	desc = "Can hold security gear like handcuffs and flashes, with more pouches for more storage."
-	icon_state = "swatbelt"
-	item_state = "swatbelt"
+	icon = 'icons/clothing/belt/swatbelt.dmi'
 	storage_slots = 10
 
 /obj/item/storage/belt/holster/security/tactical/Initialize()
 	.=..()
-	slowdown_per_slot[slot_belt] = 1
+	LAZYSET(slowdown_per_slot, slot_belt_str, 1)
 
 /obj/item/storage/belt/waistpack
 	name = "waist pack"
 	desc = "A small bag designed to be worn on the waist. May make your butt look big."
-	icon_state = "fannypack_white"
-	item_state = "fannypack_white"
+	icon = 'icons/clothing/belt/fannypack.dmi'
 	storage_slots = null
 	max_w_class = ITEM_SIZE_SMALL
 	max_storage_space = ITEM_SIZE_SMALL * 4
-	slot_flags = SLOT_BELT | SLOT_BACK
+	slot_flags = SLOT_LOWER_BODY | SLOT_BACK
 
 /obj/item/storage/belt/waistpack/big
 	name = "large waist pack"
 	desc = "A bag designed to be worn on the waist. Definitely makes your butt look big."
-	icon_state = "fannypack_big_white"
-	item_state = "fannypack_big_white"
+	icon = 'icons/clothing/belt/fannypack_big.dmi'
 	w_class = ITEM_SIZE_LARGE
 	max_w_class = ITEM_SIZE_NORMAL
 	max_storage_space = ITEM_SIZE_NORMAL * 4
 
 /obj/item/storage/belt/waistpack/big/Initialize()
 	.=..()
-	slowdown_per_slot[slot_belt] = 1
+	LAZYSET(slowdown_per_slot, slot_belt_str, 1)
 
 /obj/item/storage/belt/fire_belt
 	name = "firefighting equipment belt"
 	desc = "A belt specially designed for firefighting."
-	icon_state = "firebelt"
-	item_state = "gear"
+	icon = 'icons/clothing/belt/firefighter.dmi'
 	storage_slots = 5
 	overlay_flags = BELT_OVERLAY_ITEMS
 	can_hold = list(

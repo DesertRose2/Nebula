@@ -13,6 +13,11 @@ SUBSYSTEM_DEF(skybox)
 	var/star_state = "stars"
 	var/list/skybox_cache = list()
 
+	var/list/space_appearance_cache
+
+/datum/controller/subsystem/skybox/PreInit()
+	build_space_appearances()
+
 /datum/controller/subsystem/skybox/Initialize()
 	. = ..()
 	if(isnull(background_color))
@@ -22,10 +27,23 @@ SUBSYSTEM_DEF(skybox)
 	background_color = SSskybox.background_color
 	skybox_cache = SSskybox.skybox_cache
 
+/datum/controller/subsystem/skybox/proc/build_space_appearances()
+	space_appearance_cache = new(26)
+	for (var/i in 0 to 25)
+		var/mutable_appearance/dust = mutable_appearance('icons/turf/space_dust.dmi', "[i]")
+		dust.plane = DUST_PLANE
+		dust.alpha = 80
+		dust.blend_mode = BLEND_ADD
+
+		var/mutable_appearance/space = new /mutable_appearance(/turf/space)
+		space.icon_state = "white"
+		space.overlays += dust
+		space_appearance_cache[i + 1] = space.appearance
+
 /datum/controller/subsystem/skybox/proc/get_skybox(z)
 	if(!skybox_cache["[z]"])
 		skybox_cache["[z]"] = generate_skybox(z)
-		if(GLOB.using_map.use_overmap)
+		if(global.using_map.use_overmap)
 			var/obj/effect/overmap/visitable/O = map_sectors["[z]"]
 			if(istype(O))
 				for(var/zlevel in O.map_z)
@@ -34,17 +52,17 @@ SUBSYSTEM_DEF(skybox)
 
 /datum/controller/subsystem/skybox/proc/generate_skybox(z)
 	var/image/res = image(skybox_icon)
-	res.appearance_flags = KEEP_TOGETHER
+	res.appearance_flags = PIXEL_SCALE | KEEP_TOGETHER
 
-	var/image/base = overlay_image(skybox_icon, background_icon, background_color)
+	var/image/base = overlay_image(skybox_icon, background_icon, background_color, PIXEL_SCALE)
 
 	if(use_stars)
-		var/image/stars = overlay_image(skybox_icon, star_state, flags = RESET_COLOR)
+		var/image/stars = overlay_image(skybox_icon, star_state, flags = PIXEL_SCALE | RESET_COLOR)
 		base.overlays += stars
 
 	res.overlays += base
 
-	if(GLOB.using_map.use_overmap && use_overmap_details)
+	if(global.using_map.use_overmap && use_overmap_details)
 		var/obj/effect/overmap/visitable/O = map_sectors["[z]"]
 		if(istype(O))
 			var/image/overmap = image(skybox_icon)
@@ -52,7 +70,7 @@ SUBSYSTEM_DEF(skybox)
 			for(var/obj/effect/overmap/visitable/other in O.loc)
 				if(other != O)
 					overmap.overlays += other.get_skybox_representation()
-			overmap.appearance_flags = RESET_COLOR
+			overmap.appearance_flags = PIXEL_SCALE | RESET_COLOR
 			res.overlays += overmap
 
 	for(var/datum/event/E in SSevent.active_events)

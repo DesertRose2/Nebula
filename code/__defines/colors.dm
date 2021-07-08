@@ -78,6 +78,7 @@
 #define COLOR_AMBER            "#ffbf00"
 #define COLOR_COMMAND_BLUE     "#46698c"
 #define COLOR_SKY_BLUE         "#5ca1cc"
+#define COLOR_FONT_ORANGE      "#e67300"
 #define COLOR_PALE_ORANGE      "#b88a3b"
 #define COLOR_CIVIE_GREEN      "#b7f27d"
 #define COLOR_TITANIUM         "#d1e6e3"
@@ -91,7 +92,6 @@
 #define COLOR_CRYSTAL          "#00c8a5"
 #define COLOR_ASTEROID_ROCK    "#735555"
 #define COLOR_DIAMOND          "#d8d4ea"
-
 
 #define	PIPE_COLOR_GREY        "#808080"
 #define	PIPE_COLOR_RED         "#ff0000"
@@ -126,10 +126,10 @@
 #define WOOD_COLOR_CHOCOLATE   "#543c30"
 #define WOOD_COLOR_YELLOW      "#e3994e"
 
-#define GLASS_COLOR            "#74c1ee"
+#define GLASS_COLOR            "#aaccff"
 #define GLASS_COLOR_SILICATE   "#7c3a9a"
 #define GLASS_COLOR_TINTED     "#222222"
-#define GLASS_COLOR_FROSTED    "#ffffff"
+#define GLASS_COLOR_FROSTED    "#eeeeee"
 
 #define COLOR_BLOOD_HUMAN      "#a10808"
 

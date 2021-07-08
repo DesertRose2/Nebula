@@ -5,18 +5,18 @@
 	icon_state = ICON_STATE_WORLD
 	fire_sound = 'sound/weapons/emitter.ogg'
 	obj_flags =  OBJ_FLAG_CONDUCTIBLE
-	slot_flags = SLOT_BELT|SLOT_BACK
+	slot_flags = SLOT_LOWER_BODY|SLOT_BACK
 	w_class = ITEM_SIZE_LARGE
 	max_shots = 5
 	projectile_type = /obj/item/projectile/change
 	origin_tech = null
 	self_recharge = 1
 	charge_meter = 0
-	var/required_antag_type = MODE_WIZARD
+	var/required_antag_type = /decl/special_role/wizard
 
 /obj/item/gun/energy/staff/special_check(var/mob/user)
 	if(required_antag_type)
-		var/datum/antagonist/antag = get_antag_data(required_antag_type)
+		var/decl/special_role/antag = GET_DECL(required_antag_type)
 		if(user.mind && !antag.is_antagonist(user.mind))
 			to_chat(usr, "<span class='warning'>You focus your mind on \the [src], but nothing happens!</span>")
 			return 0

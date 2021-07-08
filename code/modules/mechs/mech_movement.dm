@@ -8,7 +8,7 @@
 /mob/living/exosuit/Move()
 	. = ..()
 	if(.)
-		if(!istype(loc, /turf/space))
+		if(!isspaceturf(loc))
 			playsound(src.loc, mech_step_sound, 40, 1)
 
 		var/turf/B = GetAbove(src)
@@ -66,7 +66,7 @@
 	else if(exosuit.emp_damage >= EMP_MOVE_DISRUPT && prob(30))
 		failed = TRUE
 	if(failed)
-		moving_dir = pick(GLOB.cardinal - exosuit.dir)
+		moving_dir = pick(global.cardinal - exosuit.dir)
 
 	exosuit.get_cell()?.use(exosuit.legs.power_use * CELLRATE)
 	if(exosuit.dir != moving_dir)

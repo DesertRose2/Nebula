@@ -8,7 +8,7 @@
 	item_state = "analyzer"
 	desc = "A hand-held scanner able to diagnose robotic injuries."
 	obj_flags = OBJ_FLAG_CONDUCTIBLE
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	throwforce = 3
 	w_class = ITEM_SIZE_SMALL
 	throw_speed = 5
@@ -16,20 +16,20 @@
 	origin_tech = "{'magnets':2,'biotech':1,'engineering':2}"
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/plastic = MATTER_AMOUNT_TRACE
 	)
 	var/mode = 1;
 
 /obj/item/robotanalyzer/attack(mob/living/M, mob/living/user)
 	if((MUTATION_CLUMSY in user.mutations) && prob(50))
-		to_chat(user, text("<span class='warning'>You try to analyze the floor's vitals!</span>"))
-		for(var/mob/O in viewers(M, null))
-			O.show_message(text("<span class='warning'>[user] has analyzed the floor's vitals!</span>"), 1)
-		user.show_message(text("<span class='notice'>Analyzing Results for The floor:\n\t Overall Status: Healthy</span>"), 1)
-		user.show_message(text("<span class='notice'>\t Damage Specifics: [0]-[0]-[0]-[0]</span>"), 1)
-		user.show_message("<span class='notice'>Key: Suffocation/Toxin/Burns/Brute</span>", 1)
-		user.show_message("<span class='notice'>Body Temperature: ???</span>", 1)
+		user.visible_message(
+			SPAN_WARNING("\The [user] has analyzed the floor's vitals!"),
+			self_message = SPAN_WARNING("You try to analyze the floor's vitals!"))
+		user.show_message(SPAN_NOTICE("Analyzing Results for The floor:\n\t Overall Status: Healthy"))
+		user.show_message(SPAN_NOTICE("\t Damage Specifics: [0]-[0]-[0]-[0]"))
+		user.show_message(SPAN_NOTICE("Key: Suffocation/Toxin/Burns/Brute"))
+		user.show_message(SPAN_NOTICE("Body Temperature: ???"))
 		return
 
 	var/scan_type
@@ -74,7 +74,7 @@
 			var/mob/living/carbon/human/H = M
 			to_chat(user, "<span class='notice'>Analyzing Results for \the [H]:</span>")
 			to_chat(user, "Key: <font color='#ffa500'>Electronics</font>/<font color='red'>Brute</font>")
-			var/obj/item/organ/internal/cell/C = H.internal_organs_by_name[BP_CELL]
+			var/obj/item/organ/internal/cell/C = H.get_internal_organ(BP_CELL)
 			if(C)
 				to_chat(user, SPAN_NOTICE("Cell charge: [C.percent()] %"))
 			else

@@ -24,36 +24,36 @@
 
 	return mobs
 
-proc/random_hair_style(gender, species)
-	species = species || GLOB.using_map.default_species
+/proc/random_hair_style(gender, species)
+	species = species || global.using_map.default_species
 	var/h_style = "Bald"
 
-	var/datum/species/mob_species = get_species_by_key(species)
+	var/decl/species/mob_species = get_species_by_key(species)
 	var/list/valid_hairstyles = mob_species.get_hair_styles()
 	if(valid_hairstyles.len)
 		h_style = pick(valid_hairstyles)
 
 	return h_style
 
-proc/random_facial_hair_style(gender, var/species)
-	species = species || GLOB.using_map.default_species
+/proc/random_facial_hair_style(gender, var/species)
+	species = species || global.using_map.default_species
 	var/f_style = "Shaved"
-	var/datum/species/mob_species = get_species_by_key(species)
+	var/decl/species/mob_species = get_species_by_key(species)
 	var/list/valid_facialhairstyles = mob_species.get_facial_hair_styles(gender)
 	if(valid_facialhairstyles.len)
 		f_style = pick(valid_facialhairstyles)
 		return f_style
 
-proc/random_name(gender, species)
+/proc/random_name(gender, species)
 	if(species)
-		var/datum/species/current_species = get_species_by_key(species)
-		if(current_species)
-			var/decl/cultural_info/current_culture = SSlore.get_culture(current_species.default_cultural_info[TAG_CULTURE])
+		var/decl/species/current_species = get_species_by_key(species)
+		if(current_species) 
+			var/decl/cultural_info/current_culture = GET_DECL(current_species.default_cultural_info[TAG_CULTURE])
 			if(current_culture)
-				return current_culture.get_random_name(gender)
-	return capitalize(pick(gender == FEMALE ? GLOB.first_names_female : GLOB.first_names_male)) + " " + capitalize(pick(GLOB.last_names))
+				return current_culture.get_random_name(null, gender)
+	return capitalize(pick(gender == FEMALE ? global.first_names_female : global.first_names_male)) + " " + capitalize(pick(global.last_names))
 
-proc/random_skin_tone(var/datum/species/current_species)
+/proc/random_skin_tone(var/decl/species/current_species)
 	var/species_tone = current_species ? 35 - current_species.max_skin_tone() : -185
 	switch(pick(60;"caucasian", 15;"afroamerican", 10;"african", 10;"latino", 5;"albino"))
 		if("caucasian")		. = -10
@@ -65,7 +65,7 @@ proc/random_skin_tone(var/datum/species/current_species)
 
 	return min(max(. + rand(-25, 25), species_tone), 34)
 
-proc/skintone2racedescription(tone)
+/proc/skintone2racedescription(tone)
 	switch (tone)
 		if(30 to INFINITY)		return "albino"
 		if(20 to 30)			return "pale"
@@ -76,19 +76,6 @@ proc/skintone2racedescription(tone)
 		if(-65 to -45)			return "brown"
 		if(-INFINITY to -65)	return "black"
 		else					return "unknown"
-
-proc/age2agedescription(age)
-	switch(age)
-		if(0 to 1)			return "infant"
-		if(1 to 3)			return "toddler"
-		if(3 to 13)			return "child"
-		if(13 to 19)		return "teenager"
-		if(19 to 30)		return "young adult"
-		if(30 to 45)		return "adult"
-		if(45 to 60)		return "middle-aged"
-		if(60 to 70)		return "aging"
-		if(70 to INFINITY)	return "elderly"
-		else				return "unknown"
 
 /proc/RoundHealth(health)
 	var/list/icon_states = icon_states('icons/mob/hud_med.dmi')
@@ -236,27 +223,27 @@ proc/age2agedescription(age)
 /mob/proc/add_to_living_mob_list()
 	return FALSE
 /mob/living/add_to_living_mob_list()
-	if((src in GLOB.living_mob_list_) || (src in GLOB.dead_mob_list_))
+	if((src in global.living_mob_list_) || (src in global.dead_mob_list_))
 		return FALSE
-	GLOB.living_mob_list_ += src
+	global.living_mob_list_ += src
 	return TRUE
 
 // Returns true if the mob was removed from the living list
 /mob/proc/remove_from_living_mob_list()
-	return GLOB.living_mob_list_.Remove(src)
+	return global.living_mob_list_.Remove(src)
 
 // Returns true if the mob was in neither the dead or living list
 /mob/proc/add_to_dead_mob_list()
 	return FALSE
 /mob/living/add_to_dead_mob_list()
-	if((src in GLOB.living_mob_list_) || (src in GLOB.dead_mob_list_))
+	if((src in global.living_mob_list_) || (src in global.dead_mob_list_))
 		return FALSE
-	GLOB.dead_mob_list_ += src
+	global.dead_mob_list_ += src
 	return TRUE
 
 // Returns true if the mob was removed form the dead list
 /mob/proc/remove_from_dead_mob_list()
-	return GLOB.dead_mob_list_.Remove(src)
+	return global.dead_mob_list_.Remove(src)
 
 //Find a dead mob with a brain and client.
 /proc/find_dead_player(var/find_key, var/include_observers = 0)
@@ -266,14 +253,14 @@ proc/age2agedescription(age)
 	var/mob/selected = null
 
 	if(include_observers)
-		for(var/mob/M in GLOB.player_list)
+		for(var/mob/M in global.player_list)
 			if((M.stat != DEAD) || (!M.client))
 				continue
 			if(M.ckey == find_key)
 				selected = M
 				break
 	else
-		for(var/mob/living/M in GLOB.player_list)
+		for(var/mob/living/M in global.player_list)
 			//Dead people only thanks!
 			if((M.stat != DEAD) || (!M.client))
 				continue
@@ -316,40 +303,44 @@ proc/age2agedescription(age)
 
 // If all of these flags are present, it should come out at exactly 1. Yes, this
 // is horrible. TODO: unify coverage flags with limbs and use organ_rel_size.
-GLOBAL_LIST_INIT(bodypart_coverage_cache, new)
+var/global/list/bodypart_coverage_cache = list()
 
 /proc/get_percentage_body_cover(var/checking_flags)
 	var/key = "[checking_flags]"
-	if(isnull(GLOB.bodypart_coverage_cache[key]))
+	if(isnull(global.bodypart_coverage_cache[key]))
 		var/coverage = 0
-		if(checking_flags & FULL_BODY)
+		if(checking_flags & SLOT_FULL_BODY)
 			coverage = 1
 		else
-			if(checking_flags & HEAD)
+			if(checking_flags & SLOT_HEAD)
 				coverage += 0.1
-			if(checking_flags & FACE)
+			if(checking_flags & SLOT_FACE)
 				coverage += 0.05
-			if(checking_flags & EYES)
+			if(checking_flags & SLOT_EYES)
 				coverage += 0.05
-			if(checking_flags & UPPER_TORSO)
+			if(checking_flags & SLOT_UPPER_BODY)
 				coverage += 0.15
-			if(checking_flags & LOWER_TORSO)
+			if(checking_flags & SLOT_LOWER_BODY)
 				coverage += 0.15
-			if(checking_flags & LEG_LEFT)
+			if(checking_flags & SLOT_LEG_LEFT)
 				coverage += 0.075
-			if(checking_flags & LEG_RIGHT)
+			if(checking_flags & SLOT_LEG_RIGHT)
 				coverage += 0.075
-			if(checking_flags & FOOT_LEFT)
+			if(checking_flags & SLOT_FOOT_LEFT)
 				coverage += 0.05
-			if(checking_flags & FOOT_RIGHT)
+			if(checking_flags & SLOT_FOOT_RIGHT)
 				coverage += 0.05
-			if(checking_flags & ARM_LEFT)
+			if(checking_flags & SLOT_ARM_LEFT)
 				coverage += 0.075
-			if(checking_flags & ARM_RIGHT)
+			if(checking_flags & SLOT_ARM_RIGHT)
 				coverage += 0.075
-			if(checking_flags & HAND_LEFT)
+			if(checking_flags & SLOT_HAND_LEFT)
 				coverage += 0.05
-			if(checking_flags & HAND_RIGHT)
+			if(checking_flags & SLOT_HAND_RIGHT)
 				coverage += 0.05
-		GLOB.bodypart_coverage_cache[key] = coverage
-	. = GLOB.bodypart_coverage_cache[key]
+		global.bodypart_coverage_cache[key] = coverage
+	. = global.bodypart_coverage_cache[key]
+
+/proc/get_sorted_mob_list()
+	. = sortTim(SSmobs.mob_list.Copy(), /proc/cmp_name_asc)
+	. = sortTim(., /proc/cmp_mob_sortvalue_asc)

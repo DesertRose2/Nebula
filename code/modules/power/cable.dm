@@ -208,10 +208,8 @@ By design, d1 is the smallest direction and d2 is the highest
 	if(!prob(prb))
 		return 0
 	if (electrocute_mob(user, powernet, src, siemens_coeff))
-		var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-		s.set_up(5, 1, src)
-		s.start()
-		if(usr.stunned)
+		spark_at(src, amount=5, cardinal_only = TRUE)
+		if(HAS_STATUS(usr, STAT_STUN))
 			return 1
 	return 0
 
@@ -224,7 +222,13 @@ By design, d1 is the smallest direction and d2 is the highest
 	if(. && (severity == 1 || (severity == 2 && prob(50)) || (severity == 3 && prob(25))))
 		physically_destroyed()
 
-obj/structure/cable/proc/cableColor(var/colorC)
+/obj/structure/cable/fire_act(datum/gas_mixture/air, exposed_temperature, exposed_volume)
+	var/turf/T = get_turf(src)
+	if(!T || !T.is_plating())
+		return
+	. = ..()
+
+/obj/structure/cable/proc/cableColor(var/colorC)
 	var/color_n = "#dd0000"
 	if(colorC)
 		color_n = colorC
@@ -282,7 +286,7 @@ obj/structure/cable/proc/cableColor(var/colorC)
 // merge with the powernets of power objects in the given direction
 /obj/structure/cable/proc/mergeConnectedNetworks(var/direction)
 
-	var/fdir = direction ? GLOB.reverse_dir[direction] : 0 //flip the direction, to match with the source position on its turf
+	var/fdir = direction ? global.reverse_dir[direction] : 0 //flip the direction, to match with the source position on its turf
 
 	if(!(d1 == direction || d2 == direction)) //if the cable is not pointed in this direction, do nothing
 		return
@@ -363,7 +367,7 @@ obj/structure/cable/proc/cableColor(var/colorC)
 	for(var/cable_dir in list(d1, d2))
 		if(cable_dir == 0)
 			continue
-		var/reverse = GLOB.reverse_dir[cable_dir]
+		var/reverse = global.reverse_dir[cable_dir]
 		T = get_zstep(src, cable_dir)
 		if(T)
 			for(var/obj/structure/cable/C in T)
@@ -456,27 +460,36 @@ obj/structure/cable/proc/cableColor(var/colorC)
 
 /obj/item/stack/cable_coil
 	name = "multipurpose cable coil"
-	icon = 'icons/obj/power.dmi'
-	icon_state = "coil"
+	icon = 'icons/obj/items/cable_coil.dmi'
+	icon_state = ICON_STATE_WORLD
 	randpixel = 2
 	amount = MAXCOIL
 	max_amount = MAXCOIL
 	color = COLOR_MAROON
-	desc = "A coil of wiring, for delicate electronics use aswell as the more basic cable laying."
+	desc = "A coil of wiring, suitable for both delicate electronics and heavy duty power supply."
+	singular_name = "length"
 	throwforce = 0
 	w_class = ITEM_SIZE_NORMAL
 	throw_speed = 2
 	throw_range = 5
-	material = /decl/material/solid/metal/steel
+	material = /decl/material/solid/metal/copper
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/plastic = MATTER_AMOUNT_TRACE
 	)
 	obj_flags = OBJ_FLAG_CONDUCTIBLE
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	item_state = "coil"
 	attack_verb = list("whipped", "lashed", "disciplined", "flogged")
-	stacktype = /obj/item/stack/cable_coil
+	stack_merge_type = /obj/item/stack/cable_coil
+	matter_multiplier = 0.15
+	
+/obj/item/stack/cable_coil/Initialize()
+	. = ..()
+	set_extension(src, /datum/extension/tool, list(
+		TOOL_CABLECOIL = TOOL_QUALITY_DEFAULT,
+		TOOL_SUTURES =   TOOL_QUALITY_MEDIOCRE
+	))
 
 /obj/item/stack/cable_coil/single
 	amount = 1
@@ -489,9 +502,9 @@ obj/structure/cable/proc/cableColor(var/colorC)
 	uses_charge = 1
 	charge_costs = list(1)
 
-/obj/item/stack/cable_coil/Initialize(mapload, length = MAXCOIL, var/param_color = null)
-	. = ..(mapload, length)
-	src.amount = length
+/obj/item/stack/cable_coil/Initialize(mapload, c_length = MAXCOIL, var/param_color = null)
+	. = ..(mapload, c_length)
+	src.amount = c_length
 	if (param_color) // It should be red by default, so only recolor it if parameter was specified.
 		color = param_color
 	update_icon()
@@ -522,10 +535,11 @@ obj/structure/cable/proc/cableColor(var/colorC)
 		return
 	return ..()
 
-
 /obj/item/stack/cable_coil/on_update_icon()
+	cut_overlays()
 	if (!color)
-		color = GLOB.possible_cable_colours[pick(GLOB.possible_cable_colours)]
+		var/list/possible_cable_colours = get_global_cable_colors()
+		color = possible_cable_colours[pick(possible_cable_colours)]
 	if(amount == 1)
 		icon_state = "coil1"
 		SetName("cable piece")
@@ -543,10 +557,11 @@ obj/structure/cable/proc/cableColor(var/colorC)
 	if(!selected_color)
 		return
 
-	var/final_color = GLOB.possible_cable_colours[selected_color]
+	var/list/possible_cable_colours = get_global_cable_colors()
+	var/final_color = possible_cable_colours[selected_color]
 	if(!final_color)
 		selected_color = "Red"
-		final_color = GLOB.possible_cable_colours[selected_color]
+		final_color = possible_cable_colours[selected_color]
 	color = final_color
 	to_chat(user, "<span class='notice'>You change \the [src]'s color to [lowertext(selected_color)].</span>")
 
@@ -589,7 +604,7 @@ obj/structure/cable/proc/cableColor(var/colorC)
 	set name = "Change Colour"
 	set category = "Object"
 
-	var/selected_type = input("Pick new colour.", "Cable Colour", null, null) as null|anything in GLOB.possible_cable_colours
+	var/selected_type = input("Pick new colour.", "Cable Colour", null, null) as null|anything in get_global_cable_colors()
 	set_cable_color(selected_type, usr)
 
 // Items usable on a cable coil :
@@ -637,7 +652,7 @@ obj/structure/cable/proc/cableColor(var/colorC)
 		dirn = get_dir(F, user)
 
 	var/end_dir = 0
-	if(istype(F, /turf/simulated/open))
+	if(istype(F) && F.is_open())
 		if(!can_use(2))
 			to_chat(user, "You don't have enough cable to do this!")
 			return
@@ -808,7 +823,8 @@ obj/structure/cable/proc/cableColor(var/colorC)
 	color = COLOR_SILVER
 
 /obj/item/stack/cable_coil/random/Initialize()
-	color = GLOB.possible_cable_colours[pick(GLOB.possible_cable_colours)]
+	var/list/possible_cable_colours = get_global_cable_colors()
+	color = possible_cable_colours[pick(possible_cable_colours)]
 	. = ..()
 
 // Produces cable coil from a rig power cell.

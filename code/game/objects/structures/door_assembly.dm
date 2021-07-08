@@ -15,15 +15,35 @@
 	var/panel_icon = 'icons/obj/doors/station/panel.dmi'
 	var/fill_icon = 'icons/obj/doors/station/fill_steel.dmi'
 	var/glass_icon = 'icons/obj/doors/station/fill_glass.dmi'
-	var/paintable = AIRLOCK_PAINTABLE|AIRLOCK_STRIPABLE
+	var/paintable = PAINT_PAINTABLE|PAINT_STRIPABLE
 	var/door_color = "none"
 	var/stripe_color = "none"
 	var/symbol_color = "none"
+	var/width = 1 // For multi-tile doors
 
-/obj/structure/door_assembly/Initialize(mapload, d) // would be desirable to improve material handling here
-	. = ..(mapload)
-	set_dir(d)
+/obj/structure/door_assembly/Initialize(mapload, _mat, _reinf_mat, _dir)
+	. = ..(mapload, _mat, _reinf_mat)
+	set_dir(_dir)
 	update_icon()
+
+/obj/structure/door_assembly/set_dir(new_dir)
+	if(new_dir & (EAST|WEST))
+		new_dir = WEST
+	else
+		new_dir = SOUTH
+
+	. = ..(new_dir)
+
+	if(.)
+		set_bounds()
+
+/obj/structure/door_assembly/proc/set_bounds()
+	if (dir == NORTH || dir == SOUTH)
+		bound_width = width * world.icon_size
+		bound_height = world.icon_size
+	else
+		bound_width = world.icon_size
+		bound_height = width * world.icon_size
 
 /obj/structure/door_assembly/door_assembly_hatch
 	icon = 'icons/obj/doors/hatch/door.dmi'
@@ -49,14 +69,13 @@
 	airlock_type = /obj/machinery/door/airlock/external
 	paintable = 0
 
-/obj/structure/door_assembly/multi_tile
+/obj/structure/door_assembly/double
 	icon = 'icons/obj/doors/double/door.dmi'
 	fill_icon = 'icons/obj/doors/double/fill_steel.dmi'
 	glass_icon = 'icons/obj/doors/double/fill_glass.dmi'
 	panel_icon = 'icons/obj/doors/double/panel.dmi'
-	dir = EAST
-	var/width = 1
-	airlock_type = /obj/machinery/door/airlock/multi_tile
+	airlock_type = /obj/machinery/door/airlock/double
+	width = 2
 
 /obj/structure/door_assembly/blast
 	name = "blast door assembly"
@@ -66,7 +85,7 @@
 	glass = -1
 	paintable = 0
 
-/obj/structure/door_assembly/blast/on_update_icon()	
+/obj/structure/door_assembly/blast/on_update_icon()
 
 /obj/structure/door_assembly/blast/morgue
 	name = "morgue door assembly"
@@ -79,24 +98,6 @@
 	icon = 'icons/obj/doors/rapid_pdoor.dmi'
 	icon_state = "pdoor1"
 	airlock_type = /obj/machinery/door/blast/shutters
-
-/obj/structure/door_assembly/multi_tile/Initialize()
-	if(dir in list(EAST, WEST))
-		bound_width = width * world.icon_size
-		bound_height = world.icon_size
-	else
-		bound_width = world.icon_size
-		bound_height = width * world.icon_size
-	. = ..()
-
-/obj/structure/door_assembly/multi_tile/Move()
-	. = ..()
-	if(dir in list(EAST, WEST))
-		bound_width = width * world.icon_size
-		bound_height = world.icon_size
-	else
-		bound_width = world.icon_size
-		bound_height = width * world.icon_size
 
 /obj/structure/door_assembly/attackby(obj/item/W, mob/user)
 
@@ -112,7 +113,7 @@
 		if (WT.remove_fuel(0, user))
 			playsound(src.loc, 'sound/items/Welder2.ogg', 50, 1)
 			if(glass == 1)
-				var/decl/material/glass_material_datum = decls_repository.get_decl(glass_material)
+				var/decl/material/glass_material_datum = GET_DECL(glass_material)
 				if(glass_material_datum)
 					var/mat_name = glass_material_datum.solid_name || glass_material_datum.name
 					user.visible_message("[user] welds the [mat_name] plating off the airlock assembly.", "You start to weld the [mat_name] plating off the airlock assembly.")
@@ -120,7 +121,7 @@
 						if(!WT.isOn())
 							return TRUE
 						to_chat(user, "<span class='notice'>You welded the [mat_name] plating off!</span>")
-						glass_material_datum.place_sheet(get_turf(src), 2)
+						glass_material_datum.create_object(get_turf(src), 2)
 						glass = 0
 						update_icon()
 					return TRUE
@@ -130,8 +131,7 @@
 					if(!WT.isOn())
 						return
 					to_chat(user, "<span class='notice'>You dissasembled the airlock assembly!</span>")
-					new /obj/item/stack/material/steel(src.loc, 4)
-					qdel (src)
+					dismantle()
 					return TRUE
 		else
 			to_chat(user, "<span class='notice'>You need more welding fuel.</span>")
@@ -213,7 +213,7 @@
 
 	else if(istype(W, /obj/item/stack/material) && !glass)
 		var/obj/item/stack/material/S = W
-		var/material_name = S.get_material_type()		
+		var/material_name = S.get_material_type()
 		if (S.get_amount() >= 2)
 			playsound(src.loc, 'sound/items/Crowbar.ogg', 100, 1)
 			user.visible_message("[user] adds [S.name] to the airlock assembly.", "You start to install [S.name] into the airlock assembly.")

@@ -26,6 +26,10 @@
 			if(pointdefense_controllers.len > 1)
 				lan.remove_device(src)
 
+/obj/machinery/pointdefense_control/modify_mapped_vars(map_hash)
+	..()
+	ADJUST_TAG_VAR(initial_id_tag, map_hash)
+
 /obj/machinery/pointdefense_control/ui_interact(var/mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1)
 	if(ui_template)
 		var/list/data = build_ui_data()
@@ -90,12 +94,11 @@
 			var/list/pointdefense_controllers = lan.get_devices(/obj/machinery/pointdefense_control)
 			if(pointdefense_controllers && pointdefense_controllers.len > 1)
 				lan.remove_device(src)
-		return
-	else
-		return ..()
+		return TRUE
+	return ..()
 
 /obj/machinery/pointdefense
-	name = "\improper point defense battery"
+	name = "point defense battery"
 	icon = 'icons/obj/artillery.dmi'
 	icon_state = "pointdefense"
 	desc = "A Kuiper pattern anti-meteor battery. Capable of destroying most threats in a single salvo."
@@ -104,11 +107,9 @@
 	atom_flags =  ATOM_FLAG_NO_TEMP_CHANGE | ATOM_FLAG_CLIMBABLE
 	idle_power_usage = 0.1 KILOWATTS
 	construct_state = /decl/machine_construction/default/panel_closed
-	maximum_component_parts = list(/obj/item/stock_parts = 10)         //null - no max. list(type part = number max).
 	base_type = /obj/machinery/pointdefense
 	stock_part_presets = list(/decl/stock_part_preset/terminal_setup)
 	uncreated_component_parts = null
-	appearance_flags = PIXEL_SCALE
 	var/active = TRUE
 	var/charge_cooldown = 1 SECOND  //time between it can fire at different targets
 	var/last_shot = 0
@@ -119,15 +120,27 @@
 
 /obj/machinery/pointdefense/Initialize()
 	. = ..()
+	set_dir(dir) // Ensure it's valid.
 	set_extension(src, /datum/extension/local_network_member/multilevel)
 	if(initial_id_tag)
 		var/datum/extension/local_network_member/pointdefense = get_extension(src, /datum/extension/local_network_member)
 		pointdefense.set_tag(null, initial_id_tag)
 
+/obj/machinery/pointdefense/modify_mapped_vars(map_hash)
+	..()
+	ADJUST_TAG_VAR(initial_id_tag, map_hash)
+
+/obj/machinery/pointdefense/set_dir(new_dir)
+	if(new_dir != NORTH && new_dir != SOUTH) // Other dirs are invalid
+		new_dir = SOUTH
+	. = ..()
+
 /obj/machinery/pointdefense/attackby(var/obj/item/thing, var/mob/user)
 	if(isMultitool(thing))
 		var/datum/extension/local_network_member/pointdefense = get_extension(src, /datum/extension/local_network_member)
 		pointdefense.get_new_tag(user)
+		return TRUE
+	return ..()
 
 //Guns cannot shoot through hull or generally dense turfs.
 /obj/machinery/pointdefense/proc/space_los(meteor)
@@ -186,7 +199,7 @@
 	if(engaging || ((world.time - last_shot) < charge_cooldown))
 		return
 	
-	if(GLOB.meteor_list.len == 0)
+	if(global.meteor_list.len == 0)
 		return
 	var/datum/extension/local_network_member/pointdefense = get_extension(src, /datum/extension/local_network_member)
 	var/datum/local_network/lan = pointdefense.get_local_network()
@@ -198,7 +211,7 @@
 	if(!istype(PC))
 		return
 
-	for(var/obj/effect/meteor/M in GLOB.meteor_list)
+	for(var/obj/effect/meteor/M in global.meteor_list)
 		var/already_targeted = FALSE
 		for(var/weakref/WR in PC.targets)
 			var/obj/effect/meteor/m = WR.resolve()

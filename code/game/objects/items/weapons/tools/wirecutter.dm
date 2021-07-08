@@ -3,7 +3,7 @@
 	desc = "A special pair of pliers with cutting edges. Various brackets and manipulators built into the handle allow it to repair severed wiring."
 	icon = 'icons/obj/items/tool/wirecutters.dmi'
 	icon_state = ICON_STATE_WORLD
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	w_class = ITEM_SIZE_SMALL
 	origin_tech = "{'materials':1,'engineering':1}"
 	material = /decl/material/solid/metal/steel
@@ -12,9 +12,14 @@
 	sharp = 1
 	edge = 1
 	applies_material_colour = TRUE
+	drop_sound = 'sound/foley/singletooldrop1.ogg'
 
 	var/handle_color
-	var/global/valid_colours = list(COLOR_RED, COLOR_MAROON, COLOR_SEDONA, PIPE_COLOR_YELLOW, COLOR_BABY_BLUE)
+	var/static/valid_colours = list(COLOR_RED, COLOR_MAROON, COLOR_SEDONA, PIPE_COLOR_YELLOW, COLOR_BABY_BLUE)
+
+/obj/item/wirecutters/Initialize()
+	. = ..()
+	set_extension(src, /datum/extension/tool, list(TOOL_WIRECUTTERS = TOOL_QUALITY_DEFAULT))
 
 /obj/item/wirecutters/on_update_icon()
 	. = ..()
@@ -22,16 +27,17 @@
 		handle_color = pick(valid_colours)
 	overlays += overlay_image(icon, "[get_world_inventory_state()]_handle", handle_color, flags=RESET_COLOR)
 
-/obj/item/wirecutters/experimental_mob_overlay()
-	var/image/res = ..()
-	res.color = handle_color
-	return res
+/obj/item/wirecutters/get_mob_overlay()
+	var/image/ret = ..()
+	if(ret)
+		ret.color = handle_color
+	return ret
 
 /obj/item/wirecutters/get_on_belt_overlay()
-	var/image/res = ..()
-	if(res)
-		res.color = handle_color
-	return res
+	var/image/ret = ..()
+	if(ret)
+		ret.color = handle_color
+	return ret
 
 /obj/item/wirecutters/attack(mob/living/carbon/C, mob/user)
 	if(istype(C) && user.a_intent == I_HELP && (C.handcuffed) && (istype(C.handcuffed, /obj/item/handcuffs/cable)))

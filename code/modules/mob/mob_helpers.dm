@@ -33,32 +33,45 @@
 	return 0
 
 /mob/living/carbon/human/isMonkey()
-	return istype(species, /datum/species/monkey)
+	return istype(species, /decl/species/monkey)
 
-proc/isdeaf(A)
+
+/**
+ * Checks if the target has a grab from the user
+ */
+/mob/proc/has_danger_grab(mob/user)
+	if (user == src || istype(user, /mob/living/silicon/robot) || istype(user, /mob/living/bot))
+		return TRUE
+
+	for (var/obj/item/grab/G in grabbed_by)
+		if (G.force_danger())
+			return TRUE
+
+
+/proc/isdeaf(A)
 	if(isliving(A))
 		var/mob/living/M = A
-		return (M.sdisabilities & DEAFENED) || M.ear_deaf
+		return (M.sdisabilities & DEAFENED) || GET_STATUS(M, STAT_DEAF)
 	return 0
 
-proc/hasorgans(A) // Fucking really??
+/proc/hasorgans(A) // Fucking really??
 	return ishuman(A)
 
-proc/iscuffed(A)
+/proc/iscuffed(A)
 	if(istype(A, /mob/living/carbon))
 		var/mob/living/carbon/C = A
 		if(C.handcuffed)
 			return 1
 	return 0
 
-proc/hassensorlevel(A, var/level)
+/proc/hassensorlevel(A, var/level)
 	var/mob/living/carbon/human/H = A
 	if(istype(H) && istype(H.w_uniform, /obj/item/clothing/under))
 		var/obj/item/clothing/under/U = H.w_uniform
 		return U.sensor_mode >= level
 	return 0
 
-proc/getsensorlevel(A)
+/proc/getsensorlevel(A)
 	var/mob/living/carbon/human/H = A
 	if(istype(H) && istype(H.w_uniform, /obj/item/clothing/under))
 		var/obj/item/clothing/under/U = H.w_uniform
@@ -80,7 +93,7 @@ proc/getsensorlevel(A)
 //TODO: Integrate defence zones and targeting body parts with the actual organ system, move these into organ definitions.
 
 //The base miss chance for the different defence zones
-var/list/global/base_miss_chance = list(
+var/global/list/global/base_miss_chance = list(
 	BP_HEAD = 70,
 	BP_CHEST = 10,
 	BP_GROIN = 20,
@@ -96,7 +109,7 @@ var/list/global/base_miss_chance = list(
 
 //Used to weight organs when an organ is hit randomly (i.e. not a directed, aimed attack).
 //Also used to weight the protection value that armour provides for covering that body part when calculating protection from full-body effects.
-var/list/global/organ_rel_size = list(
+var/global/list/global/organ_rel_size = list(
 	BP_HEAD = 25,
 	BP_CHEST = 70,
 	BP_GROIN = 30,
@@ -110,22 +123,21 @@ var/list/global/organ_rel_size = list(
 	BP_R_FOOT = 10,
 )
 
-/proc/check_zone(zone)
-	if(!zone)	return BP_CHEST
-	switch(zone)
-		if(BP_EYES)
-			zone = BP_HEAD
-		if(BP_MOUTH)
-			zone = BP_HEAD
-	return zone
+/proc/check_zone(zone, mob/target, var/base_zone_only)
+	. = zone || BP_CHEST
+	if(. == BP_EYES || . == BP_MOUTH)
+		. = BP_HEAD
+	if(ishuman(target) && !base_zone_only)
+		var/mob/living/carbon/human/H = target
+		. = H.species.get_limb_from_zone(.)
 
 // Returns zone with a certain probability. If the probability fails, or no zone is specified, then a random body part is chosen.
 // Do not use this if someone is intentionally trying to hit a specific body part.
 // Use get_zone_with_miss_chance() for that.
-/proc/ran_zone(zone, probability)
-	if (zone)
-		zone = check_zone(zone)
-		if (prob(probability))
+/proc/ran_zone(zone, probability, target)
+	if(zone)
+		zone = check_zone(zone, target)
+		if(prob(probability))
 			return zone
 
 	var/ran_zone = zone
@@ -150,7 +162,7 @@ var/list/global/organ_rel_size = list(
 // May return null if missed
 // miss_chance_mod may be negative.
 /proc/get_zone_with_miss_chance(zone, var/mob/target, var/miss_chance_mod = 0, var/ranged_attack=0)
-	zone = check_zone(zone)
+	zone = check_zone(zone, target)
 
 	if(!ranged_attack)
 		// target isn't trying to fight
@@ -189,8 +201,8 @@ var/list/global/organ_rel_size = list(
 	var/intag = 0
 	var/block = list()
 	. = list()
-	for(var/i = 1, i <= length(n), i++)
-		var/char = copytext(n, i, i+1)
+	for(var/i = 1, i <= length_char(n), i++)
+		var/char = copytext_char(n, i, i+1)
 		if(!intag && (char == "<"))
 			intag = 1
 			. += stars_no_html(JOINTEXT(block), pr, re_encode) //stars added here
@@ -207,8 +219,8 @@ var/list/global/organ_rel_size = list(
 /proc/stars_no_html(text, pr, re_encode)
 	text = html_decode(text) //We don't want to screw up escaped characters
 	. = list()
-	for(var/i = 1, i <= length(text), i++)
-		var/char = copytext(text, i, i+1)
+	for(var/i = 1, i <= length_char(text), i++)
+		var/char = copytext_char(text, i, i+1)
 		if(char == " " || prob(pr))
 			. += char
 		else
@@ -217,14 +229,14 @@ var/list/global/organ_rel_size = list(
 	if(re_encode)
 		. = html_encode(.)
 
-proc/slur(phrase)
+/proc/slur(phrase)
 	phrase = html_decode(phrase)
-	var/leng=length(phrase)
-	var/counter=length(phrase)
+	var/leng=length_char(phrase)
+	var/counter=length_char(phrase)
 	var/newphrase=""
 	var/newletter=""
 	while(counter>=1)
-		newletter=copytext(phrase,(leng-counter)+1,(leng-counter)+2)
+		newletter=copytext_char(phrase,(leng-counter)+1,(leng-counter)+2)
 		if(rand(1,3)==3)
 			if(lowertext(newletter)=="o")	newletter="u"
 			if(lowertext(newletter)=="s")	newletter="ch"
@@ -243,11 +255,11 @@ proc/slur(phrase)
 /proc/stutter(n)
 	var/te = html_decode(n)
 	var/t = ""//placed before the message. Not really sure what it's for.
-	n = length(n)//length of the entire word
+	n = length_char(n)//length of the entire word
 	var/p = null
 	p = 1//1 is the start of any word
 	while(p <= n)//while P, which starts at 1 is less or equal to N which is the length.
-		var/n_letter = copytext(te, p, p + 1)//copies text from a certain distance. In this case, only one letter at a time.
+		var/n_letter = copytext_char(te, p, p + 1)//copies text from a certain distance. In this case, only one letter at a time.
 		if (prob(80) && (ckey(n_letter) in list("b","c","d","f","g","h","j","k","l","m","n","p","q","r","s","t","v","w","x","y","z")))
 			if (prob(10))
 				n_letter = text("[n_letter]-[n_letter]-[n_letter]-[n_letter]")//replaces the current letter with this instead.
@@ -264,12 +276,12 @@ proc/slur(phrase)
 	return sanitize(t)
 
 
-proc/Gibberish(t, p)//t is the inputted message, and any value higher than 70 for p will cause letters to be replaced instead of added
+/proc/Gibberish(t, p)//t is the inputted message, and any value higher than 70 for p will cause letters to be replaced instead of added
 	/* Turn text into complete gibberish! */
 	var/returntext = ""
-	for(var/i = 1, i <= length(t), i++)
+	for(var/i = 1, i <= length_char(t), i++)
 
-		var/letter = copytext(t, i, i+1)
+		var/letter = copytext_char(t, i, i+1)
 		if(prob(50))
 			if(p >= 70)
 				letter = ""
@@ -290,15 +302,15 @@ It's fairly easy to fix if dealing with single letters but not so much with comp
 */
 	var/te = html_decode(n)
 	var/t = ""
-	n = length(n)
+	n = length_char(n)
 	var/p = 1
 	while(p <= n)
 		var/n_letter
 		var/n_mod = rand(1,4)
 		if(p+n_mod>n+1)
-			n_letter = copytext(te, p, n+1)
+			n_letter = copytext_char(te, p, n+1)
 		else
-			n_letter = copytext(te, p, p+n_mod)
+			n_letter = copytext_char(te, p, p+n_mod)
 		if (prob(50))
 			if (prob(30))
 				n_letter = text("[n_letter]-[n_letter]-[n_letter]")
@@ -314,20 +326,17 @@ It's fairly easy to fix if dealing with single letters but not so much with comp
 #define PIXELS_PER_STRENGTH_VAL 16
 
 /proc/shake_camera(mob/M, duration, strength=1)
-	set waitfor = 0
-	if(!M || !M.client || M.shakecamera || M.stat || isEye(M) || isAI(M))
+	var/current_time = world.time
+	if(!M || !M.client || (M.shakecamera > current_time)|| M.stat || isEye(M) || isAI(M))
 		return
-	M.shakecamera = TRUE
+	M.shakecamera = current_time + max(TICKS_PER_RECOIL_ANIM, duration)
 	strength = abs(strength)*PIXELS_PER_STRENGTH_VAL
 	var/steps = min(1, Floor(duration/TICKS_PER_RECOIL_ANIM))-1
-	animate(M.client, pixel_x = rand(-(strength), strength), pixel_y = rand(-(strength), strength), time = TICKS_PER_RECOIL_ANIM)
-	sleep(TICKS_PER_RECOIL_ANIM)
+	animate(M.client, pixel_x = rand(-(strength), strength), pixel_y = rand(-(strength), strength), time = TICKS_PER_RECOIL_ANIM, easing = JUMP_EASING|EASE_IN)
 	if(steps)
 		for(var/i = 1 to steps)
-			animate(M.client, pixel_x = rand(-(strength), strength), pixel_y = rand(-(strength), strength), time = TICKS_PER_RECOIL_ANIM)
-			sleep(TICKS_PER_RECOIL_ANIM)
-	M?.shakecamera = FALSE
-	animate(M.client, pixel_x = 0, pixel_y = 0, time = TICKS_PER_RECOIL_ANIM)
+			animate(pixel_x = (M.client?.default_pixel_x || 0) + rand(-(strength), strength), pixel_y = (M.client?.default_pixel_y || 0) + rand(-(strength), strength), time = TICKS_PER_RECOIL_ANIM, easing = JUMP_EASING|EASE_IN)
+	animate(pixel_x = (M.client.default_pixel_x || 0), pixel_y = (M.client.default_pixel_y || 0), time = TICKS_PER_RECOIL_ANIM)
 
 #undef TICKS_PER_RECOIL_ANIM
 #undef PIXELS_PER_STRENGTH_VAL
@@ -340,16 +349,15 @@ It's fairly easy to fix if dealing with single letters but not so much with comp
 
 
 /mob/proc/abiotic(var/full_body = FALSE)
-	if(full_body && ((src.l_hand && src.l_hand.simulated) || (src.r_hand && src.r_hand.simulated) || (src.back || src.wear_mask)))
+	. = FALSE
+	for(var/obj/item/thing in get_held_items())
+		if(thing.simulated)
+			return TRUE
+	if(full_body && (back || wear_mask))
 		return TRUE
-
-	if((src.l_hand && src.l_hand.simulated) || (src.r_hand && src.r_hand.simulated))
-		return TRUE
-
-	return FALSE
 
 //converts intent-strings into numbers and back
-var/list/intents = list(I_HELP,I_DISARM,I_GRAB,I_HURT)
+var/global/list/intents = list(I_HELP,I_DISARM,I_GRAB,I_HURT)
 /proc/intent_numeric(argument)
 	if(istext(argument))
 		switch(argument)
@@ -364,12 +372,15 @@ var/list/intents = list(I_HELP,I_DISARM,I_GRAB,I_HURT)
 			if(2)			return I_GRAB
 			else			return I_HURT
 
+/mob/proc/can_change_intent()
+	return FALSE
+
 //change a mob's act-intent. Input the intent as a string such as "help" or use "right"/"left
 /mob/verb/a_intent_change(input as text)
 	set name = "a-intent"
 	set hidden = 1
 
-	if(ishuman(src) || isbrain(src) || isslime(src))
+	if(can_change_intent())
 		switch(input)
 			if(I_HELP,I_DISARM,I_GRAB,I_HURT)
 				a_intent = input
@@ -405,16 +416,16 @@ var/list/intents = list(I_HELP,I_DISARM,I_GRAB,I_HURT)
 	return
 
 /proc/broadcast_security_hud_message(var/message, var/broadcast_source)
-	broadcast_hud_message(message, broadcast_source, GLOB.sec_hud_users, /obj/item/clothing/glasses/hud/security)
+	broadcast_hud_message(message, broadcast_source, global.sec_hud_users, /obj/item/clothing/glasses/hud/security)
 
 /proc/broadcast_medical_hud_message(var/message, var/broadcast_source)
-	broadcast_hud_message(message, broadcast_source, GLOB.med_hud_users, /obj/item/clothing/glasses/hud/health)
+	broadcast_hud_message(message, broadcast_source, global.med_hud_users, /obj/item/clothing/glasses/hud/health)
 
 /proc/broadcast_hud_message(var/message, var/broadcast_source, var/list/targets, var/icon)
 	var/turf/sourceturf = get_turf(broadcast_source)
 	for(var/mob/M in targets)
 		if(!sourceturf || (get_z(M) in GetConnectedZlevels(sourceturf.z)))
-			M.show_message("<span class='info'>\icon[icon] [message]</span>", 1)
+			M.show_message("<span class='info'>[html_icon(icon)] [message]</span>", 1)
 
 /proc/mobs_in_area(var/area/A)
 	var/list/mobs = new
@@ -441,6 +452,8 @@ var/list/intents = list(I_HELP,I_DISARM,I_GRAB,I_HURT)
 			C = M.original.client
 
 	if(C)
+		if(C.get_preference_value(/datum/client_preference/anon_say) == PREF_YES)
+			return
 		var/name
 		if(C.mob)
 			var/mob/M = C.mob
@@ -515,16 +528,14 @@ var/list/intents = list(I_HELP,I_DISARM,I_GRAB,I_HURT)
 		threatcount += 4
 
 	if(auth_weapons && !access_obj.allowed(src))
-		if(istype(l_hand, /obj/item/gun) ||  istype(l_hand, /obj/item/energy_blade) || istype(l_hand, /obj/item/baton))
-			threatcount += 4
-
-		if(istype(r_hand, /obj/item/gun) || istype(r_hand, /obj/item/energy_blade) || istype(r_hand, /obj/item/baton))
-			threatcount += 4
+		for(var/thing in get_held_items())
+			if(istype(thing, /obj/item/gun) || istype(thing, /obj/item/energy_blade) || istype(thing, /obj/item/baton))
+				threatcount += 4
 
 		if(istype(belt, /obj/item/gun) || istype(belt, /obj/item/energy_blade) || istype(belt, /obj/item/baton))
 			threatcount += 2
 
-		if(species.name != GLOB.using_map.default_species)
+		if(species.name != global.using_map.default_species)
 			threatcount += 2
 
 	if(check_records || check_arrest)
@@ -536,7 +547,7 @@ var/list/intents = list(I_HELP,I_DISARM,I_GRAB,I_HURT)
 		if(check_records && !CR && !isMonkey())
 			threatcount += 4
 
-		if(check_arrest && CR && (CR.get_criminalStatus() == GLOB.arrest_security_status))
+		if(check_arrest && CR && (CR.get_criminalStatus() == global.arrest_security_status))
 			threatcount += 4
 
 	return threatcount
@@ -567,12 +578,6 @@ var/list/intents = list(I_HELP,I_DISARM,I_GRAB,I_HURT)
 
 /mob/living/silicon/ai/get_multitool()
 	return ..(aiMulti)
-
-/proc/get_both_hands(mob/living/carbon/M)
-	if(!istype(M))
-		return
-	var/list/hands = list(M.l_hand, M.r_hand)
-	return hands
 
 /mob/proc/refresh_client_images()
 	if(client)
@@ -610,26 +615,6 @@ var/list/intents = list(I_HELP,I_DISARM,I_GRAB,I_HURT)
 
 /mob/proc/ssd_check()
 	return !client && !teleop
-
-/mob/proc/jittery_damage()
-	return //Only for living/carbon/human/
-
-/mob/living/carbon/human/jittery_damage()
-	var/obj/item/organ/internal/heart/L = internal_organs_by_name[BP_HEART]
-	if(!istype(L))
-		return 0
-	if(BP_IS_PROSTHETIC(L))
-		return 0//Robotic hearts don't get jittery.
-	if(src.jitteriness >= 400 && prob(5)) //Kills people if they have high jitters.
-		if(prob(1))
-			L.take_internal_damage(L.max_damage / 2, 0)
-			to_chat(src, "<span class='danger'>Something explodes in your heart.</span>")
-			admin_victim_log(src, "has taken <b>lethal heart damage</b> at jitteriness level [src.jitteriness].")
-		else
-			L.take_internal_damage(1, 0)
-			to_chat(src, "<span class='danger'>The jitters are killing you! You feel your heart beating out of your chest.</span>")
-			admin_victim_log(src, "has taken <i>minor heart damage</i> at jitteriness level [src.jitteriness].")
-	return 1
 
 /mob/proc/try_teleport(var/area/thearea)
 	if(!istype(thearea))
@@ -670,7 +655,7 @@ var/list/intents = list(I_HELP,I_DISARM,I_GRAB,I_HURT)
 
 //Tries to find the mob's email.
 /proc/find_email(real_name)
-	for(var/mob/mob in GLOB.living_mob_list_)
+	for(var/mob/mob in global.living_mob_list_)
 		if(mob.real_name == real_name)
 			if(!mob.mind)
 				return
@@ -678,7 +663,7 @@ var/list/intents = list(I_HELP,I_DISARM,I_GRAB,I_HURT)
 
 //This gets an input while also checking a mob for whether it is incapacitated or not.
 /mob/proc/get_input(var/message, var/title, var/default, var/choice_type, var/obj/required_item)
-	if(src.incapacitated() || (required_item && !GLOB.hands_state.can_use_topic(required_item,src)))
+	if(src.incapacitated() || (required_item && !global.hands_topic_state.can_use_topic(required_item,src)))
 		return null
 	var/choice
 	if(islist(choice_type))
@@ -691,7 +676,7 @@ var/list/intents = list(I_HELP,I_DISARM,I_GRAB,I_HURT)
 				choice = input(src, message, title, default) as null|num
 			if(MOB_INPUT_MESSAGE)
 				choice = input(src, message, title, default) as null|message
-	if(isnull(choice) || src.incapacitated() || (required_item && !GLOB.hands_state.can_use_topic(required_item,src)))
+	if(isnull(choice) || src.incapacitated() || (required_item && !global.hands_topic_state.can_use_topic(required_item,src)))
 		return null
 	return choice
 
@@ -713,3 +698,13 @@ var/list/intents = list(I_HELP,I_DISARM,I_GRAB,I_HURT)
 	result[2] = ainvis
 
 	return result
+
+/mob/proc/get_admin_job_string()
+	return "Unknown ([type])"
+
+/mob/proc/get_visual_colour_substitutions()
+	. = list()
+	for(var/thing in client_colors)
+		var/datum/client_color/col = thing
+		for(var/col_name in col.wire_colour_substitutions)
+			.[col_name] = col.wire_colour_substitutions[col_name]

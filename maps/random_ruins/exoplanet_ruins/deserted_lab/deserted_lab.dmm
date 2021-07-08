@@ -89,7 +89,7 @@
 /area/template_noop)
 "at" = (
 /obj/random/loot,
-/mob/living/simple_animal/hostile/voxslug,
+/mob/living/simple_animal/hostile/slug,
 /turf/simulated/floor/tiled/steel_ridged,
 /area/template_noop)
 "au" = (
@@ -110,7 +110,7 @@
 /area/template_noop)
 "ax" = (
 /obj/structure/bed/chair/office/light,
-/obj/structure/closet/walllocker/emerglocker/east,
+/obj/structure/emergency_dispenser/east,
 /turf/simulated/floor/tiled/white,
 /area/template_noop)
 "ay" = (

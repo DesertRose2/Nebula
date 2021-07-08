@@ -1,10 +1,10 @@
-/datum/codex_category/cocktails
+/decl/codex_category/cocktails
 	name = "Cocktails"
 	desc = "Various mixes of drinks, alcoholic and otherwise, that can be made by a skilled bartender."
 	guide_name = "Bartending"
 	guide_strings = list("bartender", "cocktails", "bartending")
 
-/datum/codex_category/cocktails/Initialize()
+/decl/codex_category/cocktails/Initialize()
 
 	var/list/entries_to_register = list()
 	var/list/cocktails = decls_repository.get_decls_of_subtype(/decl/cocktail)
@@ -21,7 +21,7 @@
 			// If anyone can think of a good way to find the lowest common
 			// divisor of these part values and make it a bit neater, please
 			// feel free to change this block to use it.
-			var/decl/material/mixer = decls_repository.get_decl(rtype) 
+			var/decl/material/mixer = GET_DECL(rtype) 
 			var/ingredient = "[cocktail.ratios[rtype] >= 0.1 ? "[ceil(cocktail.ratios[rtype] * 10)] part\s" : "a dash of"] [mixer.name]"
 			ingredients += ingredient
 		
@@ -36,7 +36,7 @@
 		)
 
 	for(var/datum/codex_entry/entry in entries_to_register)
-		SScodex.add_entry_by_string(entry.display_name, entry)
-		items += entry.display_name
+		SScodex.add_entry_by_string(entry.name, entry)
+		items |= entry.name
 
-	..()
+	. = ..()

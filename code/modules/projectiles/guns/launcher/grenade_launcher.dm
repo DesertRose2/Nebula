@@ -14,7 +14,7 @@
 	release_force = 5
 	combustion = 1
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
+	matter = list(/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT)
 
 	var/obj/item/grenade/chambered
 	var/list/grenades = new/list()
@@ -85,7 +85,7 @@
 		..()
 
 /obj/item/gun/launcher/grenade/attack_hand(mob/user)
-	if(user.get_inactive_hand() == src)
+	if(user.is_holding_offhand(src))
 		unload(user)
 	else
 		..()

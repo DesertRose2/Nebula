@@ -12,9 +12,6 @@
 	speak_chance = 1
 	turns_per_move = 5
 	see_in_dark = 6
-	response_help  = "pets"
-	response_disarm = "gently pushes aside"
-	response_harm   = "kicks"
 	faction = "goat"
 	health = 40
 	natural_weapon = /obj/item/natural_weapon/hooves
@@ -102,9 +99,6 @@
 	speak_chance = 1
 	turns_per_move = 5
 	see_in_dark = 6
-	response_help  = "pets"
-	response_disarm = "gently pushes aside"
-	response_harm   = "kicks"
 	health = 50
 
 	meat_type = /obj/item/chems/food/snacks/meat/beef
@@ -138,10 +132,10 @@
 	if(udder && prob(5))
 		udder.add_reagent(/decl/material/liquid/drink/milk, rand(5, 10))
 
-/mob/living/simple_animal/cow/attack_hand(mob/living/carbon/M)
+/mob/living/simple_animal/cow/attack_hand(mob/M)
 	if(!stat && M.a_intent == I_DISARM && icon_state != icon_dead)
 		M.visible_message("<span class='warning'>[M] tips over [src].</span>","<span class='notice'>You tip over [src].</span>")
-		Weaken(30)
+		SET_STATUS_MAX(src, STAT_WEAK, 30)
 		icon_state = icon_dead
 		spawn(rand(20,50))
 			if(!stat && M)
@@ -167,9 +161,6 @@
 	emote_see = list("pecks at the ground","flaps its tiny wings")
 	speak_chance = 2
 	turns_per_move = 2
-	response_help  = "pets"
-	response_disarm = "gently pushes aside"
-	response_harm   = "kicks"
 	health = 1
 	pass_flags = PASS_FLAG_TABLE | PASS_FLAG_GRILLE
 	mob_size = MOB_SIZE_MINISCULE
@@ -196,7 +187,7 @@
 		new /mob/living/simple_animal/chicken(src.loc)
 		qdel(src)
 
-var/const/MAX_CHICKENS = 50
+var/global/const/MAX_CHICKENS = 50
 var/global/chicken_count = 0
 
 /mob/living/simple_animal/chicken
@@ -211,9 +202,6 @@ var/global/chicken_count = 0
 	emote_see = list("pecks at the ground","flaps its wings viciously")
 	speak_chance = 2
 	turns_per_move = 3
-	response_help  = "pets"
-	response_disarm = "gently pushes aside"
-	response_harm   = "kicks"
 	health = 10
 	pass_flags = PASS_FLAG_TABLE
 	mob_size = MOB_SIZE_SMALL

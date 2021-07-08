@@ -1,5 +1,6 @@
 /obj/item/robot_module/medical
 	name = "medical robot module"
+	associated_department = /decl/department/medical
 	channels = list(
 		"Medical" = TRUE
 	)
@@ -29,7 +30,7 @@
 		/obj/item/borg/sight/hud/med,
 		/obj/item/scanner/health,
 		/obj/item/chems/borghypo/surgeon,
-		/obj/item/scalpel/manager,
+		/obj/item/incision_manager,
 		/obj/item/hemostat,
 		/obj/item/retractor,
 		/obj/item/cautery,

@@ -2,8 +2,7 @@
 	name = "flash"
 	desc = "A device that produces a bright flash of light, designed to stun and disorient an attacker."
 	icon = 'icons/obj/items/device/flash.dmi'
-	icon_state = "flash"
-	item_state = "flashtool"
+	icon_state = ICON_STATE_WORLD
 	throwforce = 5
 	w_class = ITEM_SIZE_SMALL
 	throw_speed = 4
@@ -19,10 +18,15 @@
 	var/str_min = 2 //how weak the effect CAN be
 	var/str_max = 7 //how powerful the effect COULD be
 
+/obj/item/flash/on_update_icon()
+	icon_state = get_world_inventory_state()
+	if(broken)
+		icon_state = "[icon_state]-burnt"
+
 /obj/item/flash/proc/clown_check(var/mob/user)
 	if(user && (MUTATION_CLUMSY in user.mutations) && prob(50))
 		to_chat(user, "<span class='warning'>\The [src] slips out of your hand.</span>")
-		user.unequip_item()
+		user.unEquip(src)
 		return 0
 	return 1
 
@@ -56,7 +60,7 @@
 			if(prob(times_used))	//if you use it 5 times in a minute it has a 10% chance to break!
 				broken = 1
 				to_chat(user, "<span class='warning'>The bulb has burnt out!</span>")
-				icon_state = "[initial(icon_state)]_burnt"
+				icon_state = "[initial(icon_state)]-burnt"
 				return 0
 			times_used++
 		else	//can only use it 5 times a minute
@@ -82,14 +86,13 @@
 						flash_strength = (flash_strength / 2)
 				if(flash_strength > 0)
 					M.flash_eyes(FLASH_PROTECTION_MODERATE - safety)
-					M.Stun(flash_strength / 2)
-					M.eye_blurry += flash_strength
-					M.confused += (flash_strength + 2)
+					SET_STATUS_MAX(M, STAT_STUN, (flash_strength / 2))
+					SET_STATUS_MAX(M, STAT_BLURRY, flash_strength)
+					SET_STATUS_MAX(M, STAT_CONFUSE, (flash_strength + 2))
 					if(flash_strength > 3)
-						M.drop_l_hand()
-						M.drop_r_hand()
+						M.drop_held_items()
 					if(flash_strength > 5)
-						M.Weaken(2)
+						SET_STATUS_MAX(M, STAT_WEAK, 2)
 			else
 				flashfail = 1
 
@@ -97,17 +100,17 @@
 		var/mob/living/simple_animal/SA = M
 		var/safety = SA.eyecheck()
 		if(safety < FLASH_PROTECTION_MAJOR)
-			SA.Weaken(2)
+			SET_STATUS_MAX(SA, STAT_WEAK, 2)
 			if(safety < FLASH_PROTECTION_MODERATE)
-				SA.Stun(flash_strength - 2)
+				SET_STATUS_MAX(SA, STAT_STUN, (flash_strength - 2))
+				SET_STATUS_MAX(SA, STAT_BLURRY, flash_strength)
+				SET_STATUS_MAX(SA, STAT_CONFUSE, flash_strength)
 				SA.flash_eyes(2)
-				SA.eye_blurry += flash_strength
-				SA.confused += flash_strength
 		else 
 			flashfail = 1
 
 	else if(issilicon(M))
-		M.Weaken(rand(str_min,6))
+		SET_STATUS_MAX(M, STAT_WEAK, rand(str_min,6))
 
 	else
 		flashfail = 1
@@ -124,7 +127,7 @@
 			qdel(animation)
 
 	if(!flashfail)
-		flick("[initial(icon_state)]_on", src)
+		flick("[initial(icon_state)]-on", src)
 		if(!issilicon(M))
 			user.visible_message("<span class='disarm'>[user] blinds [M] with \the [src]!</span>")
 		else
@@ -136,7 +139,7 @@
 
 
 
-/obj/item/flash/attack_self(mob/living/carbon/user, flag = 0, emp = 0)
+/obj/item/flash/attack_self(mob/user, flag = 0, emp = 0)
 	if(!user || !clown_check(user)) 	return 0
 
 	if(broken)
@@ -152,7 +155,7 @@
 			if(prob(2*times_used))	//if you use it 5 times in a minute it has a 10% chance to break!
 				broken = 1
 				to_chat(user, "<span class='warning'>The bulb has burnt out!</span>")
-				icon_state = "[initial(icon_state)]_burnt"
+				icon_state = "[initial(icon_state)]-burnt"
 				return 0
 			times_used++
 		else	//can only use it  5 times a minute
@@ -160,7 +163,7 @@
 			return 0
 	user.setClickCooldown(DEFAULT_ATTACK_COOLDOWN)
 	playsound(src.loc, 'sound/weapons/flash.ogg', 100, 1)
-	flick("[initial(icon_state)]_on", src)
+	flick("[initial(icon_state)]-on", src)
 	if(user && isrobot(user))
 		spawn(0)
 			var/atom/movable/overlay/animation = new(user.loc)
@@ -178,7 +181,7 @@
 		if(safety < FLASH_PROTECTION_MODERATE)
 			if(!M.blinded)
 				M.flash_eyes()
-				M.eye_blurry += 2
+				SET_STATUS_MAX(M, STAT_BLURRY, 2)
 
 	return 1
 
@@ -189,30 +192,29 @@
 		if(0 to 5)
 			if(prob(2*times_used))
 				broken = 1
-				icon_state = "[initial(icon_state)]_burnt"
+				update_icon()
 				return
 			times_used++
 			if(istype(loc, /mob/living/carbon))
 				var/mob/living/carbon/M = loc
 				var/safety = M.eyecheck()
 				if(safety < FLASH_PROTECTION_MODERATE)
-					M.Weaken(10)
+					SET_STATUS_MAX(M, STAT_WEAK, 10)
 					M.flash_eyes()
-					for(var/mob/O in viewers(M, null))
-						O.show_message("<span class='disarm'>[M] is blinded by the [name]!</span>")
+					M.visible_message("<span class='disarm'>\The [M] is blinded by \the [src]!</span>")
 	..()
 
 /obj/item/flash/synthetic //not for regular use, weaker effects
 	name = "modified flash"
 	desc = "A device that produces a bright flash of light. This is a specialized version designed specifically for use in camera systems."
-	icon_state = "sflash"
+	icon = 'icons/obj/items/device/flash_synthetic.dmi'
 	str_min = 1
 	str_max = 4
 
 /obj/item/flash/advanced
 	name = "advanced flash"
 	desc = "A device that produces a very bright flash of light. This is an advanced and expensive version often issued to VIPs."
-	icon_state = "advflash"
+	icon = 'icons/obj/items/device/flash_advanced.dmi'
 	origin_tech = "{'combat':2,'magnets':2}"
 	str_min = 3
 	str_max = 8

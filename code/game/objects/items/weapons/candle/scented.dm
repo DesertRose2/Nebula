@@ -29,9 +29,9 @@
 		set_extension(src, style.scent_datum)
 
 /obj/item/flame/candle/scented/proc/get_scent()
-	var/scent_type = safepick(scent_types)
+	var/scent_type = SAFEPICK(scent_types)
 	if(scent_type)
-		style = decls_repository.get_decl(scent_type)
+		style = GET_DECL(scent_type)
 		color = style.color
 		scent = style.scent
 	if(scent)

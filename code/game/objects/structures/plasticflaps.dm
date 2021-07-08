@@ -12,7 +12,6 @@
 
 	var/list/mobs_can_pass = list(
 		/mob/living/bot,
-		/mob/living/carbon/slime,
 		/mob/living/simple_animal/mouse,
 		/mob/living/silicon/robot/drone
 		)
@@ -55,7 +54,7 @@
 /obj/structure/plasticflaps/explosion_act(severity)
 	..()
 	if(!QDELETED(src) && (severity == 1 || (severity == 2 && prob(50)) || (severity == 3 && prob(5))))
-		physically_destroyed(src)
+		physically_destroyed()
 
 /obj/structure/plasticflaps/Initialize()
 	. = ..()

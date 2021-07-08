@@ -1,16 +1,17 @@
 /obj/item/camera/tvcamera
 	name = "press camera drone"
 	desc = "An EyeBuddy livestreaming press camera drone. Weapon of choice for war correspondents and reality show cameramen. It does not appear to have any internal memory storage."
-	icon_state = "camcorder"
-	item_state = "camcorder"
+	icon = 'icons/clothing/belt/camcorder.dmi'
+	icon_state = ICON_STATE_WORLD
+	item_state = null
 	w_class = ITEM_SIZE_LARGE
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	var/channel = "General News Feed"
 	var/obj/machinery/camera/network/thunder/camera
 	var/obj/item/radio/radio
 
 /obj/item/camera/tvcamera/Destroy()
-	GLOB.listening_objects -= src
+	global.listening_objects -= src
 	QDEL_NULL(camera)
 	QDEL_NULL(radio)
 	. = ..()
@@ -23,7 +24,7 @@
 	radio.listening = FALSE
 	radio.set_frequency(ENT_FREQ)
 	radio.power_usage = 0
-	GLOB.listening_objects += src
+	global.listening_objects += src
 	. = ..()
 
 /obj/item/camera/tvcamera/examine(mob/user)
@@ -46,7 +47,7 @@
 	popup.set_content(jointext(dat,null))
 	popup.open()
 
-/obj/item/camera/tvcamera/Topic(bred, href_list, state = GLOB.physical_state)
+/obj/item/camera/tvcamera/Topic(bred, href_list, state = global.physical_topic_state)
 	if(..())
 		return 1
 	if (href_list["photo"])
@@ -75,18 +76,19 @@
 	if(!href_list["close"])
 		attack_self(usr)
 
+/obj/item/camera/tvcamera/get_mob_overlay(mob/user_mob, slot, bodypart)
+	var/image/ret = ..()
+	if(ret && camera.status && check_state_in_icon("[ret.icon_state]-on", ret.icon))
+		ret.icon_state = "[ret.icon_state]-on"
+	return ret
+
 /obj/item/camera/tvcamera/on_update_icon()
-	..()
+	cut_overlays()
 	if(camera.status)
-		icon_state = "camcorder_on"
-		item_state = "camcorder_on"
-	else
-		icon_state = "camcorder"
-		item_state = "camcorder"
+		add_overlay("[icon_state]-on")
 	var/mob/living/carbon/human/H = loc
 	if(istype(H))
-		H.update_inv_r_hand(0)
-		H.update_inv_l_hand()
+		H.update_inv_hands()
 
 /* Assembly by a roboticist */
 /obj/item/robot_parts/head/attackby(var/obj/item/assembly/S, mob/user)
@@ -143,9 +145,9 @@ Using robohead because of restricting to roboticist */
 				desc = "This TV camera assembly needs casing."
 				return
 		if(4)
-			if(istype(W, /obj/item/stack/material/steel))
-				var/obj/item/stack/material/steel/S = W
-				if(S.use(1))
+			if(istype(W, /obj/item/stack/material))
+				var/obj/item/stack/material/S = W
+				if(S.material?.type == /decl/material/solid/metal/steel && S.use(1))
 					buildstep++
 					to_chat(user, "<span class='notice'>You encase the assembly.</span>")
 					var/turf/T = get_turf(src)

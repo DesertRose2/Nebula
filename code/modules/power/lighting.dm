@@ -30,21 +30,30 @@
 	active_power_usage = 20
 	power_channel = LIGHT //Lights are calc'd via area so they dont need to be in the machine list
 
-	var/on = 0					// 1 if on, 0 if off
-	var/flickering = 0
-	var/light_type = /obj/item/light/tube		// the type of light item
-
-	var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-
-	var/obj/item/light/lightbulb
-
-	var/current_mode = null
 	uncreated_component_parts = list(
 		/obj/item/stock_parts/power/apc/buildable
 	)
 	construct_state = /decl/machine_construction/wall_frame/panel_closed/simple
 	base_type = /obj/machinery/light/buildable
 	frame_type = /obj/item/frame/light
+
+	var/on = 0					// 1 if on, 0 if off
+	var/flickering = 0
+	var/light_type = /obj/item/light/tube		// the type of light item
+	var/accepts_light_type = /obj/item/light/tube
+
+	var/obj/item/light/lightbulb
+
+	var/current_mode = null
+
+/obj/machinery/light/get_color()
+	return lightbulb ? lightbulb.get_color() : null
+
+/obj/machinery/light/set_color(color)
+	if (!lightbulb)
+		return
+	lightbulb.set_color(color)
+	queue_icon_update()
 
 /obj/machinery/light/buildable
 	uncreated_component_parts = null
@@ -55,6 +64,7 @@
 	base_state = "bulb"
 	desc = "A small lighting fixture."
 	light_type = /obj/item/light/bulb
+	accepts_light_type = /obj/item/light/bulb
 	base_type = /obj/machinery/light/small/buildable
 	frame_type = /obj/item/frame/light/small
 
@@ -71,6 +81,7 @@
 	name = "spotlight"
 	desc = "A more robust socket for light tubes that demand more power."
 	light_type = /obj/item/light/tube/large
+	accepts_light_type = /obj/item/light/tube/large
 	base_type = /obj/machinery/light/spot/buildable
 	frame_type = /obj/item/frame/light/spot
 
@@ -81,7 +92,15 @@
 /obj/machinery/light/Initialize(mapload, d=0, populate_parts = TRUE)
 	. = ..()
 
-	s.set_up(1, 1, src)
+	switch (dir)
+		if (NORTH)
+			light_offset_y = WORLD_ICON_SIZE * 0.5
+		if (SOUTH)
+			light_offset_y = WORLD_ICON_SIZE * -0.5
+		if (EAST)
+			light_offset_x = WORLD_ICON_SIZE * 0.5
+		if (WEST)
+			light_offset_x = WORLD_ICON_SIZE * -0.5
 
 	if(populate_parts)
 		lightbulb = new light_type(src)
@@ -93,10 +112,10 @@
 
 /obj/machinery/light/Destroy()
 	QDEL_NULL(lightbulb)
-	QDEL_NULL(s)
 	. = ..()
 
 /obj/machinery/light/on_update_icon(var/trigger = 1)
+	atom_flags = atom_flags & ~ATOM_FLAG_CAN_BE_PAINTED
 	// Handle pixel offsets
 	pixel_y = 0
 	pixel_x = 0
@@ -110,14 +129,15 @@
 			pixel_x = -10
 
 	// Update icon state
-	overlays.Cut()
-	switch(construct_state.type) //Never use the initial state. That'll just reset it to the mapping icon.
-		if(/decl/machine_construction/wall_frame/no_wires/simple)
-			icon_state = "[base_state]-construct-stage1"
-			return
-		if(/decl/machine_construction/wall_frame/panel_open/simple)
-			icon_state = "[base_state]-construct-stage2"
-			return
+	cut_overlays()
+	if(istype(construct_state))
+		switch(construct_state.type) //Never use the initial state. That'll just reset it to the mapping icon.
+			if(/decl/machine_construction/wall_frame/no_wires/simple)
+				icon_state = "[base_state]-construct-stage1"
+				return
+			if(/decl/machine_construction/wall_frame/panel_open/simple)
+				icon_state = "[base_state]-construct-stage2"
+				return
 
 	icon_state = "[base_state]_empty"
 
@@ -126,6 +146,7 @@
 	switch(get_status())		// set icon_states
 		if(LIGHT_OK)
 			_state = "[base_state][on]"
+			atom_flags |= ATOM_FLAG_CAN_BE_PAINTED
 		if(LIGHT_EMPTY)
 			on = 0
 		if(LIGHT_BURNED)
@@ -137,8 +158,8 @@
 
 	if(istype(lightbulb, /obj/item/light))
 		var/image/I = image(icon, _state)
-		I.color = lightbulb.b_colour
-		overlays += I
+		I.color = get_mode_color()
+		add_overlay(I)
 
 	if(on)
 
@@ -148,14 +169,14 @@
 		if(current_mode && (current_mode in lightbulb.lighting_modes))
 			changed = set_light(arglist(lightbulb.lighting_modes[current_mode]))
 		else
-			changed = set_light(lightbulb.b_max_bright, lightbulb.b_inner_range, lightbulb.b_outer_range, lightbulb.b_curve, lightbulb.b_colour)
+			changed = set_light(lightbulb.b_range, lightbulb.b_power, lightbulb.b_color)
 
 		if(trigger && changed && get_status() == LIGHT_OK)
 			switch_check()
 	else
 		update_use_power(POWER_USE_OFF)
 		set_light(0)
-	change_power_consumption((light_outer_range * light_max_bright) * LIGHTING_POWER_FACTOR, POWER_USE_ACTIVE)
+	change_power_consumption((light_range * light_power) * LIGHTING_POWER_FACTOR, POWER_USE_ACTIVE)
 
 /obj/machinery/light/proc/get_status()
 	if(!lightbulb)
@@ -172,6 +193,12 @@
 	if(current_mode != new_mode)
 		current_mode = new_mode
 		update_icon(0)
+
+/obj/machinery/light/proc/get_mode_color()
+	if (current_mode && (current_mode in lightbulb.lighting_modes))
+		return lightbulb.lighting_modes[current_mode]["l_color"]
+	else
+		return lightbulb.b_color
 
 /obj/machinery/light/proc/set_emergency_lighting(var/enable)
 	if(!lightbulb)
@@ -241,7 +268,7 @@
 		if(lightbulb)
 			to_chat(user, "There is a [get_fitting_name()] already inserted.")
 			return
-		if(!istype(W, light_type))
+		if(!istype(W, accepts_light_type))
 			to_chat(user, "This type of light requires a [get_fitting_name()].")
 			return
 		if(!user.unEquip(W, src))
@@ -253,7 +280,7 @@
 		// attempt to break the light
 		//If xenos decide they want to smash a light bulb with a toolbox, who am I to stop them? /N
 
-	else if(lightbulb && (lightbulb.status != LIGHT_BROKEN))
+	else if(lightbulb && (lightbulb.status != LIGHT_BROKEN) && user.a_intent != I_HELP)
 
 		if(prob(1 + W.force * 5))
 
@@ -270,9 +297,7 @@
 	else if(!lightbulb)
 		to_chat(user, "You stick \the [W] into the light socket!")
 		if(powered() && (W.obj_flags & OBJ_FLAG_CONDUCTIBLE))
-			var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-			s.set_up(3, 1, src)
-			s.start()
+			spark_at(src, cardinal_only = TRUE)
 			if (prob(75))
 				electrocute_mob(user, get_area(src), src, rand(0.7,1.0))
 
@@ -299,7 +324,7 @@
 
 // ai attack - make lights flicker, because why not
 
-/obj/machinery/light/attack_ai(mob/user)
+/obj/machinery/light/attack_ai(mob/living/silicon/ai/user)
 	src.flicker(1)
 
 // attack with hand - remove tube/bulb
@@ -335,15 +360,18 @@
 		else if(istype(user) && user.is_telekinetic())
 			to_chat(user, "You telekinetically remove the [get_fitting_name()].")
 		else if(user.a_intent != I_HELP)
-			var/obj/item/organ/external/hand = H.organs_by_name[user.hand ? BP_L_HAND : BP_R_HAND]
+			var/obj/item/organ/external/hand = H.organs_by_name[user.get_active_held_item_slot()]
 			if(hand && hand.is_usable() && !hand.can_feel_pain())
-				user.apply_damage(3, BURN, user.hand ? BP_L_HAND : BP_R_HAND, used_weapon = src)
-				user.visible_message(SPAN_WARNING("\The [user]'s [hand] burns and sizzles as \he touches the hot [get_fitting_name()]."), SPAN_WARNING("Your [hand] burns and sizzles as you remove the hot [get_fitting_name()]."))
+				user.apply_damage(3, BURN, hand.organ_tag, used_weapon = src)
+				var/decl/pronouns/G = user.get_pronouns()
+				user.visible_message( \
+					SPAN_DANGER("\The [user]'s [hand.name] burns and sizzles as [G.he] touch[G.es] the hot [get_fitting_name()]."), \
+					SPAN_DANGER("Your [hand.name] burns and sizzles as you remove the hot [get_fitting_name()]."))
 		else
-			to_chat(user, "You try to remove the [get_fitting_name()], but it's too hot and you don't want to burn your hand.")
+			to_chat(user, SPAN_WARNING("You try to remove the [get_fitting_name()], but it's too hot and you don't want to burn your hand."))
 			return TRUE
 	else
-		to_chat(user, "You remove the [get_fitting_name()].")
+		to_chat(user, SPAN_NOTICE("You remove the [get_fitting_name()]."))
 
 	// create a light tube/bulb item and put it in the user's hand
 	user.put_in_active_hand(remove_bulb())	//puts it in our active hand
@@ -364,8 +392,7 @@
 		if(lightbulb && !(lightbulb.status == LIGHT_BROKEN))
 			playsound(src.loc, 'sound/effects/Glasshit.ogg', 75, 1)
 		if(on)
-			s.set_up(3, 1, src)
-			s.start()
+			spark_at(src, cardinal_only = TRUE)
 	lightbulb.status = LIGHT_BROKEN
 	update_icon()
 
@@ -419,6 +446,7 @@
 	icon_state = "nav10"
 	base_state = "nav1"
 	light_type = /obj/item/light/tube/large
+	accepts_light_type = /obj/item/light/tube/large
 	on = TRUE
 	var/delay = 1
 	base_type = /obj/machinery/light/navigation/buildable
@@ -427,7 +455,7 @@
 /obj/machinery/light/navigation/on_update_icon()
 	. = ..() // this will handle pixel offsets
 	overlays.Cut()
-	icon_state = "[delay][!!(lightbulb && on)]"	
+	icon_state = "nav[delay][!!(lightbulb && on)]"
 
 /obj/machinery/light/navigation/attackby(obj/item/W, mob/user)
 	. = ..()
@@ -464,20 +492,28 @@
 	force = 2
 	throwforce = 5
 	w_class = ITEM_SIZE_TINY
+	material = /decl/material/solid/metal/steel
+	atom_flags = ATOM_FLAG_NO_TEMP_CHANGE | ATOM_FLAG_CAN_BE_PAINTED
+	item_flags = ITEM_FLAG_HOLLOW
+
 	var/status = 0		// LIGHT_OK, LIGHT_BURNED or LIGHT_BROKEN
 	var/base_state
 	var/switchcount = 0	// number of times switched
-	material = /decl/material/solid/metal/steel
 	var/rigged = 0		// true if rigged to explode
 	var/broken_chance = 2
 
-	var/b_max_bright = 0.9
-	var/b_inner_range = 1
-	var/b_outer_range = 5
-	var/b_curve = 2
-	var/b_colour = "#fffee0"
+	var/b_power = 0.9
+	var/b_range = 5
+	var/b_color = LIGHT_COLOR_HALOGEN
 	var/list/lighting_modes = list()
 	var/sound_on
+
+/obj/item/light/get_color()
+	return b_color
+
+/obj/item/light/set_color(color)
+	b_color = isnull(color) ? COLOR_WHITE : color
+	update_icon()
 
 /obj/item/light/tube
 	name = "light tube"
@@ -488,28 +524,26 @@
 	material = /decl/material/solid/glass
 	matter = list(/decl/material/solid/metal/aluminium = MATTER_AMOUNT_REINFORCEMENT)
 
-	b_outer_range = 5
-	b_colour = "#fffee0"
+	b_range = 5
+	b_color = LIGHT_COLOR_HALOGEN
 	lighting_modes = list(
-		LIGHTMODE_EMERGENCY = list(l_outer_range = 4, l_max_bright = 1, l_color = "#da0205"),
-		)
+		LIGHTMODE_EMERGENCY = list(l_range = 4, l_power = 1, l_color = LIGHT_COLOR_EMERGENCY),
+	)
 	sound_on = 'sound/machines/lightson.ogg'
 
 /obj/item/light/tube/party/Initialize() //Randomly colored light tubes. Mostly for testing, but maybe someone will find a use for them.
 	. = ..()
-	b_colour = rgb(pick(0,255), pick(0,255), pick(0,255))
+	b_color = rgb(pick(0,255), pick(0,255), pick(0,255))
 
 /obj/item/light/tube/large
 	w_class = ITEM_SIZE_SMALL
 	name = "large light tube"
-	b_max_bright = 0.95
-	b_inner_range = 2
-	b_outer_range = 8
-	b_curve = 2.5
+	b_power = 0.95
+	b_range = 8
 
 /obj/item/light/tube/large/party/Initialize() //Randomly colored light tubes. Mostly for testing, but maybe someone will find a use for them.
 	. = ..()
-	b_colour = rgb(pick(0,255), pick(0,255), pick(0,255))
+	b_color = rgb(pick(0,255), pick(0,255), pick(0,255))
 
 /obj/item/light/bulb
 	name = "light bulb"
@@ -520,23 +554,21 @@
 	broken_chance = 3
 	material = /decl/material/solid/glass
 
-	b_max_bright = 0.6
-	b_inner_range = 0.1
-	b_outer_range = 4
-	b_curve = 3
-	b_colour = "#fcfcc7"
+	b_power = 0.6
+	b_range = 4
+	b_color = LIGHT_COLOR_TUNGSTEN
 	lighting_modes = list(
-		LIGHTMODE_EMERGENCY = list(l_outer_range = 3, l_max_bright = 1, l_color = "#da0205"),
-		)
+		LIGHTMODE_EMERGENCY = list(l_range = 3, l_power = 1, l_color = LIGHT_COLOR_EMERGENCY),
+	)
 
 /obj/item/light/bulb/red
-	color = "#da0205"
-	b_colour = "#da0205"
+	color = LIGHT_COLOR_RED
+	b_color = LIGHT_COLOR_RED
 
 /obj/item/light/bulb/red/readylight
 	lighting_modes = list(
-		LIGHTMODE_READY = list(l_outer_range = 5, l_max_bright = 1, l_color = "#00ff00"),
-		)
+		LIGHTMODE_READY = list(l_range = 5, l_power = 1, l_color = LIGHT_COLOR_GREEN),
+	)
 
 /obj/item/light/throw_impact(atom/hit_atom)
 	..()
@@ -552,7 +584,7 @@
 
 // update the icon state and description of the light
 /obj/item/light/on_update_icon()
-	color = b_colour
+	color = b_color
 	var/broken
 	switch(status)
 		if(LIGHT_OK)
@@ -579,9 +611,9 @@
 	..()
 	if(istype(I, /obj/item/chems/syringe) && I.reagents?.total_volume)
 		var/obj/item/chems/syringe/S = I
-		to_chat(user, "You inject the solution into the [src].")
-		for(var/rtype in S.reagents)
-			var/decl/material/R = decls_repository.get_decl(rtype)
+		to_chat(user, "You inject the solution into \the [src].")
+		for(var/rtype in S.reagents?.reagent_volumes)
+			var/decl/material/R = GET_DECL(rtype)
 			if(R.fuel_value)
 				rigged = TRUE
 				log_and_message_admins("injected a light with flammable reagents, rigging it to explode.", user)

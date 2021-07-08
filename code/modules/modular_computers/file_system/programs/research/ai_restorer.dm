@@ -6,7 +6,7 @@
 	program_menu_icon = "person"
 	extended_desc = "This program is capable of reconstructing damaged AI systems. It can also be used to upload basic laws to the AI. Requires direct AI connection via inteliCard slot."
 	size = 12
-	required_access = access_bridge
+	required_access = list(access_bridge)
 	requires_access_to_run = 0
 	available_on_network = 1
 	nanomodule_path = /datum/nano_module/program/computer_aidiag/
@@ -49,7 +49,7 @@
 		to_chat(A, "<span class='danger'>Non-core laws reset.</span>")
 		return 1
 	if(href_list["PRG_uploadDefault"])
-		A.laws = new GLOB.using_map.default_law_type
+		A.laws = new global.using_map.default_law_type
 		to_chat(A, "<span class='danger'>All laws purged. Default lawset uploaded.</span>")
 		return 1
 	if(href_list["PRG_addCustomSuppliedLaw"])
@@ -87,7 +87,7 @@
 /datum/nano_module/program/computer_aidiag
 	name = "AI Maintenance Utility"
 
-/datum/nano_module/program/computer_aidiag/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = GLOB.default_state)
+/datum/nano_module/program/computer_aidiag/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = global.default_topic_state)
 	var/list/data = host.initial_data()
 
 	data += "skill_fail"

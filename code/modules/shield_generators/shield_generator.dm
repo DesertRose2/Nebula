@@ -9,6 +9,7 @@
 	wires = /datum/wires/shield_generator
 	uncreated_component_parts = null
 	stat_immune = 0
+
 	var/list/field_segments = list()	// List of all shield segments owned by this generator.
 	var/list/damaged_segments = list()	// List of shield segments that have failed and are currently regenerating.
 	var/shield_modes = 0				// Enabled shield mode flags
@@ -33,11 +34,14 @@
 	var/ai_control_disabled = 0			// Whether the AI control is disabled.
 	var/list/mode_list = null			// A list of shield_mode datums.
 	var/full_shield_strength = 0        // The amount of power shields need to be at full operating strength.
+	var/vessel_reverse_dir	= EAST		// Reverse dir of our vessel
 
 	var/idle_multiplier   = 1           // Trades off cost vs. spin-up time from idle to running
 	var/idle_valid_values = list(1, 2, 5, 10)
 	var/spinup_delay      = 20
 	var/spinup_counter    = 0
+
+	var/obj/effect/overmap/visitable/last_linked_overmap_object
 
 /obj/machinery/power/shield_generator/on_update_icon()
 	if(running)
@@ -47,22 +51,36 @@
 
 
 /obj/machinery/power/shield_generator/Initialize()
-	. = ..()
+	..()
 	connect_to_network()
-
 	mode_list = list()
 	for(var/st in subtypesof(/datum/shield_mode/))
 		var/datum/shield_mode/SM = new st()
 		mode_list.Add(SM)
+	events_repository.register(/decl/observ/moved, src, src, .proc/update_overmap_shield_list)
+	. = INITIALIZE_HINT_LATELOAD
 
+/obj/machinery/power/shield_generator/LateInitialize()
+	. = ..()
+	update_overmap_shield_list()
 
 /obj/machinery/power/shield_generator/Destroy()
 	shutdown_field()
 	field_segments = null
 	damaged_segments = null
 	mode_list = null
+	events_repository.unregister(/decl/observ/moved, src, src)
 	. = ..()
+	update_overmap_shield_list()
 
+/obj/machinery/power/shield_generator/proc/update_overmap_shield_list()
+	var/obj/effect/overmap/visitable/current_overmap_object = get_owning_overmap_object()
+	if(current_overmap_object != last_linked_overmap_object)
+		if(last_linked_overmap_object)
+			last_linked_overmap_object.unregister_machine(src, /obj/machinery/power/shield_generator)
+		last_linked_overmap_object = current_overmap_object
+		if(last_linked_overmap_object)
+			last_linked_overmap_object.register_machine(src, /obj/machinery/power/shield_generator)
 
 /obj/machinery/power/shield_generator/RefreshParts()
 	max_energy = 0
@@ -109,11 +127,18 @@
 	else
 		shielded_turfs = fieldtype_square()
 
+	// Rotate shield's animation relative to located ship
+	if(global.using_map.use_overmap)
+		var/obj/effect/overmap/visitable/ship/sector = get_owning_overmap_object()
+		if(istype(sector))
+			vessel_reverse_dir = global.reverse_dir[sector.fore_dir]
+
 	for(var/turf/T in shielded_turfs)
 		var/obj/effect/shield/S = new(T)
 		S.gen = src
 		S.flags_updated()
 		field_segments |= S
+		S.set_dir(vessel_reverse_dir)
 	update_icon()
 
 
@@ -308,7 +333,7 @@
 		var/old_energy = current_energy
 		shutdown_field()
 		log_and_message_admins("has triggered \the [src]'s emergency shutdown!", user)
-		spawn()	
+		spawn()
 			empulse(src, old_energy / 60000000, old_energy / 32000000, 1) // If shields are charged at 450 MJ, the EMP will be 7.5, 14.0625. 90 MJ, 1.5, 2.8125
 		old_energy = 0
 
@@ -460,21 +485,17 @@
 	set background = 1
 	. = list()
 	var/list/base_turfs = get_base_turfs()
-
-
-
-
 	for(var/turf/gen_turf in base_turfs)
 		var/area/TA = null // Variable for area checking. Defining it here so memory does not have to be allocated repeatedly.
 		for(var/turf/T in RANGE_TURFS(gen_turf, field_radius))
 			// Don't expand to space or on shuttle areas.
-			if(istype(T, /turf/space) || istype(T, /turf/simulated/open))
+			if(T.is_open())
 				continue
 
 			// Find adjacent space/shuttle tiles and cover them. Shuttles won't be blocked if shield diffuser is mapped in and turned on.
 			for(var/turf/TN in orange(1, T))
 				TA = get_area(TN)
-				if ((istype(TN, /turf/space) || (istype(TN, /turf/simulated/open) && (istype(TA, /area/space) || TA.area_flags & AREA_FLAG_EXTERNAL))))
+				if(TN.is_open() && (istype(TA, /area/space) || (TA.area_flags & AREA_FLAG_EXTERNAL)))
 					. |= TN
 					continue
 

@@ -7,8 +7,8 @@
 	force = 7
 	origin_tech = "{'powerstorage':6,'engineering':4}"
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
-	slot_flags = SLOT_BELT
+	matter = list(/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT)
+	slot_flags = SLOT_LOWER_BODY
 
 	var/powertransfer = 500
 	var/coefficient = 0.9
@@ -92,35 +92,32 @@
 	if(istype(A, /obj))
 		O = A
 	if(C)
-		var/length = 10
+		var/charge_length = 10
 		var/done_any = FALSE
-		var/datum/effect/effect/system/spark_spread/sparks = new /datum/effect/effect/system/spark_spread()
-		sparks.set_up(1, 1, user.loc)
-		sparks.start()
+		spark_at(user, amount = 1, cardinal_only = TRUE)
 		if(C.charge >= C.maxcharge)
 			to_chat(user, "<span class='notice'>\The [A] is fully charged!</span>")
 			recharging = FALSE
 			return TRUE
 		user.visible_message("\The [user] starts recharging \the [A] with \the [src].","<span class='notice'>You start recharging \the [A] with \the [src].</span>")
 		if (istype(A, /obj/item/gun/energy))
-			length = 30
+			charge_length = 30
 			if (user.get_skill_value(SKILL_WEAPONS) <= SKILL_ADEPT)
-				length += rand(10, 30)
+				charge_length += rand(10, 30)
 		if (user.get_skill_value(SKILL_ELECTRICAL) < SKILL_ADEPT)
-			length += rand(40, 60)
+			charge_length += rand(40, 60)
 		while(C.charge < C.maxcharge)
-			if(MyC.charge > max(0, MyC.charge*failsafe) && do_after(user, length, target = user))
+			if(MyC.charge > max(0, MyC.charge*failsafe) && do_after(user, charge_length, target = user))
 				if(CannotUse(user))
 					return TRUE
 				if(QDELETED(C))
 					return TRUE
-				sparks.start()
+				spark_at(user, amount = 1, cardinal_only = TRUE)
 				done_any = TRUE
 				induce(C)
 				if(O)
 					O.update_icon()
 			else
-				qdel(sparks)
 				break
 		if(done_any) // Only show a message if we succeeded at least once
 			user.visible_message("\The [user] recharged \the [A]!","<span class='notice'>You recharged \the [A]!</span>")

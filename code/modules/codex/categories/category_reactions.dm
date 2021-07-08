@@ -1,10 +1,10 @@
-/datum/codex_category/reactions
+/decl/codex_category/reactions
 	name = "Reactions"
 	desc = "Chemical reactions with mundane, interesting or spectacular effects."
 	guide_name = "Chemistry"
 	guide_strings = list("chemist", "reactions")
 
-/datum/codex_category/reactions/Initialize()
+/decl/codex_category/reactions/Initialize()
 
 	guide_html = {"
 		<h1>Chemistry Basics</h1>
@@ -32,14 +32,14 @@
 			mechanics_text = "[reaction.mechanics_text]<br>[mechanics_text]"
 		var/list/reactant_values = list()
 		for(var/reactant_id in reaction.required_reagents)
-			var/decl/material/reactant = decls_repository.get_decl(reactant_id)
+			var/decl/material/reactant = GET_DECL(reactant_id)
 			var/reactant_name = "<span codexlink='[reactant.name] (substance)'>[reactant.name]</span>"
 			reactant_values += "[reaction.required_reagents[reactant_id]]u [reactant_name]"
 		mechanics_text += " [jointext(reactant_values, " + ")]"
 		var/list/inhibitors = list()
 
 		for(var/inhibitor_id in reaction.inhibitors)
-			var/decl/material/inhibitor = decls_repository.get_decl(inhibitor_id)
+			var/decl/material/inhibitor = GET_DECL(inhibitor_id)
 			var/inhibitor_name = "<span codexlink='[inhibitor.name] (substance)'>[inhibitor.name]</span>"
 			inhibitors += inhibitor_name
 		if(length(inhibitors))
@@ -47,7 +47,7 @@
 
 		var/list/catalysts = list()
 		for(var/catalyst_id in reaction.catalysts)
-			var/decl/material/catalyst = decls_repository.get_decl(catalyst_id)
+			var/decl/material/catalyst = GET_DECL(catalyst_id)
 			var/catalyst_name = "<span codexlink='[catalyst.name] (substance)'>[catalyst.name]</span>"
 			catalysts += "[reaction.catalysts[catalyst_id]]u [catalyst_name]"
 		if(length(catalysts))
@@ -55,7 +55,7 @@
 
 		var/produces
 		if(reaction.result && reaction.result_amount)
-			var/decl/material/product = decls_repository.get_decl(reaction.result)
+			var/decl/material/product = GET_DECL(reaction.result)
 			produces = product.name
 			mechanics_text += "<br>It will produce [reaction.result_amount]u [produces]."
 		if(reaction.maximum_temperature != INFINITY)
@@ -104,7 +104,7 @@
 	guide_html += "</table>"
 
 	for(var/datum/codex_entry/entry in entries_to_register)
-		SScodex.add_entry_by_string(entry.display_name, entry)
-		items += entry.display_name
+		SScodex.add_entry_by_string(entry.name, entry)
+		items |= entry.name
 
-	..()
+	. = ..()

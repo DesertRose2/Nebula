@@ -18,13 +18,17 @@
 	var/subspace_transmission = 0
 	var/syndie = 0//Holder to see if it's a syndicate encrypted radio
 	var/intercept = 0 //can intercept other channels
+
+	var/intercom = FALSE // If an intercom, will receive data == 1 packets.
+	var/virtual =  FALSE // If virtual, will receive all broadcasts but will never notify nearby listeners.
+
 	obj_flags = OBJ_FLAG_CONDUCTIBLE
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	throw_speed = 2
 	throw_range = 9
 	w_class = ITEM_SIZE_SMALL
 
-	material = /decl/material/solid/glass
+	material = /decl/material/solid/fiberglass
 	matter = list(/decl/material/solid/metal/aluminium = MATTER_AMOUNT_REINFORCEMENT)
 	var/const/FREQ_LISTENING = 1
 	var/list/internal_channels
@@ -47,8 +51,8 @@
 	wires = new(src)
 	if(ispath(cell))
 		cell = new(src)
-	internal_channels = GLOB.using_map.default_internal_channels()
-	GLOB.listening_objects += src
+	internal_channels = global.using_map.default_internal_channels()
+	global.listening_objects += src
 
 	if(frequency < RADIO_LOW_FREQ || frequency > RADIO_HIGH_FREQ)
 		frequency = sanitize_frequency(frequency, RADIO_LOW_FREQ, RADIO_HIGH_FREQ)
@@ -59,7 +63,7 @@
 
 /obj/item/radio/Destroy()
 	QDEL_NULL(wires)
-	GLOB.listening_objects -= src
+	global.listening_objects -= src
 	if(radio_controller)
 		radio_controller.remove_object(src, frequency)
 		for (var/ch_name in channels)
@@ -69,6 +73,7 @@
 /obj/item/radio/attack_self(mob/user)
 	user.set_machine(src)
 	interact(user)
+	return TRUE
 
 /obj/item/radio/interact(mob/user)
 	if(!user)
@@ -222,7 +227,7 @@
 	if(.)
 		SSnano.update_uis(src)
 
-/obj/item/radio/proc/autosay(var/message, var/from, var/channel) //BS12 EDIT
+/obj/item/radio/proc/autosay(var/message, var/from, var/channel, var/sayverb = "states") //BS12 EDIT
 	var/datum/radio_frequency/connection = null
 	if(channel && channels && channels.len > 0)
 		if (channel == "department")
@@ -235,7 +240,7 @@
 		return
 	var/mob/living/silicon/ai/A = new /mob/living/silicon/ai(src, null, null, 1)
 	A.fully_replace_character_name(from)
-	talk_into(A, message, channel,"states")
+	talk_into(A, message, channel, sayverb)
 	qdel(A)
 
 // Interprets the message mode when talking into a radio, possibly returning a connection datum
@@ -256,6 +261,7 @@
 	return null
 
 /obj/item/radio/talk_into(mob/living/M, message, channel, var/verb = "says", var/decl/language/speaking = null)
+	set waitfor = FALSE
 	if(!on) return 0 // the device has to be on
 	//  Fix for permacell radios, but kinda eh about actually fixing them.
 	if(!M || !message) return 0
@@ -265,7 +271,7 @@
 	if (!broadcasting)
 		// Sedation chemical effect should prevent radio use.
 		var/mob/living/carbon/C = M
-		if ((istype(C)) && (C.chem_effects[CE_SEDATE] || C.incapacitated(INCAPACITATION_DISRUPTED)))
+		if(istype(C) && (C.has_chemical_effect(CE_SEDATE, 1) || C.incapacitated(INCAPACITATION_DISRUPTED)))
 			to_chat(M, SPAN_WARNING("You're unable to reach \the [src]."))
 			return 0
 
@@ -758,6 +764,12 @@
 		ui.set_initial_data(data)
 		ui.open()
 
+// Used for radios that need to do something upon chatter.
+/obj/item/radio/proc/received_chatter(display_freq, level)
+	if((last_radio_sound + 1 SECOND) < world.time)
+		playsound(loc, 'sound/effects/radio_chatter.ogg', 10, 0, -6)
+		last_radio_sound = world.time
+
 /obj/item/radio/proc/config(op)
 	if(radio_controller)
 		for (var/ch_name in channels)
@@ -784,12 +796,12 @@
 
 /obj/item/radio/announcer/Destroy()
 	SHOULD_CALL_PARENT(FALSE)
-	crash_with("attempt to delete a [src.type] detected, and prevented.")
+	PRINT_STACK_TRACE("attempt to delete a [src.type] detected, and prevented.")
 	return QDEL_HINT_LETMELIVE
 
 /obj/item/radio/announcer/Initialize()
 	. = ..()
-	forceMove(locate(1,1,GLOB.using_map.contact_levels.len ? GLOB.using_map.contact_levels[1] : 1))
+	forceMove(locate(1,1,global.using_map.contact_levels.len ? global.using_map.contact_levels[1] : 1))
 
 /obj/item/radio/announcer/subspace
 	subspace_transmission = 1
@@ -804,10 +816,10 @@
 
 /obj/item/radio/phone/medbay
 	frequency = MED_I_FREQ
-
+	
 /obj/item/radio/phone/medbay/Initialize()
 	. = ..()
-	internal_channels = GLOB.default_medbay_channels.Copy()
+	internal_channels = global.default_medbay_channels.Copy()
 
 /obj/item/radio/CouldUseTopic(var/mob/user)
 	..()
@@ -856,5 +868,5 @@
 		if(istype(exosuit) && exosuit.head && exosuit.head.radio && exosuit.head.radio.is_functional())
 			return ..()
 
-/obj/item/radio/exosuit/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = GLOB.mech_state)
+/obj/item/radio/exosuit/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = global.mech_topic_state)
 	. = ..()

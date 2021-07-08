@@ -59,13 +59,17 @@
 	var/list/duplicate_values = duplicates(list_values(valid_paths))
 	if(duplicate_values.len)
 		CRASH("Duplicate types found: [english_list(duplicate_values)]")
+	// valid_paths, but with names sanitized to remove \improper
+	var/list/valid_paths_san = list()
 	for(var/path_name in valid_paths)
 		if(!istext(path_name))
 			CRASH("Expected a text key, was [log_info_line(path_name)]")
 		var/selection_type = valid_paths[path_name]
 		if(!ispath(selection_type, /obj/item))
 			CRASH("Expected an /obj/item path, was [log_info_line(selection_type)]")
-	src.valid_paths = sortAssoc(valid_paths)
+		var/path_name_san = replacetext(path_name, "\improper", "")
+		valid_paths_san[path_name_san] = selection_type
+	src.valid_paths = sortTim(valid_paths, /proc/cmp_text_asc)
 
 /datum/gear_tweak/path/type/New(var/type_path)
 	..(atomtype2nameassoclist(type_path))
@@ -182,13 +186,21 @@
 */
 /datum/gear_tweak/custom_setup
 	var/custom_setup_proc
+	var/additional_arguments
 
-/datum/gear_tweak/custom_setup/New(custom_setup_proc)
+/datum/gear_tweak/custom_setup/New(custom_setup_proc, list/additional_arguments)
+	if(additional_arguments && !istype(additional_arguments))
+		CRASH("Expected a list of argument, was [log_info_line(additional_arguments)]")
+
 	src.custom_setup_proc = custom_setup_proc
+	src.additional_arguments = additional_arguments
 	..()
 
 /datum/gear_tweak/custom_setup/tweak_item(var/user, var/item)
-	call(item, custom_setup_proc)(user)
+	var/arglist = list(user)
+	if(length(additional_arguments))
+		arglist += additional_arguments
+	call(item, custom_setup_proc)(arglist(arglist))
 
 /*
 * Tablet Stuff
@@ -365,34 +377,58 @@
 		var/t = ValidTeslaLinks[metadata[7]]
 		assembly.add_replace_component(null, PART_TESLA, new t(I))
 
-/datum/gear_tweak/charge_stick/get_contents(var/metadata)
-	return "Charge Stick: [metadata]"
+/*
+* Custom name
+*/
 
-/datum/gear_tweak/charge_stick/get_default()
-	return "Half"
+var/global/datum/gear_tweak/custom_name/gear_tweak_free_name = new()
 
-/datum/gear_tweak/charge_stick/get_metadata(var/user, var/list/metadata, title)
-	. = input(user, "Choose an entry.", CHARACTER_PREFERENCE_INPUT_TITLE, metadata) as null|anything in (list("None", "Half", "Full"))
-	if(!.)
-		return metadata
+/datum/gear_tweak/custom_name
+	var/list/valid_custom_names
 
-/datum/gear_tweak/charge_stick/tweak_item(var/mob/living/user, var/obj/item/I, var/metadata)
-	if(metadata == "None")
-		return
-	if(!istype(user))
-		return
-	
-	var/datum/money_account/M = user.mind.initial_account
-	var/obj/item/charge_stick/stick = I
-	if(stick.loaded_worth)
-		M.money += stick.loaded_worth // Return any money.
-	stick.creator = user.real_name
-	stick.currency = M.currency
-	var/amount = 0
-	switch(metadata)
-		if("Half")
-			amount = min(stick.max_worth, M.money * 0.5)
-		if("Full")
-			amount = min(stick.max_worth, M.money)
-	stick.loaded_worth = amount
-	M.money -= amount 
+/datum/gear_tweak/custom_name/New(list/valid_custom_names)
+	src.valid_custom_names = valid_custom_names
+	..()
+
+/datum/gear_tweak/custom_name/get_contents(metadata)
+	return "Name: [metadata]"
+
+/datum/gear_tweak/custom_name/get_default()
+	return ""
+
+/datum/gear_tweak/custom_name/get_metadata(user, metadata, title)
+	if(valid_custom_names)
+		return input(user, "Choose an item name.", CHARACTER_PREFERENCE_INPUT_TITLE, metadata) as null|anything in valid_custom_names
+	return sanitize(input(user, "Choose the item's name. Leave it blank to use the default name.", "Item Name", metadata) as text|null, MAX_LNAME_LEN)
+
+/datum/gear_tweak/custom_name/tweak_item(obj/item/I, metadata)
+	if(metadata)
+		I.name = metadata
+
+/*
+* Custom description
+*/
+
+var/global/datum/gear_tweak/custom_desc/gear_tweak_free_desc = new()
+
+/datum/gear_tweak/custom_desc
+	var/list/valid_custom_desc
+
+/datum/gear_tweak/custom_desc/New(list/valid_custom_desc)
+	src.valid_custom_desc = valid_custom_desc
+	..()
+
+/datum/gear_tweak/custom_desc/get_contents(metadata)
+	return "Description: [metadata]"
+
+/datum/gear_tweak/custom_desc/get_default()
+	return ""
+
+/datum/gear_tweak/custom_desc/get_metadata(user, metadata, title)
+	if(valid_custom_desc)
+		return input(user, "Choose an item description.", CHARACTER_PREFERENCE_INPUT_TITLE, metadata) as null|anything in valid_custom_desc
+	return sanitize(input(user, "Choose the item's description. Leave it blank to use the default description.", "Item Description", metadata) as message|null)
+
+/datum/gear_tweak/custom_desc/tweak_item(obj/item/I, metadata)
+	if(metadata)
+		I.desc = metadata

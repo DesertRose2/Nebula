@@ -77,11 +77,19 @@
 
 /obj/item/mech_component/chassis/Initialize()
 	. = ..()
-	cockpit = new(20)
+	cockpit = new
+	cockpit.volume = 200
 	if(loc)
 		var/datum/gas_mixture/air = loc.return_air()
 		if(air)
-			cockpit.equalize(air)
+			//Essentially at this point its like we created a vacuum, but realistically making a bottle doesnt actually increase volume of a room and neither should a mech
+			for(var/g in air.gas)
+				var/amount = air.gas[g]
+				amount/= air.volume
+				cockpit.gas[g] = amount * cockpit.volume
+
+			cockpit.temperature = air.temperature
+			cockpit.update_values()
 	air_supply = new /obj/machinery/portable_atmospherics/canister/air(src)
 	storage_compartment = new(src)
 
@@ -97,11 +105,29 @@
 	else if(air_supply)
 		var/env_pressure = cockpit.return_pressure()
 		var/pressure_delta = air_supply.release_pressure - env_pressure
-		if((air_supply.air_contents.temperature > 0) && (pressure_delta > 0))
-			var/transfer_moles = calculate_transfer_moles(air_supply.air_contents, cockpit, pressure_delta)
-			transfer_moles = min(transfer_moles, (air_supply.release_flow_rate/air_supply.air_contents.volume)*air_supply.air_contents.total_moles)
-			pump_gas_passive(air_supply, air_supply.air_contents, cockpit, transfer_moles)
-			changed = TRUE
+		if(pressure_delta > 0)
+			if(air_supply.air_contents.temperature > 0)
+				var/transfer_moles = calculate_transfer_moles(air_supply.air_contents, cockpit, pressure_delta)
+				transfer_moles = min(transfer_moles, (air_supply.release_flow_rate/air_supply.air_contents.volume)*air_supply.air_contents.total_moles)
+				pump_gas_passive(air_supply, air_supply.air_contents, cockpit, transfer_moles)
+				changed = TRUE
+		else if(pressure_delta < 0) //Release overpressure.
+			var/turf/T = get_turf(src)
+			if(!T)
+				return
+			var/datum/gas_mixture/t_air = T.return_air()
+			if(t_air)
+				pressure_delta = min(env_pressure - t_air.return_pressure(), pressure_delta)
+			if(pressure_delta > 0) //Location is at a lower pressure (so we can vent into it)
+				var/transfer_moles = calculate_transfer_moles(cockpit, t_air, pressure_delta)
+				var/datum/gas_mixture/removed = cockpit.remove(transfer_moles)
+				if(!removed)
+					return
+				if(t_air)
+					t_air.merge(removed)
+				else //just delete the cabin gas, we are somewhere with invalid air, so they wont mind the additional nothingness
+					qdel(removed)
+				changed = TRUE
 	if(changed)
 		cockpit.react()
 
@@ -133,23 +159,32 @@
 	else
 		return ..()
 
-/obj/item/mech_component/chassis/MouseDrop_T(atom/dropping, mob/user)
-	var/obj/machinery/portable_atmospherics/canister/C = dropping
-	if(istype(C) && !C.anchored && do_after(user, 5, src))
-		if(C.anchored)
-			return
+/obj/item/mech_component/chassis/receive_mouse_drop(atom/dropping, mob/user)
+	. = ..()
+	if(!. && istype(dropping, /obj/machinery/portable_atmospherics/canister))
+		var/obj/machinery/portable_atmospherics/canister/C = dropping
+		if(!do_after(user, 5, src) || QDELETED(C) || C.anchored)
+			return TRUE
 		to_chat(user, SPAN_NOTICE("You install the canister in the [src]."))
 		if(air_supply)
-			air_supply.forceMove(get_turf(src))
+			air_supply.dropInto(get_turf(src))
 			air_supply = null
 		C.forceMove(src)
 		update_components()
-	else . = ..()
+	return TRUE
 
-obj/item/mech_component/chassis/MouseDrop(atom/over)
-	if(CanMouseDrop(over))
-		if(storage_compartment)
-			return storage_compartment.MouseDrop(over)
+/obj/item/mech_component/chassis/handle_mouse_drop(atom/over, mob/user)
+	if(storage_compartment)
+		return storage_compartment.handle_mouse_drop(over, user)
+	. = ..()
 
-
-
+/obj/item/mech_component/chassis/return_diagnostics(mob/user)
+	..()
+	if(diagnostics)
+		to_chat(user, SPAN_NOTICE(" Diagnostics Unit Integrity: <b>[round((((diagnostics.max_dam - diagnostics.total_dam) / diagnostics.max_dam)) * 100)]%</b>"))
+	else
+		to_chat(user, SPAN_WARNING(" Diagnostics Unit Missing or Non-functional."))
+	if(m_armour)
+		to_chat(user, SPAN_NOTICE(" Armor Integrity: <b>[round((((m_armour.max_dam - m_armour.total_dam) / m_armour.max_dam)) * 100)]%</b>"))
+	else
+		to_chat(user, SPAN_WARNING(" Armor Missing or Non-functional."))

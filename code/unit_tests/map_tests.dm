@@ -18,7 +18,7 @@
 	var/list/bad_areas = list()
 	var/area_test_count = 0
 
-	for(var/area/A in world)
+	for(var/area/A in global.areas)
 		if(!A.z)
 			continue
 		if(!isPlayerLevel(A.z))
@@ -28,24 +28,24 @@
 		var/bad_msg = "--------------- [A.name]([A.type])"
 
 		var/exemptions = get_exemptions(A)
-		if(!A.apc && !(exemptions & GLOB.using_map.NO_APC))
+		if(!A.apc && !(exemptions & global.using_map.NO_APC))
 			log_bad("[bad_msg] lacks an APC.")
 			area_good = 0
-		else if(A.apc && (exemptions & GLOB.using_map.NO_APC))
+		else if(A.apc && (exemptions & global.using_map.NO_APC))
 			log_bad("[bad_msg] is not supposed to have an APC.")
 			area_good = 0
 
-		if(!A.air_scrub_names.len && !(exemptions & GLOB.using_map.NO_SCRUBBER))
+		if(!A.air_scrub_names.len && !(exemptions & global.using_map.NO_SCRUBBER))
 			log_bad("[bad_msg] lacks an air scrubber.")
 			area_good = 0
-		else if(A.air_scrub_names.len && (exemptions & GLOB.using_map.NO_SCRUBBER))
+		else if(A.air_scrub_names.len && (exemptions & global.using_map.NO_SCRUBBER))
 			log_bad("[bad_msg] is not supposed to have an air scrubber.")
 			area_good = 0
 
-		if(!A.air_vent_names.len && !(exemptions & GLOB.using_map.NO_VENT))
+		if(!A.air_vent_names.len && !(exemptions & global.using_map.NO_VENT))
 			log_bad("[bad_msg] lacks an air vent.[ascii_reset]")
 			area_good = 0
-		else if(A.air_vent_names.len && (exemptions & GLOB.using_map.NO_VENT))
+		else if(A.air_vent_names.len && (exemptions & global.using_map.NO_VENT))
 			log_bad("[bad_msg] is not supposed to have an air vent.")
 			area_good = 0
 
@@ -61,10 +61,10 @@
 
 /datum/unit_test/apc_area_test/proc/get_exemptions(var/area)
 	// We assume deeper types come last
-	for(var/i = GLOB.using_map.apc_test_exempt_areas.len; i>0; i--)
-		var/exempt_type = GLOB.using_map.apc_test_exempt_areas[i]
+	for(var/i = global.using_map.apc_test_exempt_areas.len; i>0; i--)
+		var/exempt_type = global.using_map.apc_test_exempt_areas[i]
 		if(istype(area, exempt_type))
-			return GLOB.using_map.apc_test_exempt_areas[exempt_type]
+			return global.using_map.apc_test_exempt_areas[exempt_type]
 
 /datum/unit_test/air_alarm_connectivity
 	name = "MAP: Air alarms shall receive updates."
@@ -78,7 +78,7 @@
 
 /datum/unit_test/air_alarm_connectivity/check_result()
 	var/failed = FALSE
-	for(var/area/A in world)
+	for(var/area/A in global.areas)
 		if(!A.z)
 			continue
 		if(!isPlayerLevel(A.z))
@@ -245,12 +245,12 @@
 /datum/unit_test/map_image_map_test/start_test()
 	var/failed = FALSE
 
-	for(var/z in GLOB.using_map.map_levels)
+	for(var/z in global.using_map.map_levels)
 		var/file_name = map_image_file_name(z)
 		var/file_path = MAP_IMAGE_PATH + file_name
 		if(!fexists(file_path))
 			failed = TRUE
-			log_unit_test("[GLOB.using_map.path]-[z] is missing its map image [file_name].")
+			log_unit_test("[global.using_map.path]-[z] is missing its map image [file_name].")
 
 	if(failed)
 		fail("One or more map levels were missing a corresponding map image.")
@@ -261,40 +261,28 @@
 
 //=======================================================================================
 
-datum/unit_test/correct_allowed_spawn_test
+/datum/unit_test/correct_allowed_spawn_test
 	name = "MAP: All allowed_spawns entries should have spawnpoints on map."
 
-datum/unit_test/correct_allowed_spawn_test/start_test()
-	var/failed = FALSE
+/datum/unit_test/correct_allowed_spawn_test/start_test()
+	var/list/failed = list()
+	for(var/decl/spawnpoint/spawnpoint AS_ANYTHING in global.using_map.allowed_spawns)
+		if(!length(spawnpoint.turfs))
+			log_unit_test("Map allows spawning in [spawnpoint.name], but [spawnpoint.name] has no associated spawn turfs.")
+			failed += spawnpoint.type
 
-	for(var/spawn_name in GLOB.using_map.allowed_spawns)
-		var/datum/spawnpoint/spawnpoint = spawntypes()[spawn_name]
-		if(!spawnpoint)
-			log_unit_test("Map allows spawning in [spawn_name], but [spawn_name] is null!")
-			failed = TRUE
-		else if(!length(spawnpoint.turfs))
-			log_unit_test("Map allows spawning in [spawn_name], but [spawn_name] has no associated spawn turfs.")
-			failed = TRUE
-
-	if(failed)
-		log_unit_test("Following spawn points exist:")
-		for(var/spawnpoint in spawntypes())
-			log_unit_test("\t[spawnpoint] ([any2ref(spawnpoint)])")
-		log_unit_test("Following spawn points are allowed:")
-		for(var/spawnpoint in GLOB.using_map.allowed_spawns)
-			log_unit_test("\t[spawnpoint] ([any2ref(spawnpoint)])")
-		fail("Some of the entries in allowed_spawns have no spawnpoint turfs.")
+	if(length(failed))
+		fail("Some allowed spawnpoints have no spawnpoint turfs:\n[jointext(failed, "\n")]")
 	else
-		pass("All entries in allowed_spawns have spawnpoints.")
-
+		pass("All allowed spawnpoints have spawnpoint turfs.")
 	return 1
 
 //=======================================================================================
 
-datum/unit_test/map_check
+/datum/unit_test/map_check
 	name = "MAP: Map Check"
 
-datum/unit_test/map_check/start_test()
+/datum/unit_test/map_check/start_test()
 	if(world.maxx < 1 || world.maxy < 1 || world.maxz < 1)
 		fail("Unexpected map size. Was a map properly included?")
 	else
@@ -302,20 +290,20 @@ datum/unit_test/map_check/start_test()
 	return 1
 //=======================================================================================
 
-datum/unit_test/ladder_check
+/datum/unit_test/ladder_check
 	name = "MAP: Ladder Check"
 
-datum/unit_test/ladder_check/start_test()
+/datum/unit_test/ladder_check/start_test()
 	var/failed
 	for(var/obj/structure/ladder/L)
 		if(HasAbove(L.z))
 			var/turf/T = GetAbove(L)
-			if(!istype(T, /turf/simulated/open) && (locate(/obj/structure/ladder) in T))
+			if(!istype(T) || !T.is_open() && (locate(/obj/structure/ladder) in T))
 				LAZYADD(failed, "[L.x],[L.y],[L.z]")
 				continue
 		if(HasBelow(L.z))
-			var/turf/T = GetBelow(L)
-			if(!istype(L.loc, /turf/simulated/open) && (locate(/obj/structure/ladder) in T))
+			var/turf/T = get_turf(L)
+			if((!istype(T) || !T.is_open()) && (locate(/obj/structure/ladder) in GetBelow(L)))
 				LAZYADD(failed, "[L.x],[L.y],[L.z]")
 				continue
 	if(LAZYLEN(failed))
@@ -496,12 +484,13 @@ datum/unit_test/ladder_check/start_test()
 
 //=======================================================================================
 
-/datum/unit_test/simple_pipes_shall_not_face_north_or_west // The init code is worthless and cannot handle it
+// Having them face north or west is now supported fully in code; this is for map consistency.
+/datum/unit_test/simple_pipes_shall_not_face_north_or_west
 	name = "MAP: Simple pipes shall not face north or west"
 
 /datum/unit_test/simple_pipes_shall_not_face_north_or_west/start_test()
 	var/failures = 0
-	for(var/obj/machinery/atmospherics/pipe/simple/pipe in world) // Pipes are removed from the SSmachines list during init.
+	for(var/obj/machinery/atmospherics/pipe/simple/pipe in SSmachines.machinery)
 		if(!istype(pipe, /obj/machinery/atmospherics/pipe/simple/hidden) && !istype(pipe, /obj/machinery/atmospherics/pipe/simple/visible))
 			continue
 		if(pipe.dir == NORTH || pipe.dir == WEST)
@@ -524,7 +513,7 @@ datum/unit_test/ladder_check/start_test()
 	for(var/obj/machinery/atmospherics/valve/shutoff/SV in SSmachines.machinery)
 		SV.close()
 	for(var/obj/machinery/atmospherics/valve/shutoff/SV in SSmachines.machinery)
-		if(SV.network_node1 == SV.network_node2)
+		if(SV.network_in_dir(SV.dir) == SV.network_in_dir(turn(SV.dir, 180)))
 			log_bad("Following shutoff valve does not connect to two different pipe networks: [log_info_line(SV)]")
 			failures++
 
@@ -634,7 +623,7 @@ datum/unit_test/ladder_check/start_test()
 	for(var/dir in list(C.d1, C.d2))
 		if(!dir) // Don't care about knots
 			continue
-		var/rev_dir = GLOB.reverse_dir[dir]
+		var/rev_dir = global.reverse_dir[dir]
 
 		var/list/exception = exceptions[source_turf]
 		if(exception && (dir in exception))
@@ -768,7 +757,7 @@ datum/unit_test/ladder_check/start_test()
 			return trunk.linked
 		var/obj/structure/disposalpipe/next_pipe
 		for(var/obj/structure/disposalpipe/P in get_step(our_pipe, current_dir))
-			if(GLOB.reverse_dir[current_dir] & P.dpdir)
+			if(global.reverse_dir[current_dir] & P.dpdir)
 				next_pipe = P
 				break
 		if(!istype(next_pipe))
@@ -815,6 +804,37 @@ datum/unit_test/ladder_check/start_test()
 		if(value == A.id)
 			return FALSE
 
+	return TRUE
+
+/datum/unit_test/doors_shall_be_on_appropriate_turfs
+	name = "MAP: Doors shall be on appropriate turfs"
+
+/datum/unit_test/doors_shall_be_on_appropriate_turfs/start_test()
+	var/bad_doors = 0
+	for(var/obj/machinery/door/D in world)
+		if(QDELETED(D))
+			continue
+		if(!istype(D.loc, /turf))
+			bad_doors++
+			log_bad("Invalid door turf: [log_info_line(D.loc)]]")
+		else
+			var/list/turf_exceptions
+			var/obj/effect/landmark/map_data/MD = get_map_data(D.loc.z)
+			if(UNLINT(MD?.UT_turf_exceptions_by_door_type))
+				turf_exceptions = UNLINT(MD.UT_turf_exceptions_by_door_type[D.type])
+
+			var/is_bad_door = FALSE
+			for(var/turf/T in D.locs)
+				if((istype(T, /turf/simulated/open) || isspaceturf(T)) && !(T.type in turf_exceptions))
+					is_bad_door = TRUE
+					log_bad("Invalid door turf: [log_info_line(T)]]")
+			if(is_bad_door)
+				bad_doors++
+
+	if(bad_doors)
+		fail("Found [bad_doors] door\s on inappropriate turfs")
+	else
+		pass("All doors are on appropriate turfs")
 	return TRUE
 
 #undef SUCCESS

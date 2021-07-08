@@ -1,3 +1,5 @@
+#define MAX_JOBBAN_CELLS 5
+
 /datum/admins/Topic(href, href_list)
 	..()
 
@@ -6,8 +8,8 @@
 		message_admins("[usr.key] has attempted to override the admin panel!")
 		return
 
-	if(SSticker.mode && SSticker.mode.check_antagonists_topic(href, href_list))
-		check_antagonists()
+	if(SSticker.mode && SSticker.mode.round_status_topic(href, href_list))
+		show_round_status()
 		return
 
 	if(href_list["dbsearchckey"] || href_list["dbsearchadmin"])
@@ -70,7 +72,7 @@
 
 		var/mob/playermob
 
-		for(var/mob/M in GLOB.player_list)
+		for(var/mob/M in global.player_list)
 			if(M.ckey == banckey)
 				playermob = M
 				break
@@ -161,7 +163,7 @@
 			else
 				D = new /datum/admins(new_rank, rights, adm_ckey)
 
-			var/client/C = GLOB.ckey_directory[adm_ckey]					//find the client with the specified ckey (if they are logged in)
+			var/client/C = global.ckey_directory[adm_ckey]					//find the client with the specified ckey (if they are logged in)
 			D.associate(C)											//link up with the client and add verbs
 
 			to_chat(C, "[key_name_admin(usr)] has set your admin rank to: [new_rank].")
@@ -178,7 +180,7 @@
 			if(!new_permission)	return
 			D.rights ^= permissionlist[new_permission]
 
-			var/client/C = GLOB.ckey_directory[adm_ckey]
+			var/client/C = global.ckey_directory[adm_ckey]
 			to_chat(C, "[key_name_admin(usr)] has toggled your permission: [new_permission].")
 			message_admins("[key_name_admin(usr)] toggled the [new_permission] permission of [adm_ckey]")
 			log_admin("[key_name(usr)] toggled the [new_permission] permission of [adm_ckey]")
@@ -205,14 +207,14 @@
 				if (SSevac.evacuation_controller.cancel_evacuation())
 					log_and_message_admins("cancelled an evacuation.")
 
-		href_list["secretsadmin"] = "check_antagonist"
+		href_list["secretsadmin"] = "show_round_status"
 
 	else if(href_list["delay_round_end"])
 		if(!check_rights(R_SERVER))	return
 
 		SSticker.delay_end = !SSticker.delay_end
 		log_and_message_admins("[SSticker.delay_end ? "delayed the round end" : "has made the round end normally"].")
-		href_list["secretsadmin"] = "check_antagonist"
+		href_list["secretsadmin"] = "show_round_status"
 
 	else if(href_list["simplemake"])
 
@@ -233,11 +235,10 @@
 		switch(href_list["simplemake"])
 			if("observer")			M.change_mob_type( /mob/observer/ghost , null, null, delmob )
 			if("human")				M.change_mob_type( /mob/living/carbon/human , null, null, delmob, href_list["species"])
-			if("slime")				M.change_mob_type( /mob/living/carbon/slime , null, null, delmob )
 			if("monkey")			M.change_mob_type( /mob/living/carbon/human/monkey , null, null, delmob )
 			if("robot")				M.change_mob_type( /mob/living/silicon/robot , null, null, delmob )
 			if("cat")				M.change_mob_type( /mob/living/simple_animal/cat , null, null, delmob )
-			if("runtime")			M.change_mob_type( /mob/living/simple_animal/cat/fluff/Runtime , null, null, delmob )
+			if("runtime")			M.change_mob_type( /mob/living/simple_animal/cat/fluff/runtime , null, null, delmob )
 			if("corgi")				M.change_mob_type( /mob/living/simple_animal/corgi , null, null, delmob )
 			if("ian")				M.change_mob_type( /mob/living/simple_animal/corgi/Ian , null, null, delmob )
 			if("crab")				M.change_mob_type( /mob/living/simple_animal/crab , null, null, delmob )
@@ -317,10 +318,10 @@
 
 	/////////////////////////////////////new ban stuff
 
-	else if(href_list["jobban2"])
+	else if(href_list["jobban_panel_target"])
 //		if(!check_rights(R_BAN))	return
 
-		var/mob/M = locate(href_list["jobban2"])
+		var/mob/M = locate(href_list["jobban_panel_target"])
 		if(!ismob(M))
 			to_chat(usr, "This can only be used on instances of type /mob")
 			return
@@ -340,267 +341,57 @@
 						                -Nodrak
 	************************************WARNING!***********************************/
 		var/counter = 0
-//Regular jobs
-	//Command (Blue)
-		jobs += "<table cellpadding='1' cellspacing='0' width='100%'>"
-		jobs += "<tr align='center' bgcolor='ccccff'><th colspan='[length(SSjobs.titles_by_department(DEPT_COMMAND))]'><a href='?src=\ref[src];jobban3=commanddept;jobban4=\ref[M]'>Command Positions</a></th></tr><tr align='center'>"
-		for(var/jobPos in SSjobs.titles_by_department(DEPT_COMMAND))
-			if(!jobPos)	continue
-			var/datum/job/job = SSjobs.get_by_title(jobPos)
-			if(!job) continue
+		var/list/all_departments = decls_repository.get_decls_of_subtype(/decl/department)
+		for(var/dtype in all_departments)
+			var/decl/department/dept = all_departments[dtype]
+			var/list/print_jobs = SSjobs.titles_by_department(dtype)
+			jobs += "<table cellpadding='1' cellspacing='0' width='100%'>"
+			jobs += "<tr align='center' bgcolor='[dept.display_color]'><th colspan='[length(print_jobs)]'><a href='?src=\ref[src];jobban_category=[dept.name];jobban_mob_target=\ref[M]'>[capitalize(dept.name)] Positions</a></th></tr><tr align='center'>"
+			for(var/jobPos in print_jobs)
+				var/datum/job/job = SSjobs.get_by_title(jobPos)
+				if(!job) 
+					continue
+				if(jobban_isbanned(M, job.title))
+					jobs += "<td width='20%'><a href='?src=\ref[src];jobban_category=[job.title];jobban_mob_target=\ref[M]'><font color=red>[replacetext(job.title, " ", "&nbsp")]</font></a></td>"
+					counter++
+				else
+					jobs += "<td width='20%'><a href='?src=\ref[src];jobban_category=[job.title];jobban_mob_target=\ref[M]'>[replacetext(job.title, " ", "&nbsp")]</a></td>"
+					counter++
+				if(counter >= MAX_JOBBAN_CELLS)
+					jobs += "</tr><tr>"
+					counter = 0
+			jobs += "</tr></table>"
 
-			if(jobban_isbanned(M, job.title))
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'><font color=red>[replacetext(job.title, " ", "&nbsp")]</font></a></td>"
-				counter++
-			else
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'>[replacetext(job.title, " ", "&nbsp")]</a></td>"
-				counter++
-
-			if(counter >= 6) //So things dont get squiiiiished!
-				jobs += "</tr><tr>"
-				counter = 0
-		jobs += "</tr></table>"
-
-	//Command Support (Sky Blue)
-		jobs += "<table cellpadding='1' cellspacing='0' width='100%'>"
-		jobs += "<tr bgcolor='87ceeb'><th colspan='[length(SSjobs.titles_by_department("support"))]'><a href='?src=\ref[src];jobban3=supportdept;jobban4=\ref[M]'>Command Support Positions</a></th></tr><tr align='center'>"
-		for(var/jobPos in SSjobs.titles_by_department("support"))
-			if(!jobPos)	continue
-			var/datum/job/job = SSjobs.get_by_title(jobPos)
-			if(!job) continue
-
-			if(jobban_isbanned(M, job.title))
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'><font color=red>[replacetext(job.title, " ", "&nbsp")]</font></a></td>"
-				counter++
-			else
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'>[replacetext(job.title, " ", "&nbsp")]</a></td>"
-				counter++
-
-			if(counter >= 6) //So things dont get squiiiiished!
-				jobs += "</tr><tr>"
-				counter = 0
-		jobs += "</tr></table>"
-
-	//Security (Red)
+	// Other non-human bans.
 		counter = 0
 		jobs += "<table cellpadding='1' cellspacing='0' width='100%'>"
-		jobs += "<tr bgcolor='ffddf0'><th colspan='[length(SSjobs.titles_by_department("security"))]'><a href='?src=\ref[src];jobban3=securitydept;jobban4=\ref[M]'>Security Positions</a></th></tr><tr align='center'>"
-		for(var/jobPos in SSjobs.titles_by_department("security"))
-			if(!jobPos)	continue
-			var/datum/job/job = SSjobs.get_by_title(jobPos)
-			if(!job) continue
-
-			if(jobban_isbanned(M, job.title))
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'><font color=red>[replacetext(job.title, " ", "&nbsp")]</font></a></td>"
-				counter++
-			else
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'>[replacetext(job.title, " ", "&nbsp")]</a></td>"
-				counter++
-
-			if(counter >= 5) //So things dont get squiiiiished!
-				jobs += "</tr><tr align='center'>"
-				counter = 0
-		jobs += "</tr></table>"
-
-	//Engineering (Yellow)
-		counter = 0
-		jobs += "<table cellpadding='1' cellspacing='0' width='100%'>"
-		jobs += "<tr bgcolor='fff5cc'><th colspan='[length(SSjobs.titles_by_department("engineering"))]'><a href='?src=\ref[src];jobban3=engineeringdept;jobban4=\ref[M]'>Engineering Positions</a></th></tr><tr align='center'>"
-		for(var/jobPos in SSjobs.titles_by_department("engineering"))
-			if(!jobPos)	continue
-			var/datum/job/job = SSjobs.get_by_title(jobPos)
-			if(!job) continue
-
-			if(jobban_isbanned(M, job.title))
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'><font color=red>[replacetext(job.title, " ", "&nbsp")]</font></a></td>"
-				counter++
-			else
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'>[replacetext(job.title, " ", "&nbsp")]</a></td>"
-				counter++
-
-			if(counter >= 5) //So things dont get squiiiiished!
-				jobs += "</tr><tr align='center'>"
-				counter = 0
-		jobs += "</tr></table>"
-
-	//Medical (White)
-		counter = 0
-		jobs += "<table cellpadding='1' cellspacing='0' width='100%'>"
-		jobs += "<tr bgcolor='ffeef0'><th colspan='[length(SSjobs.titles_by_department("medical"))]'><a href='?src=\ref[src];jobban3=medicaldept;jobban4=\ref[M]'>Medical Positions</a></th></tr><tr align='center'>"
-		for(var/jobPos in SSjobs.titles_by_department("medical"))
-			if(!jobPos)	continue
-			var/datum/job/job = SSjobs.get_by_title(jobPos)
-			if(!job) continue
-
-			if(jobban_isbanned(M, job.title))
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'><font color=red>[replacetext(job.title, " ", "&nbsp")]</font></a></td>"
-				counter++
-			else
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'>[replacetext(job.title, " ", "&nbsp")]</a></td>"
-				counter++
-
-			if(counter >= 5) //So things dont get squiiiiished!
-				jobs += "</tr><tr align='center'>"
-				counter = 0
-		jobs += "</tr></table>"
-
-	//Science (Purple)
-		counter = 0
-		jobs += "<table cellpadding='1' cellspacing='0' width='100%'>"
-		jobs += "<tr bgcolor='e79fff'><th colspan='[length(SSjobs.titles_by_department("science"))]'><a href='?src=\ref[src];jobban3=sciencedept;jobban4=\ref[M]'>Science Positions</a></th></tr><tr align='center'>"
-		for(var/jobPos in SSjobs.titles_by_department("science"))
-			if(!jobPos)	continue
-			var/datum/job/job = SSjobs.get_by_title(jobPos)
-			if(!job) continue
-
-			if(jobban_isbanned(M, job.title))
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'><font color=red>[replacetext(job.title, " ", "&nbsp")]</font></a></td>"
-				counter++
-			else
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'>[replacetext(job.title, " ", "&nbsp")]</a></td>"
-				counter++
-
-			if(counter >= 5) //So things dont get squiiiiished!
-				jobs += "</tr><tr align='center'>"
-				counter = 0
-		jobs += "</tr></table>"
-
-	//Exploration (Pale Purple)
-		jobs += "<table cellpadding='1' cellspacing='0' width='100%'>"
-		jobs += "<tr bgcolor='b784a7'><th colspan='[length(SSjobs.titles_by_department("exploration"))]'><a href='?src=\ref[src];jobban3=explorationdept;jobban4=\ref[M]'>Exploration Positions</a></th></tr><tr align='center'>"
-		for(var/jobPos in SSjobs.titles_by_department("exploration"))
-			if(!jobPos)	continue
-			var/datum/job/job = SSjobs.get_by_title(jobPos)
-			if(!job) continue
-
-			if(jobban_isbanned(M, job.title))
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'><font color=red>[replacetext(job.title, " ", "&nbsp")]</font></a></td>"
-				counter++
-			else
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'>[replacetext(job.title, " ", "&nbsp")]</a></td>"
-				counter++
-
-			if(counter >= 6) //So things dont get squiiiiished!
-				jobs += "</tr><tr>"
-				counter = 0
-		jobs += "</tr></table>"
-
-	//Service (Tea Green)
-		jobs += "<table cellpadding='1' cellspacing='0' width='100%'>"
-		jobs += "<tr bgcolor='d0f0c0'><th colspan='[length(SSjobs.titles_by_department("service"))]'><a href='?src=\ref[src];jobban3=servicedept;jobban4=\ref[M]'>Service Positions</a></th></tr><tr align='center'>"
-		for(var/jobPos in SSjobs.titles_by_department("service"))
-			if(!jobPos)	continue
-			var/datum/job/job = SSjobs.get_by_title(jobPos)
-			if(!job) continue
-
-			if(jobban_isbanned(M, job.title))
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'><font color=red>[replacetext(job.title, " ", "&nbsp")]</font></a></td>"
-				counter++
-			else
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'>[replacetext(job.title, " ", "&nbsp")]</a></td>"
-				counter++
-
-			if(counter >= 6) //So things dont get squiiiiished!
-				jobs += "</tr><tr>"
-				counter = 0
-		jobs += "</tr></table>"
-
-
-	//Supply (Khaki)
-		jobs += "<table cellpadding='1' cellspacing='0' width='100%'>"
-		jobs += "<tr bgcolor='f0e68c'><th colspan='[length(SSjobs.titles_by_department("supply"))]'><a href='?src=\ref[src];jobban3=supplydept;jobban4=\ref[M]'>Supply Positions</a></th></tr><tr align='center'>"
-		for(var/jobPos in SSjobs.titles_by_department("supply"))
-			if(!jobPos)	continue
-			var/datum/job/job = SSjobs.get_by_title(jobPos)
-			if(!job) continue
-
-			if(jobban_isbanned(M, job.title))
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'><font color=red>[replacetext(job.title, " ", "&nbsp")]</font></a></td>"
-				counter++
-			else
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'>[replacetext(job.title, " ", "&nbsp")]</a></td>"
-				counter++
-
-			if(counter >= 6) //So things dont get squiiiiished!
-				jobs += "</tr><tr>"
-				counter = 0
-		jobs += "</tr></table>"
-
-	//Civilian (Grey)
-		counter = 0
-		jobs += "<table cellpadding='1' cellspacing='0' width='100%'>"
-		jobs += "<tr bgcolor='dddddd'><th colspan='[length(SSjobs.titles_by_department("civilian"))]'><a href='?src=\ref[src];jobban3=civiliandept;jobban4=\ref[M]'>Civilian Positions</a></th></tr><tr align='center'>"
-		for(var/jobPos in SSjobs.titles_by_department("civilian"))
-			if(!jobPos)	continue
-			var/datum/job/job = SSjobs.get_by_title(jobPos)
-			if(!job) continue
-
-			if(jobban_isbanned(M, job.title))
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'><font color=red>[replacetext(job.title, " ", "&nbsp")]</font></a></td>"
-				counter++
-			else
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'>[replacetext(job.title, " ", "&nbsp")]</a></td>"
-				counter++
-
-			if(counter >= 5) //So things dont get squiiiiished!
-				jobs += "</tr><tr align='center'>"
-				counter = 0
-
-		if(jobban_isbanned(M, "Internal Affairs Agent"))
-			jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=Internal Affairs Agent;jobban4=\ref[M]'><font color=red>Internal Affairs Agent</font></a></td>"
-		else
-			jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=Internal Affairs Agent;jobban4=\ref[M]'>Internal Affairs Agent</a></td>"
-
-		jobs += "</tr></table>"
-
-	//Non-Human (Green)
-		counter = 0
-		jobs += "<table cellpadding='1' cellspacing='0' width='100%'>"
-		jobs += "<tr bgcolor='ccffcc'><th colspan='[length(SSjobs.titles_by_department("misc"))+1]'><a href='?src=\ref[src];jobban3=nonhumandept;jobban4=\ref[M]'>Non-human Positions</a></th></tr><tr align='center'>"
-		for(var/jobPos in SSjobs.titles_by_department("misc"))
-			if(!jobPos)	continue
-			var/datum/job/job = SSjobs.get_by_title(jobPos)
-			if(!job) continue
-
-			if(jobban_isbanned(M, job.title))
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'><font color=red>[replacetext(job.title, " ", "&nbsp")]</font></a></td>"
-				counter++
-			else
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[job.title];jobban4=\ref[M]'>[replacetext(job.title, " ", "&nbsp")]</a></td>"
-				counter++
-
-			if(counter >= 5) //So things dont get squiiiiished!
-				jobs += "</tr><tr align='center'>"
-				counter = 0
-
-		//pAI isn't technically a job, but it goes in here.
-
+		jobs += "<tr bgcolor='ccffcc'><th colspan='2><a href='?src=\ref[src];jobban_category=miscnonhumanroles;jobban_mob_target=\ref[M]'>Other Positions</a></th></tr><tr align='center'>"
 		if(jobban_isbanned(M, "pAI"))
-			jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=pAI;jobban4=\ref[M]'><font color=red>pAI</font></a></td>"
+			jobs += "<td width='20%'><a href='?src=\ref[src];jobban_category=pAI;jobban_mob_target=\ref[M]'><font color=red>pAI</font></a></td>"
 		else
-			jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=pAI;jobban4=\ref[M]'>pAI</a></td>"
+			jobs += "<td width='20%'><a href='?src=\ref[src];jobban_category=pAI;jobban_mob_target=\ref[M]'>pAI</a></td>"
 		if(jobban_isbanned(M, "AntagHUD"))
-			jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=AntagHUD;jobban4=\ref[M]'><font color=red>AntagHUD</font></a></td>"
+			jobs += "<td width='20%'><a href='?src=\ref[src];jobban_category=AntagHUD;jobban_mob_target=\ref[M]'><font color=red>AntagHUD</font></a></td>"
 		else
-			jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=AntagHUD;jobban4=\ref[M]'>AntagHUD</a></td>"
+			jobs += "<td width='20%'><a href='?src=\ref[src];jobban_category=AntagHUD;jobban_mob_target=\ref[M]'>AntagHUD</a></td>"
 		jobs += "</tr></table>"
 
 	//Antagonist (Orange)
 		jobs += "<table cellpadding='1' cellspacing='0' width='100%'>"
-		jobs += "<tr bgcolor='ffeeaa'><th colspan='10'><a href='?src=\ref[src];jobban3=Syndicate;jobban4=\ref[M]'>Antagonist Positions</a></th></tr><tr align='center'>"
+		jobs += "<tr bgcolor='ffeeaa'><th colspan='10'><a href='?src=\ref[src];jobban_category=Syndicate;jobban_mob_target=\ref[M]'>Antagonist Positions</a></th></tr><tr align='center'>"
 
 		// Antagonists.
 		#define ANTAG_COLUMNS 5
-		var/list/all_antag_types = GLOB.all_antag_types_
+		var/list/all_antag_types = decls_repository.get_decls_of_subtype(/decl/special_role)
 		var/i = 1
 		for(var/antag_type in all_antag_types)
-			var/datum/antagonist/antag = all_antag_types[antag_type]
-			if(!antag || !antag.id)
+			var/decl/special_role/antag = all_antag_types[antag_type]
+			if(!antag)
 				continue
-			if(jobban_isbanned(M, "[antag.id]"))
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[antag.id];jobban4=\ref[M]'><font color=red>[replacetext("[antag.role_text]", " ", "&nbsp")]</font></a></td>"
+			if(jobban_isbanned(M, antag.type))
+				jobs += "<td width='20%'><a href='?src=\ref[src];jobban_category=\ref[antag];jobban_mob_target=\ref[M]'><font color=red>[replacetext("[antag.name]", " ", "&nbsp")]</font></a></td>"
 			else
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[antag.id];jobban4=\ref[M]'>[replacetext("[antag.role_text]", " ", "&nbsp")]</a></td>"
+				jobs += "<td width='20%'><a href='?src=\ref[src];jobban_category=\ref[antag];jobban_mob_target=\ref[M]'>[replacetext("[antag.name]", " ", "&nbsp")]</a></td>"
 			if(i % ANTAG_COLUMNS == 0 && i < length(all_antag_types))
 				jobs += "</tr><tr align='center'>"
 			i++
@@ -613,9 +404,9 @@
 		jobs += "<tr bgcolor='ccccff'><th colspan='[LAZYLEN(misc_roles)]'>Other Roles</th></tr><tr align='center'>"
 		for(var/entry in misc_roles)
 			if(jobban_isbanned(M, entry))
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[entry];jobban4=\ref[M]'><font color=red>[entry]</font></a></td>"
+				jobs += "<td width='20%'><a href='?src=\ref[src];jobban_category=[entry];jobban_mob_target=\ref[M]'><font color=red>[entry]</font></a></td>"
 			else
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[entry];jobban4=\ref[M]'>[entry]</a></td>"
+				jobs += "<td width='20%'><a href='?src=\ref[src];jobban_category=[entry];jobban_mob_target=\ref[M]'>[entry]</a></td>"
 		jobs += "</tr></table>"
 
 	// Channels
@@ -625,19 +416,19 @@
 		for(var/channel_type in channels)
 			var/decl/communication_channel/channel = channels[channel_type]
 			if(jobban_isbanned(M, channel.name))
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[channel.name];jobban4=\ref[M]'><font color=red>[channel.name]</font></a></td>"
+				jobs += "<td width='20%'><a href='?src=\ref[src];jobban_category=[channel.name];jobban_mob_target=\ref[M]'><font color=red>[channel.name]</font></a></td>"
 			else
-				jobs += "<td width='20%'><a href='?src=\ref[src];jobban3=[channel.name];jobban4=\ref[M]'>[channel.name]</a></td>"
+				jobs += "<td width='20%'><a href='?src=\ref[src];jobban_category=[channel.name];jobban_mob_target=\ref[M]'>[channel.name]</a></td>"
 		jobs += "</tr></table>"
 
 	// Finalize and display.
 		body = "<body>[jobs]</body>"
 		dat = "<tt>[header][body]</tt>"
-		show_browser(usr, dat, "window=jobban2;size=800x490")
+		show_browser(usr, dat, "window=jobban_panel_target;size=800x490")
 		return
 
 	//JOBBAN'S INNARDS
-	else if(href_list["jobban3"])
+	else if(href_list["jobban_category"])
 		if(!check_rights(R_MOD,0) && !check_rights(R_ADMIN,0))
 			to_chat(usr, "<span class='warning'>You do not have the appropriate permissions to add job bans!</span>")
 			return
@@ -646,7 +437,7 @@
 			to_chat(usr, "<span class='warning'>Mod jobbanning is disabled!</span>")
 			return
 
-		var/mob/M = locate(href_list["jobban4"])
+		var/mob/M = locate(href_list["jobban_mob_target"])
 		if(!ismob(M))
 			to_chat(usr, "This can only be used on instances of type /mob")
 			return
@@ -658,83 +449,22 @@
 
 		//get jobs for department if specified, otherwise just returnt he one job in a list.
 		var/list/job_list = list()
-		switch(href_list["jobban3"])
-			if("commanddept")
-				for(var/jobPos in SSjobs.titles_by_department(DEPT_COMMAND))
-					if(!jobPos)	continue
-					var/datum/job/temp = SSjobs.get_by_title(jobPos)
-					if(!temp) continue
-					job_list += temp.title
-			if("supportdept")
-				for(var/jobPos in SSjobs.titles_by_department(DEPT_SUPPORT))
-					if(!jobPos)	continue
-					var/datum/job/temp = SSjobs.get_by_title(jobPos)
-					if(!temp) continue
-					job_list += temp.title
-			if("securitydept")
-				for(var/jobPos in SSjobs.titles_by_department(DEPT_COMMAND))
-					if(!jobPos)	continue
-					var/datum/job/temp = SSjobs.get_by_title(jobPos)
-					if(!temp) continue
-					job_list += temp.title
-			if("engineeringdept")
-				for(var/jobPos in SSjobs.titles_by_department(DEPT_ENGINEERING))
-					if(!jobPos)	continue
-					var/datum/job/temp = SSjobs.get_by_title(jobPos)
-					if(!temp) continue
-					job_list += temp.title
-			if("medicaldept")
-				for(var/jobPos in SSjobs.titles_by_department(DEPT_MEDICAL))
-					if(!jobPos)	continue
-					var/datum/job/temp = SSjobs.get_by_title(jobPos)
-					if(!temp) continue
-					job_list += temp.title
-			if("sciencedept")
-				for(var/jobPos in SSjobs.titles_by_department(DEPT_SCIENCE))
-					if(!jobPos)	continue
-					var/datum/job/temp = SSjobs.get_by_title(jobPos)
-					if(!temp) continue
-					job_list += temp.title
-			if("explorationdept")
-				for(var/jobPos in SSjobs.titles_by_department(DEPT_EXPLORATION))
-					if(!jobPos)	continue
-					var/datum/job/temp = SSjobs.get_by_title(jobPos)
-					if(!temp) continue
-					job_list += temp.title
-			if("servicedept")
-				for(var/jobPos in SSjobs.titles_by_department(DEPT_SERVICE))
-					if(!jobPos)	continue
-					var/datum/job/temp = SSjobs.get_by_title(jobPos)
-					if(!temp) continue
-					job_list += temp.title
-			if("supplydept")
-				for(var/jobPos in SSjobs.titles_by_department(DEPT_SUPPLY))
-					if(!jobPos)	continue
-					var/datum/job/temp = SSjobs.get_by_title(jobPos)
-					if(!temp) continue
-					job_list += temp.title
-			if("civiliandept")
-				for(var/jobPos in SSjobs.titles_by_department(DEPT_CIVILIAN))
-					if(!jobPos)	continue
-					var/datum/job/temp = SSjobs.get_by_title(jobPos)
-					if(!temp) continue
-					job_list += temp.title
-			if("nonhumandept")
-				job_list += "pAI"
-				for(var/jobPos in SSjobs.titles_by_department(DEPT_MISC))
-					if(!jobPos)	continue
-					var/datum/job/temp = SSjobs.get_by_title(jobPos)
-					if(!temp) continue
-					job_list += temp.title
+		var/decl/department/ban_dept = SSjobs.get_department_by_name(href_list["jobban_category"])
+		if(ban_dept)
+			for(var/jobPos in SSjobs.titles_by_department(ban_dept.type))
+				var/datum/job/temp = SSjobs.get_by_title(jobPos)
+				if(temp)
+					job_list |= temp.title
+		switch(href_list["jobban_category"])
+			if("miscnonhumanroles")
+				job_list |= "pAI"
 			if("Syndicate")
-				var/list/all_antag_types = GLOB.all_antag_types_
+				var/list/all_antag_types = decls_repository.get_decls_of_subtype(/decl/special_role)
 				for(var/antagPos in all_antag_types)
-					if(!antagPos) continue
-					var/datum/antagonist/temp = all_antag_types[antagPos]
-					if(!temp) continue
-					job_list += temp.id
-			else
-				job_list += href_list["jobban3"]
+					var/decl/special_role/temp = all_antag_types[antagPos]
+					job_list |= temp.name
+		if(!length(job_list))
+			job_list += href_list["jobban_category"]
 
 		//Create a list of unbanned jobs within job_list
 		var/list/notbannedlist = list()
@@ -763,9 +493,10 @@
 						return
 
 					var/msg
+					var/mins_readable = minutes_to_readable(mins)
 					for(var/job in notbannedlist)
-						ban_unban_log_save("[key_name(usr)] temp-jobbanned [key_name(M)] from [job] for [mins] minutes. reason: [reason]")
-						log_admin("[key_name(usr)] temp-jobbanned [key_name(M)] from [job] for [mins] minutes")
+						ban_unban_log_save("[key_name(usr)] temp-jobbanned [key_name(M)] from [job] for [mins_readable]. reason: [reason]")
+						log_admin("[key_name(usr)] temp-jobbanned [key_name(M)] from [job] for [mins_readable]")
 						SSstatistics.add_field("ban_job_tmp",1)
 						DB_ban_record(BANTYPE_JOB_TEMP, M, mins, reason, job)
 						SSstatistics.add_field_details("ban_job_tmp","- [job]")
@@ -775,11 +506,11 @@
 						else
 							msg += ", [job]"
 					notes_add(LAST_CKEY(M), "Banned  from [msg] - [reason]", usr)
-					message_admins("[key_name_admin(usr)] banned [key_name_admin(M)] from [msg] for [mins] minutes", 1)
+					message_admins("[key_name_admin(usr)] banned [key_name_admin(M)] from [msg] for [mins_readable]", 1)
 					to_chat(M, "<span class='danger'>You have been jobbanned by [usr.client.ckey] from: [msg].</span>")
 					to_chat(M, "<span class='warning'>The reason is: [reason]</span>")
-					to_chat(M, "<span class='warning'>This jobban will be lifted in [mins] minutes.</span>")
-					href_list["jobban2"] = 1 // lets it fall through and refresh
+					to_chat(M, "<span class='warning'>This jobban will be lifted in [mins_readable].</span>")
+					href_list["jobban_panel_target"] = 1 // lets it fall through and refresh
 					return 1
 				if("No")
 					if(!check_rights(R_BAN))  return
@@ -800,7 +531,7 @@
 						to_chat(M, "<span class='danger'>You have been jobbanned by [usr.client.ckey] from: [msg].</span>")
 						to_chat(M, "<span class='warning'>The reason is: [reason]</span>")
 						to_chat(M, "<span class='warning'>Jobban can be lifted only upon request.</span>")
-						href_list["jobban2"] = 1 // lets it fall through and refresh
+						href_list["jobban_panel_target"] = 1 // lets it fall through and refresh
 						return 1
 				if("Cancel")
 					return
@@ -831,7 +562,7 @@
 			if(msg)
 				message_admins("[key_name_admin(usr)] unbanned [key_name_admin(M)] from [msg]", 1)
 				to_chat(M, "<span class='danger'>You have been un-jobbanned by [usr.client.ckey] from [msg].</span>")
-				href_list["jobban2"] = 1 // lets it fall through and refresh
+				href_list["jobban_panel_target"] = 1 // lets it fall through and refresh
 			return 1
 		return 0 //we didn't do anything!
 
@@ -900,10 +631,11 @@
 					show_player_panel(M)
 					return
 				AddBan(mob_key, M.computer_id, reason, usr.ckey, 1, mins)
-				ban_unban_log_save("[usr.client.ckey] has banned [mob_key]. - Reason: [reason] - This will be removed in [mins] minutes.")
-				notes_add(mob_key,"[usr.client.ckey] has banned [mob_key]. - Reason: [reason] - This will be removed in [mins] minutes.",usr)
+				var/mins_readable = minutes_to_readable(mins)
+				ban_unban_log_save("[usr.client.ckey] has banned [mob_key]. - Reason: [reason] - This will be removed in [mins_readable].")
+				notes_add(mob_key,"[usr.client.ckey] has banned [mob_key]. - Reason: [reason] - This will be removed in [mins_readable].",usr)
 				to_chat(M, "<span class='danger'>You have been banned by [usr.client.ckey].\nReason: [reason].</span>")
-				to_chat(M, "<span class='warning'>This is a temporary ban, it will be removed in [mins] minutes.</span>")
+				to_chat(M, "<span class='warning'>This is a temporary ban, it will be removed in [mins_readable].</span>")
 				SSstatistics.add_field("ban_tmp",1)
 				DB_ban_record(BANTYPE_TEMP, M, mins, reason)
 				SSstatistics.add_field("ban_tmp_mins",mins)
@@ -911,7 +643,7 @@
 					to_chat(M, "<span class='warning'>To try to resolve this matter head to [config.banappeals]</span>")
 				else
 					to_chat(M, "<span class='warning'>No ban appeals URL has been set.</span>")
-				log_and_message_admins("has banned [mob_key].\nReason: [reason]\nThis will be removed in [mins] minutes.")
+				log_and_message_admins("has banned [mob_key].\nReason: [reason]\nThis will be removed in [mins_readable].")
 
 				qdel(M.client)
 				//qdel(M)	// See no reason why to delete mob. Important stuff can be lost. And ban can be lifted before round ends.
@@ -1048,149 +780,8 @@
 		speech = sanitize(speech) // Nah, we don't trust them
 		log_and_message_admins("forced [key_name_admin(M)] to say: [speech]")
 
-	else if(href_list["sendtoprison"])
-		if(!check_rights(R_ADMIN))	return
-
-		if(alert(usr, "Send to admin prison for the round?", "Message", "Yes", "No") != "Yes")
-			return
-
-		var/mob/M = locate(href_list["sendtoprison"])
-		if(!ismob(M))
-			to_chat(usr, "This can only be used on instances of type /mob")
-			return
-		if(istype(M, /mob/living/silicon/ai))
-			to_chat(usr, "This cannot be used on instances of type /mob/living/silicon/ai")
-			return
-
-		var/turf/prison_cell = pick(GLOB.prisonwarp)
-		if(!prison_cell)	return
-
-		var/obj/structure/closet/secure_closet/brig/locker = new /obj/structure/closet/secure_closet/brig(prison_cell)
-		locker.opened = 0
-		locker.locked = 1
-
-		//strip their stuff and stick it in the crate
-		for(var/obj/item/I in M)
-			M.drop_from_inventory(I, locker)
-		M.update_icons()
-
-		//so they black out before warping
-		M.Paralyse(5)
-		sleep(5)
-		if(!M)	return
-
-		M.forceMove(prison_cell)
-		if(istype(M, /mob/living/carbon/human))
-			var/mob/living/carbon/human/prisoner = M
-			prisoner.equip_to_slot_or_del(new /obj/item/clothing/under/color/orange(prisoner), slot_w_uniform)
-			prisoner.equip_to_slot_or_del(new /obj/item/clothing/shoes/color/orange(prisoner), slot_shoes)
-
-		to_chat(M, "<span class='warning'>You have been sent to the prison station!</span>")
-		log_and_message_admins("sent [key_name_admin(M)] to the prison station.")
-
-	else if(href_list["tdome1"])
-		if(!check_rights(R_FUN))	return
-
-		if(alert(usr, "Confirm?", "Message", "Yes", "No") != "Yes")
-			return
-
-		var/mob/M = locate(href_list["tdome1"])
-		if(!ismob(M))
-			to_chat(usr, "This can only be used on instances of type /mob")
-			return
-		if(istype(M, /mob/living/silicon/ai))
-			to_chat(usr, "This cannot be used on instances of type /mob/living/silicon/ai")
-			return
-
-		for(var/obj/item/I in M)
-			M.drop_from_inventory(I)
-
-		M.Paralyse(5)
-		sleep(5)
-		M.forceMove(pick(GLOB.tdome1))
-		spawn(50)
-			to_chat(M, "<span class='notice'>You have been sent to the Thunderdome.</span>")
-		log_admin("[key_name(usr)] has sent [key_name(M)] to the thunderdome. (Team 1)")
-		message_admins("[key_name_admin(usr)] has sent [key_name_admin(M)] to the thunderdome. (Team 1)", 1)
-
-	else if(href_list["tdome2"])
-		if(!check_rights(R_FUN))	return
-
-		if(alert(usr, "Confirm?", "Message", "Yes", "No") != "Yes")
-			return
-
-		var/mob/M = locate(href_list["tdome2"])
-		if(!ismob(M))
-			to_chat(usr, "This can only be used on instances of type /mob")
-			return
-		if(istype(M, /mob/living/silicon/ai))
-			to_chat(usr, "This cannot be used on instances of type /mob/living/silicon/ai")
-			return
-
-		for(var/obj/item/I in M)
-			M.drop_from_inventory(I)
-
-		M.Paralyse(5)
-		sleep(5)
-		M.forceMove(pick(GLOB.tdome2))
-		spawn(50)
-			to_chat(M, "<span class='notice'>You have been sent to the Thunderdome.</span>")
-		log_admin("[key_name(usr)] has sent [key_name(M)] to the thunderdome. (Team 2)")
-		message_admins("[key_name_admin(usr)] has sent [key_name_admin(M)] to the thunderdome. (Team 2)", 1)
-
-	else if(href_list["tdomeadmin"])
-		if(!check_rights(R_FUN))	return
-
-		if(alert(usr, "Confirm?", "Message", "Yes", "No") != "Yes")
-			return
-
-		var/mob/M = locate(href_list["tdomeadmin"])
-		if(!ismob(M))
-			to_chat(usr, "This can only be used on instances of type /mob")
-			return
-		if(istype(M, /mob/living/silicon/ai))
-			to_chat(usr, "This cannot be used on instances of type /mob/living/silicon/ai")
-			return
-
-		M.Paralyse(5)
-		sleep(5)
-		M.forceMove(pick(GLOB.tdomeadmin))
-		spawn(50)
-			to_chat(M, "<span class='notice'>You have been sent to the Thunderdome.</span>")
-		log_admin("[key_name(usr)] has sent [key_name(M)] to the thunderdome. (Admin.)")
-		message_admins("[key_name_admin(usr)] has sent [key_name_admin(M)] to the thunderdome. (Admin.)", 1)
-
-	else if(href_list["tdomeobserve"])
-		if(!check_rights(R_FUN))	return
-
-		if(alert(usr, "Confirm?", "Message", "Yes", "No") != "Yes")
-			return
-
-		var/mob/M = locate(href_list["tdomeobserve"])
-		if(!ismob(M))
-			to_chat(usr, "This can only be used on instances of type /mob")
-			return
-		if(istype(M, /mob/living/silicon/ai))
-			to_chat(usr, "This cannot be used on instances of type /mob/living/silicon/ai")
-			return
-
-		for(var/obj/item/I in M)
-			M.drop_from_inventory(I)
-
-		if(istype(M, /mob/living/carbon/human))
-			var/mob/living/carbon/human/observer = M
-			observer.equip_to_slot_or_del(new /obj/item/clothing/under/suit_jacket(observer), slot_w_uniform)
-			observer.equip_to_slot_or_del(new /obj/item/clothing/shoes/color/black(observer), slot_shoes)
-		M.Paralyse(5)
-		sleep(5)
-		M.forceMove(pick(GLOB.tdomeobserve))
-		spawn(50)
-			to_chat(M, "<span class='notice'>You have been sent to the Thunderdome.</span>")
-		log_admin("[key_name(usr)] has sent [key_name(M)] to the thunderdome. (Observer.)")
-		message_admins("[key_name_admin(usr)] has sent [key_name_admin(M)] to the thunderdome. (Observer.)", 1)
-
 	else if(href_list["revive"])
-		if(!check_rights(R_REJUVINATE))	return
+		if(!check_rights(R_REJUVENATE))	return
 
 		var/mob/living/L = locate(href_list["revive"])
 		if(!istype(L))
@@ -1213,16 +804,6 @@
 
 		log_and_message_admins("AIized [key_name_admin(H)]!")
 		H.AIize()
-
-	else if(href_list["makeslime"])
-		if(!check_rights(R_SPAWN))	return
-
-		var/mob/living/carbon/human/H = locate(href_list["makeslime"])
-		if(!istype(H))
-			to_chat(usr, "This can only be used on instances of type /mob/living/carbon/human")
-			return
-
-		usr.client.cmd_admin_slimeize(H)
 
 	else if(href_list["makerobot"])
 		if(!check_rights(R_SPAWN))	return
@@ -1290,8 +871,8 @@
 			sleep(2)
 			G.ManualFollow(M)
 
-	else if(href_list["check_antagonist"])
-		check_antagonists()
+	else if(href_list["show_round_status"])
+		show_round_status()
 
 	// call dibs on IC messages (prays, emergency comms, faxes)
 	else if(href_list["take_ic"])
@@ -1299,7 +880,7 @@
 		var/mob/M = locate(href_list["take_question"])
 		if(ismob(M))
 			var/take_msg = "<span class='notice'><b>[key_name(usr.client)]</b> is attending to <b>[key_name(M)]'s</b> message.</span>"
-			for(var/client/X in GLOB.admins)
+			for(var/client/X in global.admins)
 				if((R_ADMIN|R_MOD) & X.holder.rights)
 					to_chat(X, take_msg)
 			to_chat(M, "<span class='notice'><b>Your message is being attended to by [usr.client]. Thanks for your patience!</b></span>")
@@ -1338,7 +919,6 @@
 		var/location_description = ""
 		var/special_role_description = ""
 		var/health_description = ""
-		var/gender_description = ""
 		var/turf/T = get_turf(M)
 
 		//Location
@@ -1350,7 +930,7 @@
 
 		//Job + antagonist
 		if(M.mind)
-			special_role_description = "Role: <b>[M.mind.assigned_role]</b>; Antagonist: <font color='red'><b>[M.mind.special_role]</b></font>; Has been rev: [(M.mind.has_been_rev)?"Yes":"No"]"
+			special_role_description = "Role: <b>[M.mind.assigned_role]</b>; Antagonist: <font color='red'><b>[M.mind.get_special_role_name()]</b></font>; Has been rev: [(M.mind.has_been_rev)?"Yes":"No"]"
 		else
 			special_role_description = "Role: <i>Mind datum missing</i> Antagonist: <i>Mind datum missing</i>; Has been rev: <i>Mind datum missing</i>;"
 
@@ -1367,17 +947,12 @@
 		else
 			health_description = "This mob type has no health to speak of."
 
-		//Gener
-		switch(M.gender)
-			if(MALE,FEMALE)	gender_description = "[M.gender]"
-			else			gender_description = "<font color='red'><b>[M.gender]</b></font>"
-
 		to_chat(src.owner, "<b>Info about [M.name]:</b> ")
-		to_chat(src.owner, "Mob type = [M.type]; Gender = [gender_description] Damage = [health_description]")
+		to_chat(src.owner, "Mob type = [M.type]; Gender = [M.gender] Damage = [health_description]")
 		to_chat(src.owner, "Name = <b>[M.name]</b>; Real_name = [M.real_name]; Mind_name = [M.mind?"[M.mind.name]":""]; Key = <b>[M.key]</b>;")
 		to_chat(src.owner, "Location = [location_description];")
 		to_chat(src.owner, "[special_role_description]")
-		to_chat(src.owner, "(<a href='?src=\ref[usr];priv_msg=\ref[M]'>PM</a>) (<A HREF='?src=\ref[src];adminplayeropts=\ref[M]'>PP</A>) (<A HREF='?_src_=vars;Vars=\ref[M]'>VV</A>) ([admin_jump_link(M, src)]) (<A HREF='?src=\ref[src];secretsadmin=check_antagonist'>CA</A>)")
+		to_chat(src.owner, "(<a href='?src=\ref[usr];priv_msg=\ref[M]'>PM</a>) (<A HREF='?src=\ref[src];adminplayeropts=\ref[M]'>PP</A>) (<A HREF='?_src_=vars;Vars=\ref[M]'>VV</A>) ([admin_jump_link(M, src)]) (<A HREF='?src=\ref[src];secretsadmin=show_round_status'>RS</A>)")
 
 	else if(href_list["adminspawnprayreward"])
 		if(!check_rights(R_ADMIN|R_FUN))	return
@@ -1387,7 +962,7 @@
 			to_chat(usr, "This can only be used on instances of type /mob/living/carbon/human")
 			return
 
-		var/obj/item/C = new GLOB.using_map.pray_reward_type(get_turf(H))
+		var/obj/item/C = new global.using_map.pray_reward_type(get_turf(H))
 		H.put_in_hands(C)
 		if(C.loc !=H)
 			message_admins("[key_name(H)] has their hands full, so they did not receive their [C.name], spawned by [key_name(src.owner)].")
@@ -1438,9 +1013,9 @@
 			M.gib()
 		else
 			M.adjustBruteLoss( min( 99 , (M.health - 1) )    )
-			M.Stun(20)
-			M.Weaken(20)
-			M.stuttering = 20
+			SET_STATUS_MAX(M, STAT_STUN, 20)
+			SET_STATUS_MAX(M, STAT_WEAK, 20)
+			M.set_status(STAT_STUTTER, 20)
 
 	else if(href_list["CentcommReply"])
 		var/mob/living/L = locate(href_list["CentcommReply"])
@@ -1557,18 +1132,18 @@
 		var/mob/M = locate(href_list["narrateto"])
 		usr.client.cmd_admin_direct_narrate(M)
 
-	else if(href_list["traitor"])
+	else if(href_list["show_special_roles"])
 		if(!check_rights(R_ADMIN|R_MOD))	return
 
 		if(GAME_STATE < RUNLEVEL_GAME)
 			alert("The game hasn't started yet!")
 			return
 
-		var/mob/M = locate(href_list["traitor"])
+		var/mob/M = locate(href_list["show_special_roles"])
 		if(!ismob(M))
 			to_chat(usr, "This can only be used on instances of type /mob.")
 			return
-		show_traitor_panel(M)
+		show_special_roles(M)
 
 	else if(href_list["skillpanel"])
 		if(!check_rights(R_INVESTIGATE))
@@ -2010,13 +1585,13 @@
 		show_player_panel(M)
 
 
-mob/living/proc/can_centcom_reply()
+/mob/living/proc/can_centcom_reply()
 	return 0
 
-mob/living/carbon/human/can_centcom_reply()
+/mob/living/carbon/human/can_centcom_reply()
 	return istype(l_ear, /obj/item/radio/headset) || istype(r_ear, /obj/item/radio/headset)
 
-mob/living/silicon/ai/can_centcom_reply()
+/mob/living/silicon/ai/can_centcom_reply()
 	return silicon_radio != null && !check_unable(2)
 
 /datum/proc/extra_admin_link(var/prefix, var/sufix, var/short_links)
@@ -2056,5 +1631,5 @@ mob/living/silicon/ai/can_centcom_reply()
 
 /client/get_admin_jump_link(var/atom/target, var/delimiter, var/prefix, var/sufix)
 	if(holder)
-		var/short_links = get_preference_value(/datum/client_preference/ghost_follow_link_length) == GLOB.PREF_SHORT
+		var/short_links = get_preference_value(/datum/client_preference/ghost_follow_link_length) == PREF_SHORT
 		return admin_jump_link(target, src, delimiter, prefix, sufix, short_links)

@@ -16,7 +16,7 @@
 	var/downgrade_on_move = 0					// If the grab needs to be downgraded when the grabber moves.
 	var/force_danger = 0						// If the grab is strong enough to be able to force someone to do something harmful to them.
 	var/restrains = 0							// If the grab acts like cuffs and prevents action from the victim.
-	var/grab_slowdown = 7
+	var/grab_slowdown = 0.15                    // Multiplier for the object size (w_class or mob_size) of the grabbed atom, applied as slowdown.
 	var/shift = 0
 	var/success_up =   "You get a better grip on rep_affecting."
 	var/success_down = "You adjust your grip on rep_affecting."
@@ -38,9 +38,9 @@
 
 /decl/grab/Initialize()
 	if(ispath(upgrab, /decl/grab))
-		upgrab = decls_repository.get_decl(upgrab)
+		upgrab = GET_DECL(upgrab)
 	if(ispath(downgrab, /decl/grab))
-		downgrab = decls_repository.get_decl(downgrab)
+		downgrab = GET_DECL(downgrab)
 	. = ..()
 
 /decl/grab/proc/string_process(var/obj/item/grab/G, var/to_write, var/obj/item/used_item)
@@ -95,9 +95,8 @@
 			animate(G.affecting, pixel_x = initial(G.affecting.pixel_x), pixel_y = initial(G.affecting.pixel_y), 4, 1)
 		qdel(G)
 		// check if we're grabbing with our inactive hand
-		G = thrower.get_inactive_hand()
-		if(istype(G))
-			qdel(G)
+		for(var/obj/item/grab/grab in thrower.get_inactive_held_items())
+			qdel(grab)
 
 /decl/grab/proc/hit_with_grab(var/obj/item/grab/G)
 	if(downgrade_on_action)
@@ -219,7 +218,7 @@
 
 	if(affecting.incapacitated(INCAPACITATION_ALL))
 		break_strength--
-	if(affecting.confused)
+	if(HAS_STATUS(affecting, STAT_CONFUSE))
 		break_strength--
 
 	if(break_strength < 1)

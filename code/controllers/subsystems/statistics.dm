@@ -30,7 +30,7 @@ SUBSYSTEM_DEF(statistics)
 	var/list/population_log = list()
 
 /datum/controller/subsystem/statistics/fire(resumed = FALSE)
-	population_log[time2text(world.realtime, "YYYY-MM-DD hh:mm:ss")] = list("players" = LAZYLEN(GLOB.clients), "admin" = LAZYLEN(GLOB.admins))
+	population_log[time2text(world.realtime, "YYYY-MM-DD hh:mm:ss")] = list("players" = LAZYLEN(global.clients), "admin" = LAZYLEN(global.admins))
 
 /datum/controller/subsystem/statistics/Shutdown()
 
@@ -149,7 +149,7 @@ SUBSYSTEM_DEF(statistics)
 		death.place_of_death = sanitizeSQL(death.place_of_death)
 		death.name = sanitizeSQL(dead.real_name)
 		death.key = sanitizeSQL(dead.key)
-		death.special_role = sanitizeSQL(dead.mind.special_role)
+		death.special_role = sanitizeSQL(dead.mind.get_special_role_name())
 		death.job = sanitizeSQL(dead.mind.assigned_role)
 		if(dead.last_attacker_)
 			death.last_attacker_name = sanitizeSQL(dead.last_attacker_.name)
@@ -161,10 +161,10 @@ SUBSYSTEM_DEF(statistics)
 		death.fireloss =  dead.getFireLoss()
 		death.brainloss = dead.getBrainLoss()
 		death.oxyloss =   dead.getOxyLoss()
-		death.using_map_name = GLOB.using_map.full_name
+		death.using_map_name = global.using_map.full_name
 		var/obj/effect/overmap/visitable/cell = map_sectors ? map_sectors["[dead.z]"] : null
 		death.overmap_location_name = cell ? cell.name : "Unknown"
 		LAZYADD(deaths, death)
 
-		if(!player_is_antag(dead.mind) && dead.mind.assigned_job && LAZYLEN(dead.mind.assigned_job.department_refs))
+		if(!player_is_antag(dead.mind) && dead.mind.assigned_job && LAZYLEN(dead.mind.assigned_job.department_types))
 			crew_death_count++

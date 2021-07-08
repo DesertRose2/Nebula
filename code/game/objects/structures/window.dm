@@ -7,7 +7,7 @@
 
 	layer = SIDE_WINDOW_LAYER
 	anchored = 1.0
-	atom_flags = ATOM_FLAG_NO_TEMP_CHANGE | ATOM_FLAG_CHECKS_BORDER
+	atom_flags = ATOM_FLAG_NO_TEMP_CHANGE | ATOM_FLAG_CHECKS_BORDER | ATOM_FLAG_CAN_BE_PAINTED
 	obj_flags = OBJ_FLAG_ROTATABLE
 	alpha = 180
 	material = /decl/material/solid/glass
@@ -23,9 +23,11 @@
 	var/polarized = 0
 	var/basestate = "window"
 	var/reinf_basestate = "rwindow"
+	var/paint_color
+	var/base_color // The windows initial color. Used for resetting purposes.
 	var/list/connections
 	var/list/other_connections
-	
+
 /obj/structure/window/clear_connections()
 	connections = null
 	other_connections = null
@@ -56,6 +58,9 @@
 /obj/structure/window/LateInitialize()
 	..()
 	//set_anchored(!constructed) // calls update_connections, potentially
+
+	base_color = get_color()
+
 	update_connections(1)
 	update_icon()
 	update_nearby_tiles(need_rebuild=1)
@@ -71,7 +76,7 @@
 /obj/structure/window/CanFluidPass(var/coming_from)
 	return (!is_fulltile() && coming_from != dir)
 
-/obj/structure/window/physically_destroyed()
+/obj/structure/window/physically_destroyed(var/skip_qdel)
 	SHOULD_CALL_PARENT(FALSE)
 	. = shatter()
 
@@ -88,7 +93,7 @@
 	for(var/i = 0 to debris_count)
 		material.place_shard(loc)
 		if(reinf_material)
-			new /obj/item/stack/material/rods(loc, 1, reinf_material.type)
+			reinf_material.create_object(loc, 1, /obj/item/stack/material/rods)
 	qdel(src)
 
 /obj/structure/window/bullet_act(var/obj/item/projectile/Proj)
@@ -98,12 +103,14 @@
 	take_damage(proj_damage)
 
 /obj/structure/window/explosion_act(severity)
-	. = ..()
-	if(. && !QDELETED(src) && (severity != 3 || prob(50)))
+	..()
+	if(!QDELETED(src) && (severity != 3 || prob(50)))
 		physically_destroyed()
 
 /obj/structure/window/CanPass(atom/movable/mover, turf/target, height=0, air_group=0)
 	if(istype(mover) && mover.checkpass(PASS_FLAG_GLASS))
+		return 1
+	if(air_group && !anchored)
 		return 1
 	if(is_fulltile())
 		return 0	//full tile window, you can't move into it!
@@ -208,31 +215,46 @@
 		playsound(loc, 'sound/items/Crowbar.ogg', 75, 1)
 		to_chat(user, (construction_state ? SPAN_NOTICE("You have pried the window into the frame.") : SPAN_NOTICE("You have pried the window out of the frame.")))
 	else if(isWrench(W) && !anchored && (!construction_state || !reinf_material))
-		if(!material.stack_type)
+		if(!material)
 			to_chat(user, SPAN_NOTICE("You're not sure how to dismantle \the [src] properly."))
 		else
 			playsound(src.loc, 'sound/items/Ratchet.ogg', 75, 1)
 			visible_message(SPAN_NOTICE("[user] dismantles \the [src]."))
-			var/obj/item/stack/material/S = material.place_sheet(loc, is_fulltile() ? 4 : 1)
-			if(S && reinf_material)
-				S.reinf_material = reinf_material
-				S.update_strings()
-				S.update_icon()
 			dismantle()
-	else if(isCoil(W) && !polarized && is_fulltile())
+	else if(isCoil(W) && is_fulltile())
+		if (polarized)
+			to_chat(user, SPAN_WARNING("\The [src] is already polarized."))
+			return
 		var/obj/item/stack/cable_coil/C = W
 		if (C.use(1))
 			playsound(src.loc, 'sound/effects/sparks1.ogg', 75, 1)
 			polarized = TRUE
-	else if(polarized && isMultitool(W))
-		var/t = sanitizeSafe(input(user, "Enter the ID for the window.", src.name, null), MAX_NAME_LEN)
-		if(user.incapacitated() || !user.Adjacent(src))
+			to_chat(user, SPAN_NOTICE("You wire and polarize \the [src]."))
+	else if (isWirecutter(W))
+		if (!polarized)
+			to_chat(user, SPAN_WARNING("\The [src] is not polarized."))
 			return
-		if (user.get_active_hand() != W)
+		new /obj/item/stack/cable_coil(get_turf(user), 1)
+		if (opacity)
+			toggle()
+		polarized = FALSE
+		id = null
+		playsound(loc, 'sound/items/Wirecutter.ogg', 75, 1)
+		to_chat(user, SPAN_NOTICE("You cut the wiring and remove the polarization from \the [src]."))
+	else if(isMultitool(W))
+		if (!polarized)
+			to_chat(user, SPAN_WARNING("\The [src] is not polarized."))
 			return
-		if (t)
-			src.id = t
-			to_chat(user, SPAN_NOTICE("The new ID of the window is [id]"))
+		if (anchored)
+			playsound(loc, 'sound/effects/pop.ogg', 75, 1)
+			to_chat(user, SPAN_NOTICE("You toggle \the [src]'s tinting."))
+			toggle()
+		else
+			var/response = input(user, "New Window ID:", name, id) as null | text
+			if (isnull(response) || user.incapacitated() || !user.Adjacent(src) || user.get_active_hand() != W)
+				return
+			id = sanitizeSafe(response, MAX_NAME_LEN)
+			to_chat(user, SPAN_NOTICE("The new ID of \the [src] is [id]."))
 		return
 	else if(istype(W, /obj/item/gun/energy/plasmacutter) && anchored)
 		var/obj/item/gun/energy/plasmacutter/cutter = W
@@ -245,7 +267,7 @@
 			playsound(src, 'sound/items/Welder.ogg', 80, 1)
 			construction_state = 0
 			set_anchored(0)
-	else
+	else if (!istype(W, /obj/item/paint_sprayer))
 		user.setClickCooldown(DEFAULT_ATTACK_COOLDOWN)
 		if(W.damtype == BRUTE || W.damtype == BURN)
 			user.do_attack_animation(src)
@@ -258,26 +280,33 @@
 		..()
 	return
 
+/obj/structure/window/create_dismantled_products(turf/T)
+	var/obj/item/stack/material/S = material.create_object(loc, is_fulltile() ? 4 : 2)
+	if(istype(S) && reinf_material)
+		S.reinf_material = reinf_material
+		S.update_strings()
+		S.update_icon()
+
 /obj/structure/window/grab_attack(var/obj/item/grab/G)
 	if (G.assailant.a_intent != I_HURT)
 		return TRUE
 	if (!G.force_danger())
 		to_chat(G.assailant, SPAN_DANGER("You need a better grip to do that!"))
 		return TRUE
-	var/def_zone = ran_zone(BP_HEAD, 20)
-	var/mob/affecting_mob = G.get_affecting_mob()
-	if(!affecting_mob)
+	var/mob/living/affecting_mob = G.get_affecting_mob()
+	if(!istype(affecting_mob))
 		attackby(G.affecting, G.assailant)
 		return TRUE
+	var/def_zone = ran_zone(BP_HEAD, 20, affecting_mob)
 	if(G.damage_stage() < 2)
 		G.affecting.visible_message(SPAN_DANGER("[G.assailant] bashes [G.affecting] against \the [src]!"))
 		if(prob(50))
-			affecting_mob.Weaken(1)
+			SET_STATUS_MAX(affecting_mob, STAT_WEAK, 1)
 		affecting_mob.apply_damage(10, BRUTE, def_zone, used_weapon = src)
 		hit(25)
 	else
 		G.affecting.visible_message(SPAN_DANGER("[G.assailant] crushes [G.affecting] against \the [src]!"))
-		affecting_mob.Weaken(5)
+		SET_STATUS_MAX(affecting_mob, STAT_WEAK, 5)
 		affecting_mob.apply_damage(20, BRUTE, def_zone, used_weapon = src)
 		hit(50)
 	return TRUE
@@ -316,6 +345,40 @@
 	. = ..(user)
 	if(reinf_material)
 		to_chat(user, SPAN_NOTICE("It is reinforced with the [reinf_material.solid_name] lattice."))
+	
+	if (reinf_material)
+		switch (construction_state)
+			if (0)
+				to_chat(user, SPAN_WARNING("The window is not in the frame."))
+			if (1)
+				to_chat(user, SPAN_WARNING("The window is pried into the frame but not yet fastened."))
+			if (2)
+				to_chat(user, SPAN_NOTICE("The window is fastened to the frame."))
+
+	if (anchored)
+		to_chat(user, SPAN_NOTICE("It is fastened to \the [get_turf(src)]."))
+	else
+		to_chat(user, SPAN_WARNING("It is not fastened to anything."))
+
+	if (paint_color)
+		to_chat(user, SPAN_NOTICE("The glass is stained with paint."))
+	
+	if (polarized)
+		to_chat(user, SPAN_NOTICE("It appears to be wired."))
+
+/obj/structure/window/get_color()
+	if (paint_color)
+		return paint_color
+	else if (material)
+		var/decl/material/window = get_material()
+		return window.color
+	else if (base_color)
+		return base_color
+	return ..()
+
+/obj/structure/window/set_color()
+	paint_color = color
+	queue_icon_update()
 
 /obj/structure/window/proc/set_anchored(var/new_anchored)
 	if(anchored == new_anchored)
@@ -341,12 +404,20 @@
 /obj/structure/window/on_update_icon()
 	//A little cludge here, since I don't know how it will work with slim windows. Most likely VERY wrong.
 	//this way it will only update full-tile ones
-	color =  material.color
 	if(reinf_material)
 		basestate = reinf_basestate
 	else
 		basestate = initial(basestate)
 	overlays.Cut()
+
+	if (paint_color)
+		color = paint_color
+	else if (material)
+		var/decl/material/window = get_material()
+		color = window.color
+	else
+		color = GLASS_COLOR
+
 	layer = FULL_WINDOW_LAYER
 	if(!is_fulltile())
 		layer = SIDE_WINDOW_LAYER
@@ -362,6 +433,7 @@
 				I = image(icon, "[basestate]_other_onframe[conn]", dir = 1<<(i-1))
 			else
 				I = image(icon, "[basestate]_onframe[conn]", dir = 1<<(i-1))
+			I.color = paint_color
 			overlays += I
 	else
 		for(var/i = 1 to 4)
@@ -370,6 +442,7 @@
 				I = image(icon, "[basestate]_other[conn]", dir = 1<<(i-1))
 			else
 				I = image(icon, "[basestate][conn]", dir = 1<<(i-1))
+			I.color = paint_color
 			overlays += I
 
 /obj/structure/window/fire_act(datum/gas_mixture/air, exposed_temperature, exposed_volume)
@@ -452,11 +525,11 @@
 	if(!polarized)
 		return
 	if(opacity)
-		animate(src, color=material.color, time=5)
-		set_opacity(0)
+		animate(src, color=get_color(), time=5)
+		set_opacity(FALSE)
 	else
 		animate(src, color=GLASS_COLOR_TINTED, time=5)
-		set_opacity(1)
+		set_opacity(TRUE)
 
 /obj/structure/window/proc/is_on_frame()
 	if(locate(/obj/structure/wall_frame) in loc)
@@ -519,6 +592,7 @@
 	return
 
 /obj/structure/window/reinforced/crescent/hitby()
+	SHOULD_CALL_PARENT(FALSE)
 	return
 
 /obj/structure/window/reinforced/crescent/take_damage()

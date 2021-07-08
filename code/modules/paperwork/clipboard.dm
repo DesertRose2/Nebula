@@ -8,12 +8,14 @@
 	w_class = ITEM_SIZE_SMALL
 	throw_speed = 3
 	throw_range = 10
-	var/obj/item/pen/haspen		//The stored pen.
-	var/obj/item/toppaper	//The topmost piece of paper.
-	slot_flags = SLOT_BELT
-	material = /decl/material/solid/wood
+	slot_flags = SLOT_LOWER_BODY
 	applies_material_name = FALSE
 	material = /decl/material/solid/wood
+	drop_sound = 'sound/foley/tooldrop5.ogg'
+	pickup_sound = 'sound/foley/paperpickup2.ogg'
+
+	var/obj/item/pen/haspen		//The stored pen.
+	var/obj/item/toppaper	//The topmost piece of paper.
 
 /obj/item/clipboard/Initialize()
 	. = ..()
@@ -22,23 +24,14 @@
 		desc = initial(desc)
 		desc += " It's made of [material.use_name]."
 
-/obj/item/clipboard/MouseDrop(obj/over_object) //Quick clipboard fix. -Agouri
-	if(ishuman(usr))
-		var/mob/M = usr
-		if(!(istype(over_object, /obj/screen) ))
-			return ..()
-
-		if(!M.restrained() && !M.stat)
-			switch(over_object.name)
-				if("r_hand")
-					if(M.unEquip(src))
-						M.put_in_r_hand(src)
-				if("l_hand")
-					if(M.unEquip(src))
-						M.put_in_l_hand(src)
-
-			add_fingerprint(usr)
-			return
+/obj/item/clipboard/handle_mouse_drop(atom/over, mob/user)
+	if(ishuman(user) && istype(over, /obj/screen/inventory))
+		var/obj/screen/inventory/inv = over
+		add_fingerprint(user)
+		if(user.unEquip(src))
+			user.equip_to_slot_if_possible(src, inv.slot_id)
+			return TRUE
+	. = ..()
 
 /obj/item/clipboard/on_update_icon()
 	..()

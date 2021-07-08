@@ -4,7 +4,7 @@
 
 	icon = 'icons/clothing/head/hardhat/yellow.dmi'
 	action_button_name = "Toggle Headlamp"
-	brightness_on = 0.5 //luminosity when on
+	brightness_on = 4 //luminosity when on
 	light_overlay = "hardhat_light"
 	w_class = ITEM_SIZE_NORMAL
 	armor = list(
@@ -18,9 +18,13 @@
 	)
 	flags_inv = 0
 	siemens_coefficient = 0.9
-	heat_protection = HEAD
+	light_wedge = LIGHT_WIDE
+	heat_protection = SLOT_HEAD
 	max_heat_protection_temperature = FIRE_HELMET_MAX_HEAT_PROTECTION_TEMPERATURE
 	max_pressure_protection = FIRESUIT_MAX_PRESSURE
+	material = /decl/material/solid/plastic
+	matter = list(/decl/material/solid/metal/steel = MATTER_AMOUNT_REINFORCEMENT)
+	origin_tech = "{'materials':1,'engineering':1,'combat':1}"
 
 /obj/item/clothing/head/hardhat/orange
 	icon = 'icons/clothing/head/hardhat/orange.dmi'
@@ -55,8 +59,8 @@
 	item_flags = ITEM_FLAG_THICKMATERIAL | ITEM_FLAG_AIRTIGHT
 	permeability_coefficient = 0
 	flags_inv = HIDEMASK|HIDEEARS|HIDEEYES|HIDEFACE|BLOCKHAIR
-	body_parts_covered = HEAD|FACE|EYES
-	cold_protection = HEAD
+	body_parts_covered = SLOT_HEAD|SLOT_FACE|SLOT_EYES
+	cold_protection = SLOT_HEAD
 	min_cold_protection_temperature = SPACE_HELMET_MIN_COLD_PROTECTION_TEMPERATURE
 	siemens_coefficient = 0.9
 	center_of_mass = null

@@ -1,4 +1,4 @@
-datum/musical_event
+/datum/musical_event
 	var/datum/sound_player/source
 	var/time = 0
 	var/new_volume = 100
@@ -88,4 +88,4 @@ datum/musical_event
 
 
 /datum/musical_event_manager/proc/is_overloaded()
-	return src.events.len > GLOB.musical_config.max_events
+	return src.events.len > global.musical_config.max_events

@@ -10,7 +10,11 @@
 	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
 
 	//	Motion, EMP-Proof, X-Ray
-	var/list/obj/item/possible_upgrades = list(/obj/item/assembly/prox_sensor, /obj/item/stack/material/osmium, /obj/item/stock_parts/scanning_module)
+	var/list/obj/item/possible_upgrades = list(
+		/obj/item/assembly/prox_sensor,
+		/obj/item/stock_parts/capacitor/adv,
+		/obj/item/stock_parts/scanning_module
+	)
 	var/list/upgrades = list()
 	var/camera_name
 	var/camera_network
@@ -24,7 +28,7 @@
 				4 = Screwdriver panel closed and is fully built (you cannot attach upgrades)
 	*/
 
-/obj/item/camera_assembly/attackby(obj/item/W, mob/living/user)
+/obj/item/camera_assembly/attackby(obj/item/W, mob/user)
 
 	switch(state)
 
@@ -81,7 +85,7 @@
 			if(isScrewdriver(W))
 				playsound(src.loc, 'sound/items/Screwdriver.ogg', 50, 1)
 
-				var/input = sanitize(input(usr, "Which networks would you like to connect this camera to? Separate networks with a comma. No Spaces!\nFor example: Exodus,Security,Secret", "Set Network", camera_network ? camera_network : NETWORK_EXODUS))
+				var/input = sanitize(input(usr, "Which networks would you like to connect this camera to? Separate networks with a comma. No Spaces!\nFor example: [NETWORK_PUBLIC],[NETWORK_SECURITY],[NETWORK_SECRET]", "Set Network", camera_network ? camera_network : NETWORK_PUBLIC))
 				if(!input)
 					to_chat(usr, "No input found please hang up and try your call again.")
 					return

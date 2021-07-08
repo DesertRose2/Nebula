@@ -3,7 +3,7 @@
 
 /proc/spacevine_infestation(var/potency_min=70, var/potency_max=100, var/maturation_min=5, var/maturation_max=15)
 	spawn() //to stop the secrets panel hanging
-		var/turf/T = pick_subarea_turf(/area/hallway , list(/proc/is_station_turf, /proc/not_turf_contains_dense_objects))
+		var/turf/T = pick_area_turf_by_flag(AREA_FLAG_HALLWAY, list(/proc/is_station_turf, /proc/not_turf_contains_dense_objects))
 		if(T)
 			var/datum/seed/seed = SSplants.create_random_seed(1)
 			seed.set_trait(TRAIT_SPREAD,2)             // So it will function properly as vines.
@@ -13,7 +13,7 @@
 			seed.set_trait(TRAIT_STINGS, 1)
 			seed.set_trait(TRAIT_CARNIVOROUS,2)
 
-			seed.display_name = "strange plants" //more thematic for the vine infestation event
+			seed.display_name = "strange plant" //more thematic for the vine infestation event
 
 			//make vine zero start off fully matured
 			new /obj/effect/vine(T, seed, null, 1)
@@ -154,7 +154,7 @@
 
 	// Apply colour and light from seed datum.
 	if(seed.get_trait(TRAIT_BIOLUM))
-		set_light(0.5, 0.1, 3, l_color = seed.get_trait(TRAIT_BIOLUM_COLOUR))
+		set_light(1 + round(seed.get_trait(TRAIT_POTENCY) / 20), l_color = seed.get_trait(TRAIT_BIOLUM_COLOUR))
 	else
 		set_light(0)
 
@@ -165,7 +165,7 @@
 
 	var/direction = 16
 
-	for(var/wallDir in GLOB.cardinal)
+	for(var/wallDir in global.cardinal)
 		var/turf/newTurf = get_step(T,wallDir)
 		if(newTurf && newTurf.density)
 			direction |= wallDir
@@ -217,7 +217,7 @@
 			damage *= 2
 		adjust_health(-damage)
 		playsound(get_turf(src), W.hitsound, 100, 1)
-		
+
 /obj/effect/vine/AltClick(var/mob/user)
 	if(!CanPhysicallyInteract(user) || user.incapacitated())
 		return ..()
@@ -258,7 +258,7 @@
 	if(aggression > 0)
 		adjust_health(-aggression*5)
 
-/obj/effect/vine/physically_destroyed()
+/obj/effect/vine/physically_destroyed(var/skip_qdel)
 	SHOULD_CALL_PARENT(FALSE)
 	die_off()
 	. = TRUE
@@ -266,7 +266,7 @@
 /obj/effect/vine/explosion_act(severity)
 	. = ..()
 	if(. && !QDELETED(src) && (severity == 1 || (severity == 2 && prob(50)) || (severity == 3 && prob(5))))
-		physically_destroyed(src)
+		physically_destroyed()
 
 /obj/effect/vine/proc/adjust_health(value)
 	health = Clamp(health + value, 0, max_health)

@@ -75,11 +75,11 @@
 		CtrlClickOn(A)
 		return 1
 
-	if(stat || paralysis || stunned || weakened || sleeping)
+	if(incapacitated(INCAPACITATION_KNOCKOUT))
 		return
 
 	// Do not allow player facing change in fixed chairs
-	if(!istype(buckled) || buckled.buckle_movable)
+	if(!istype(buckled) || buckled.buckle_movable || buckled.buckle_allow_rotation)
 		face_atom(A) // change direction to face what you clicked on
 
 	if(!canClick()) // in the year 2000...
@@ -102,10 +102,7 @@
 	if(W == A) // Handle attack_self
 		W.attack_self(src)
 		trigger_aiming(TARGET_CAN_CLICK)
-		if(hand)
-			update_inv_l_hand(0)
-		else
-			update_inv_r_hand(0)
+		update_inv_hands(0)
 		return 1
 
 	//Atoms on your person
@@ -163,7 +160,8 @@
 
 // Default behavior: ignore double clicks, the second click that makes the doubleclick call already calls for a normal click
 /mob/proc/DblClickOn(var/atom/A, var/params)
-	. = A.show_atom_list_for_turf(src, get_turf(A))
+	if(get_preference_value(/datum/client_preference/show_turf_contents) == PREF_DOUBLE_CLICK)
+		. = A.show_atom_list_for_turf(src, get_turf(A))
 
 /*
 	Translates into attack_hand, etc.
@@ -220,7 +218,6 @@
 */
 /mob/proc/MiddleClickOn(var/atom/A)
 	swap_hand()
-	return
 
 // In case of use break glass
 /*
@@ -266,8 +263,10 @@
 		return
 	A.AltClick(src)
 
+
 /atom/proc/AltClick(var/mob/user)
-	. = show_atom_list_for_turf(user, get_turf(src))
+	if(user?.get_preference_value(/datum/client_preference/show_turf_contents) == PREF_ALT_CLICK)
+		. = show_atom_list_for_turf(user, get_turf(src))
 
 /atom/proc/show_atom_list_for_turf(var/mob/user, var/turf/T)
 	if(T && user.TurfAdjacent(T))
@@ -348,9 +347,15 @@
 		if(dx > 0)	direction = EAST
 		else		direction = WEST
 	if(direction != dir)
+		if(facing_dir)
+			facing_dir = direction
 		facedir(direction)
 
-GLOBAL_LIST_INIT(click_catchers, create_click_catcher())
+var/global/list/click_catchers
+/proc/get_click_catchers()
+	if(!global.click_catchers)
+		global.click_catchers = create_click_catcher()
+	return global.click_catchers
 
 /obj/screen/click_catcher
 	icon = 'icons/mob/screen_gen.dmi'

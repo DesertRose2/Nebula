@@ -13,7 +13,7 @@
 	w_class = ITEM_SIZE_NORMAL
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/plastic = MATTER_AMOUNT_TRACE
 	)
 	var/charge			                // Current charge
@@ -135,7 +135,7 @@
 	throw_range = 7
 	maxcharge = 100
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
+	matter = list(/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT)
 
 /obj/item/cell/device/variable/Initialize(mapload, charge_amount)
 	maxcharge = charge_amount
@@ -151,7 +151,8 @@
 	icon_state = "hdevice"
 	maxcharge = 100
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
+	matter = list(/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT)
+	origin_tech = "{'powerstorage':2}"
 
 /obj/item/cell/crap
 	name = "old power cell"
@@ -160,7 +161,7 @@
 	maxcharge = 100
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/plastic = MATTER_AMOUNT_TRACE
 	)
 
@@ -174,7 +175,7 @@
 	maxcharge = 250
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/plastic = MATTER_AMOUNT_TRACE
 	)
 
@@ -185,7 +186,7 @@
 	maxcharge = 500
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/plastic = MATTER_AMOUNT_TRACE
 	)
 
@@ -198,7 +199,7 @@
 	maxcharge = 1000
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/plastic = MATTER_AMOUNT_TRACE
 	)
 
@@ -213,7 +214,7 @@
 	maxcharge = 1500
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/metal/aluminium = MATTER_AMOUNT_TRACE
 	)
 
@@ -226,7 +227,7 @@
 	maxcharge = 2000
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/metal/aluminium = MATTER_AMOUNT_TRACE
 	)
 
@@ -243,7 +244,7 @@
 	matter = list(
 		/decl/material/solid/metal/gold = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/metal/silver = MATTER_AMOUNT_TRACE,
-		/decl/material/solid/glass = MATTER_AMOUNT_TRACE,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_TRACE,
 		/decl/material/solid/metal/aluminium = MATTER_AMOUNT_TRACE
 	)
 
@@ -258,7 +259,7 @@
 	maxcharge = 3000
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/metal/aluminium = MATTER_AMOUNT_TRACE
 	)
 
@@ -288,16 +289,6 @@
 	name = "potato battery"
 	desc = "A rechargable starch based power cell."
 	origin_tech = "{'powerstorage':1}"
-	icon = 'icons/obj/power.dmi' //'icons/obj/harvest.dmi'
-	icon_state = "potato_cell" //"potato_battery"
+	icon = 'icons/obj/power.dmi'
+	icon_state = "potato_cell"
 	maxcharge = 20
-
-
-/obj/item/cell/slime
-	name = "charged slime core"
-	desc = "A yellow slime core that crackles with power."
-	origin_tech = "{'powerstorage':2,'biotech':4}"
-	icon = 'icons/mob/simple_animal/slimes.dmi' //'icons/obj/harvest.dmi'
-	icon_state = "yellow slime extract" //"potato_battery"
-	maxcharge = 200
-	matter = null

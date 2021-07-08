@@ -6,9 +6,10 @@
 	var/list/colors = list()
 
 	var/index = 0
-	for(var/color_name in GLOB.possible_cable_colours)
+	var/list/possible_cable_colours = get_global_cable_colors()
+	for(var/color_name in possible_cable_colours)
 		group_by(names, color_name, index)
-		group_by(colors, GLOB.possible_cable_colours[color_name], index)
+		group_by(colors, possible_cable_colours[color_name], index)
 		index++
 
 	var/number_of_issues = number_of_issues(names, "Names")
@@ -154,7 +155,7 @@
 	for(var/key in entries)
 		var/list/values = entries[key]
 		if(values.len > 1)
-			var/decl/noi_feedback/noif = decls_repository.get_decl(feedback)
+			var/decl/noi_feedback/noif = GET_DECL(feedback)
 			noif.print(src, type, key, values)
 			issues++
 

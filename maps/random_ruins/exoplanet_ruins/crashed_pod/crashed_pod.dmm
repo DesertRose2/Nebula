@@ -33,7 +33,6 @@
 /area/map_template/crashed_pod)
 "af" = (
 /obj/machinery/atmospherics/pipe/simple/visible/red{
-	icon_state = "intact";
 	dir = 6
 	},
 /turf/simulated/wall/r_wall,
@@ -102,7 +101,6 @@
 /area/map_template/crashed_pod)
 "am" = (
 /obj/machinery/atmospherics/pipe/simple/visible/cyan{
-	icon_state = "intact";
 	dir = 6
 	},
 /obj/effect/decal/cleanable/dirt,
@@ -251,7 +249,6 @@
 /area/map_template/crashed_pod)
 "aD" = (
 /obj/machinery/atmospherics/pipe/simple/visible/red{
-	icon_state = "intact";
 	dir = 5
 	},
 /turf/simulated/wall,
@@ -286,15 +283,15 @@
 /obj/item/stock_parts/circuitboard/oxyregenerator,
 /obj/item/tank/emergency/oxygen/double/red,
 /obj/structure/cable,
-/obj/item/stack/material/uranium/ten,
-/obj/item/stack/material/uranium/ten,
-/obj/item/stack/material/uranium/ten,
-/obj/item/stack/material/uranium/ten,
-/obj/item/stack/material/uranium/ten,
-/obj/item/stack/material/uranium/ten,
-/obj/item/stack/material/uranium/ten,
-/obj/item/stack/material/uranium/ten,
-/obj/item/stack/material/uranium/ten,
+/obj/item/stack/material/puck/mapped/uranium/ten,
+/obj/item/stack/material/puck/mapped/uranium/ten,
+/obj/item/stack/material/puck/mapped/uranium/ten,
+/obj/item/stack/material/puck/mapped/uranium/ten,
+/obj/item/stack/material/puck/mapped/uranium/ten,
+/obj/item/stack/material/puck/mapped/uranium/ten,
+/obj/item/stack/material/puck/mapped/uranium/ten,
+/obj/item/stack/material/puck/mapped/uranium/ten,
+/obj/item/stack/material/puck/mapped/uranium/ten,
 /obj/item/clothing/under/savage_hunter,
 /obj/item/clothing/under/savage_hunter/female,
 /obj/item/clothing/under/wetsuit,
@@ -308,9 +305,7 @@
 /obj/item/stock_parts/matter_bin/adv,
 /obj/item/stock_parts/micro_laser/ultra,
 /obj/item/chems/food/snacks/liquidfood,
-/obj/item/stack/material/sandstone{
-	amount = 50
-	},
+/obj/item/stack/material/brick/mapped/sandstone/fifty,
 /turf/simulated/floor/tiled/techfloor,
 /area/map_template/crashed_pod)
 "aH" = (
@@ -355,7 +350,7 @@
 /obj/item/trash/candy/proteinbar,
 /obj/item/trash/liquidfood,
 /obj/item/storage/box/detergent,
-/obj/item/clothing/mask/plunger,
+/obj/item/plunger,
 /turf/simulated/floor/tiled/techfloor,
 /area/map_template/crashed_pod)
 "aL" = (
@@ -424,8 +419,7 @@
 /area/map_template/crashed_pod)
 "aT" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/cyan{
-	dir = 9;
-	icon_state = "intact"
+	dir = 9
 	},
 /obj/effect/decal/cleanable/dirt,
 /obj/item/trash/tastybread,
@@ -433,7 +427,6 @@
 /area/map_template/crashed_pod)
 "aU" = (
 /obj/machinery/atmospherics/pipe/simple/visible/red{
-	icon_state = "intact";
 	dir = 6
 	},
 /obj/machinery/light/small{
@@ -949,17 +942,19 @@
 /obj/item/pickaxe,
 /obj/item/pickaxe,
 /obj/item/pickaxe,
-/obj/item/stack/material/glass/fifty,
-/obj/item/stack/material/glass/fifty,
-/obj/item/stack/material/plasteel/fifty,
+/obj/item/stack/material/pane/mapped/glass/fifty,
+/obj/item/stack/material/pane/mapped/glass/fifty,
+/obj/item/stack/material/reinforced/mapped/fiberglass/fifty,
+/obj/item/stack/material/reinforced/mapped/plasteel/fifty,
+/obj/item/stack/material/ingot/mapped/copper/fifty,
 /obj/item/flashlight/lantern,
 /obj/item/flashlight/lantern,
 /obj/item/storage/box/glowsticks,
 /obj/item/storage/box/glowsticks,
 /obj/item/storage/box/glowsticks,
-/obj/item/stack/material/steel/fifty,
-/obj/item/stack/material/steel/fifty,
-/obj/item/stack/material/steel/fifty,
+/obj/item/stack/material/sheet/mapped/steel/fifty,
+/obj/item/stack/material/sheet/mapped/steel/fifty,
+/obj/item/stack/material/sheet/mapped/steel/fifty,
 /obj/random/toolbox,
 /obj/random/toolbox,
 /obj/random/toolbox,

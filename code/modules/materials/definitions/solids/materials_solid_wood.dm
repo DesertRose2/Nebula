@@ -3,10 +3,15 @@
 	liquid_name = "wood pulp"
 	lore_text = "A fibrous structural material harvested from an indeterminable plant. Don't get a splinter."
 	adjective_name = "wooden"
-	stack_type = /obj/item/stack/material/wood
 	color = WOOD_COLOR_GENERIC
 	integrity = 75
-	icon_base = "wood"
+	icon_base = 'icons/turf/walls/wood.dmi'
+	wall_flags = PAINT_PAINTABLE|PAINT_STRIPABLE|WALL_HAS_EDGES
+	wall_blend_icons = list(
+		'icons/turf/walls/solid.dmi' = TRUE,
+		'icons/turf/walls/stone.dmi' = TRUE,
+		'icons/turf/walls/metal.dmi' = TRUE
+	)
 	table_icon_base = "wood"
 	explosion_resistance = 2
 	shard_type = SHARD_SPLINTER
@@ -20,8 +25,6 @@
 	dooropen_noise = 'sound/effects/doorcreaky.ogg'
 	door_icon_base = "wood"
 	destruction_desc = "splinters"
-	sheet_singular_name = "plank"
-	sheet_plural_name = "planks"
 	hitsound = 'sound/effects/woodhit.ogg'
 	conductive = 0
 	construction_difficulty = MAT_VALUE_NORMAL_DIY
@@ -32,6 +35,8 @@
 	value = 1.5
 	reflectiveness = MAT_VALUE_DULL
 	wall_support_value = MAT_VALUE_NORMAL
+	fuel_value = 0.8
+	default_solid_form = /obj/item/stack/material/plank
 
 /decl/material/solid/wood/generate_recipes(var/reinforce_material)
 	. = ..()
@@ -50,14 +55,15 @@
 	. += new/datum/stack_recipe/stick(src)
 	. += new/datum/stack_recipe/noticeboard(src)
 	. += new/datum/stack_recipe/furniture/table_frame(src)
-	. += new/datum/stack_recipe/wooden_prosthetic(src)
-	. += new/datum/stack_recipe/wooden_prosthetic/right_arm(src)
-	. += new/datum/stack_recipe/wooden_prosthetic/left_leg(src)
-	. += new/datum/stack_recipe/wooden_prosthetic/right_leg(src)
-	. += new/datum/stack_recipe/wooden_prosthetic/left_hand(src)
-	. += new/datum/stack_recipe/wooden_prosthetic/right_hand(src)
-	. += new/datum/stack_recipe/wooden_prosthetic/left_foot(src)
-	. += new/datum/stack_recipe/wooden_prosthetic/right_foot(src)
+	. += new/datum/stack_recipe/prosthetic/left_arm(src)
+	. += new/datum/stack_recipe/prosthetic/right_arm(src)
+	. += new/datum/stack_recipe/prosthetic/left_leg(src)
+	. += new/datum/stack_recipe/prosthetic/right_leg(src)
+	. += new/datum/stack_recipe/prosthetic/left_hand(src)
+	. += new/datum/stack_recipe/prosthetic/right_hand(src)
+	. += new/datum/stack_recipe/prosthetic/left_foot(src)
+	. += new/datum/stack_recipe/prosthetic/right_foot(src)
+	. += new/datum/stack_recipe/campfire(src)
 
 /decl/material/solid/wood/mahogany/generate_recipes(var/reinforce_material)
 	. = ..()
@@ -85,7 +91,6 @@
 
 /decl/material/solid/wood/holographic
 	color = WOOD_COLOR_CHOCOLATE //the very concept of wood should be brown
-	stack_type = null
 	shard_type = SHARD_NONE
 	value = 0
 	hidden_from_codex = TRUE

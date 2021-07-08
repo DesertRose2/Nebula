@@ -18,8 +18,25 @@
 /obj/machinery/atmospherics/unary/engine/Initialize()
 	. = ..()
 	update_nearby_tiles(need_rebuild=1)
-
 	set_extension(src, engine_extension, "propellant thruster")
+
+/obj/machinery/atmospherics/unary/engine/on_update_icon()
+	cut_overlays()
+	if(operable())
+		add_overlay(emissive_overlay(icon, "indicator_power"))
+		if(use_power)
+			add_overlay(emissive_overlay(icon, "nozzle_idle"))
+
+/obj/machinery/atmospherics/unary/engine/attackby(obj/item/I, mob/user)
+	if(isMultitool(I) && !panel_open)
+		var/datum/extension/ship_engine/engine = get_extension(src, /datum/extension/ship_engine)
+		if(engine.sync_to_ship())
+			to_chat(user, SPAN_NOTICE("\The [src] emits a ping as it syncs its controls to a nearby ship."))
+		else
+			to_chat(user, SPAN_WARNING("\The [src] flashes an error!"))
+		return TRUE
+	
+	. = ..()
 
 /obj/machinery/atmospherics/unary/engine/CanPass(atom/movable/mover, turf/target, height=0, air_group=0)
 	return 0
@@ -50,19 +67,17 @@
 //Exhaust effect
 /obj/effect/engine_exhaust
 	name = "engine exhaust"
-	icon = 'icons/effects/effects.dmi'
-	icon_state = "smoke"
-	light_color = "#ed9200"
-	anchored = 1
+	icon = 'icons/obj/ship_engine.dmi'
+	icon_state = "nozzle_burn"
+	light_color = "#00a2ff"
+	anchored = TRUE
 
-/obj/effect/engine_exhaust/Initialize(mapload, var/ndir, var/flame)
+/obj/effect/engine_exhaust/Initialize(mapload, ndir)
 	. = ..(mapload)
-	if(flame)
-		icon_state = "exhaust"
-		if(isturf(loc))
-			var/turf/T = loc
-			T.hotspot_expose(1000,125)
-		set_light(0.5, 1, 4)
+	if(isturf(loc))
+		var/turf/T = loc
+		T.hotspot_expose(1000,125)
+	set_light(5, 2)
 	set_dir(ndir)
 	QDEL_IN(src, 2 SECONDS)
 

@@ -31,7 +31,7 @@
 		verbs += /obj/structure/closet/proc/togglelock_verb
 
 	if(ispath(closet_appearance))
-		var/decl/closet_appearance/app = decls_repository.get_decl(closet_appearance)
+		var/decl/closet_appearance/app = GET_DECL(closet_appearance)
 		if(app)
 			icon = app.icon
 			color = null
@@ -207,7 +207,6 @@
 		to_chat(user, "<span class='notice'>It won't budge!</span>")
 		update_icon()
 
-// this should probably use dump_contents()
 /obj/structure/closet/explosion_act(severity)
 	..()
 	if(!QDELETED(src) && (severity == 1 || (severity == 2 && prob(50)) || (severity == 3 && prob(5))))
@@ -236,7 +235,7 @@
 	if(src.opened)
 		if(istype(W, /obj/item/grab))
 			var/obj/item/grab/G = W
-			src.MouseDrop_T(G.affecting, user)      //act like they were dragged onto the closet
+			src.receive_mouse_drop(G.affecting, user)      //act like they were dragged onto the closet
 			return 0
 		if(isWelder(W))
 			var/obj/item/weldingtool/WT = W
@@ -268,11 +267,8 @@
 		return
 	else if(istype(W, /obj/item/energy_blade/blade))
 		if(emag_act(INFINITY, user, "<span class='danger'>The locker has been sliced open by [user] with \an [W]</span>!", "<span class='danger'>You hear metal being sliced and sparks flying.</span>"))
-			var/datum/effect/effect/system/spark_spread/spark_system = new /datum/effect/effect/system/spark_spread()
-			spark_system.set_up(5, 0, src.loc)
-			spark_system.start()
+			spark_at(src.loc, amount=5)
 			playsound(src.loc, 'sound/weapons/blade1.ogg', 50, 1)
-			playsound(src.loc, "sparks", 50, 1)
 			open()
 	else if(istype(W, /obj/item/stack/package_wrap))
 		return
@@ -293,36 +289,21 @@
 		src.attack_hand(user)
 
 /obj/structure/closet/proc/slice_into_parts(obj/W, mob/user)
-	new /obj/item/stack/material/steel(src.loc, 2)
 	user.visible_message("<span class='notice'>\The [src] has been cut apart by [user] with \the [W].</span>", \
 						 "<span class='notice'>You have cut \the [src] apart with \the [W].</span>", \
 						 "You hear welding.")
-	dismantle(src)
+	physically_destroyed()
 
-/obj/structure/closet/MouseDrop_T(atom/movable/O, mob/user)
-	if(istype(O, /obj/screen))	//fix for HUD elements making their way into the world	-Pete
-		return
-	if(O.loc == user)
-		return
-	if(ismob(O) && src.large)
-		return
-	if(user.restrained() || user.stat || user.weakened || user.stunned || user.paralysis)
-		return
-	if((!( istype(O, /atom/movable) ) || O.anchored || !Adjacent(user) || !Adjacent(O) || !user.Adjacent(O) || user.contents.Find(src)))
-		return
-	if(!isturf(user.loc)) // are you in a container/closet/pod/etc?
-		return
-	if(!src.opened)
-		return
-	if(istype(O, /obj/structure/closet))
-		return
-	step_towards(O, src.loc)
-	if(user != O)
-		user.show_viewers("<span class='danger'>[user] stuffs [O] into [src]!</span>")
-	src.add_fingerprint(user)
-	return
+/obj/structure/closet/receive_mouse_drop(atom/dropping, mob/user)
+	. = ..()
+	var/atom/movable/AM = dropping
+	if(!. && istype(AM) && opened && !istype(AM, /obj/structure/closet) && AM.simulated && !AM.anchored && (large || !ismob(AM)))
+		step_towards(AM, loc)
+		if(user != AM)
+			user.show_viewers(SPAN_DANGER("\The [user] stuffs \the [AM] into \the [src]!"))
+		return TRUE
 
-/obj/structure/closet/attack_ai(mob/user)
+/obj/structure/closet/attack_ai(mob/living/silicon/ai/user)
 	if(istype(user, /mob/living/silicon/robot) && Adjacent(user)) // Robots can open/close it, but not the AI.
 		attack_hand(user)
 
@@ -520,4 +501,4 @@
 	return TRUE
 
 /obj/structure/closet/CanUseTopicPhysical(mob/user)
-	return CanUseTopic(user, GLOB.physical_no_access_state)
+	return CanUseTopic(user, global.physical_no_access_topic_state)

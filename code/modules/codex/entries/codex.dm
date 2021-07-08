@@ -1,5 +1,5 @@
 /datum/codex_entry/codex
-	display_name = "The Codex"
+	name = "The Codex"
 	associated_strings = list("codex")
 	lore_text = "The Codex is the overall body containing the document that you are currently reading. It is a distributed encyclopedia maintained by a dedicated, hard-working staff of journalists, bartenders, hobos, space pirates and xeno-intelligences, all with the goal of providing you, the user, with supposedly up-to-date, nominally useful documentation on the topics you want to know about. \
 	<br><br> \
@@ -18,7 +18,7 @@
 	..()
 
 /datum/codex_entry/nexus
-	display_name = "Nexus"
+	name = "Nexus"
 	associated_strings = list("nexus")
 	mechanics_text = "The place to start with <span codexlink='codex'>The Codex</span><br>" 
 
@@ -26,14 +26,17 @@
 	var/list/dat = list(get_header(presenting_to))
 	dat += "[mechanics_text]"
 	dat += "<h3>Categories</h3>"
-	var/list/categories = list()
-	for(var/type in subtypesof(/datum/codex_category))
-		var/datum/codex_category/C = type
+	var/list/category_strings
+	var/list/categories = decls_repository.get_decls_of_subtype(/decl/codex_category)
+	for(var/ctype in categories)
+		var/decl/codex_category/C = categories[ctype]
+		if(!C?.name)
+			continue
 		var/key = "[initial(C.name)] (category)"
 		var/datum/codex_entry/entry = SScodex.get_codex_entry(key)
 		if(entry)
-			categories += "<li><span codexlink='[key]'>[initial(C.name)]</span> - [initial(C.desc)]"
-	dat += jointext(categories, " ")
+			LAZYADD(category_strings, "<li><span codexlink='[key]'>[initial(C.name)]</span> - [initial(C.desc)]")
+	dat += jointext(category_strings, " ")
 	return "<font color = '[CODEX_COLOR_MECHANICS]'>[jointext(dat, null)]</font>"
 
 /client/proc/codex_topic(href, href_list)

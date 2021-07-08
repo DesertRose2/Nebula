@@ -41,16 +41,15 @@
 /obj/item/lightreplacer
 	name = "light replacer"
 	desc = "A lightweight automated device, capable of interfacing with and rapidly replacing standard light installations."
-	icon = 'icons/obj/janitor.dmi'
-	icon_state = "lightreplacer0"
-	item_state = "electronic"
+	icon = 'icons/obj/items/light_replacer.dmi'
+	icon_state = ICON_STATE_WORLD
 	material = /decl/material/solid/metal/steel
 	matter = list(
 		/decl/material/solid/metal/silver = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/glass = MATTER_AMOUNT_TRACE
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_TRACE
 	)
 	obj_flags = OBJ_FLAG_CONDUCTIBLE
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	origin_tech = "{'magnets':3,'materials':2}"
 
 	var/max_uses = 32
@@ -131,8 +130,9 @@
 	to_chat(usr, "It has [uses] lights remaining.")
 
 /obj/item/lightreplacer/on_update_icon()
-	icon_state = "lightreplacer[emagged]"
-
+	cut_overlays()
+	if(emagged)
+		add_overlay("[icon_state]-emagged")
 
 /obj/item/lightreplacer/proc/Use(var/mob/user)
 

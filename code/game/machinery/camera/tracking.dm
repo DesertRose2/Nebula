@@ -6,7 +6,7 @@
 /mob/living/silicon/ai/var/stored_locations[0]
 
 /proc/InvalidPlayerTurf(turf/T)
-	return !(T && (T.z in GLOB.using_map.player_levels))
+	return !(T && (T.z in global.using_map.player_levels))
 
 /mob/living/silicon/ai/proc/get_camera_list()
 	if(src.stat == 2)
@@ -65,7 +65,7 @@
 	to_chat(src, "Location '[loc]' stored")
 
 /mob/living/silicon/ai/proc/sorted_stored_locations()
-	return sortList(stored_locations)
+	return sortTim(stored_locations, /proc/cmp_text_asc)
 
 /mob/living/silicon/ai/proc/ai_goto_location(loc in sorted_stored_locations())
 	set category = "Silicon Commands"
@@ -122,7 +122,7 @@
 		else
 			TB.others[name] = M
 
-	var/list/targets = sortList(TB.humans) + sortList(TB.others)
+	var/list/targets = sortTim(TB.humans, /proc/cmp_text_asc) + sortTim(TB.others, /proc/cmp_text_asc)
 	src.track = TB
 	return targets
 
@@ -183,7 +183,7 @@
 				return
 			sleep(10)
 
-/obj/machinery/camera/attack_ai(var/mob/living/silicon/ai/user)
+/obj/machinery/camera/attack_ai(mob/living/silicon/ai/user)
 	if (!istype(user))
 		return
 	if (!src.can_use())
@@ -211,7 +211,7 @@
 	return L
 
 
-mob/living/proc/near_camera()
+/mob/living/proc/near_camera()
 	if (!isturf(loc))
 		return 0
 	else if(!cameranet.is_visible(src))
@@ -251,19 +251,19 @@ mob/living/proc/near_camera()
 
 	if(. == TRACKING_NO_COVERAGE)
 		var/turf/T = get_turf(src)
-		if(T && (T.z in GLOB.using_map.station_levels) && hassensorlevel(src, SUIT_SENSOR_TRACKING))
+		if(T && (T.z in global.using_map.station_levels) && hassensorlevel(src, SUIT_SENSOR_TRACKING))
 			return TRACKING_POSSIBLE
 
-mob/living/proc/tracking_initiated()
+/mob/living/proc/tracking_initiated()
 
-mob/living/silicon/robot/tracking_initiated()
+/mob/living/silicon/robot/tracking_initiated()
 	tracking_entities++
 	if(tracking_entities == 1 && has_zeroth_law())
 		to_chat(src, "<span class='warning'>Internal camera is currently being accessed.</span>")
 
-mob/living/proc/tracking_cancelled()
+/mob/living/proc/tracking_cancelled()
 
-mob/living/silicon/robot/tracking_cancelled()
+/mob/living/silicon/robot/tracking_cancelled()
 	tracking_entities--
 	if(!tracking_entities && has_zeroth_law())
 		to_chat(src, "<span class='notice'>Internal camera is no longer being accessed.</span>")

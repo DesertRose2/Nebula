@@ -29,11 +29,11 @@
 /obj/item/vampiric/Initialize()
 	. = ..()
 	START_PROCESSING(SSobj, src)
-	GLOB.listening_objects += src
+	global.listening_objects += src
 
 /obj/item/vampiric/Destroy()
 	STOP_PROCESSING(SSobj, src)
-	GLOB.listening_objects -= src
+	global.listening_objects -= src
 	return ..()
 
 /obj/item/vampiric/Process()
@@ -77,7 +77,7 @@
 
 	if(charges >= 0.1)
 		if(prob(5))
-			src.visible_message("<span class='warning'>\icon[src] [src]'s eyes glow ruby red for a moment!</span>")
+			src.visible_message("<span class='warning'>[html_icon(src)] [src]'s eyes glow ruby red for a moment!</span>")
 			charges -= 0.1
 
 	//check on our shadow wights
@@ -181,7 +181,7 @@
 			'sound/hallucinations/turn_around1.ogg',\
 			'sound/hallucinations/turn_around2.ogg',\
 			), 50, 1, -3)
-			M.sleeping = max(M.sleeping,rand(5,10))
+			SET_STATUS_MAX(M, STAT_ASLEEP, rand(5,10))
 			qdel(src)
 	else
 		STOP_PROCESSING(SSobj, src)

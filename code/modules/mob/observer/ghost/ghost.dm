@@ -10,6 +10,7 @@ var/global/list/image/ghost_sightless_images = list() //this is a list of images
 	blinded = 0
 	anchored = 1	//  don't get pushed around
 	universal_speak = TRUE
+	mob_sort_value = 9
 
 	mob_flags = MOB_FLAG_HOLY_BAD
 	movement_handlers = list(/datum/movement_handler/mob/multiz_connected, /datum/movement_handler/mob/incorporeal)
@@ -25,7 +26,6 @@ var/global/list/image/ghost_sightless_images = list() //this is a list of images
 	var/antagHUD = 0
 	var/atom/movable/following = null
 	var/admin_ghosted = 0
-	var/anonsay = 0
 	var/ghostvision = 1 //is the ghost able to see things humans can't?
 	var/seedarkness = 1
 
@@ -50,33 +50,34 @@ var/global/list/image/ghost_sightless_images = list() //this is a list of images
 				name = body.real_name
 			else
 				if(gender == MALE)
-					name = capitalize(pick(GLOB.first_names_male)) + " " + capitalize(pick(GLOB.last_names))
+					name = capitalize(pick(global.first_names_male)) + " " + capitalize(pick(global.last_names))
 				else
-					name = capitalize(pick(GLOB.first_names_female)) + " " + capitalize(pick(GLOB.last_names))
+					name = capitalize(pick(global.first_names_female)) + " " + capitalize(pick(global.last_names))
 
 		mind = body.mind	//we don't transfer the mind but we keep a reference to it.
 	else
 		spawn(10) // wait for the observer mob to receive the client's key
 			mind = new /datum/mind(key)
 			mind.current = src
-	if(!T)	T = pick(GLOB.latejoin | GLOB.latejoin_cryo | GLOB.latejoin_gateway)			//Safety in case we cannot find the body's position
+	if(!T)
+		T = pick(global.latejoin_locations | global.latejoin_cryo_locations | global.latejoin_gateway_locations)
 	forceMove(T)
 
 	if(!name)							//To prevent nameless ghosts
-		name = capitalize(pick(GLOB.first_names_male)) + " " + capitalize(pick(GLOB.last_names))
+		name = capitalize(pick(global.first_names_male)) + " " + capitalize(pick(global.last_names))
 	real_name = name
 
-	if(GLOB.cult)
-		GLOB.cult.add_ghost_magic(src)
+	var/decl/special_role/cultist/cult = GET_DECL(/decl/special_role/cultist)
+	cult.add_ghost_magic(src)
 
 	ghost_multitool = new(src)
 
-	GLOB.ghost_mob_list += src
+	global.ghost_mob_list += src
 
 	. = ..()
 
 /mob/observer/ghost/Destroy()
-	GLOB.ghost_mob_list -= src
+	global.ghost_mob_list -= src
 	stop_following()
 	qdel(ghost_multitool)
 	ghost_multitool = null
@@ -114,13 +115,12 @@ Works together with spawning an observer, noted above.
 	if(antagHUD)
 		var/list/target_list = list()
 		for(var/mob/living/target in oview(src, 14))
-			if(target.mind && target.mind.special_role)
+			if(target.mind && target.mind.assigned_special_role)
 				target_list += target
 		if(target_list.len)
 			assess_targets(target_list, src)
 	if(medHUD)
 		process_medHUD(src)
-
 
 /mob/observer/ghost/proc/process_medHUD(var/mob/M)
 	var/client/C = M.client
@@ -263,7 +263,7 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 		to_chat(src, "No area available.")
 		return
 
-	var/list/area_turfs = get_area_turfs(thearea, shall_check_if_holy() ? list(/proc/is_holy_turf) : list())
+	var/list/area_turfs = get_area_turfs(thearea, shall_check_if_holy() ? list(/proc/is_not_holy_turf) : list())
 	if(!area_turfs.len)
 		to_chat(src, "<span class='warning'>This area has been entirely made into sacred grounds, you cannot enter it while you are in this plane of existence!</span>")
 		return
@@ -303,9 +303,9 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 	stop_following()
 	following = target
 	verbs |= /mob/observer/ghost/proc/scan_target
-	GLOB.moved_event.register(following, src, /atom/movable/proc/move_to_turf)
-	GLOB.dir_set_event.register(following, src, /atom/proc/recursive_dir_set)
-	GLOB.destroyed_event.register(following, src, /mob/observer/ghost/proc/stop_following)
+	events_repository.register(/decl/observ/moved, following, src, /atom/movable/proc/move_to_turf)
+	events_repository.register(/decl/observ/dir_set, following, src, /atom/proc/recursive_dir_set)
+	events_repository.register(/decl/observ/destroyed, following, src, /mob/observer/ghost/proc/stop_following)
 
 	to_chat(src, "<span class='notice'>Now following \the [following].</span>")
 	move_to_turf(following, loc, following.loc)
@@ -313,9 +313,9 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 /mob/observer/ghost/proc/stop_following()
 	if(following)
 		to_chat(src, "<span class='notice'>No longer following \the [following]</span>")
-		GLOB.moved_event.unregister(following, src)
-		GLOB.dir_set_event.unregister(following, src)
-		GLOB.destroyed_event.unregister(following, src)
+		events_repository.unregister(/decl/observ/moved, following, src)
+		events_repository.unregister(/decl/observ/dir_set, following, src)
+		events_repository.unregister(/decl/observ/destroyed, following, src)
 		following = null
 		verbs -= /mob/observer/ghost/proc/scan_target
 
@@ -376,7 +376,7 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 		return
 
 	var/turf/T = get_turf(src)
-	if(!T || (T.z in GLOB.using_map.admin_levels))
+	if(!T || (T.z in global.using_map.admin_levels))
 		to_chat(src, "<span class='warning'>You may not spawn as a mouse on this Z-level.</span>")
 		return
 
@@ -415,7 +415,9 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 
 //This is called when a ghost is drag clicked to something.
 /mob/observer/ghost/MouseDrop(atom/over)
-	if(!usr || !over) return
+	SHOULD_CALL_PARENT(FALSE)
+	if(!usr || !over)
+		return
 	if(isghost(usr) && usr.client && isliving(over))
 		var/mob/living/M = over
 		// If they an admin, see if control can be resolved.
@@ -424,10 +426,8 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 		// Otherwise, see if we can possess the target.
 		if(usr == src && try_possession(M))
 			return
-	if(istype(over, /obj/machinery/drone_fabricator))
-		if(try_drone_spawn(src, over))
-			return
-
+	if(istype(over, /obj/machinery/drone_fabricator) && try_drone_spawn(src, over))
+		return
 	return ..()
 
 /mob/observer/ghost/proc/try_possession(var/mob/living/M)
@@ -462,11 +462,12 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 	set name = "Toggle Anonymous Chat"
 	set desc = "Toggles showing your key in dead chat."
 
-	src.anonsay = !src.anonsay
-	if(anonsay)
+	if(client.get_preference_value(/datum/client_preference/anon_say) == PREF_NO)
 		to_chat(src, "<span class='info'>Your key won't be shown when you speak in dead chat.</span>")
+		client.set_preference(/datum/client_preference/anon_say, PREF_YES)
 	else
 		to_chat(src, "<span class='info'>Your key will be publicly visible again.</span>")
+		client.set_preference(/datum/client_preference/anon_say, PREF_NO)
 
 /mob/observer/ghost/canface()
 	return 1
@@ -515,7 +516,7 @@ This is the proc mobs get to turn into a ghost. Forked from ghostize due to comp
 /mob/observer/ghost/MayRespawn(var/feedback = 0, var/respawn_time = 0)
 	if(!client)
 		return 0
-	if(mind?.current && mind.current.stat != DEAD && (can_reenter_corpse in list(CORPSE_CAN_REENTER, CORPSE_CAN_REENTER_AND_RESPAWN)))
+	if(mind?.current && !QDELETED(mind.current) && mind.current.stat != DEAD && (can_reenter_corpse in list(CORPSE_CAN_REENTER, CORPSE_CAN_REENTER_AND_RESPAWN)))
 		if(feedback)
 			to_chat(src, "<span class='warning'>Your non-dead body prevents you from respawning.</span>")
 		return 0

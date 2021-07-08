@@ -8,6 +8,9 @@
 	item_state = "broken_beer" //Generic held-item sprite until unique ones are made.
 	force = 5
 
+	drop_sound = 'sound/foley/bottledrop1.ogg'
+	pickup_sound = 'sound/foley/bottlepickup1.ogg'
+
 	var/smash_duration = 5 //Directly relates to the 'weaken' duration. Lowered by armor (i.e. helmets)
 	var/isGlass = TRUE //Whether the 'bottle' is made of glass or not so that milk cartons dont shatter when someone gets hit by it
 	var/obj/item/chems/glass/rag/rag = null
@@ -32,9 +35,6 @@
 	..()
 	if(isGlass && TT.thrower && TT.thrower.a_intent != I_HELP)
 		if(TT.speed > throw_speed || smash_check(TT.dist_travelled)) //not as reliable as smashing directly
-			if(reagents)
-				hit_atom.visible_message(SPAN_NOTICE("The contents of \the [src] splash all over \the [hit_atom]!"))
-				reagents.splash(hit_atom, reagents.total_volume)
 			smash(loc, hit_atom)
 
 /obj/item/chems/food/drinks/bottle/proc/smash_check(var/distance)
@@ -51,8 +51,35 @@
 	return prob(chance_table[idx])
 
 /obj/item/chems/food/drinks/bottle/proc/smash(var/newloc, atom/against = null)
+
+	// Dump reagents onto the turf.
+	var/turf/T = against ? get_turf(against) : get_turf(newloc)
+	if(reagents?.total_volume)
+		visible_message(SPAN_DANGER("The contents of \the [src] splash all over \the [against || T]!"))
+		reagents.splash(against || T, reagents.total_volume)
+	if(!T)
+		qdel(src)
+		return
+
+	// Propagate our fire source down to the lowest level we can.
+	// Ignite any fuel or mobs we have spilled. TODO: generalize to
+	// flame sources when traversing open space.
+	if(rag)
+		rag.dropInto(T)
+		while(T)
+			rag.forceMove(T)
+			if(rag.on_fire)
+				T.hotspot_expose(700, 5)
+				for(var/mob/living/M in T.contents)
+					M.IgniteMob()
+			if(!rag || QDELETED(src) || !HasBelow(T.z) || !T.is_open())
+				break
+			T = GetBelow(T)
+		rag = null
+
 	//Creates a shattering noise and replaces the bottle with a broken_bottle
-	var/obj/item/broken_bottle/B = new(newloc)
+	playsound(T, "shatter", 70, 1)
+	var/obj/item/broken_bottle/B = new(T)
 	if(prob(33))
 		new/obj/item/shard(newloc) // Create a glass shard at the target's location!
 	B.icon_state = src.icon_state
@@ -60,32 +87,8 @@
 	I.Blend(B.broken_outline, ICON_OVERLAY, rand(5), 1)
 	I.SwapColor(rgb(255, 0, 220, 255), rgb(0, 0, 0, 0))
 	B.icon = I
-	B.dropInto(newloc)
-
-	// Propagate our fire source down to the lowest level we can.
-	// Ignite any fuel or mobs we have spilled. TODO: generalize to
-	// flame sources when traversing open space.
-	if(rag)
-		var/turf/T = get_turf(newloc)
-		if(istype(T))
-			while(T)
-				rag.forceMove(T)
-				if(rag.on_fire)
-					T.hotspot_expose(700, 5)
-					for(var/mob/living/M in T.contents)
-						M.IgniteMob()
-				if(HasBelow(T.z) && istype(T, /turf/simulated/open))
-					T = GetBelow(T)
-				else
-					T = null
-			rag.dropInto(rag.loc)
-		else
-			rag.dropInto(newloc)
-		rag = null
-
-	playsound(src, "shatter", 70, 1)
-	src.transfer_fingerprints_to(B)
-
+	B.dropInto(B.loc)
+	transfer_fingerprints_to(B)
 	qdel(src)
 	return B
 
@@ -141,7 +144,7 @@
 	if(rag)
 		var/underlay_image = image(icon='icons/obj/drinks.dmi', icon_state=rag.on_fire? "[rag_underlay]_lit" : rag_underlay)
 		underlays += underlay_image
-		set_light(rag.light_max_bright, 0.1, rag.light_outer_range, 2, rag.light_color)
+		set_light(rag.light_range, 0.1, rag.light_color)
 	else
 		set_light(0)
 
@@ -185,7 +188,7 @@
 		return
 
 	if(!stop_spin_bottle)
-		if(usr.get_active_hand() == src || usr.get_inactive_hand() == src)
+		if(src in usr.get_held_items())
 			usr.drop_from_inventory(src)
 
 		if(isturf(loc))
@@ -202,7 +205,7 @@
 
 			stop_spin_bottle = TRUE
 			SpinAnimation(speed, loops, pick(0, 1)) //SpinAnimation(speed, loops, clockwise, segments)
-			transform = turn(matrix(), dir2angle(pick(GLOB.alldirs)))
+			transform = turn(matrix(), dir2angle(pick(global.alldirs)))
 			sleep(sleep_not_stacking) //Not stacking
 			stop_spin_bottle = FALSE
 
@@ -224,6 +227,10 @@
 	sharp = 1
 	edge = 0
 	var/icon/broken_outline = icon('icons/obj/drinks.dmi', "broken")
+
+/obj/item/broken_bottle/Initialize(ml, material_key)
+	. = ..()
+	set_extension(src, /datum/extension/tool, list(TOOL_SCALPEL = TOOL_QUALITY_BAD))
 
 /obj/item/broken_bottle/attack(mob/living/carbon/M, mob/living/carbon/user)
 	playsound(loc, 'sound/weapons/bladeslice.ogg', 50, 1, -1)
@@ -269,25 +276,25 @@
 	. = ..()
 	reagents.add_reagent(/decl/material/liquid/ethanol/vodka, 100)
 
-/obj/item/chems/food/drinks/bottle/tequilla
-	name = "Caccavo Guaranteed Quality Tequilla"
+/obj/item/chems/food/drinks/bottle/tequila
+	name = "Caccavo Guaranteed Quality tequila"
 	desc = "Made from premium petroleum distillates, pure thalidomide and other fine quality ingredients!"
-	icon_state = "tequillabottle"
+	icon_state = "tequilabottle"
 	center_of_mass = @"{'x':16,'y':3}"
 
-/obj/item/chems/food/drinks/bottle/tequilla/Initialize()
+/obj/item/chems/food/drinks/bottle/tequila/Initialize()
 	. = ..()
-	reagents.add_reagent(/decl/material/liquid/ethanol/tequilla, 100)
+	reagents.add_reagent(/decl/material/liquid/ethanol/tequila, 100)
 
 /obj/item/chems/food/drinks/bottle/patron
 	name = "Wrapp Artiste Patron"
-	desc = "Silver laced tequilla, served in space night clubs across the galaxy."
+	desc = "Silver laced tequila, served in space night clubs across the galaxy."
 	icon_state = "patronbottle"
 	center_of_mass = @"{'x':16,'y':6}"
 
 /obj/item/chems/food/drinks/bottle/patron/Initialize()
 	. = ..()
-	reagents.add_reagent(/decl/material/liquid/ethanol/tequilla, 95)
+	reagents.add_reagent(/decl/material/liquid/ethanol/tequila, 95)
 	reagents.add_reagent(/decl/material/solid/metal/silver, 5)
 
 /obj/item/chems/food/drinks/bottle/rum
@@ -505,7 +512,7 @@
 	. = ..()
 	reagents.add_reagent(/decl/material/liquid/ethanol/wine/premium, 100)
 	var/namepick = pick("Calumont","Sciacchemont","Recioto","Torcalota")
-	var/agedyear = rand(game_year-150,game_year)
+	var/agedyear = rand(global.using_map.game_year - 150, global.using_map.game_year)
 	name = "Chateau [namepick] De Blanc"
 	desc += " This bottle is marked as [agedyear] Vintage."
 
@@ -518,6 +525,8 @@
 	item_state = "carton"
 	center_of_mass = @"{'x':16,'y':7}"
 	isGlass = 0
+	drop_sound = 'sound/foley/drop1.ogg'
+	pickup_sound = 'sound/foley/paperpickup2.ogg'
 
 /obj/item/chems/food/drinks/bottle/orangejuice/Initialize()
 	. = ..()
@@ -530,6 +539,8 @@
 	item_state = "carton"
 	center_of_mass = @"{'x':16,'y':8}"
 	isGlass = 0
+	drop_sound = 'sound/foley/drop1.ogg'
+	pickup_sound = 'sound/foley/paperpickup2.ogg'
 
 /obj/item/chems/food/drinks/bottle/cream/Initialize()
 	. = ..()
@@ -542,6 +553,8 @@
 	item_state = "carton"
 	center_of_mass = @"{'x':16,'y':8}"
 	isGlass = 0
+	drop_sound = 'sound/foley/drop1.ogg'
+	pickup_sound = 'sound/foley/paperpickup2.ogg'
 
 /obj/item/chems/food/drinks/bottle/tomatojuice/Initialize()
 	. = ..()
@@ -554,6 +567,8 @@
 	item_state = "carton"
 	center_of_mass = @"{'x':16,'y':8}"
 	isGlass = 0
+	drop_sound = 'sound/foley/drop1.ogg'
+	pickup_sound = 'sound/foley/paperpickup2.ogg'
 
 /obj/item/chems/food/drinks/bottle/limejuice/Initialize()
 	. = ..()

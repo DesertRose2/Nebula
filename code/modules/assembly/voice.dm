@@ -5,18 +5,18 @@
 	origin_tech = "{'magnets':1}"
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/slag = MATTER_AMOUNT_TRACE
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/metal/copper = MATTER_AMOUNT_TRACE
 	)
 	var/listening = 0
 	var/recorded	//the activation message
 
 /obj/item/assembly/voice/Initialize()
 	. = ..()
-	GLOB.listening_objects += src
+	global.listening_objects += src
 
 /obj/item/assembly/voice/Destroy()
-	GLOB.listening_objects -= src
+	global.listening_objects -= src
 	return ..()
 
 /obj/item/assembly/voice/hear_talk(mob/living/M, msg)
@@ -24,7 +24,7 @@
 		recorded = msg
 		listening = 0
 		var/turf/T = get_turf(src)	//otherwise it won't work in hand
-		T.visible_message("\icon[src] beeps, \"Activation message is '[recorded]'.\"")
+		T.visible_message("[html_icon(src)] beeps, \"Activation message is '[recorded]'.\"")
 	else
 		if(findtext(msg, recorded))
 			pulse(0)
@@ -34,7 +34,7 @@
 		if(!holder)
 			listening = !listening
 			var/turf/T = get_turf(src)
-			T.visible_message("\icon[src] beeps, \"[listening ? "Now" : "No longer"] recording input.\"")
+			T.visible_message("[html_icon(src)] beeps, \"[listening ? "Now" : "No longer"] recording input.\"")
 
 
 /obj/item/assembly/voice/attack_self(mob/user)

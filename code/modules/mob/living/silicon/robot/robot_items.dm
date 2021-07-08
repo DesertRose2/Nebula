@@ -21,10 +21,13 @@
 	var/confirm = alert(user, "This will destroy the item inside forever. Are you sure?","Confirm Analyze","Yes","No")
 	if(confirm == "Yes" && !QDELETED(loaded_item) && !user.incapacitated() && loc == user)
 		to_chat(user, "You activate the analyzer's microlaser, analyzing \the [loaded_item] and breaking it down.")
-		var/list/tech_found = json_decode(loaded_item.origin_tech)
+		var/list/tech_found = cached_json_decode(loaded_item.get_origin_tech())
 		for(var/tech in tech_found)
-			if(saved_tech_levels[tech] < tech_found[tech])
+			if(saved_tech_levels[tech] == tech_found[tech])
+				saved_tech_levels[tech] = (tech_found[tech]+1)
+			else if(saved_tech_levels[tech] < tech_found[tech])
 				saved_tech_levels[tech] = tech_found[tech]
+
 		flick("portable_analyzer_scan", src)
 		QDEL_NULL(loaded_item)
 
@@ -49,7 +52,8 @@
 		to_chat(user, SPAN_WARNING("\The [src] already has something inside.  Analyze or eject it first."))
 		return
 	var/obj/item/I = target
-	if(!I.origin_tech)
+	var/tech = I.get_origin_tech()
+	if(!tech)
 		to_chat(user, SPAN_WARNING("\The [I] has no interesting data to analyze."))
 		return
 	I.forceMove(src)
@@ -85,7 +89,7 @@
 /obj/item/party_light/on_update_icon()
 	if (activated)
 		icon_state = "partylight-on"
-		set_light(1, 1, 7)
+		set_light(7, 1)
 	else
 		icon_state = "partylight_off"
 		set_light(0)
@@ -99,7 +103,7 @@
 	strobe_effect = L
 
 	// Make the light effect follow this party light object.
-	GLOB.moved_event.register(src, L, /atom/movable/proc/move_to_turf_or_null)
+	events_repository.register(/decl/observ/moved, src, L, /atom/movable/proc/move_to_turf_or_null)
 
 	update_icon()
 
@@ -107,7 +111,7 @@
 	activated = 0
 
 	// Cause the party light effect to stop following this object, and then delete it.
-	GLOB.moved_event.unregister(src, strobe_effect, /atom/movable/proc/move_to_turf_or_null)
+	events_repository.unregister(/decl/observ/moved, src, strobe_effect, /atom/movable/proc/move_to_turf_or_null)
 	QDEL_NULL(strobe_effect)
 
 	update_icon()
@@ -377,7 +381,7 @@
 
 /obj/item/robot_rack/examine(mob/user)
 	. = ..()
-	to_chat(user, "It can hold up to [capacity] item[capacity == 1 ? "" : "s"].")
+	to_chat(user, "It can hold up to [capacity] item\s.")
 
 /obj/item/robot_rack/Initialize(mapload, starting_objects = 0)
 	. = ..()
@@ -468,7 +472,7 @@
 		if(istype(A, /obj/item/chems/food/snacks/grown))
 			generating_power = base_power_generation
 			using_item = A
-		else 
+		else
 			for(var/fuel_type in fuel_types)
 				if(istype(A, fuel_type))
 					generating_power = fuel_types[fuel_type] * base_power_generation

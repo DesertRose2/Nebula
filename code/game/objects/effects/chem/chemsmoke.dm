@@ -20,7 +20,7 @@
 	if(cached_icon)
 		icon = cached_icon
 
-	set_dir(pick(GLOB.cardinal))
+	set_dir(pick(global.cardinal))
 	pixel_x = -32 + rand(-8, 8)
 	pixel_y = -32 + rand(-8, 8)
 
@@ -159,10 +159,9 @@
 		return
 
 	if(LAZYLEN(chemholder.reagents.reagent_volumes))
-		for(var/turf/T in wallList)
+		for(var/turf/T in (wallList|targetTurfs))
 			chemholder.reagents.touch_turf(T)
 		for(var/turf/T in targetTurfs)
-			chemholder.reagents.touch_turf(T)
 			for(var/atom/A in T.contents)
 				if(istype(A, /obj/effect/effect/smoke/chem) || istype(A, /mob))
 					continue
@@ -247,7 +246,7 @@
 
 	while(pending.len)
 		for(var/turf/current in pending)
-			for(var/D in GLOB.cardinal)
+			for(var/D in global.cardinal)
 				var/turf/target = get_step(current, D)
 				if(wallList)
 					if(istype(target, /turf/simulated/wall))

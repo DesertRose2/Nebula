@@ -17,9 +17,7 @@
 	speak_chance = 5
 	turns_per_move = 5
 	see_in_dark = 10
-	response_help  = "pets"
-	response_disarm = "gently pushes aside"
-	response_harm   = "pokes"
+	response_harm = "pokes"
 	maxHealth = 125
 	health = 125
 	natural_weapon = /obj/item/natural_weapon/bite
@@ -155,20 +153,19 @@
 	maxHealth = rand(initial(maxHealth), (1.4 * initial(maxHealth)))
 	health = maxHealth
 	eye_colour = pick(allowed_eye_colours)
-	if(eye_colour)
-		var/image/I = image(icon = icon, icon_state = "[icon_state]_eyes", layer = EYE_GLOW_LAYER)
-		I.color = eye_colour
-		I.plane = EFFECTS_ABOVE_LIGHTING_PLANE
-		I.appearance_flags = RESET_COLOR
-		overlays += I
+	update_icon()
 
 /mob/living/simple_animal/hostile/giant_spider/on_update_icon()
 	if(stat == DEAD)
-		overlays.Cut()
 		var/image/I = image(icon = icon, icon_state = "[icon_dead]_eyes")
 		I.color = eye_colour
 		I.appearance_flags = RESET_COLOR
-		overlays += I
+		set_overlays(I)
+	else
+		var/image/I = emissive_overlay(icon = icon, icon_state = "[icon_state]_eyes")
+		I.color = eye_colour
+		I.appearance_flags = RESET_COLOR
+		set_overlays(I)
 
 /mob/living/simple_animal/hostile/giant_spider/FindTarget()
 	. = ..()
@@ -444,13 +441,13 @@ Hunter caste procs
 		stop_automation = first_stop_automation
 	
 /mob/living/simple_animal/hostile/giant_spider/hunter/throw_impact(atom/hit_atom)
+	..()
 	if(isliving(hit_atom))
 		var/mob/living/target = hit_atom
 		stop_automation = FALSE
 		visible_message(SPAN_DANGER("\The [src] slams into \the [target], knocking them over!"))
-		target.Weaken(1)
+		SET_STATUS_MAX(target, STAT_WEAK, 1)
 		MoveToTarget()
-	. = ..()
 
 /******************
 Spitter caste procs

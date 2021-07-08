@@ -31,16 +31,9 @@
 /obj/item/flamethrower/Process()
 	if(!lit)
 		STOP_PROCESSING(SSobj, src)
-		return null
-	var/turf/location = loc
-	if(istype(location, /mob/))
-		var/mob/M = location
-		if(M.l_hand == src || M.r_hand == src)
-			location = M.loc
-	if(isturf(location)) //start a fire if possible
-		location.hotspot_expose(700, 2)
-	return
-
+	else
+		var/turf/location = get_turf(src)
+		location?.hotspot_expose(700, 2)
 
 /obj/item/flamethrower/on_update_icon()
 	overlays.Cut()
@@ -81,7 +74,7 @@
 		if(tank)
 			tank.dropInto(loc)
 			tank = null
-		new /obj/item/stack/material/rods(get_turf(src))
+		SSmaterials.create_object(/decl/material/solid/metal/steel, get_turf(src), 1, /obj/item/stack/material/rods)
 		qdel(src)
 		return
 
@@ -170,7 +163,7 @@
 	if(!lit || operating)	return
 	operating = 1
 	for(var/turf/T in turflist)
-		if(T.density || istype(T, /turf/space))
+		if(T.density || isspaceturf(T))
 			break
 		if(!previousturf && length(turflist)>1)
 			previousturf = get_turf(src)

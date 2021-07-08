@@ -1,9 +1,10 @@
 /datum/shuttle/autodock/ferry/emergency
 	category = /datum/shuttle/autodock/ferry/emergency
 	move_time = 10 MINUTES
+	flags = SHUTTLE_FLAGS_PROCESS | SHUTTLE_FLAGS_ZERO_G | SHUTTLE_FLAGS_NO_CODE
 	var/datum/evacuation_controller/shuttle/emergency_controller
 
-/datum/shuttle/autodock/ferry/emergency/New()
+/datum/shuttle/autodock/ferry/emergency/New(map_hash)
 	. = ..()
 	emergency_controller = SSevac.evacuation_controller
 	if(!istype(emergency_controller))
@@ -28,10 +29,12 @@
 /datum/shuttle/autodock/ferry/emergency/shuttle_moved()
 	if(next_location != waypoint_station)
 		emergency_controller.shuttle_leaving() // This is a hell of a line. v
-		priority_announcement.Announce(replacetext(replacetext((emergency_controller.emergency_evacuation ? GLOB.using_map.emergency_shuttle_leaving_dock : GLOB.using_map.shuttle_leaving_dock), "%dock_name%", "[GLOB.using_map.dock_name]"),  "%ETA%", "[round(emergency_controller.get_eta()/60,1)] minute\s"))
-	else if(next_location == waypoint_offsite && emergency_controller.has_evacuated())
-		emergency_controller.shuttle_evacuated()
+		priority_announcement.Announce(replacetext(replacetext((emergency_controller.emergency_evacuation ? global.using_map.emergency_shuttle_leaving_dock : global.using_map.shuttle_leaving_dock), "%dock_name%", "[global.using_map.dock_name]"),  "%ETA%", "[round(emergency_controller.get_eta()/60,1)] minute\s"))
+
 	..()
+
+	if(current_location == waypoint_offsite && emergency_controller.has_evacuated())
+		emergency_controller.shuttle_evacuated()
 
 /datum/shuttle/autodock/ferry/emergency/can_launch(var/user)
 	if (istype(user, /obj/machinery/computer/shuttle_control/emergency))
@@ -121,7 +124,7 @@
 	if (authorized.len >= req_authorizations)
 		return 0 //don't need any more
 
-	var/decl/security_state/security_state = decls_repository.get_decl(GLOB.using_map.security_state)
+	var/decl/security_state/security_state = GET_DECL(global.using_map.security_state)
 	if (!SSevac.evacuation_controller.emergency_evacuation && security_state.current_security_level_is_lower_than(security_state.high_security_level))
 		src.visible_message("\The [src] buzzes. It does not appear to be accepting any commands.")
 		return 0
@@ -188,9 +191,9 @@
 			if (shuttle.in_use)
 				shuttle_status = "Busy."
 			else if (!shuttle.location)
-				shuttle_status = "Standing-by at [GLOB.using_map.station_name]."
+				shuttle_status = "Standing-by at [global.using_map.station_name]."
 			else
-				shuttle_status = "Standing-by at [GLOB.using_map.dock_name]."
+				shuttle_status = "Standing-by at [global.using_map.dock_name]."
 		if(WAIT_LAUNCH, FORCE_LAUNCH)
 			shuttle_status = "Shuttle has recieved command and will depart shortly."
 		if(WAIT_ARRIVE)

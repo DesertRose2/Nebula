@@ -3,8 +3,7 @@
 	desc = "A machine for breaking bonds in carbon dioxide and releasing pure oxygen."
 	icon = 'icons/atmos/oxyregenerator.dmi'
 	icon_state = "off"
-	level = 1
-	density = 1
+	density = TRUE
 	use_power = POWER_USE_OFF
 	idle_power_usage = 200		//internal circuitry, friction losses and stuff
 	power_rating = 10000
@@ -63,8 +62,8 @@
 			if (power_draw >= 0)
 				last_power_draw = power_draw
 				use_power_oneoff(power_draw)
-			if(network1 && (transfer_moles > 0))
-				network1.update = 1
+			if(transfer_moles > 0)
+				update_networks(turn(dir, 180))
 		if (air1.return_pressure() < 0.1 * ONE_ATMOSPHERE || inner_tank.return_pressure() >= target_pressure * 0.95)//if pipe is good as empty or tank is full
 			phase = "processing"
 
@@ -80,8 +79,7 @@
 			carbon_stored += co2_intake * carbon_efficiency
 			while (carbon_stored >= carbon_moles_per_piece)
 				carbon_stored -= carbon_moles_per_piece
-				var/decl/material/M = decls_repository.get_decl(/decl/material/solid/mineral/graphite)
-				M.place_sheet(get_turf(src), 1, M.type)
+				SSmaterials.create_object(/decl/material/solid/mineral/graphite, get_turf(src), 1)
 			power_draw = power_rating * co2_intake
 			last_power_draw = power_draw
 			use_power_oneoff(power_draw)
@@ -92,13 +90,14 @@
 		power_draw = -1
 		var/pressure_delta = target_pressure - air2.return_pressure()
 		if (pressure_delta > 0.01 && inner_tank.temperature > 0)
-			var/transfer_moles = calculate_transfer_moles(inner_tank, air2, pressure_delta, (network2)? network2.volume : 0)
+			var/datum/pipe_network/output = network_in_dir(dir)
+			var/transfer_moles = calculate_transfer_moles(inner_tank, air2, pressure_delta, output?.volume)
 			power_draw = pump_gas(src, inner_tank, air2, transfer_moles, power_rating*power_setting)
 			if (power_draw >= 0)
 				last_power_draw = power_draw
 				use_power_oneoff(power_draw)
-			if(network2 && (transfer_moles > 0))
-				network2.update = 1
+			if(transfer_moles > 0)
+				update_networks(dir)
 		else//can't push outside harder than target pressure. Device is not intended to be used as a pump after all
 			phase = "filling"
 		if (inner_tank.return_pressure() <= 0.1)

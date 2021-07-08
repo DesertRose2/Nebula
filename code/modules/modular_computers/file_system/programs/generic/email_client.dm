@@ -38,8 +38,9 @@
 		NME.error = ""
 		NME.check_for_new_messages(1)
 
-/datum/computer_file/program/email_client/proc/new_mail_notify()
-	computer.visible_notification("You got mail!")
+/datum/computer_file/program/email_client/proc/new_mail_notify(notification_sound)
+	computer.visible_notification(notification_sound)
+	computer.audible_notification("sound/machines/ping.ogg")
 
 /datum/computer_file/program/email_client/process_tick()
 	..()
@@ -50,8 +51,8 @@
 
 	var/check_count = NME.check_for_new_messages()
 	if(check_count)
-		if(check_count == 2)
-			new_mail_notify()
+		if(check_count == 2 && !NME.current_account.notification_mute)
+			new_mail_notify(NME.current_account.notification_sound)
 		ui_header = "ntnrc_new.gif"
 	else
 		ui_header = "ntnrc_idle.gif"
@@ -181,7 +182,7 @@
 	last_message_count = 0
 	read_message_count = 0
 
-/datum/nano_module/program/email_client/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = GLOB.default_state)
+/datum/nano_module/program/email_client/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = global.default_topic_state)
 	var/list/data = host.initial_data()
 
 	// Password has been changed by other client connected to this email account
@@ -206,6 +207,7 @@
 
 	else if(istype(current_account))
 		data["current_account"] = current_account.login
+		data["notification_mute"] = current_account.notification_mute
 		if(addressbook)
 			var/list/all_accounts = list()
 			for(var/datum/computer_file/data/email_account/account in get_email_addresses())
@@ -488,6 +490,16 @@
 		current_account.password = newpassword1
 		stored_password = newpassword1
 		error = "Your password has been successfully changed!"
+		return 1
+
+	if(href_list["set_notification"])
+		var/new_notification = sanitize(input(user, "Enter your desired notification sound:", "Set Notification", current_account.notification_sound) as text|null)
+		if(new_notification && current_account)
+			current_account.notification_sound = new_notification
+		return 1
+
+	if(href_list["mute"])
+		current_account.notification_mute = !current_account.notification_mute
 		return 1
 
 	// The following entries are Modular Computer framework only, and therefore won't do anything in other cases (like AI View)

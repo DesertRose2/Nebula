@@ -1,8 +1,7 @@
 /obj/item/clothing/gloves/captain
 	desc = "Regal blue gloves, with a nice gold trim. Swanky."
 	name = "captain's gloves"
-	icon_state = "captain"
-	item_state = "egloves"
+	icon = 'icons/clothing/hands/captain.dmi'
 
 /obj/item/clothing/gloves/insulated
 	desc = "These gloves will protect the wearer from electric shocks."
@@ -11,6 +10,8 @@
 	siemens_coefficient = 0
 	permeability_coefficient = 0.05
 	icon_state = ICON_STATE_WORLD
+	material = /decl/material/solid/plastic //TODO: rubber
+	matter = list(/decl/material/solid/cloth = MATTER_AMOUNT_REINFORCEMENT)
 
 /obj/item/clothing/gloves/insulated/cheap                             //Cheap Chinese Crap
 	desc = "These gloves are cheap copies of the coveted gloves, no way this can end badly."
@@ -28,9 +29,9 @@
 	color = COLOR_BROWN_ORANGE
 	siemens_coefficient = 0.50
 	permeability_coefficient = 0.05
-	cold_protection = HANDS
+	cold_protection = SLOT_HANDS
 	min_cold_protection_temperature = GLOVES_MIN_COLD_PROTECTION_TEMPERATURE
-	heat_protection = HANDS
+	heat_protection = SLOT_HANDS
 	max_heat_protection_temperature = GLOVES_MAX_HEAT_PROTECTION_TEMPERATURE
 
 /obj/item/clothing/gloves/tactical
@@ -46,15 +47,19 @@
 		bullet = ARMOR_BALLISTIC_MINOR, 
 		laser = ARMOR_LASER_MINOR
 		)
+	material = /decl/material/solid/cloth
+	matter = list(/decl/material/solid/plastic = MATTER_AMOUNT_REINFORCEMENT)
 
 /obj/item/clothing/gloves/guards
 	desc = "A pair of synthetic gloves and arm pads reinforced with armor plating."
 	name = "arm guards"
 	icon = 'icons/clothing/hands/armguards.dmi'
-	body_parts_covered = HANDS|ARMS
+	body_parts_covered = SLOT_HANDS|SLOT_ARMS
 	w_class = ITEM_SIZE_NORMAL
 	siemens_coefficient = 0.7
 	permeability_coefficient = 0.03
+	material = /decl/material/solid/cloth
+	matter = list(/decl/material/solid/plastic = MATTER_AMOUNT_REINFORCEMENT)
 	armor = list(
 		melee = ARMOR_MELEE_RESISTANT, 
 		bullet = ARMOR_BALLISTIC_MINOR, 
@@ -72,11 +77,12 @@
 	gas_transfer_coefficient = 0.90
 	permeability_coefficient = 0.50
 	item_flags = ITEM_FLAG_THICKMATERIAL
-	body_parts_covered = HANDS
-	cold_protection = HANDS
-	heat_protection = HANDS
+	body_parts_covered = SLOT_HANDS
+	cold_protection = SLOT_HANDS
+	heat_protection = SLOT_HANDS
 	min_cold_protection_temperature = GLOVES_MIN_COLD_PROTECTION_TEMPERATURE
-	heat_protection = HANDS
+	heat_protection = SLOT_HANDS
 	max_heat_protection_temperature = FIRESUIT_MAX_HEAT_PROTECTION_TEMPERATURE
 	max_pressure_protection = FIRESUIT_MAX_PRESSURE
-
+	material = /decl/material/solid/cloth
+	matter = list(/decl/material/solid/plastic = MATTER_AMOUNT_REINFORCEMENT)

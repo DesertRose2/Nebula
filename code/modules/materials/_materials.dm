@@ -8,6 +8,8 @@
 	mouse_opacity = 0
 	var/decl/material/material
 
+INITIALIZE_IMMEDIATE(/obj/effect/gas_overlay)
+
 /obj/effect/gas_overlay/proc/update_alpha_animation(var/new_alpha)
 	animate(src, alpha = new_alpha)
 	alpha = new_alpha
@@ -16,7 +18,7 @@
 
 /obj/effect/gas_overlay/Initialize(mapload, gas)
 	. = ..()
-	material = decls_repository.get_decl(gas)
+	material = GET_DECL(gas)
 	if(!istype(material))
 		return INITIALIZE_HINT_QDEL
 	if(material.gas_tile_overlay)
@@ -68,12 +70,13 @@
 	var/use_name
 	var/wall_name = "wall"                // Name given to walls of this material
 	var/flags = 0                         // Various status modifiers.
-	var/sheet_singular_name = "sheet"
-	var/sheet_plural_name = "sheets"
 	var/hidden_from_codex
 	var/lore_text
 	var/mechanics_text
 	var/antag_text
+	var/default_solid_form = /obj/item/stack/material/sheet
+
+	var/affect_blood_on_ingest = TRUE
 
 	var/narcosis = 0 // Not a great word for it. Constant for causing mild confusion when ingested.
 	var/toxicity = 0 // Organ damage from ingestion.
@@ -87,9 +90,14 @@
 	var/destruction_desc = "breaks apart" // Fancy string for barricades/tables/objects exploding.
 
 	// Icons
-	var/icon_base = "metal"                              // Wall and table base icon tag. See header.
+	var/icon_base = 'icons/turf/walls/solid.dmi'
+	var/icon_base_natural = 'icons/turf/walls/natural.dmi'
+	var/icon_reinf = 'icons/turf/walls/reinforced_metal.dmi'
+	var/wall_flags = 0
+	var/list/wall_blend_icons = list() // Which wall icon types walls of this material type will consider blending with. Assoc list (icon path = TRUE/FALSE)
+	var/use_reinf_state = "full"
+
 	var/door_icon_base = "metal"                         // Door base icon tag. See header.
-	var/icon_reinf = "reinf_metal"                       // Overlay used
 	var/table_icon_base = "metal"
 	var/table_reinf = "reinf_metal"
 	var/list/stack_origin_tech = "{'materials':1}" // Research level for stacks.
@@ -107,10 +115,11 @@
 	var/explosion_resistance = 5 // Only used by walls currently.
 	var/conductive = 1           // Objects with this var add CONDUCTS to flags on spawn.
 	var/luminescence
-	var/list/alloy_materials     // If set, material can be produced via alloying these materials in these amounts.
 	var/wall_support_value = 30
 	var/sparse_material_weight
 	var/rich_material_weight
+	var/min_fluid_opacity = FLUID_MIN_ALPHA
+	var/max_fluid_opacity = FLUID_MAX_ALPHA
 
 	// Damage values.
 	var/hardness = MAT_VALUE_HARD            // Prob of wall destruction by hulk, used for edge damage in weapons.
@@ -124,8 +133,6 @@
 	var/dooropen_noise = 'sound/effects/stonedoor_openclose.ogg'
 	// Noise made when you hit structure made of this material.
 	var/hitsound = 'sound/weapons/genhit.ogg'
-	// Path to resulting stacktype. Todo remove need for this.
-	var/stack_type = /obj/item/stack/material/generic
 	// Wallrot crumble message.
 	var/rotting_touch_message = "crumbles under your touch"
 	// Modifies skill checks when constructing with this material.
@@ -134,7 +141,6 @@
 	var/removed_by_welder
 
 	// Mining behavior.
-	var/alloy_product
 	var/ore_name
 	var/ore_desc
 	var/ore_smelts_to
@@ -153,7 +159,6 @@
 
 	// Gas behavior.
 	var/gas_overlay_limit
-	var/gas_burn_product
 	var/gas_specific_heat
 	var/gas_molar_mass
 	var/gas_symbol_html
@@ -186,7 +191,6 @@
 	var/solvent_max_damage  = 0
 	var/slipperiness
 	var/euphoriant // If set, ingesting/injecting this material will cause the rainbow high overlay/behavior.
-	var/euphoriant_max // Set a cap on how much drugged state the material can cause.
 
 	var/glass_icon = DRINK_ICON_DEFAULT
 	var/glass_name = "something"
@@ -210,15 +214,27 @@
 	var/heating_sound = 'sound/effects/bubbles.ogg'
 	var/list/heating_products
 	var/bypass_heating_products_for_root_type
-
 	var/fuel_value = 0
-
+	var/burn_product
 	var/list/vapor_products // If splashed, releases these gasses in these proportions. // TODO add to unit test after solvent PR is merged
 
 	var/scent //refer to _scent.dm
 	var/scent_intensity = /decl/scent_intensity/normal
 	var/scent_descriptor = SCENT_DESC_SMELL
 	var/scent_range = 1
+
+	var/list/neutron_interactions // Associative List of potential neutron interactions for the material to undergo, corresponding to the ideal
+								  // neutron energy for that reaction to occur.
+
+	var/neutron_cross_section	  // How broad the neutron interaction curve is, independent of temperature. Materials that are harder to react with will have lower values.
+	var/absorption_products		  // Transmutes into these reagents following neutron absorption and/or subsequent beta decay. Generally forms heavier reagents.
+	var/fission_products		  // Transmutes into these reagents following fission. Forms lighter reagents, and a lot of heat.
+	var/neutron_production		  // How many neutrons are created per unit per fission event.
+	var/neutron_absorption		  // How many neutrons are absorbed per unit per absorption event. 
+	var/fission_heat			  // How much thermal energy per unit per fission event this material releases.
+	var/fission_energy			  // Energy of neutrons released by fission.
+	var/moderation_target		  // The 'target' neutron energy value that the fission environment shifts towards after a moderation event.
+								  // Neutron moderators can only slow down neutrons.
 
 // Placeholders for light tiles and rglass.
 /decl/material/proc/reinforce(var/mob/user, var/obj/item/stack/material/used_stack, var/obj/item/stack/material/target_stack)
@@ -242,8 +258,12 @@
 	S.reinf_material = reinf_mat
 	S.update_strings()
 	S.update_icon()
-	S.dropInto(target_stack.loc)
-
+	if(!QDELETED(target_stack))
+		S.dropInto(get_turf(target_stack))
+	else if(user)
+		S.dropInto(get_turf(user))
+	else
+		S.dropInto(get_turf(used_stack))
 
 // Make sure we have a use name and shard icon even if they aren't explicitly set.
 /decl/material/Initialize()
@@ -262,8 +282,8 @@
 		shard_icon = shard_type
 	if(!burn_armor)
 		burn_armor = brute_armor
-
 	generate_armor_values()
+
 	var/list/cocktails = decls_repository.get_decls_of_subtype(/decl/cocktail)
 	for(var/ctype in cocktails)
 		var/decl/cocktail/cocktail = cocktails[ctype]
@@ -300,28 +320,56 @@
 /decl/material/proc/products_need_process()
 	return (radioactivity>0) //todo
 
+// Returns the phase of the matterial at the given temperature and pressure
+// #FIXME: pressure is unused currently
+/decl/material/proc/phase_at_temperature(var/temperature, var/pressure = ONE_ATMOSPHERE)
+	//#TODO: implement plasma temperature and do pressure checks
+	if(temperature >= boiling_point)
+		return MAT_PHASE_GAS
+	else if(temperature >= heating_point)
+		return MAT_PHASE_LIQUID
+	return MAT_PHASE_SOLID
+
+// Returns the phase of matter this material is a standard temperature and pressure (20c at one atmosphere)
+/decl/material/proc/phase_at_stp()
+	return phase_at_temperature(T20C, ONE_ATMOSPHERE)
+
 // Used by walls when qdel()ing to avoid neighbor merging.
 /decl/material/placeholder
 	name = "placeholder"
 	hidden_from_codex = TRUE
 
+// Generic material product (sheets, bricks, etc). Used ALL THE TIME.
+// May return an instance list, a single instance, or nothing if there is no instance produced.
+/decl/material/proc/create_object(var/atom/target, var/amount = 1, var/object_type, var/reinf_type)
+	if(!object_type)
+		object_type = default_solid_form
+	if(object_type)
+		if(ispath(object_type, /obj/item/stack))
+			var/atom/movable/placed = new object_type(target, amount, type, reinf_type)
+			if(istype(target))
+				placed.dropInto(target)
+			return placed
+		for(var/i = 1 to amount)
+			var/atom/movable/placed = new object_type(target, type, reinf_type)
+			if(istype(placed))
+				LAZYADD(., placed)
+				if(istype(target))
+					placed.dropInto(target)
+
 // Places a girder object when a wall is dismantled, also applies reinforced material.
 /decl/material/proc/place_dismantled_girder(var/turf/target, var/decl/material/reinf_material)
-	new /obj/structure/girder(target, type, reinf_material && reinf_material.type)
+	return create_object(target, 1, /obj/structure/girder, ispath(reinf_material) ? reinf_material : reinf_material?.type)
 
 // General wall debris product placement.
 // Not particularly necessary aside from snowflakey cult girders.
 /decl/material/proc/place_dismantled_product(var/turf/target,var/is_devastated)
-	place_sheet(target, is_devastated ? 1 : 2)
-
-// Debris product. Used ALL THE TIME.
-/decl/material/proc/place_sheet(var/turf/target, var/amount = 1)
-	return stack_type ? new stack_type(target, amount, type) : null
+	return create_object(target, is_devastated ? 1 : 2)
 
 // As above.
 /decl/material/proc/place_shard(var/turf/target)
 	if(shard_type)
-		return new /obj/item/shard(target, type)
+		return create_object(target, 1, /obj/item/shard)
 
 // Used by walls and weapons to determine if they break or not.
 /decl/material/proc/is_brittle()
@@ -379,18 +427,25 @@
 
 /decl/material/proc/touch_turf(var/turf/T, var/amount, var/datum/reagents/holder) // Cleaner cleaning, lube lubbing, etc, all go here
 
+	if(REAGENT_VOLUME(holder, type) < FLUID_QDEL_POINT)
+		return
+
+	if(istype(T) && dirtiness <= DIRTINESS_CLEAN)
+		T.clean_blood()
+		T.remove_cleanables()
+
 	if(istype(T, /turf/simulated))
 		var/turf/simulated/wall/W = T
 		if(defoliant)
 			for(var/obj/effect/overlay/wallrot/E in W)
 				W.visible_message(SPAN_NOTICE("\The [E] is completely dissolved by the solution!"))
 				qdel(E)
-		if(slipperiness != 0 && REAGENT_VOLUME(holder, type) >= 5)
+		if(slipperiness != 0)
 			if(slipperiness < 0)
 				W.unwet_floor(TRUE)
 			else
 				W.wet_floor(slipperiness)
-		if(dirtiness != DIRTINESS_NEUTRAL && REAGENT_VOLUME(holder, type) >= 1)
+		if(dirtiness != DIRTINESS_NEUTRAL)
 			if(dirtiness > DIRTINESS_NEUTRAL)
 				var/obj/effect/decal/cleanable/dirt/dirtoverlay = locate() in W
 				if (!dirtoverlay)
@@ -407,11 +462,9 @@
 						qdel(B)
 				if(dirtiness <= DIRTINESS_CLEAN)
 					W.dirt = 0
-					if(W.wet > 1)
+					if(W.wet > 1 && slipperiness <= 0)
 						W.unwet_floor(FALSE)
 					W.clean_blood()
-					for(var/mob/living/carbon/slime/M in W)
-						M.adjustToxLoss(rand(5, 10))
 
 	if(length(vapor_products))
 		var/volume = REAGENT_VOLUME(holder, type)
@@ -420,7 +473,7 @@
 			T.assume_gas(vapor, (volume * vapor_products[vapor]), temperature)
 		holder.remove_reagent(type, volume)
 
-/decl/material/proc/on_mob_life(var/mob/living/carbon/M, var/alien, var/location, var/datum/reagents/holder) // Currently, on_mob_life is called on carbons. Any interaction with non-carbon mobs (lube) will need to be done in touch_mob.
+/decl/material/proc/on_mob_life(var/mob/living/M, var/alien, var/location, var/datum/reagents/holder) // Currently, on_mob_life is called on carbons. Any interaction with non-carbon mobs (lube) will need to be done in touch_mob.
 	if(QDELETED(src))
 		return // Something else removed us.
 	if(!istype(M))
@@ -445,7 +498,8 @@
 	if(!(flags & IGNORE_MOB_SIZE) && location != CHEM_TOUCH)
 		effective *= (MOB_SIZE_MEDIUM/M.mob_size)
 
-	M.chem_doses[type] = M.chem_doses[type] + effective
+	var/dose = LAZYACCESS(M.chem_doses, type) + effective
+	LAZYSET(M.chem_doses, type, dose)
 	if(effective >= (metabolism * 0.1) || effective >= 0.1) // If there's too little chemical, don't affect the mob, just remove it
 		switch(location)
 			if(CHEM_INJECT)
@@ -456,7 +510,7 @@
 				affect_touch(M, alien, effective, holder)
 	holder.remove_reagent(type, removed)
 
-/decl/material/proc/affect_blood(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/proc/affect_blood(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	if(radioactivity)
 		M.apply_damage(radioactivity * removed, IRRADIATE, armor_pen = 100)
 
@@ -465,7 +519,7 @@
 		var/dam = (toxicity * removed)
 		if(toxicity_targets_organ && ishuman(M))
 			var/mob/living/carbon/human/H = M
-			var/obj/item/organ/internal/I = H.internal_organs_by_name[toxicity_targets_organ]
+			var/obj/item/organ/internal/I = H.get_internal_organ(toxicity_targets_organ)
 			if(I)
 				var/can_damage = I.max_damage - I.damage
 				if(can_damage > 0)
@@ -479,21 +533,22 @@
 			M.adjustToxLoss(toxicity_targets_organ ? (dam * 0.75) : dam)
 
 	if(solvent_power >= MAT_SOLVENT_STRONG)
-		M.take_organ_damage(0, removed * solvent_power)
+		M.take_organ_damage(0, removed * solvent_power, override_droplimb = DISMEMBER_METHOD_ACID)
 
 	if(narcosis)
 		if(prob(10))
-			M.SelfMove(pick(GLOB.cardinal))
+			M.SelfMove(pick(global.cardinal))
 		if(prob(narcosis))
 			M.emote(pick("twitch", "drool", "moan"))
 
 	if(euphoriant)
-		M.adjust_drugged(euphoriant, euphoriant_max)
+		SET_STATUS_MAX(M, STAT_DRUGGY, euphoriant)
 
-/decl/material/proc/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
-	affect_blood(M, alien, removed * 0.5, holder)
+/decl/material/proc/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
+	if(affect_blood_on_ingest)
+		affect_blood(M, alien, removed * 0.5, holder)
 
-/decl/material/proc/affect_touch(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/proc/affect_touch(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 
 	if(!istype(M))
 		return
@@ -509,27 +564,20 @@
 		M.was_bloodied = null
 
 	if(dirtiness <= DIRTINESS_CLEAN)
-		if(M.r_hand)
-			M.r_hand.clean_blood()
-		if(M.l_hand)
-			M.l_hand.clean_blood()
+		for(var/obj/item/thing in M.get_held_items())
+			thing.clean_blood()
 		if(M.wear_mask)
-			if(M.wear_mask.clean_blood())
-				M.update_inv_wear_mask(0)
+			M.wear_mask.clean_blood()
 		if(ishuman(M))
 			var/mob/living/carbon/human/H = M
 			if(H.head)
-				if(H.head.clean_blood())
-					H.update_inv_head(0)
+				H.head.clean_blood()
 			if(H.wear_suit)
-				if(H.wear_suit.clean_blood())
-					H.update_inv_wear_suit(0)
+				H.wear_suit.clean_blood()
 			else if(H.w_uniform)
-				if(H.w_uniform.clean_blood())
-					H.update_inv_w_uniform(0)
+				H.w_uniform.clean_blood()
 			if(H.shoes)
-				if(H.shoes.clean_blood())
-					H.update_inv_shoes(0)
+				H.shoes.clean_blood()
 			else
 				H.clean_blood(1)
 				return
@@ -559,17 +607,17 @@
 					affecting.status |= ORGAN_DISFIGURED
 
 		if(!M.unacidable)
-			M.take_organ_damage(0, min(removed * solvent_power * ((removed < solvent_melt_dose) ? 0.1 : 0.2), solvent_max_damage))
+			M.take_organ_damage(0, min(removed * solvent_power * ((removed < solvent_melt_dose) ? 0.1 : 0.2), solvent_max_damage), override_droplimb = DISMEMBER_METHOD_ACID)
 
-/decl/material/proc/affect_overdose(var/mob/living/carbon/M, var/alien, var/datum/reagents/holder) // Overdose effect. Doesn't happen instantly.
+/decl/material/proc/affect_overdose(var/mob/living/M, var/alien, var/datum/reagents/holder) // Overdose effect. Doesn't happen instantly.
 	M.add_chemical_effect(CE_TOXIN, 1)
 	M.adjustToxLoss(REM)
 
 /decl/material/proc/initialize_data(var/newdata) // Called when the reagent is created.
-	if(newdata) 
+	if(newdata)
 		. = newdata
 
-/decl/material/proc/mix_data(var/datum/reagents/reagents, var/list/newdata, var/amount)	
+/decl/material/proc/mix_data(var/datum/reagents/reagents, var/list/newdata, var/amount)
 	. = REAGENT_DATA(reagents, type)
 
 /decl/material/proc/explosion_act(obj/item/chems/holder, severity)
@@ -594,3 +642,18 @@
 
 	if(prop.reagents.has_reagent(/decl/material/solid/ice))
 		. = "iced [.]"
+
+/decl/material/proc/neutron_interact(var/neutron_energy, var/total_interacted_units, var/total_units)
+	. = list() // Returns associative list of interaction -> interacted units
+	if(!length(neutron_interactions))
+		return
+	for(var/interaction in neutron_interactions)
+		var/ideal_energy = neutron_interactions[interaction]
+		var/interacted_units_ratio = (Clamp(-((((neutron_energy-ideal_energy)**2)/(neutron_cross_section*1000)) - 100), 0, 100))/100
+		var/interacted_units = round(interacted_units_ratio*total_interacted_units, 0.001)
+		
+		if(interacted_units > 0)
+			.[interaction] = interacted_units
+			total_interacted_units -= interacted_units
+		if(total_interacted_units <= 0)
+			return

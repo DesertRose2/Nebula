@@ -63,17 +63,12 @@
 			return 1
 	return 1
 
-
-/obj/structure/table/MouseDrop_T(obj/O, mob/user)
-
-	if ((!( istype(O, /obj/item) ) || user.get_active_hand() != O))
-		return ..()
-	if(isrobot(user))
-		return
-	user.unequip_item()
-	if (O.loc != src.loc)
-		step(O, get_dir(O, src))
-	return
+/obj/structure/table/receive_mouse_drop(atom/dropping, mob/user)
+	. = ..()
+	if(!. && !isrobot(user) && isitem(dropping) && user.get_active_hand() == dropping && user.unEquip(dropping))
+		var/obj/item/I = dropping
+		I.dropInto(get_turf(src))
+		return TRUE
 
 /obj/structure/table/attackby(obj/item/W, mob/user, var/click_params)
 
@@ -94,11 +89,8 @@
 		return
 
 	if(W.is_special_cutting_tool())
-		var/datum/effect/effect/system/spark_spread/spark_system = new /datum/effect/effect/system/spark_spread()
-		spark_system.set_up(5, 0, src.loc)
-		spark_system.start()
+		spark_at(src.loc, amount=5)
 		playsound(src.loc, 'sound/weapons/blade1.ogg', 50, 1)
-		playsound(src.loc, "sparks", 50, 1)
 		user.visible_message("<span class='danger'>\The [src] was sliced apart by [user]!</span>")
 		break_to_parts()
 		return

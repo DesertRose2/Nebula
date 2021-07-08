@@ -3,7 +3,7 @@
 	desc = "A G40E carbine, designed to kill with concentrated energy blasts."
 	icon = 'icons/obj/guns/laser_carbine.dmi'
 	icon_state = ICON_STATE_WORLD
-	slot_flags = SLOT_BELT|SLOT_BACK
+	slot_flags = SLOT_LOWER_BODY|SLOT_BACK
 	w_class = ITEM_SIZE_LARGE
 	force = 10
 	one_hand_penalty = 2
@@ -26,7 +26,7 @@
 
 /obj/item/gun/energy/laser/practice/on_update_icon()
 	. = ..()
-	overlays += get_mutable_overlay(icon, "[icon_state]_stripe", COLOR_ORANGE)
+	overlays += mutable_appearance(icon, "[icon_state]_stripe", COLOR_ORANGE)
 
 /obj/item/gun/energy/laser/practice/proc/hacked()
 	return projectile_type != /obj/item/projectile/beam/practice
@@ -56,7 +56,7 @@
 	icon_state = ICON_STATE_WORLD
 	desc = "A rare weapon, handcrafted by a now defunct specialty manufacturer on Luna for a small fortune. It's certainly aged well."
 	force = 5
-	slot_flags = SLOT_BELT //too unusually shaped to fit in a holster
+	slot_flags = SLOT_LOWER_BODY //too unusually shaped to fit in a holster
 	w_class = ITEM_SIZE_NORMAL
 	projectile_type = /obj/item/projectile/beam
 	origin_tech = null
@@ -71,7 +71,7 @@
 	icon = 'icons/obj/guns/laser_cannon.dmi'
 	icon_state = ICON_STATE_WORLD
 	origin_tech = "{'combat':4,'materials':3,'powerstorage':3}"
-	slot_flags = SLOT_BELT|SLOT_BACK
+	slot_flags = SLOT_LOWER_BODY|SLOT_BACK
 	one_hand_penalty = 6 //large and heavy
 	w_class = ITEM_SIZE_HUGE
 	projectile_type = /obj/item/projectile/beam/heavylaser
@@ -81,7 +81,7 @@
 	fire_delay = 20
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/gemstone/diamond = MATTER_AMOUNT_TRACE
 	)
 

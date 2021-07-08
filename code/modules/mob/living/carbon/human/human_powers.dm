@@ -1,6 +1,16 @@
 /****************
  true human verbs
 ****************/
+/mob/living/carbon/human/verb/sniff_verb()
+	set name = "Sniff"
+	set desc = "Smell the local area."
+	set category = "IC"
+	set src = usr
+	if(!incapacitated())
+		if(species.sniff_message_3p && species.sniff_message_1p)
+			visible_message(SPAN_NOTICE("\The [src] [species.sniff_message_3p]."), SPAN_NOTICE(species.sniff_message_1p))
+		LAZYCLEARLIST(smell_cooldown)
+
 /mob/living/carbon/human/proc/tie_hair()
 	set name = "Tie Hair"
 	set desc = "Style your hair."
@@ -11,15 +21,15 @@
 		return
 
 	if(h_style)
-		var/datum/sprite_accessory/hair/hair_style = GLOB.hair_styles_list[h_style]
+		var/datum/sprite_accessory/hair/hair_style = global.hair_styles_list[h_style]
 		var/selected_string
 		if(!(hair_style.flags & HAIR_TIEABLE))
 			to_chat(src, "<span class ='warning'>Your hair isn't long enough to tie.</span>")
 			return
 		else
 			var/list/datum/sprite_accessory/hair/valid_hairstyles = list()
-			for(var/hair_string in GLOB.hair_styles_list)
-				var/datum/sprite_accessory/hair/test = GLOB.hair_styles_list[hair_string]
+			for(var/hair_string in global.hair_styles_list)
+				var/datum/sprite_accessory/hair/test = global.hair_styles_list[hair_string]
 				if(test.flags & HAIR_TIEABLE)
 					valid_hairstyles.Add(hair_string)
 			selected_string = input("Select a new hairstyle", "Your hairstyle", hair_style) as null|anything in valid_hairstyles

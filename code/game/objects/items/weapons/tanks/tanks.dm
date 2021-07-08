@@ -1,6 +1,6 @@
 #define TANK_IDEAL_PRESSURE 1015 //Arbitrary.
 
-var/tank_bomb_severity = 1
+var/global/tank_bomb_severity = 1
 #define TANK_BOMB_DVSTN_FACTOR (0.15 * global.tank_bomb_severity)
 #define TANK_BOMB_HEAVY_FACTOR (0.35 * global.tank_bomb_severity)
 #define TANK_BOMB_LIGHT_FACTOR (0.80 * global.tank_bomb_severity)
@@ -17,11 +17,12 @@ var/tank_bomb_severity = 1
 			global.tank_bomb_severity = Clamp(next_input, 0, MAX_TANK_BOMB_SEVERITY)
 			log_and_message_admins("[key_name_admin(mob)] has set the tank bomb severity value to [global.tank_bomb_severity].", mob)
 
-var/list/global/tank_gauge_cache = list()
+var/global/list/global/tank_gauge_cache = list()
 
 /obj/item/tank
 	name = "tank"
-	icon = 'icons/obj/tank.dmi'
+	icon = 'icons/obj/items/tanks/tank_blue.dmi'
+	icon_state = ICON_STATE_WORLD
 
 	var/gauge_icon = "indicator_tank"
 	var/gauge_cap = 6
@@ -79,6 +80,13 @@ var/list/global/tank_gauge_cache = list()
 			qdel(TTV)
 
 	. = ..()
+
+/obj/item/tank/get_single_monetary_worth()
+	. = ..()
+	for(var/gas in air_contents?.gas)
+		var/decl/material/gas_data = GET_DECL(gas)
+		. += gas_data.get_value() * air_contents.gas[gas] * GAS_WORTH_MULTIPLIER
+	. = max(1, round(.))
 
 /obj/item/tank/examine(mob/user)
 	. = ..()
@@ -171,7 +179,7 @@ var/list/global/tank_gauge_cache = list()
 			to_chat(user, "<span class='notice'>You begin attaching the assembly to \the [src].</span>")
 			if(do_after(user, 50, src))
 				to_chat(user, "<span class='notice'>You finish attaching the assembly to \the [src].</span>")
-				GLOB.bombers += "[key_name(user)] attached an assembly to a wired [src]. Temp: [air_contents.temperature-T0C]"
+				global.bombers += "[key_name(user)] attached an assembly to a wired [src]. Temp: [air_contents.temperature-T0C]"
 				log_and_message_admins("attached an assembly to a wired [src]. Temp: [air_contents.temperature-T0C]", user)
 				assemble_bomb(W,user)
 			else
@@ -189,7 +197,7 @@ var/list/global/tank_gauge_cache = list()
 					valve_welded = 1
 					leaking = 0
 				else
-					GLOB.bombers += "[key_name(user)] attempted to weld a [src]. [air_contents.temperature-T0C]"
+					global.bombers += "[key_name(user)] attempted to weld a [src]. [air_contents.temperature-T0C]"
 					log_and_message_admins("attempted to weld a [src]. [air_contents.temperature-T0C]", user)
 					if(WT.welding)
 						to_chat(user, "<span class='danger'>You accidentally rake \the [W] across \the [src]!</span>")
@@ -273,7 +281,7 @@ var/list/global/tank_gauge_cache = list()
 		// auto update every Master Controller tick
 		ui.set_auto_update(1)
 
-/obj/item/tank/Topic(user, href_list, state = GLOB.inventory_state)
+/obj/item/tank/Topic(user, href_list, state = global.inventory_topic_state)
 	..()
 
 /obj/item/tank/OnTopic(user, href_list)
@@ -371,7 +379,7 @@ var/list/global/tank_gauge_cache = list()
 
 	var/list/overlays_to_add
 	if(override && (proxyassembly.assembly || wired))
-		LAZYADD(overlays_to_add, image(icon,"bomb_assembly"))
+		LAZYADD(overlays_to_add, image('icons/obj/items/tanks/tank_components.dmi',"bomb_assembly"))
 		if(proxyassembly.assembly)
 			var/image/bombthing = image(proxyassembly.assembly.icon, proxyassembly.assembly.icon_state)
 			bombthing.overlays |= proxyassembly.assembly.overlays
@@ -390,7 +398,7 @@ var/list/global/tank_gauge_cache = list()
 		if(override || (previous_gauge_pressure != gauge_pressure))
 			var/indicator = "[gauge_icon][(gauge_pressure == -1) ? "overload" : gauge_pressure]"
 			if(!tank_gauge_cache[indicator])
-				tank_gauge_cache[indicator] = image(icon, indicator)
+				tank_gauge_cache[indicator] = image('icons/obj/items/tanks/tank_indicators.dmi', indicator)
 			LAZYADD(overlays_to_add, tank_gauge_cache[indicator])
 		previous_gauge_pressure = gauge_pressure
 
@@ -456,7 +464,7 @@ var/list/global/tank_gauge_cache = list()
 				return
 			T.assume_air(air_contents)
 			playsound(get_turf(src), 'sound/weapons/gunshot/shotgun.ogg', 20, 1)
-			visible_message("\icon[src] <span class='danger'>\The [src] flies apart!</span>", "<span class='warning'>You hear a bang!</span>")
+			visible_message("[html_icon(src)] <span class='danger'>\The [src] flies apart!</span>", "<span class='warning'>You hear a bang!</span>")
 			T.hotspot_expose(air_contents.temperature, 70, 1)
 
 			var/strength = 1+((pressure-TANK_LEAK_PRESSURE)/TANK_FRAGMENT_SCALE)
@@ -487,7 +495,7 @@ var/list/global/tank_gauge_cache = list()
 
 			T.assume_air(leaked_gas)
 			if(!leaking)
-				visible_message("\icon[src] <span class='warning'>\The [src] relief valve flips open with a hiss!</span>", "You hear hissing.")
+				visible_message("[html_icon(src)] <span class='warning'>\The [src] relief valve flips open with a hiss!</span>", "You hear hissing.")
 				playsound(loc, 'sound/effects/spray.ogg', 10, 1, -3)
 				leaking = 1
 				#ifdef FIREDBG
@@ -547,8 +555,6 @@ var/list/global/tank_gauge_cache = list()
 	if(isigniter(S.a_left) == isigniter(S.a_right))		//Check if either part of the assembly has an igniter, but if both parts are igniters, then fuck it
 		return
 
-	if(!M.unequip_item())
-		return					//Remove the assembly from your hands
 	if(!M.unEquip(src))
 		return					//Remove the tank from your character,in case you were holding it
 	M.put_in_hands(src)			//Equips the bomb if possible, or puts it on the floor.

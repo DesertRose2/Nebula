@@ -17,6 +17,8 @@
 	icon = 'icons/obj/card.dmi'
 	w_class = ITEM_SIZE_TINY
 	slot_flags = SLOT_EARS
+	drop_sound = 'sound/foley/paperpickup1.ogg'
+	pickup_sound = 'sound/foley/paperpickup2.ogg'
 
 /obj/item/card/union
 	name = "union card"
@@ -64,7 +66,7 @@
 	detail_overlay.color = detail_color
 	overlays += detail_overlay
 
-/obj/item/card/data/attackby(obj/item/I, mob/living/user)
+/obj/item/card/data/attackby(obj/item/I, mob/user)
 	if(istype(I, /obj/item/integrated_electronics/detailer))
 		var/obj/item/integrated_electronics/detailer/D = I
 		detail_color = D.detail_color
@@ -107,7 +109,7 @@
 							/obj/item/card/id,
 						) //Should be enough of a selection for most purposes
 
-var/const/NO_EMAG_ACT = -50
+var/global/const/NO_EMAG_ACT = -50
 /obj/item/card/emag/resolve_attackby(atom/A, mob/user)
 	var/used_uses = A.emag_act(uses, user, src)
 	if(used_uses == NO_EMAG_ACT)
@@ -170,8 +172,6 @@ var/const/NO_EMAG_ACT = -50
 	var/rank = null			//actual job
 	var/dorm = 0			// determines if this ID has claimed a dorm already
 
-	var/job_access_type     // Job type to acquire access rights from, if any
-
 	var/datum/mil_branch/military_branch = null //Vars for tracking branches and ranks on multi-crewtype maps
 	var/datum/mil_rank/military_rank = null
 
@@ -182,20 +182,12 @@ var/const/NO_EMAG_ACT = -50
 	var/extra_details
 
 /obj/item/card/id/Initialize()
-	.=..()
-	if(job_access_type)
-		var/datum/job/j = SSjobs.get_by_path(job_access_type)
-		if(j)
-			rank = j.title
-			assignment = rank
-			access |= j.get_access()
-			if(!detail_color)
-				detail_color = j.selection_color
+	. = ..()
 	update_icon()
 
-/obj/item/card/id/get_mob_overlay(mob/user_mob, slot)
+/obj/item/card/id/get_mob_overlay(mob/user_mob, slot, bodypart)
 	var/image/ret = ..()
-	if(detail_color)
+	if(ret && detail_color)
 		ret.overlays += overlay_image(ret.icon, "[ret.icon_state]-colors", detail_color, RESET_COLOR)
 	return ret
 
@@ -210,7 +202,7 @@ var/const/NO_EMAG_ACT = -50
 	var/mob/user = usr
 	if(href_list["look_at_id"] && istype(user))
 		var/turf/T = get_turf(src)
-		if(T.CanUseTopic(user, GLOB.view_state) != STATUS_CLOSE)
+		if(T.CanUseTopic(user, global.view_topic_state) != STATUS_CLOSE)
 			user.examinate(src)
 			return TOPIC_HANDLED
 	. = ..()
@@ -254,18 +246,18 @@ var/const/NO_EMAG_ACT = -50
 	id_card.formal_name_suffix = initial(id_card.formal_name_suffix)
 	if(client && client.prefs)
 		for(var/culturetag in client.prefs.cultural_info)
-			var/decl/cultural_info/culture = SSlore.get_culture(client.prefs.cultural_info[culturetag])
+			var/decl/cultural_info/culture = GET_DECL(client.prefs.cultural_info[culturetag])
 			if(culture)
 				id_card.formal_name_prefix = "[culture.get_formal_name_prefix()][id_card.formal_name_prefix]"
 				id_card.formal_name_suffix = "[id_card.formal_name_suffix][culture.get_formal_name_suffix()]"
 
 	id_card.registered_name = real_name
 
-	var/gender_term = "Unset"
-	var/datum/gender/G = gender_datums[get_sex()]
+	var/decl/pronouns/G = get_pronouns()
 	if(G)
-		gender_term = gender2text(G.formal_term)
-	id_card.sex = gender2text(gender_term)
+		id_card.sex = capitalize(G.formal_term)
+	else
+		id_card.sex = "Unset"
 	id_card.set_id_photo(src)
 
 	if(dna)
@@ -275,10 +267,10 @@ var/const/NO_EMAG_ACT = -50
 
 /mob/living/carbon/human/set_id_info(var/obj/item/card/id/id_card)
 	..()
-	id_card.age = age
-	if(GLOB.using_map.flags & MAP_HAS_BRANCH)
+	id_card.age = get_age()
+	if(global.using_map.flags & MAP_HAS_BRANCH)
 		id_card.military_branch = char_branch
-	if(GLOB.using_map.flags & MAP_HAS_RANK)
+	if(global.using_map.flags & MAP_HAS_RANK)
 		id_card.military_rank = char_rank
 
 /obj/item/card/id/proc/dat()
@@ -287,9 +279,9 @@ var/const/NO_EMAG_ACT = -50
 	dat += text("Sex: []</A><BR>\n", sex)
 	dat += text("Age: []</A><BR>\n", age)
 
-	if(GLOB.using_map.flags & MAP_HAS_BRANCH)
+	if(global.using_map.flags & MAP_HAS_BRANCH)
 		dat += text("Branch: []</A><BR>\n", military_branch ? military_branch.name : "\[UNSET\]")
-	if(GLOB.using_map.flags & MAP_HAS_RANK)
+	if(global.using_map.flags & MAP_HAS_RANK)
 		dat += text("Rank: []</A><BR>\n", military_rank ? military_rank.name : "\[UNSET\]")
 
 	dat += text("Assignment: []</A><BR>\n", assignment)
@@ -302,8 +294,8 @@ var/const/NO_EMAG_ACT = -50
 	return jointext(dat,null)
 
 /obj/item/card/id/attack_self(mob/user)
-	user.visible_message("\The [user] shows you: \icon[src] [src.name]. The assignment on the card: [src.assignment]",\
-		"You flash your ID card: \icon[src] [src.name]. The assignment on the card: [src.assignment]")
+	user.visible_message("\The [user] shows you: [html_icon(src)] [src.name]. The assignment on the card: [src.assignment]",\
+		"You flash your ID card: [html_icon(src)] [src.name]. The assignment on the card: [src.assignment]")
 
 	src.add_fingerprint(user)
 	return
@@ -319,11 +311,66 @@ var/const/NO_EMAG_ACT = -50
 	set category = "Object"
 	set src in usr
 
-	to_chat(usr, text("\icon[] []: The current assignment on the card is [].", src, src.name, src.assignment))
+	to_chat(usr, "[html_icon(src)] [name]: The current assignment on the card is [assignment].")
 	to_chat(usr, "The blood type on the card is [blood_type].")
 	to_chat(usr, "The DNA hash on the card is [dna_hash].")
 	to_chat(usr, "The fingerprint hash on the card is [fingerprint_hash].")
 	return
+
+/decl/vv_set_handler/id_card_military_branch
+	handled_type = /obj/item/card/id
+	handled_vars = list("military_branch")
+
+/decl/vv_set_handler/id_card_military_branch/handle_set_var(var/obj/item/card/id/id, variable, var_value, client)
+	if(!var_value)
+		id.military_branch = null
+		id.military_rank = null
+		return
+
+	if(istype(var_value, /datum/mil_branch))
+		if(var_value != id.military_branch)
+			id.military_branch = var_value
+			id.military_rank = null
+		return
+
+	if(ispath(var_value, /datum/mil_branch) || istext(var_value))
+		var/datum/mil_branch/new_branch = mil_branches.get_branch(var_value)
+		if(new_branch)
+			if(new_branch != id.military_branch)
+				id.military_branch = new_branch
+				id.military_rank = null
+			return
+
+	to_chat(client, SPAN_WARNING("Input, must be an existing branch - [var_value] is invalid"))
+
+/decl/vv_set_handler/id_card_military_rank
+	handled_type = /obj/item/card/id
+	handled_vars = list("military_rank")
+
+/decl/vv_set_handler/id_card_military_rank/handle_set_var(var/obj/item/card/id/id, variable, var_value, client)
+	if(!var_value)
+		id.military_rank = null
+		return
+
+	if(!id.military_branch)
+		to_chat(client, SPAN_WARNING("military_branch not set - No valid ranks available"))
+		return
+
+	if(ispath(var_value, /datum/mil_rank))
+		var/datum/mil_rank/rank = var_value
+		var_value = initial(rank.name)
+
+	if(istype(var_value, /datum/mil_rank))
+		var/datum/mil_rank/rank = var_value
+		var_value = rank.name
+
+	if(istext(var_value))
+		var/new_rank = mil_branches.get_rank(id.military_branch.name, var_value)
+		if(new_rank)
+			id.military_rank = new_rank
+			return
+
+	to_chat(client, SPAN_WARNING("Input must be an existing rank belonging to military_branch - [var_value] is invalid"))
 
 /obj/item/card/id/syndicate_command
 	name = "syndicate ID card"
@@ -393,7 +440,6 @@ var/const/NO_EMAG_ACT = -50
 /obj/item/card/id/civilian
 	name = "identification card"
 	desc = "A card issued to civilian staff."
-	job_access_type = DEFAULT_JOB_TYPE
 	detail_color = COLOR_CIVIE_GREEN
 
 /obj/item/card/id/civilian/head //This is not the HoP. There's no position that uses this right now.
@@ -462,6 +508,11 @@ var/const/NO_EMAG_ACT = -50
 		to_chat(usr, SPAN_WARNING("Pressing the synchronization button on the card causes a red LED to flash three times."))
 
 /obj/item/card/id/network/proc/refresh_access_record(var/datum/computer_network/network)
+	if(!network)
+		var/datum/extension/network_device/D = get_extension(src, /datum/extension/network_device)
+		network = D.get_network()
+	if(!network)
+		return
 	for(var/datum/extension/network_device/mainframe/mainframe in network.get_mainframes_by_role(MF_ROLE_CREW_RECORDS))
 		for(var/datum/computer_file/report/crew_record/ar in mainframe.get_all_files())
 			if(ar.user_id != user_id)

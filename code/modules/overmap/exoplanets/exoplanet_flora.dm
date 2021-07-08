@@ -44,11 +44,11 @@
 	S.set_trait(TRAIT_HIGHKPA_TOLERANCE,   atmosphere.return_pressure() + rand(5,50),500,110)
 	if(S.exude_gasses)
 		S.exude_gasses -= badgas
-	if(atmosphere)
+	if(atmosphere && length(atmosphere.gas))
 		if(S.consume_gasses)
 			S.consume_gasses = list(pick(atmosphere.gas)) // ensure that if the plant consumes a gas, the atmosphere will have it
 		for(var/g in atmosphere.gas)
-			var/decl/material/mat = decls_repository.get_decl(g)
+			var/decl/material/mat = GET_DECL(g)
 			if(mat.gas_flags & XGM_GAS_CONTAMINANT)
 				S.set_trait(TRAIT_TOXINS_TOLERANCE, rand(10,15))
 	if(prob(50))

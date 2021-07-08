@@ -8,6 +8,7 @@
 	cleanable_scent = "industrial lubricant"
 	scent_intensity = /decl/scent_intensity/normal
 	scent_range = 2
+	chemical = /decl/material/liquid/lube
 
 /obj/effect/decal/cleanable/blood/gibs/robot/on_update_icon()
 	color = "#ffffff"
@@ -25,9 +26,7 @@
 					var/obj/effect/decal/cleanable/blood/oil/streak = new(src.loc)
 					streak.update_icon()
 				else if (prob(10))
-					var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-					s.set_up(3, 1, src)
-					s.start()
+					spark_at(src, cardinal_only = TRUE)
 			if (step_to(src, get_step(src, direction), 0))
 				break
 
@@ -42,6 +41,7 @@
 
 /obj/effect/decal/cleanable/blood/oil
 	basecolor = SYNTH_BLOOD_COLOUR
+	chemical = /decl/material/liquid/lube
 
 /obj/effect/decal/cleanable/blood/oil/dry()
 	return

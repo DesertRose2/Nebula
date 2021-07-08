@@ -1,4 +1,4 @@
-var/list/pai_emotions = list(
+var/global/list/pai_emotions = list(
 		"Happy" = 1,
 		"Cat" = 2,
 		"Extremely Happy" = 3,
@@ -37,10 +37,7 @@ var/global/list/default_pai_software = list()
 	. = ..()
 	software = default_pai_software.Copy()
 
-/mob/living/silicon/pai/verb/paiInterface()
-	set category = "pAI Commands"
-	set name = "Software Interface"
-
+/mob/living/silicon/pai/proc/paiInterface()
 	ui_interact(src)
 
 /mob/living/silicon/pai/ui_interact(mob/user, ui_key = "main", datum/nanoui/ui = null, force_open = 1)

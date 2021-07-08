@@ -1,9 +1,7 @@
 /obj/item/grenade/decompiler
 	desc = "It is set to detonate in 5 seconds. It will create an unstable singularity that will break nearby objects down into purified matter cubes."
 	name = "decompiler grenade"
-	icon = 'icons/obj/grenade.dmi'
-	icon_state = "delivery"
-	item_state = "flashbang"
+	icon = 'icons/obj/items/grenades/delivery.dmi'
 	origin_tech = "{'materials':3,'magnets':2,'exoticmatter':3}"
 	matter = list(
 		/decl/material/solid/exotic_matter = MATTER_AMOUNT_TRACE
@@ -28,7 +26,7 @@
 	var/lifetime = 10 SECONDS
 	var/expiry_time
 	var/list/decompiled_matter
-	
+
 /obj/effect/decompiler/Initialize()
 	. = ..()
 	expiry_time = world.time + lifetime
@@ -39,7 +37,7 @@
 /obj/effect/decompiler/proc/fade_in()
 	visible_message(SPAN_DANGER("\A [src] forms, reaching out hungrily!"))
 	playsound(loc, 'sound/magic/ethereal_enter.ogg', 75, FALSE)
-	set_light(0.8, 0, 4.5, l_color = LIGHT_COLOR_PURPLE)
+	set_light(4.5, 0.8, LIGHT_COLOR_PURPLE)
 	var/matrix/M = matrix()
 	M.Scale(0.01)
 	transform = M
@@ -91,7 +89,7 @@
 			var/atom/movable/thing = pick_n_take(eating)
 			if(QDELETED(thing) || !istype(thing) || !thing.simulated || thing.anchored || prob(15))
 				continue
-			
+
 			if(prob(30))
 
 				if(ismob(thing) && prob(50))
@@ -104,11 +102,11 @@
 					var/mob/living/carbon/human/H = thing
 					for(var/obj/item/organ/external/limb in H.organs)
 						if(BP_IS_PROSTHETIC(limb) && !limb.is_stump() && !length(limb.children))
-							limb.droplimb()
+							limb.dismember()
 							limb.forceMove(src)
 							thing = limb
 							break
-						
+
 			if(isitem(thing))
 				var/obj/item/eating_obj = thing
 				for(var/mat in eating_obj.matter)
@@ -122,21 +120,3 @@
 /obj/effect/decompiler/Destroy()
 	STOP_PROCESSING(SSobj, src)
 	. = ..()
-
-/obj/item/stack/material/cubes
-	name = "cube"
-	desc = "Some featureless cubes."
-	singular_name = "cube"
-	plural_name = "cubes"
-	icon_state = "cube"
-	plural_icon_state = "cube-mult"
-	max_icon_state = "cube-max"
-	max_amount = 100
-	attack_verb = list("cubed")
-	material_flags = USE_MATERIAL_COLOR | USE_MATERIAL_SINGULAR_NAME
-	stacktype = /obj/item/stack/material/cubes
-
-/obj/item/stack/material/cubes/update_strings()
-	. = ..()
-	singular_name = initial(singular_name)
-	plural_name = initial(plural_name)

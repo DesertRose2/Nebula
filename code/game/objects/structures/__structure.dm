@@ -5,7 +5,7 @@
 
 	var/last_damage_message
 	var/health = 0
-	var/maxhealth = -1
+	var/maxhealth = 50
 	var/hitsound = 'sound/weapons/smash.ogg'
 	var/breakable
 	var/parts_type
@@ -27,11 +27,11 @@
 	if(ispath(_mat, /decl/material))
 		material = _mat
 	if(ispath(material, /decl/material))
-		material = decls_repository.get_decl(material)
+		material = GET_DECL(material)
 	if(ispath(_reinf_mat, /decl/material))
 		reinf_material = _reinf_mat
 	if(ispath(reinf_material, /decl/material))
-		reinf_material = decls_repository.get_decl(reinf_material)
+		reinf_material = GET_DECL(reinf_material)
 	. = ..()
 	update_materials()
 	if(!CanFluidPass())
@@ -97,6 +97,9 @@
 	set waitfor = FALSE
 	return FALSE
 
+/obj/structure/proc/is_pressurized_fluid_source()
+	return FALSE
+
 /obj/structure/proc/take_damage(var/damage)
 	if(health == -1) // This object does not take damage.
 		return
@@ -129,13 +132,14 @@
 		visible_message(SPAN_WARNING("\The [src] is showing some damage!"))
 		last_damage_message = 0.75
 
-/obj/structure/physically_destroyed()
-	. = ..() && dismantle()
+/obj/structure/physically_destroyed(var/skip_qdel)
+	. = ..(TRUE)
+	dismantle()
 
 /obj/structure/fire_act(datum/gas_mixture/air, exposed_temperature, exposed_volume)
 	. = ..()
 	var/dmg = 100
-	if(material)
+	if(istype(material))
 		dmg = round(dmg * material.combustion_effect(get_turf(src),temperature, 0.3))
 	if(dmg)
 		take_damage(dmg)
@@ -177,17 +181,18 @@
 	if (!G.force_danger())
 		to_chat(G.assailant, SPAN_WARNING("You need a better grip to do that!"))
 		return TRUE
-	var/mob/affecting_mob = G.get_affecting_mob()
-	if (G.assailant.a_intent == I_HURT)
+	var/mob/living/affecting_mob = G.get_affecting_mob()
+	if(G.assailant.a_intent == I_HURT)
 
-		if(!affecting_mob)
+		if(!istype(affecting_mob))
 			to_chat(G.assailant, SPAN_WARNING("You need to be grabbing a living creature to do that!"))
 			return TRUE
 
 		// Slam their face against the table.
 		var/blocked = affecting_mob.get_blocked_ratio(BP_HEAD, BRUTE, damage = 8)
 		if (prob(30 * (1 - blocked)))
-			affecting_mob.Weaken(5)
+			SET_STATUS_MAX(affecting_mob, STAT_WEAK, 5)
+
 		affecting_mob.apply_damage(8, BRUTE, BP_HEAD)
 		visible_message(SPAN_DANGER("[G.assailant] slams [affecting_mob]'s face against \the [src]!"))
 		if (material)
@@ -207,14 +212,14 @@
 			return TRUE
 		G.affecting.forceMove(src.loc)
 		if(affecting_mob)
-			affecting_mob.Weaken(rand(2,5))
+			SET_STATUS_MAX(affecting_mob, STAT_WEAK, rand(2,5))
 		visible_message(SPAN_DANGER("[G.assailant] puts [G.affecting] on \the [src]."))
 		qdel(G)
 		return TRUE
 
 /obj/structure/explosion_act(severity)
 	..()
-	if(QDELETED(src))
+	if(!QDELETED(src))
 		if(severity == 1)
 			physically_destroyed()
 		else if(severity == 2)

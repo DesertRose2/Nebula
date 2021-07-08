@@ -11,54 +11,12 @@
 /obj/effect/landmark/Initialize()
 	. = ..()
 	tag = "landmark*[name]"
-
-	//TODO clean up this mess
-	switch(name)			//some of these are probably obsolete
-		if("monkey")
-			GLOB.monkeystart += loc
-			delete_me = 1
-		if("start")
-			GLOB.newplayer_start += loc
-			delete_me = 1
-		if("JoinLate")
-			GLOB.latejoin += loc
-			delete_me = 1
-		if("JoinLateGateway")
-			GLOB.latejoin_gateway += loc
-			delete_me = 1
-		if("JoinLateCryo")
-			GLOB.latejoin_cryo += loc
-			delete_me = 1
-		if("JoinLateCyborg")
-			GLOB.latejoin_cyborg += loc
-			delete_me = 1
-		if("prisonwarp")
-			GLOB.prisonwarp += loc
-			delete_me = 1
-		if("tdome1")
-			GLOB.tdome1 += loc
-		if("tdome2")
-			GLOB.tdome2 += loc
-		if("tdomeadmin")
-			GLOB.tdomeadmin += loc
-		if("tdomeobserve")
-			GLOB.tdomeobserve += loc
-		if("prisonsecuritywarp")
-			GLOB.prisonsecuritywarp += loc
-			delete_me = 1
-		if("endgame_exit")
-			endgame_safespawns += loc
-			delete_me = 1
-		if("endgame_wormhole")
-			endgame_exits += loc
-			delete_me = 1
-
-	landmarks_list += src
 	if(delete_me)
 		return INITIALIZE_HINT_QDEL
+	landmarks_list |= src
 
 /obj/effect/landmark/proc/delete()
-	delete_me = 1
+	delete_me = TRUE
 
 /obj/effect/landmark/Destroy()
 	landmarks_list -= src
@@ -132,7 +90,7 @@
 
 /obj/effect/landmark/costume/prig/make_costumes()
 	new /obj/item/clothing/accessory/wcoat/black(src.loc)
-	new /obj/item/clothing/glasses/monocle(src.loc)
+	new /obj/item/clothing/glasses/eyepatch/monocle(src.loc)
 	var/CHOICE= pick( /obj/item/clothing/head/bowler, /obj/item/clothing/head/that)
 	new CHOICE(src.loc)
 	new /obj/item/clothing/shoes/color/black(src.loc)
@@ -210,9 +168,9 @@
 	name = "ruin_[sequential_id(/obj/effect/landmark/ruin)]"
 	. = ..()
 	ruin_template = my_ruin_template
-	GLOB.ruin_landmarks |= src
+	global.ruin_landmarks |= src
 
 /obj/effect/landmark/ruin/Destroy()
-	GLOB.ruin_landmarks -= src
+	global.ruin_landmarks -= src
 	ruin_template = null
 	. = ..()

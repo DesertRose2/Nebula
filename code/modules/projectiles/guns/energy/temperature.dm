@@ -6,12 +6,12 @@
 	desc = "A gun that changes temperatures. It has a small label on the side, 'More extreme temperatures will cost more charge!'"
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/metal/silver = MATTER_AMOUNT_TRACE
 	)
 	charge_cost = 10
 	origin_tech = "{'combat':3,'materials':4,'powerstorage':3,'magnets':2}"
-	slot_flags = SLOT_BELT|SLOT_BACK
+	slot_flags = SLOT_LOWER_BODY|SLOT_BACK
 	one_hand_penalty = 2
 	projectile_type = /obj/item/projectile/temp
 	cell_type = /obj/item/cell/high
@@ -30,7 +30,7 @@
 	. = ..()
 
 
-/obj/item/gun/energy/temperature/attack_self(mob/living/user)
+/obj/item/gun/energy/temperature/attack_self(mob/user)
 	user.set_machine(src)
 	var/temp_text = ""
 	if(firing_temperature > (T0C - 50))
@@ -46,7 +46,7 @@
 	show_browser(user, dat, "window=freezegun;size=450x300;can_resize=1;can_close=1;can_minimize=1")
 	onclose(user, "window=freezegun", src)
 
-/obj/item/gun/energy/temperature/Topic(user, href_list, state = GLOB.inventory_state)
+/obj/item/gun/energy/temperature/Topic(user, href_list, state = global.inventory_topic_state)
 	..()
 
 /obj/item/gun/energy/temperature/OnTopic(user, href_list)

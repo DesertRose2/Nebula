@@ -1,11 +1,10 @@
 /obj/item/weldingtool
 	name = "welding tool"
-	icon = 'icons/obj/items/tool/welder.dmi'
-	icon_state = "welder"
-	item_state = "welder"
+	icon = 'icons/obj/items/tool/welders/welder.dmi'
+	icon_state = ICON_STATE_WORLD
 	desc = "A portable welding gun with a port for attaching fuel tanks."
 	obj_flags = OBJ_FLAG_CONDUCTIBLE
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	center_of_mass = @"{'x':14,'y':15}"
 	force = 5
 	throwforce = 5
@@ -13,33 +12,50 @@
 	throw_range = 5
 	w_class = ITEM_SIZE_SMALL
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
+	matter = list(/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT)
 	origin_tech = "{'engineering':1}"
-
+	drop_sound = 'sound/foley/tooldrop1.ogg'
+	var/lit_colour = COLOR_PALE_ORANGE
 	var/waterproof = FALSE
 	var/welding = 0 	//Whether or not the welding tool is off(0), on(1) or currently welding(2)
 	var/status = 1 		//Whether the welder is secured or unsecured (able to attach rods to it to make a flamethrower)
 	var/welding_resource = "welding fuel"
 	var/obj/item/welder_tank/tank = /obj/item/welder_tank // where the fuel is stored
 
+	var/activate_sound = 'sound/items/welderactivate.ogg'
+	var/deactivate_sound = 'sound/items/welderdeactivate.ogg'
+
 /obj/item/weldingtool/Initialize()
 	if(ispath(tank))
 		tank = new tank
 		w_class = tank.size_in_use
 		force = tank.unlit_force
-
+	set_extension(src, /datum/extension/tool, list(TOOL_WELDER = TOOL_QUALITY_DEFAULT))
 	set_extension(src, /datum/extension/base_icon_state, icon_state)
 	update_icon()
-
 	. = ..()
+
+/obj/item/weldingtool/dropped(mob/user)
+	. = ..()
+	if(welding)
+		update_icon()
+
+/obj/item/weldingtool/equipped(mob/user, slot)
+	. = ..()
+	if(welding)
+		update_icon()
 
 /obj/item/weldingtool/Destroy()
 	if(welding)
 		STOP_PROCESSING(SSobj, src)
-
 	QDEL_NULL(tank)
-
 	return ..()
+
+/obj/item/weldingtool/get_mob_overlay(mob/user_mob, slot, bodypart)
+	var/image/ret = ..()
+	if(ret && welding && check_state_in_icon("[ret.icon_state]-lit", ret.icon))
+		ret.add_overlay(emissive_overlay(ret.icon, "[ret.icon_state]-lit"))
+	return ret
 
 /obj/item/weldingtool/get_heat()
 	. = max(..(), isOn() ? 3800 : 0)
@@ -54,21 +70,20 @@
 	else
 		to_chat(user, (distance <= 1 ? "It has [get_fuel()] [welding_resource] remaining. " : "") + "[tank] is attached.")
 
-/obj/item/weldingtool/MouseDrop(atom/over)
-	if(!CanMouseDrop(over, usr))
-		return
-
+/obj/item/weldingtool/handle_mouse_drop(atom/over, mob/user)
 	if(istype(over, /obj/item/weldpack))
 		var/obj/item/weldpack/wp = over
 		if(wp.welder)
-			to_chat(usr, "\The [wp] already has \a [wp.welder] attached.")
-		else if(usr.unEquip(src, wp))
+			to_chat(user, SPAN_WARNING("\The [wp] already has \a [wp.welder] attached."))
+			return TRUE
+		if(user.unEquip(src, wp))
 			wp.welder = src
-			usr.visible_message("[usr] attaches \the [src] to \the [wp].", "You attach \the [src] to \the [wp].")
+			user.visible_message( \
+				SPAN_NOTICE("\The [user] attaches \the [src] to \the [wp]."), \
+				SPAN_NOTICE("You attach \the [src] to \the [wp]."))
 			wp.update_icon()
-		return
-
-	..()
+			return TRUE
+	. = ..()
 
 /obj/item/weldingtool/attackby(obj/item/W, mob/user)
 	if(welding)
@@ -98,7 +113,7 @@
 		if (tank)
 			to_chat(user, SPAN_WARNING("\The [src] already has a tank attached - remove it first."))
 			return
-		if (user.get_active_hand() != src && user.get_inactive_hand() != src)
+		if(!(src in user.get_held_items()))
 			to_chat(user, SPAN_WARNING("You must hold the welder in your hands to attach a tank."))
 			return
 		if (!user.unEquip(W, src))
@@ -114,7 +129,7 @@
 
 
 /obj/item/weldingtool/attack_hand(mob/user)
-	if (tank && user.get_inactive_hand() == src)
+	if (tank && user.is_holding_offhand(src))
 		if (!welding)
 			user.visible_message("[user] removes \the [tank] from \the [src].", "You remove \the [tank] from \the [src].")
 			user.put_in_hands(tank)
@@ -182,7 +197,7 @@
 		burn_fuel(amount)
 		if(M)
 			M.welding_eyecheck()//located in mob_helpers.dm
-			set_light(0.7, 2, 5, l_color = COLOR_LIGHT_CYAN)
+			set_light(5, 0.7, COLOR_LIGHT_CYAN)
 			addtimer(CALLBACK(src, /atom/proc/update_icon), 5)
 		return 1
 	else
@@ -199,7 +214,7 @@
 	//consider ourselves in a mob if we are in the mob's contents and not in their hands
 	if(isliving(src.loc))
 		var/mob/living/L = src.loc
-		if(!(L.l_hand == src || L.r_hand == src))
+		if(!(src in L.get_held_items()))
 			in_mob = L
 
 	if(in_mob)
@@ -223,20 +238,20 @@
 	return ..()
 
 /obj/item/weldingtool/on_update_icon()
-	..()
-	overlays.Cut()
+	cut_overlays()
 	if(tank)
-		overlays += image(icon, "welder_[tank.icon_state]")
-	if(welding)
-		overlays += image(icon, "welder_on")
-		set_light(0.6, 0.5, 2.5, l_color =COLOR_PALE_ORANGE)
+		add_overlay("[icon_state]-[tank.icon_state]")
+	if(welding && check_state_in_icon("[icon_state]-lit", icon))
+		if(plane == HUD_PLANE)
+			add_overlay(image(icon, "[icon_state]-lit"))
+		else
+			add_overlay(emissive_overlay(icon, "[icon_state]-lit"))
+		set_light(2.5, 0.6, lit_colour)
 	else
 		set_light(0)
-	item_state = welding ? "welder1" : "welder"
 	var/mob/M = loc
 	if(istype(M))
-		M.update_inv_l_hand()
-		M.update_inv_r_hand()
+		M.update_inv_hands()
 
 //Sets the welding state of the welding tool. If you see W.welding = 1 anywhere, please change it to W.setWelding(1)
 //so that the welding tool updates accordingly
@@ -263,6 +278,7 @@
 			else
 				src.force = tank.lit_force
 				src.damtype = BURN
+			playsound(src, activate_sound, 50, 1)
 			welding = 1
 			update_icon()
 			START_PROCESSING(SSobj, src)
@@ -281,6 +297,7 @@
 			src.force = initial(force)
 		else
 			src.force = tank.unlit_force
+		playsound(src, deactivate_sound, 50, 1)
 		src.damtype = BRUTE
 		src.welding = 0
 		update_icon()
@@ -324,7 +341,7 @@
 /obj/item/weldingtool/experimental
 	tank = /obj/item/welder_tank/experimental
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
+	matter = list(/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT)
 
 ///////////////////////
 //Welding tool tanks//
@@ -332,7 +349,7 @@
 /obj/item/welder_tank
 	name = "\improper welding fuel tank"
 	desc = "An interchangeable fuel tank meant for a welding tool."
-	icon = 'icons/obj/items/tool/welder_tank.dmi'
+	icon = 'icons/obj/items/tool/welders/welder_tanks.dmi'
 	icon_state = "tank_normal"
 	w_class = ITEM_SIZE_SMALL
 	force = 5

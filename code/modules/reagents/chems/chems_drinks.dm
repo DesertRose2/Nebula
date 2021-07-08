@@ -3,7 +3,7 @@
 	lore_text = "Uh, some kind of drink."
 	color = "#e78108"
 	hidden_from_codex = TRUE // They don't need to generate a codex entry, their recipes will do that.
-	value = 1.2
+	value = 0.4
 
 	var/nutrition = 0 // Per unit
 	var/hydration = 6 // Per unit
@@ -12,29 +12,37 @@
 	var/adj_sleepy = 0
 	var/adj_temp = 0
 
-/decl/material/liquid/drink/affect_blood(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/drink/affect_blood(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	M.adjustToxLoss(removed) // Probably not a good idea; not very deadly though
 
-/decl/material/liquid/drink/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/drink/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+
 	if(nutrition)
 		M.adjust_nutrition(nutrition * removed)
 	if(hydration)
 		M.adjust_hydration(hydration * removed)
-	M.dizziness = max(0, M.dizziness + adj_dizzy)
-	M.drowsyness = max(0, M.drowsyness + adj_drowsy)
-	M.sleeping = max(0, M.sleeping + adj_sleepy)
+	ADJ_STATUS(M, STAT_DIZZY, adj_dizzy)
+	ADJ_STATUS(M, STAT_DROWSY, adj_drowsy)
+	ADJ_STATUS(M, STAT_ASLEEP, adj_sleepy)
+
 	if(adj_temp > 0 && M.bodytemperature < 310) // 310 is the normal bodytemp. 310.055
 		M.bodytemperature = min(310, M.bodytemperature + (adj_temp * TEMPERATURE_DAMAGE_COEFFICIENT))
 	if(adj_temp < 0 && M.bodytemperature > 310)
 		M.bodytemperature = min(310, M.bodytemperature - (adj_temp * TEMPERATURE_DAMAGE_COEFFICIENT))
 
 // Juices
-/decl/material/chem/drink/juice
+/decl/material/liquid/drink/juice
 	fruit_descriptor = "sweet"
 
-/decl/material/liquid/drink/juice/affect_ingest(var/mob/living/carbon/human/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/drink/juice/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
-	M.immunity = min(M.immunity + 0.25, M.immunity_norm*1.5)
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+	if(ishuman(M))
+		var/mob/living/carbon/human/H = M
+		H.immunity = min(H.immunity + 0.25, H.immunity_norm*1.5)
 
 /decl/material/liquid/drink/juice/banana
 	name = "banana juice"
@@ -63,7 +71,7 @@
 	glass_name = "carrot juice"
 	glass_desc = "It is just like a carrot but without crunching."
 
-/decl/material/liquid/drink/juice/carrot/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/drink/juice/carrot/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
 	M.reagents.add_reagent(/decl/material/liquid/eyedrops, removed * 0.2)
 
@@ -98,8 +106,12 @@
 	glass_name = "lime juice"
 	glass_desc = "A glass of sweet-sour lime juice"
 
-/decl/material/liquid/drink/juice/lime/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/drink/juice/lime/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
+
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+
 	M.adjustToxLoss(-0.5 * removed)
 
 /decl/material/liquid/drink/juice/orange
@@ -112,8 +124,12 @@
 	glass_name = "orange juice"
 	glass_desc = "Vitamins! Yay!"
 
-/decl/material/liquid/drink/juice/orange/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/drink/juice/orange/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
+
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+
 	M.adjustOxyLoss(-2 * removed)
 
 /decl/material/liquid/poisonberryjuice // It has more in common with toxins than drinks... but it's a juice
@@ -165,8 +181,12 @@
 	glass_name = "tomato juice"
 	glass_desc = "Are you sure this is tomato juice?"
 
-/decl/material/liquid/drink/juice/tomato/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/drink/juice/tomato/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
+
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+
 	M.heal_organ_damage(0, 0.5 * removed)
 
 /decl/material/liquid/drink/juice/watermelon
@@ -225,10 +245,15 @@
 	glass_name = "chocolate milk"
 	glass_desc = "Deliciously fattening!"
 
-/decl/material/liquid/drink/milk/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/drink/milk/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
-	M.heal_organ_damage(0.5 * removed, 0)
+
 	holder.remove_reagent(/decl/material/liquid/capsaicin, 10 * removed)
+
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+
+	M.heal_organ_damage(0.5 * removed, 0)
 
 /decl/material/liquid/drink/milk/cream
 	name = "cream"
@@ -278,22 +303,26 @@
 		if(!inserted)
 			flavour_modifiers += syrup
 
-/decl/material/liquid/drink/coffee/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/drink/coffee/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
 	if(adj_temp > 0)
 		holder.remove_reagent(/decl/material/liquid/frostoil, 10 * removed)
+
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+
 	var/volume = REAGENT_VOLUME(holder, type)
 	if(volume > 15)
 		M.add_chemical_effect(CE_PULSE, 1)
 	if(volume > 45)
 		M.add_chemical_effect(CE_PULSE, 1)
 
-/decl/material/liquid/drink/coffee/affect_blood(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/drink/coffee/affect_blood(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
 	M.add_chemical_effect(CE_PULSE, 2)
 
-/decl/material/liquid/drink/coffee/affect_overdose(var/mob/living/carbon/M, var/alien, var/datum/reagents/holder)
-	M.make_jittery(5)
+/decl/material/liquid/drink/coffee/affect_overdose(var/mob/living/M, var/alien, var/datum/reagents/holder)
+	ADJ_STATUS(M, STAT_JITTER, 5)
 	M.add_chemical_effect(CE_PULSE, 1)
 
 /decl/material/liquid/drink/coffee/build_presentation_name_from_reagents(var/obj/item/prop, var/supplied)
@@ -416,18 +445,24 @@
 	color = "#100800"
 	adj_temp = -5
 	adj_sleepy = -2
+	euphoriant = 30
 
 	glass_name = "mutagen cola"
 	glass_desc = "The unstable energy of a radioactive isotope in beverage form."
 	glass_special = list(DRINK_FIZZ)
 
-/decl/material/liquid/drink/mutagencola/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/drink/mutagencola/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
+
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+
 	M.add_chemical_effect(CE_SPEEDBOOST, 1)
-	M.make_jittery(20)
-	M.adjust_drugged(30, 30)
-	M.dizziness += 5
-	M.drowsyness = 0
+	SET_STATUS_MAX(M, STAT_JITTER, 20)
+	SET_STATUS_MAX(M, STAT_DIZZY,  20)
+	ADJ_STATUS(M, STAT_DIZZY, 2)
+	ADJ_STATUS(M, STAT_JITTER, 2)
+	M.set_status(STAT_DROWSY, 0)
 
 /decl/material/liquid/drink/grenadine
 	name = "grenadine syrup"
@@ -518,8 +553,12 @@
 	color = "#302000"
 	nutrition = 5
 
-/decl/material/liquid/drink/hell_ramen/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/drink/hell_ramen/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
+
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+
 	M.bodytemperature += 10 * TEMPERATURE_DAMAGE_COEFFICIENT
 
 /decl/material/liquid/drink/tea/build_presentation_name_from_reagents(var/obj/item/prop, var/supplied)
@@ -530,8 +569,12 @@
 		. = "mint [.]"
 	. = ..(prop, .)
 
-/decl/material/liquid/drink/tea/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/drink/tea/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
+	
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+
 	M.adjustToxLoss(-0.5 * removed)
 
 /decl/material/liquid/drink/tea/black
@@ -667,10 +710,14 @@
 	glass_name = "beast energy"
 	glass_desc = "Why would you drink this without mixer?"
 
-/decl/material/liquid/drink/beastenergy/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/drink/beastenergy/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	..()
-	M.drowsyness = max(0, M.drowsyness - 7)
-	M.make_jittery(2)
+	
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+
+	ADJ_STATUS(M, STAT_DROWSY, -7)
+	ADJ_STATUS(M, STAT_JITTER, 2)
 	M.add_chemical_effect(CE_PULSE, 1)
 
 /decl/material/liquid/drink/kefir
@@ -680,3 +727,12 @@
 	color = "#ece4e3"
 	glass_name = "Kefir"
 	glass_desc = "Fermented milk, looks a lot like yougurt."
+
+/decl/material/liquid/drink/compote
+	name = "compote"
+	lore_text = "Traditional dessert drink made from fruits or berries. Grandma would be proud."
+	taste_description = "sweet-sour berries"
+	color = "#9e4b00"
+
+	glass_name = "Compote"
+	glass_desc = "Traditional dessert drink made from fruits or berries. Grandma would be proud."

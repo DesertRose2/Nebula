@@ -115,8 +115,11 @@
 
 	if(istype(A, /obj/item/stack/tile/floor))
 		return (amount < maxAmount && eattiles)
-	if(istype(A, /obj/item/stack/material/steel))
-		return (amount < maxAmount && maketiles)
+
+	if(istype(A, /obj/item/stack/material))
+		var/obj/item/stack/material/S = A
+		if(S.material?.type == /decl/material/solid/metal/steel)
+			return (amount < maxAmount && maketiles)
 
 	if(A.loc.name == "Space")
 		return 0
@@ -175,7 +178,7 @@
 			anchored = TRUE
 			if(do_after(src, 50, F))
 				if(!F.flooring)
-					F.set_flooring(decls_repository.get_decl(floor_build_type))
+					F.set_flooring(GET_DECL(floor_build_type))
 					addTiles(-1)
 			anchored = FALSE
 			target = null
@@ -229,9 +232,7 @@
 		shrapnel += new /obj/item/robot_parts/l_arm(Tsec)
 	shrapnel += new /obj/item/assembly/prox_sensor(Tsec)
 
-	var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-	s.set_up(3, 1, src)
-	s.start()
+	spark_at(src, cardinal_only = TRUE)
 
 	for(var/atom/movable/AM in shrapnel)
 		AM.throw_at(pick(things),5)

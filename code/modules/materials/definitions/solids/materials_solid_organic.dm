@@ -1,12 +1,14 @@
 /decl/material/solid/plastic
 	name = "plastic"
 	lore_text = "A generic polymeric material. Probably the most flexible and useful substance ever created by human science; mostly used to make disposable cutlery."
-	stack_type = /obj/item/stack/material/plastic
 	flags = MAT_FLAG_BRITTLE
-	icon_base = "solid"
-	icon_reinf = "reinf_over"
+	icon_base = 'icons/turf/walls/plastic.dmi'
+	icon_reinf = 'icons/turf/walls/reinforced.dmi'
+	wall_flags = 0
+	use_reinf_state = null
 	color = COLOR_EGGSHELL
-	hardness = MAT_VALUE_SOFT
+	door_icon_base = "plastic"
+	hardness = MAT_VALUE_FLEXIBLE
 	weight = MAT_VALUE_LIGHT
 	melting_point = T0C+371 //assuming heat resistant plastic
 	stack_origin_tech = "{'materials':3}"
@@ -15,6 +17,10 @@
 	reflectiveness = MAT_VALUE_SHINY
 	wall_support_value = MAT_VALUE_EXTREMELY_LIGHT
 	taste_description = "plastic"
+	fuel_value = 0.6
+	burn_product = /decl/material/gas/carbon_monoxide // placeholder for more appropriate toxins
+	dooropen_noise = 'sound/effects/doorcreaky.ogg'
+	default_solid_form = /obj/item/stack/material/sheet
 
 /decl/material/solid/plastic/generate_recipes(var/reinforce_material)
 	. = ..()
@@ -30,7 +36,6 @@
 
 /decl/material/solid/plastic/holographic
 	name = "holographic plastic"
-	stack_type = null
 	shard_type = SHARD_NONE
 	hidden_from_codex = TRUE
 
@@ -40,11 +45,12 @@
 /decl/material/solid/cardboard
 	name = "cardboard"
 	lore_text = "What with the difficulties presented by growing plants in orbit, a stock of cardboard in space is probably more valuable than gold."
-	stack_type = /obj/item/stack/material/cardboard
 	flags = MAT_FLAG_BRITTLE
 	integrity = 10
-	icon_base = "solid"
-	icon_reinf = "reinf_over"
+	icon_base = 'icons/turf/walls/solid.dmi'
+	icon_reinf = 'icons/turf/walls/reinforced.dmi'
+	wall_flags = PAINT_PAINTABLE|PAINT_STRIPABLE|WALL_HAS_EDGES
+	use_reinf_state = null
 	color = "#aaaaaa"
 	hardness = MAT_VALUE_SOFT
 	brute_armor = 1
@@ -58,6 +64,7 @@
 	value = 0.5
 	reflectiveness = MAT_VALUE_DULL
 	wall_support_value = MAT_VALUE_EXTREMELY_LIGHT
+	default_solid_form = /obj/item/stack/material/cardstock
 
 /decl/material/solid/cardboard/generate_recipes(var/reinforce_material)
 	. = ..()
@@ -79,13 +86,13 @@
 	flags = MAT_FLAG_PADDING
 	brute_armor = 1
 	conductive = 0
-	stack_type = null
 	hidden_from_codex = TRUE
 	construction_difficulty = MAT_VALUE_NORMAL_DIY
 	reflectiveness = MAT_VALUE_DULL
 	hardness = MAT_VALUE_SOFT
 	weight = MAT_VALUE_EXTREMELY_LIGHT
 	wall_support_value = MAT_VALUE_EXTREMELY_LIGHT
+	default_solid_form = /obj/item/stack/material/bolt
 
 /decl/material/solid/cloth/yellow
 	name = "yellow"
@@ -134,20 +141,53 @@
 	flags = MAT_FLAG_PADDING
 	ignition_point = T0C+232
 	melting_point = T0C+300
-	sheet_singular_name = "tile"
-	sheet_plural_name = "tiles"
 	conductive = 0
-	stack_type = null
 	construction_difficulty = MAT_VALUE_NORMAL_DIY
 	reflectiveness = MAT_VALUE_DULL
 	hardness = MAT_VALUE_SOFT
 	weight = MAT_VALUE_EXTREMELY_LIGHT
 	wall_support_value = MAT_VALUE_EXTREMELY_LIGHT
 	hidden_from_codex = TRUE
+	default_solid_form = /obj/item/stack/material/bolt
+
+/decl/material/solid/plantmatter
+	name = "plant matter"
+	color = COLOR_GREEN_GRAY
+	flags = MAT_FLAG_PADDING
+	ignition_point = T0C+300
+	melting_point = T0C+300
+	conductive = 1
+	hidden_from_codex = TRUE
+	construction_difficulty = MAT_VALUE_NORMAL_DIY
+	integrity = 70
+	hardness = MAT_VALUE_SOFT
+	weight = MAT_VALUE_NORMAL
+	explosion_resistance = 1
+	reflectiveness = MAT_VALUE_DULL
+	wall_support_value = MAT_VALUE_LIGHT
+	value = 0.8
+	default_solid_form = /obj/item/stack/material/slab
+
+/decl/material/solid/meat
+	name = "meat"
+	color = COLOR_DARK_RED
+	flags = MAT_FLAG_PADDING
+	ignition_point = T0C+300
+	melting_point = T0C+300
+	conductive = 1
+	hidden_from_codex = TRUE
+	construction_difficulty = MAT_VALUE_NORMAL_DIY
+	integrity = 60
+	hardness = MAT_VALUE_SOFT
+	weight = MAT_VALUE_NORMAL
+	explosion_resistance = 1
+	reflectiveness = MAT_VALUE_DULL
+	wall_support_value = MAT_VALUE_LIGHT
+	value = 0.8
+	default_solid_form = /obj/item/stack/material/slab
 
 /decl/material/solid/skin
 	name = "skin"
-	stack_type = /obj/item/stack/material/generic/skin
 	color = "#9e8c72"
 	flags = MAT_FLAG_PADDING
 	ignition_point = T0C+300
@@ -162,6 +202,7 @@
 	reflectiveness = MAT_VALUE_DULL
 	wall_support_value = MAT_VALUE_EXTREMELY_LIGHT
 	value = 1.2
+	default_solid_form = /obj/item/stack/material/skin
 	var/tans_to = /decl/material/solid/leather
 
 /decl/material/solid/skin/generate_recipes(var/reinforce_material)
@@ -191,6 +232,7 @@
 	name = "fur"
 	color = "#7a726d"
 	tans_to = /decl/material/solid/leather/fur
+	default_solid_form = /obj/item/stack/material/skin/pelt
 
 /decl/material/solid/skin/fur/gray
 
@@ -225,6 +267,7 @@
 /decl/material/solid/skin/feathers
 	name = "feathers"
 	color = COLOR_SILVER
+	default_solid_form = /obj/item/stack/material/skin/feathers
 
 /decl/material/solid/skin/feathers/purple
 	color = COLOR_PALE_PURPLE_GRAY
@@ -246,10 +289,7 @@
 
 /decl/material/solid/bone
 	name = "bone"
-	sheet_singular_name = "length"
-	sheet_plural_name = "lengths"
 	color = "#f0edc7"
-	stack_type = /obj/item/stack/material/generic/bone
 	ignition_point = T0C+1100
 	melting_point = T0C+1800
 	conductive = 0
@@ -261,6 +301,7 @@
 	reflectiveness = MAT_VALUE_MATTE
 	weight = MAT_VALUE_NORMAL
 	wall_support_value = MAT_VALUE_NORMAL
+	default_solid_form = /obj/item/stack/material/bone
 
 /decl/material/solid/bone/fish
 	name = "fishbone"
@@ -280,7 +321,6 @@
 	ignition_point = T0C+300
 	melting_point = T0C+300
 	conductive = 0
-	stack_type = /obj/item/stack/material/generic/skin
 	hidden_from_codex = TRUE
 	construction_difficulty = MAT_VALUE_NORMAL_DIY
 	integrity = 50
@@ -288,6 +328,7 @@
 	weight = MAT_VALUE_EXTREMELY_LIGHT
 	reflectiveness = MAT_VALUE_MATTE
 	wall_support_value = MAT_VALUE_EXTREMELY_LIGHT
+	default_solid_form = /obj/item/stack/material/skin
 
 /decl/material/solid/leather/generate_recipes(var/reinforce_material)
 	. = ..()

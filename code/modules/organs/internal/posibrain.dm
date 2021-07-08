@@ -59,36 +59,31 @@
 		to_chat(user, "<span class='notice'>You carefully locate the manual activation switch and start the positronic brain's boot process.</span>")
 		icon_state = "posibrain-searching"
 		src.searching = 1
-		var/datum/ghosttrap/G = get_ghost_trap("positronic brain")
+		var/decl/ghosttrap/G = GET_DECL(/decl/ghosttrap/positronic_brain)
 		G.request_player(brainmob, "Someone is requesting a personality for a positronic brain.", 60 SECONDS)
 		spawn(600) reset_search()
 
 /obj/item/organ/internal/posibrain/proc/reset_search() //We give the players sixty seconds to decide, then reset the timer.
-	if(src.brainmob && src.brainmob.key) return
-
-	src.searching = 0
-	icon_state = "posibrain"
-
-	var/turf/T = get_turf_or_move(src.loc)
-	for (var/mob/M in viewers(T))
-		M.show_message("<span class='notice'>The positronic brain buzzes quietly, and the golden lights fade away. Perhaps you could try again?</span>")
+	if(!brainmob?.key)
+		searching = FALSE
+		icon_state = "posibrain"
+		visible_message(SPAN_WARNING("The positronic brain buzzes quietly, and the golden lights fade away. Perhaps you could try again?"))
 
 /obj/item/organ/internal/posibrain/attack_ghost(var/mob/observer/ghost/user)
 	if(!searching || (src.brainmob && src.brainmob.key))
 		return
 
-	var/datum/ghosttrap/G = get_ghost_trap("positronic brain")
+	var/decl/ghosttrap/G = GET_DECL(/decl/ghosttrap/positronic_brain)
 	if(!G.assess_candidate(user))
 		return
 	var/response = alert(user, "Are you sure you wish to possess this [src]?", "Possess [src]", "Yes", "No")
 	if(response == "Yes")
 		G.transfer_personality(user, brainmob)
-	return
 
 /obj/item/organ/internal/posibrain/examine(mob/user)
 	. = ..()
 
-	var/msg = "<span class='info'>*---------*</span>\nThis is \icon[src] \a <EM>[src]</EM>!\n[desc]\n"
+	var/msg = "<span class='info'>*---------*</span>\nThis is [html_icon(src)] \a <EM>[src]</EM>!\n[desc]\n"
 
 	if(shackle)	msg += "<span class='warning'>It is clamped in a set of metal straps with a complex digital lock.</span>\n"
 
@@ -263,7 +258,7 @@
 	if(!checked_use(cost) && owner.isSynthetic())
 		if(!owner.lying && !owner.buckled)
 			to_chat(owner, "<span class='warning'>You don't have enough energy to function!</span>")
-		owner.Paralyse(3)
+		SET_STATUS_MAX(owner, STAT_PARA, 3)
 
 /obj/item/organ/internal/cell/emp_act(severity)
 	..()
@@ -324,7 +319,6 @@
 	. = ..()
 	if(!stored_mmi)
 		stored_mmi = new(src)
-	sleep(-1)
 	update_from_mmi()
 	persistantMind = owner.mind
 	ownerckey = owner.ckey

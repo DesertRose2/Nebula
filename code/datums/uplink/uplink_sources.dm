@@ -2,10 +2,11 @@
 
 #define SETUP_FAILED TRUE
 
-GLOBAL_LIST_INIT(default_uplink_source_priority, list(
+var/global/list/default_uplink_source_priority = list(
 	/decl/uplink_source/pda,
 	/decl/uplink_source/radio,
-	/decl/uplink_source/unit))
+	/decl/uplink_source/unit
+)
 
 /decl/uplink_source
 	var/name
@@ -19,13 +20,20 @@ GLOBAL_LIST_INIT(default_uplink_source_priority, list(
 	desc = NO_GUARANTEE_NO_EXTRA_COST_DESC("a PDA")
 
 /decl/uplink_source/pda/setup_uplink_source(var/mob/M, var/amount)
+
 	var/obj/item/modular_computer/pda/P = find_in_mob(M, /obj/item/modular_computer/pda)
-	var/datum/extension/assembly/assembly = get_extension(P, /datum/extension/assembly)
-	var/obj/item/stock_parts/computer/hard_drive/HDD = assembly.get_component(PART_HDD)
-	if(!P || !HDD)
+	if(!P)
 		return SETUP_FAILED
 
-	var/pda_pass = "[rand(100,999)] [pick(GLOB.greek_letters)]"
+	var/datum/extension/assembly/assembly = get_extension(P, /datum/extension/assembly)
+	if(!assembly)
+		return SETUP_FAILED
+
+	var/obj/item/stock_parts/computer/hard_drive/HDD = assembly.get_component(PART_HDD)
+	if(!HDD)
+		return SETUP_FAILED
+
+	var/pda_pass = "[rand(100,999)] [pick(global.greek_letters)]"
 	var/obj/item/uplink/T = new(P, M.mind, amount)
 	P.hidden_uplink = T
 	var/datum/computer_file/program/uplink/program = new(pda_pass)
@@ -127,8 +135,8 @@ GLOBAL_LIST_INIT(default_uplink_source_priority, list(
 
 	if(!priority_order || !priority_order.len)
 		priority_order = list()
-		for(var/entry in GLOB.default_uplink_source_priority)
-			priority_order += decls_repository.get_decl(entry)
+		for(var/entry in global.default_uplink_source_priority)
+			priority_order |= GET_DECL(entry)
 
 	for(var/entry in priority_order)
 		var/decl/uplink_source/US = entry

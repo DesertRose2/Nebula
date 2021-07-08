@@ -9,6 +9,8 @@
 	glass_name = "tomato juice"
 	glass_desc = "Are you sure this is tomato juice?"
 	value = 2.5
+	opacity = 1
+	min_fluid_opacity = FLUID_MAX_ALPHA
 
 	chilling_products = list(
 		/decl/material/liquid/coagulated_blood = 1
@@ -25,7 +27,7 @@
 /decl/material/liquid/blood/initialize_data(var/newdata)
 	. = ..() || list()
 	if(.)
-		.["species"] = .["species"] || GLOB.using_map.default_species
+		.["species"] = .["species"] || global.using_map.default_species
 
 /decl/material/liquid/blood/mix_data(var/datum/reagents/reagents, var/list/newdata, var/amount)	
 	var/list/data = REAGENT_DATA(reagents, type)
@@ -57,23 +59,26 @@
 		if(B)
 			B.blood_DNA["UNKNOWN DNA STRUCTURE"] = "X*"
 
-/decl/material/liquid/blood/affect_ingest(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
-
-	if(M.chem_doses[type] > 5)
+/decl/material/liquid/blood/affect_ingest(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
+	if(M.HasTrait(/decl/trait/metabolically_inert))
+		return
+	if(LAZYACCESS(M.chem_doses, type) > 5)
 		M.adjustToxLoss(removed)
-	if(M.chem_doses[type] > 15)
+	if(LAZYACCESS(M.chem_doses, type) > 15)
 		M.adjustToxLoss(removed)
 
-/decl/material/liquid/blood/affect_touch(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
+/decl/material/liquid/blood/affect_touch(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
 	if(ishuman(M))
 		var/mob/living/carbon/human/H = M
 		if(H.isSynthetic())
 			return
 
-/decl/material/liquid/blood/affect_blood(var/mob/living/carbon/M, var/alien, var/removed, var/datum/reagents/holder)
-	var/volume = REAGENT_VOLUME(holder, type)
-	M.inject_blood(volume, holder)
-	holder.remove_reagent(type, volume)
+/decl/material/liquid/blood/affect_blood(var/mob/living/M, var/alien, var/removed, var/datum/reagents/holder)
+	if(ishuman(M))
+		var/volume = REAGENT_VOLUME(holder, type)
+		var/mob/living/carbon/H = M
+		H.inject_blood(volume, holder)
+		holder.remove_reagent(type, volume)
 
 /decl/material/liquid/coagulated_blood
 	name = "coagulated blood"

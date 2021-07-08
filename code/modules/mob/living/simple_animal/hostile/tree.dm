@@ -9,9 +9,6 @@
 	speak_chance = 0
 	turns_per_move = 5
 	meat_type = /obj/item/chems/food/snacks/fish
-	response_help = "brushes"
-	response_disarm = "pushes"
-	response_harm = "hits"
 	speed = -1
 	maxHealth = 250
 	health = 250
@@ -33,15 +30,8 @@
 	if(.)
 		audible_emote("growls at [.]")
 
-/mob/living/simple_animal/hostile/tree/AttackingTarget()
-	. =..()
-	var/mob/living/L = .
-	if(istype(L))
-		if(prob(15))
-			L.Weaken(3)
-			L.visible_message("<span class='danger'>\the [src] knocks down \the [L]!</span>")
-
 /mob/living/simple_animal/hostile/tree/death(gibbed, deathmessage, show_dead_message)
 	..(null,"is hacked into pieces!", show_dead_message)
-	new /obj/item/stack/material/wood(loc)
+	var/decl/material/mat = GET_DECL(/decl/material/solid/wood)
+	mat.place_shard(loc)
 	qdel(src)

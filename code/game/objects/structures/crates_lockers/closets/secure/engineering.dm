@@ -5,11 +5,11 @@
 
 /obj/structure/closet/secure_closet/engineering_chief/WillContain()
 	return list(
-		new/datum/atom_creator/weighted(list(/obj/item/clothing/accessory/storage/brown_vest = 70, /obj/item/clothing/accessory/storage/webbing = 30)),
+		new/datum/atom_creator/weighted(list(/obj/item/clothing/accessory/storage/vest/brown = 70, /obj/item/clothing/accessory/storage = 30)),
 		new/datum/atom_creator/weighted(list(/obj/item/storage/backpack/industrial, /obj/item/storage/backpack/satchel/eng)),
 		new/datum/atom_creator/simple(/obj/item/storage/backpack/dufflebag/eng, 50),
 		/obj/item/blueprints,
-		/obj/item/clothing/under/rank/chief_engineer,
+		/obj/item/clothing/under/chief_engineer,
 		/obj/item/clothing/head/welding,
 		/obj/item/clothing/gloves/insulated,
 		/obj/item/clothing/shoes/color/brown,
@@ -20,7 +20,8 @@
 		/obj/item/multitool,
 		/obj/item/flash,
 		/obj/item/taperoll/engineering,
-		/obj/item/crowbar/brace_jack
+		/obj/item/crowbar/brace_jack,
+		/obj/item/storage/belt/utility/full
 	)
 
 /obj/structure/closet/secure_closet/engineering_electrical
@@ -32,6 +33,7 @@
 	return list(
 		/obj/item/clothing/gloves/insulated = 3,
 		/obj/item/storage/toolbox/electrical = 3,
+		/obj/item/storage/toolbox/repairs = 3,
 		/obj/item/stock_parts/circuitboard/apc = 3,
 		/obj/item/multitool = 3
 	)
@@ -57,7 +59,7 @@
 
 /obj/structure/closet/secure_closet/engineering_personal/WillContain()
 	return list(
-		new/datum/atom_creator/weighted(list(/obj/item/clothing/accessory/storage/brown_vest = 70, /obj/item/clothing/accessory/storage/webbing = 30)),
+		new/datum/atom_creator/weighted(list(/obj/item/clothing/accessory/storage/vest/brown = 70, /obj/item/clothing/accessory/storage = 30)),
 		new/datum/atom_creator/weighted(list(/obj/item/storage/backpack/industrial, /obj/item/storage/backpack/satchel/eng)),
 		new/datum/atom_creator/simple(/obj/item/storage/backpack/dufflebag/eng, 50),
 		/obj/item/storage/toolbox/mechanical,
@@ -65,7 +67,8 @@
 		/obj/item/clothing/suit/storage/hazardvest,
 		/obj/item/clothing/mask/gas,
 		/obj/item/clothing/glasses/meson,
-		/obj/item/taperoll/engineering
+		/obj/item/taperoll/engineering,
+		/obj/item/storage/belt/utility/full
 	)
 
 /obj/structure/closet/secure_closet/atmos_personal
@@ -75,7 +78,7 @@
 
 /obj/structure/closet/secure_closet/atmos_personal/WillContain()
 	return list(
-		new/datum/atom_creator/weighted(list(/obj/item/clothing/accessory/storage/brown_vest = 70, /obj/item/clothing/accessory/storage/webbing = 30)),
+		new/datum/atom_creator/weighted(list(/obj/item/clothing/accessory/storage/vest/brown = 70, /obj/item/clothing/accessory/storage = 30)),
 		new/datum/atom_creator/weighted(list(/obj/item/storage/backpack/industrial, /obj/item/storage/backpack/satchel/eng)),
 		new/datum/atom_creator/simple(/obj/item/storage/backpack/dufflebag/eng, 50),
 		/obj/item/clothing/suit/fire,
@@ -84,5 +87,6 @@
 		/obj/item/radio/headset/headset_eng,
 		/obj/item/clothing/suit/storage/hazardvest,
 		/obj/item/clothing/mask/gas,
-		/obj/item/taperoll/atmos
+		/obj/item/taperoll/atmos,
+		/obj/item/storage/belt/utility/atmostech
 	)

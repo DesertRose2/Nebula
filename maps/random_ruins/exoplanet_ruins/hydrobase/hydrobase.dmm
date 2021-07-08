@@ -1090,9 +1090,7 @@
 /turf/simulated/floor/fixed/alium/airless,
 /area/map_template/hydrobase/solars)
 "cM" = (
-/obj/machinery/power/solar{
-	id = "hydrosolar"
-	},
+/obj/machinery/power/solar,
 /obj/effect/floor_decal/solarpanel,
 /obj/structure/cable{
 	icon_state = "0-2";
@@ -1197,7 +1195,6 @@
 /area/map_template/hydrobase/station/growF)
 "da" = (
 /obj/machinery/atmospherics/pipe/simple/visible/cyan{
-	icon_state = "intact";
 	dir = 9
 	},
 /obj/machinery/light,
@@ -1575,7 +1572,6 @@
 /area/map_template/hydrobase/station/processing)
 "dR" = (
 /obj/machinery/power/solar_control/autostart{
-	id = "hydrosolar";
 	track = 2
 	},
 /obj/structure/window/borosilicate_reinforced{
@@ -1883,8 +1879,7 @@
 /area/map_template/hydrobase/station/processing)
 "eE" = (
 /obj/machinery/atmospherics/pipe/simple/hidden{
-	dir = 4;
-	icon_state = "intact"
+	dir = 4
 	},
 /obj/machinery/door/airlock/external{
 	icon_state = "door_locked";
@@ -1902,8 +1897,7 @@
 /area/map_template/hydrobase/station/solarlock)
 "eF" = (
 /obj/machinery/atmospherics/pipe/simple/hidden{
-	dir = 4;
-	icon_state = "intact"
+	dir = 4
 	},
 /obj/effect/floor_decal/industrial/warning{
 	icon_state = "warning";
@@ -2014,7 +2008,7 @@
 	icon_state = "0-1";
 	dir = 4
 	},
-/turf/simulated/floor/exoplanet/concrete,
+/turf/exterior/concrete,
 /area/template_noop)
 "eM" = (
 /obj/effect/floor_decal/industrial/warning{
@@ -2113,8 +2107,8 @@
 /obj/item/chems/pill/zoom,
 /obj/item/chems/pill/zoom,
 /obj/item/chems/pill/zoom,
-/obj/item/toy/crossbow{
-	desc = "A minature crossbow that fires some sort of dart from an internal magazine.";
+/obj/item/gun/launcher/foam/crossbow{
+	desc = "A miniature crossbow that fires some sort of dart from an internal magazine.";
 	name = "mini-crossbow"
 	},
 /turf/simulated/floor/fixed/alium,
@@ -2300,9 +2294,9 @@
 /obj/random/cash,
 /obj/random/cash,
 /obj/random/handgun,
-/obj/item/stack/material/diamond/ten,
-/obj/item/stack/material/gold/ten,
-/obj/item/stack/material/gold/ten,
+/obj/item/stack/material/gemstone/mapped/diamond/ten,
+/obj/item/stack/material/ingot/mapped/gold/ten,
+/obj/item/stack/material/ingot/mapped/gold/ten,
 /turf/simulated/floor/fixed/alium,
 /area/map_template/hydrobase/station/processing)
 "fs" = (
@@ -2414,9 +2408,7 @@
 /turf/simulated/floor/tiled/freezer,
 /area/map_template/hydrobase/station/shower)
 "fG" = (
-/obj/machinery/power/solar{
-	id = "hydrosolar"
-	},
+/obj/machinery/power/solar,
 /obj/effect/floor_decal/solarpanel,
 /obj/structure/cable{
 	icon_state = "0-2";
@@ -2856,7 +2848,7 @@
 /area/map_template/hydrobase/station/shower)
 "gy" = (
 /obj/item/clothing/accessory/toggleable/hawaii/random,
-/obj/item/clothing/under/casual_pants/greyjeans,
+/obj/item/clothing/pants/casual/greyjeans,
 /obj/item/clothing/head/bowler,
 /obj/item/clothing/shoes/craftable,
 /obj/structure/closet,
@@ -2904,9 +2896,7 @@
 /turf/simulated/floor/fixed/alium,
 /area/map_template/hydrobase/station/dockport)
 "gD" = (
-/obj/machinery/power/solar{
-	id = "hydrosolar"
-	},
+/obj/machinery/power/solar,
 /obj/effect/floor_decal/solarpanel,
 /obj/structure/cable{
 	d1 = 4;

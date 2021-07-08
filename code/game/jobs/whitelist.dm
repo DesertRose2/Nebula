@@ -1,6 +1,6 @@
 #define WHITELISTFILE "data/whitelist.txt"
 
-var/list/whitelist = list()
+var/global/list/whitelist = list()
 
 /hook/startup/proc/loadWhitelist()
 	if(config.usewhitelist)
@@ -8,15 +8,16 @@ var/list/whitelist = list()
 	return 1
 
 /proc/load_whitelist()
-	whitelist = file2list(WHITELISTFILE)
-	if(!whitelist.len)	whitelist = null
+	whitelist = file2list(WHITELISTFILE, FALSE)
+	if(!length(whitelist))
+		whitelist = null
 
 /proc/check_whitelist(mob/M /*, var/rank*/)
 	if(!whitelist)
 		return 0
 	return ("[M.ckey]" in whitelist)
 
-/var/list/alien_whitelist = list()
+var/global/list/alien_whitelist = list()
 
 /hook/startup/proc/loadAlienWhitelist()
 	if(config.usealienwhitelist)
@@ -27,17 +28,18 @@ var/list/whitelist = list()
 			load_alienwhitelist()
 	return 1
 /proc/load_alienwhitelist()
-	var/text = file2text("config/alienwhitelist.txt")
+	var/text = safe_file2text("config/alienwhitelist.txt", FALSE)
 	if (!text)
 		log_misc("Failed to load config/alienwhitelist.txt")
 		return 0
 	else
 		alien_whitelist = splittext(text, "\n")
 		return 1
+
 /proc/load_alienwhitelistSQL()
-	var/DBQuery/query = dbcon_old.NewQuery("SELECT * FROM `whitelist`")
+	var/DBQuery/query = dbcon.NewQuery("SELECT * FROM `whitelist`")
 	if(!query.Execute())
-		to_world_log(dbcon_old.ErrorMsg())
+		to_world_log(dbcon.ErrorMsg())
 		return 0
 	else
 		while(query.NextRow())
@@ -50,7 +52,7 @@ var/list/whitelist = list()
 	return 1
 
 /proc/is_species_whitelisted(mob/M, var/species_name)
-	var/datum/species/S = get_species_by_key(species_name)
+	var/decl/species/S = get_species_by_key(species_name)
 	return is_alien_whitelisted(M, S)
 
 //todo: admin aliens
@@ -68,8 +70,8 @@ var/list/whitelist = list()
 			return 1
 		return whitelist_lookup(L.name, M.ckey)
 
-	if(istype(species,/datum/species))
-		var/datum/species/S = species
+	if(istype(species,/decl/species))
+		var/decl/species/S = species
 		if(!(S.spawn_flags & (SPECIES_IS_WHITELISTED|SPECIES_IS_RESTRICTED)))
 			return 1
 		return whitelist_lookup(S.get_root_species_name(M), M.ckey)

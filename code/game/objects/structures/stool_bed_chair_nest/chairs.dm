@@ -14,23 +14,6 @@
 		rotate(user)
 	return TRUE
 
-/obj/structure/bed/chair/attackby(obj/item/W, mob/user)
-	..()
-	if(!reinf_material && istype(W, /obj/item/assembly/shock_kit))
-		var/obj/item/assembly/shock_kit/SK = W
-		if(!SK.status)
-			to_chat(user, SPAN_NOTICE("\The [SK] is not ready to be attached!"))
-			return
-		if(!user.unEquip(SK))
-			return
-		var/obj/structure/bed/chair/e_chair/E = new (src.loc, material.type)
-		playsound(src.loc, 'sound/items/Deconstruct.ogg', 50, 1)
-		E.set_dir(dir)
-		E.part = SK
-		SK.forceMove(E)
-		SK.master = E
-		qdel(src)
-
 /obj/structure/bed/chair/post_buckle_mob()
 	update_icon()
 	return ..()
@@ -248,7 +231,7 @@
 	name = "shuttle seat"
 	desc = "A comfortable, secure seat. It has a sturdy-looking buckling system for smoother flights."
 	icon_state = "shuttle_chair"
-	buckling_sound = 'sound/effects/metal_close.ogg'
+	buckle_sound = 'sound/effects/metal_close.ogg'
 	material = /decl/material/solid/metal/steel
 
 /obj/structure/bed/chair/shuttle/post_buckle_mob()
@@ -283,7 +266,7 @@
 	var/chair_material = /decl/material/solid/wood
 
 /obj/structure/bed/chair/wood/attackby(obj/item/W, mob/user)
-	if(istype(W,/obj/item/stack) || istype(W, /obj/item/wirecutters))
+	if(istype(W,/obj/item/stack) || isWirecutter(W))
 		return
 	..()
 

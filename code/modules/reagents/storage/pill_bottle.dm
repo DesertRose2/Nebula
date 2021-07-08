@@ -37,7 +37,7 @@
 			to_chat(user, SPAN_WARNING("You can't eat anything!"))
 			return TRUE
 	else
-		if(user.get_inactive_hand())
+		if(!user.get_empty_hand_slot())
 			to_chat(user, SPAN_WARNING("You need an empty hand to take something from \the [src]."))
 			return TRUE
 
@@ -54,7 +54,6 @@
 		else
 			if(user.put_in_inactive_hand(pill))
 				to_chat(user, SPAN_NOTICE("You take \the [pill] out of \the [src]."))
-				user.swap_hand()
 			else
 				pill.dropInto(loc)
 				to_chat(user, SPAN_DANGER("You fumble around with \the [src] and drop \the [pill]."))
@@ -63,7 +62,7 @@
 /obj/item/storage/pill_bottle/afterattack(mob/living/target, mob/living/user, proximity_flag)
 	. = (proximity_flag && user == target && pop_pill(user)) || ..()
 
-/obj/item/storage/pill_bottle/attack_self(mob/living/user)
+/obj/item/storage/pill_bottle/attack_self(mob/user)
 	. = pop_pill(user) || ..()
 
 /obj/item/storage/pill_bottle/Initialize()
@@ -71,8 +70,9 @@
 	update_icon()
 
 /obj/item/storage/pill_bottle/on_update_icon()
-	overlays.Cut()
+	cut_overlays()
 	if(wrapper_color)
 		var/image/I = image(icon, "pillbottle_wrap")
 		I.color = wrapper_color
-		overlays += I
+		I.appearance_flags |= RESET_COLOR
+		add_overlay(I)

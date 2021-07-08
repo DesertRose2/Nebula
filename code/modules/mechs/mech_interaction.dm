@@ -1,27 +1,14 @@
-/mob/living/MouseDrop(atom/over)
-	if(usr == src && usr != over)
-		if(istype(over, /mob/living/exosuit))
-			var/mob/living/exosuit/exosuit = over
-			if(exosuit.body)
-				if(usr.mob_size >= exosuit.body.min_pilot_size && usr.mob_size <= exosuit.body.max_pilot_size)
-					if(exosuit.enter(src))
-						return
-				else
-					to_chat(usr, SPAN_WARNING("You cannot pilot a exosuit of this size."))
-					return
-	return ..()
+/mob/living/exosuit/receive_mouse_drop(atom/dropping, mob/user)
+	. = ..()
+	if(!. && istype(dropping, /obj/machinery/portable_atmospherics/canister))
+		body.receive_mouse_drop(dropping, user)
+		return TRUE
 
-/mob/living/exosuit/MouseDrop_T(atom/dropping, mob/user)
-	var/obj/machinery/portable_atmospherics/canister/C = dropping
-	if(istype(C))
-		body.MouseDrop_T(dropping, user)
-	else . = ..()
+/mob/living/exosuit/handle_mouse_drop(atom/over, mob/user)
+	if(body?.handle_mouse_drop(over, user))
+		return TRUE
+	. = ..()
 
-/mob/living/exosuit/MouseDrop(mob/living/carbon/human/over_object) //going from assumption none of previous options are relevant to exosuit
-	if(body)
-		if(!body.MouseDrop(over_object))
-			return ..()
-	
 /mob/living/exosuit/RelayMouseDrag(src_object, over_object, src_location, over_location, src_control, over_control, params, var/mob/user)
 	if(user && (user in pilots) && user.loc == src)
 		return OnMouseDrag(src_object, over_object, src_location, over_location, src_control, over_control, params, user)
@@ -61,7 +48,7 @@
 	. = ..()
 	if(!hatch_closed)
 		return max(shared_living_nano_distance(src_object), .) //Either visible to mech(outside) or visible to user (inside)
-	
+
 /mob/living/exosuit/ClickOn(var/atom/A, var/params, var/mob/user)
 
 	if(!user || incapacitated() || user.incapacitated())
@@ -74,18 +61,18 @@
 	if(modifiers["shift"])
 		user.examinate(A)
 		return
-		
+
 	if(modifiers["ctrl"] && selected_system == A)
 		selected_system.CtrlClick(user)
 		setClickCooldown(3)
-		return	
+		return
 
 	if(!(user in pilots) && user != src)
 		return
 
 	if(!canClick())
 		return
-	
+
 	// Are we facing the target?
 	if(A.loc != src && !(get_dir(src, A) & dir))
 		return
@@ -171,7 +158,7 @@
 					ruser = user
 				temp_system.afterattack(A,ruser,adj,params)
 			if(system_moved) //We are using a proxy system that may not have logging like mech equipment does
-				log_and_message_admins("used [temp_system] targetting [A]", user, src.loc)
+				admin_attack_log(user, A, "Attacked using \a [temp_system] (MECH)", "Was attacked with \a [temp_system] (MECH)", "used \a [temp_system] (MECH) to attack")
 			//Mech equipment subtypes can add further click delays
 			var/extra_delay = 0
 			if(ME != null)
@@ -206,7 +193,7 @@
 		for(var/hardpoint in hardpoints)
 			if(hardpoint != selected_hardpoint)
 				continue
-			var/obj/screen/movable/exosuit/hardpoint/H = hardpoint_hud_elements[hardpoint]
+			var/obj/screen/exosuit/hardpoint/H = hardpoint_hud_elements[hardpoint]
 			if(istype(H))
 				H.icon_state = "hardpoint"
 				break
@@ -309,13 +296,19 @@
 
 	else if(istype(thing, /obj/item/kit/paint))
 		user.visible_message(SPAN_NOTICE("\The [user] opens \the [thing] and spends some quality time customising \the [src]."))
+
 		var/obj/item/kit/paint/P = thing
 		SetName(P.new_name)
 		desc = P.new_desc
-		for(var/obj/item/mech_component/comp in list(arms, legs, head, body))
-			comp.decal = P.new_icon
-		if(P.new_icon_file)
-			icon = P.new_icon_file
+
+		if(P.new_state)
+			for(var/obj/item/mech_component/comp in list(arms, legs, head, body))
+				comp.decal = P.new_state
+
+		if(P.new_icon)
+			for(var/obj/item/mech_component/comp in list(arms, legs, head, body))
+				comp.icon = P.new_icon
+
 		queue_icon_update()
 		P.use(1, user)
 		return 1
@@ -372,7 +365,7 @@
 				if(CanPhysicallyInteract(user) && !QDELETED(to_fix) && (to_fix in src) && to_fix.burn_damage)
 					to_fix.repair_burn_generic(thing, user)
 				return
-			else if(isCrowbar(thing))
+			else if(isScrewdriver(thing))
 				if(!maintenance_protocols)
 					to_chat(user, SPAN_WARNING("The cell compartment remains locked while maintenance protocols are disabled."))
 					return
@@ -386,8 +379,27 @@
 				user.put_in_hands(body.cell)
 				to_chat(user, SPAN_NOTICE("You remove \the [body.cell] from \the [src]."))
 				playsound(user.loc, 'sound/items/Crowbar.ogg', 50, 1)
-				visible_message(SPAN_NOTICE("\The [user] pries out \the [body.cell] using the \the [thing]."))
+				visible_message(SPAN_NOTICE("\The [user] pries out \the [body.cell] using \the [thing]."))
 				body.cell = null
+				return
+			else if(isCrowbar(thing))
+				if(!hatch_locked)
+					to_chat(user, SPAN_NOTICE("The cockpit isn't locked. There is no need for this."))
+					return
+				if(!body) //Error
+					return
+				var/delay = min(50 * user.skill_delay_mult(SKILL_DEVICES), 50 * user.skill_delay_mult(SKILL_EVA))
+				visible_message(SPAN_NOTICE("\The [user] starts forcing the \the [src]'s emergency [body.hatch_descriptor] release using \the [thing]."))
+				if(!do_after(user, delay, src))
+					return
+				visible_message(SPAN_NOTICE("\The [user] forces \the [src]'s [body.hatch_descriptor] open using the \the [thing]."))
+				playsound(user.loc, 'sound/machines/bolts_up.ogg', 25, 1)
+				hatch_locked = FALSE
+				hatch_closed = FALSE
+				for(var/mob/pilot in pilots)
+					eject(pilot, silent = 1)
+				hud_open.queue_icon_update()
+				queue_icon_update()
 				return
 			else if(istype(thing, /obj/item/cell))
 				if(!maintenance_protocols)
@@ -396,13 +408,19 @@
 				if(!body || body.cell)
 					to_chat(user, SPAN_WARNING("There is already a cell in there!"))
 					return
-				
+
 				if(user.unEquip(thing))
 					thing.forceMove(body)
 					body.cell = thing
 					to_chat(user, SPAN_NOTICE("You install \the [body.cell] into \the [src]."))
 					playsound(user.loc, 'sound/items/Screwdriver.ogg', 50, 1)
 					visible_message(SPAN_NOTICE("\The [user] installs \the [body.cell] into \the [src]."))
+				return
+			else if(istype(thing, /obj/item/robotanalyzer))
+				to_chat(user, SPAN_NOTICE("Diagnostic Report for \the [src]:"))
+				for(var/obj/item/mech_component/MC in list(arms, legs, body, head))
+					if(MC)
+						MC.return_diagnostics(user)
 				return
 	return ..()
 

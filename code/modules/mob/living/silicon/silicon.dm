@@ -47,7 +47,7 @@
 	#define MED_HUD 2 //Medical HUD mode
 
 /mob/living/silicon/Initialize()
-	GLOB.silicon_mob_list += src
+	global.silicon_mob_list += src
 	. = ..()
 
 	if(silicon_radio)
@@ -66,7 +66,7 @@
 	init_subsystems()
 
 /mob/living/silicon/Destroy()
-	GLOB.silicon_mob_list -= src
+	global.silicon_mob_list -= src
 	QDEL_NULL(silicon_radio)
 	QDEL_NULL(silicon_camera)
 	for(var/datum/alarm_handler/AH in SSalarm.all_handlers)
@@ -91,16 +91,18 @@
 	for(var/obj/item/grab/grab in get_active_grabs())
 		qdel(grab)
 		. = TRUE
-	
+
 /mob/living/silicon/emp_act(severity)
 	switch(severity)
 		if(1)
-			src.take_organ_damage(0,16,emp=1)
-			if(prob(50)) Stun(rand(5,10))
-			else confused = (min(confused + 2, 40))
+			src.take_organ_damage(0, 16, bypass_armour = TRUE)
+			if(prob(50)) 
+				SET_STATUS_MAX(src, STAT_STUN, rand(5,10))
+			else
+				ADJ_STATUS(src, STAT_CONFUSE, rand(2,40))
 		if(2)
-			src.take_organ_damage(0,7,emp=1)
-			confused = (min(confused + 2, 30))
+			src.take_organ_damage(0, 7, bypass_armour = TRUE)
+			ADJ_STATUS(src, STAT_CONFUSE, rand(2,30))
 	flash_eyes(affect_silicon = 1)
 	to_chat(src, "<span class='danger'><B>*BZZZT*</B></span>")
 	to_chat(src, "<span class='danger'>Warning: Electromagnetic pulse detected.</span>")
@@ -112,9 +114,7 @@
 /mob/living/silicon/electrocute_act(var/shock_damage, var/obj/source, var/siemens_coeff = 1.0, def_zone = null)
 
 	if (istype(source, /obj/machinery/containment_field))
-		var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-		s.set_up(5, 1, loc)
-		s.start()
+		spark_at(loc, amount=5, cardinal_only = TRUE)
 
 		shock_damage *= 0.75	//take reduced damage
 		take_overall_damage(0, shock_damage)
@@ -122,7 +122,7 @@
 			"<span class='danger'>Energy pulse detected, system damaged!</span>", \
 			"<span class='warning'>You hear an electrical crack</span>")
 		if(prob(20))
-			Stun(2)
+			SET_STATUS_MAX(src, STAT_STUN, 2)
 		return
 
 /mob/living/silicon/proc/damage_mob(var/brute = 0, var/fire = 0, var/tox = 0)
@@ -194,7 +194,7 @@
 /mob/living/silicon/add_language(var/language, var/can_speak=1)
 	if(!ispath(language, /decl/language))
 		return
-	var/decl/language/added_language = decls_repository.get_decl(language)
+	var/decl/language/added_language = GET_DECL(language)
 	if(!added_language)
 		return
 
@@ -206,7 +206,7 @@
 /mob/living/silicon/remove_language(var/rem_language)
 	if(!ispath(rem_language, /decl/language))
 		return
-	var/decl/language/removed_language = decls_repository.get_decl(rem_language)
+	var/decl/language/removed_language = GET_DECL(rem_language)
 	if(!removed_language)
 		return
 
@@ -221,7 +221,7 @@
 	var/dat = "<b><font size = 5>Known Languages</font></b><br/><br/>"
 
 	if(default_language)
-		var/decl/language/lang = decls_repository.get_decl(default_language)
+		var/decl/language/lang = GET_DECL(default_language)
 		dat += "Current default language: [lang.name] - <a href='byond://?src=\ref[src];default_lang=reset'>reset</a><br/><br/>"
 
 	for(var/decl/language/L in languages)
@@ -346,7 +346,8 @@
 
 
 /mob/living/silicon/proc/is_traitor()
-	return mind && (mind in GLOB.traitors.current_antagonists)
+	var/decl/special_role/traitors = GET_DECL(/decl/special_role/traitor)
+	return mind && (mind in traitors.current_antagonists)
 
 /mob/living/silicon/adjustEarDamage()
 	return
@@ -366,7 +367,7 @@
 			mind.assigned_job.clear_slot()
 		if(mind.objectives.len)
 			qdel(mind.objectives)
-			mind.special_role = null
+			mind.assigned_special_role = null
 		clear_antag_roles(mind)
 	ghostize(0)
 	qdel(src)
@@ -380,7 +381,7 @@
 
 /mob/living/silicon/get_bullet_impact_effect_type(var/def_zone)
 	return BULLET_IMPACT_METAL
-	
+
 /mob/living/silicon/proc/get_computer_network()
 	var/datum/extension/interactive/ntos/os = get_extension(src, /datum/extension/interactive/ntos)
 	if(os)
@@ -400,7 +401,7 @@
 	if(!length(stock_parts))
 		to_chat(user, SPAN_WARNING("No parts left to remove"))
 		return
-	
+
 	var/obj/item/stock_parts/remove = input(user, "Which component do you want to pry out?", "Remove Component") as null|anything in stock_parts
 	if(!remove || !(remove in stock_parts) || !Adjacent(user))
 		return
@@ -421,7 +422,7 @@
 	if(!istype(os))
 		to_chat(src, SPAN_WARNING("You seem to be lacking an NTOS capable device!"))
 		return
-	
+
 	if(!os.on)
 		os.system_boot()
 	if(!os.on)
@@ -429,3 +430,9 @@
 		return
 
 	os.ui_interact(src)
+
+/mob/living/silicon/get_admin_job_string()
+	return "Silicon-based"
+
+/mob/living/silicon/get_telecomms_race_info()
+	return list("Artificial Life", TRUE)

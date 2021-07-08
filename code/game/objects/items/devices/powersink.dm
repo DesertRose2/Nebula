@@ -4,8 +4,7 @@
 	name = "power sink"
 	desc = "A nulling power sink which drains energy from electrical systems."
 	icon = 'icons/obj/items/device/powersink.dmi'
-	icon_state = "powersink0"
-	item_state = "electronic"
+	icon_state = ICON_STATE_WORLD
 	w_class = ITEM_SIZE_LARGE
 	obj_flags = OBJ_FLAG_CONDUCTIBLE
 	throwforce = 5
@@ -13,7 +12,7 @@
 	throw_range = 2
 
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/slag = MATTER_AMOUNT_REINFORCEMENT)
+	matter = list(/decl/material/solid/metallic_hydrogen = MATTER_AMOUNT_REINFORCEMENT)
 
 	origin_tech = "{'powerstorage':3,'esoteric':5}"
 	var/drain_rate = 1500000		// amount of power to drain per tick
@@ -31,7 +30,12 @@
 	var/obj/structure/cable/attached		// the attached cable
 
 /obj/item/powersink/on_update_icon()
-	icon_state = "powersink[mode == OPERATING]"
+	cut_overlays()
+	if(mode == OPERATING)
+		if(plane == HUD_PLANE)
+			add_overlay("[icon_state]-on")
+		else
+			add_overlay(emissive_overlay(icon, "[icon_state]-on"))
 
 /obj/item/powersink/proc/set_mode(value)
 	if(value == mode)
@@ -125,7 +129,7 @@
 	var/datum/powernet/PN = attached.powernet
 	var/drained = 0
 	if(PN)
-		set_light(0.5, 0.1, 12)
+		set_light(12)
 		PN.trigger_warning()
 		// found a powernet, so drain up to max power from it
 		drained = PN.draw_power(drain_rate)

@@ -3,7 +3,7 @@
 /turf/space,
 /area/space)
 "ab" = (
-/turf/simulated/wall/voxshuttle,
+/turf/simulated/wall/raidershuttle,
 /area/derelict/ship)
 "ac" = (
 /obj/structure/window/reinforced{
@@ -741,7 +741,7 @@
 /turf/simulated/floor/airless,
 /area/constructionsite/maintenance)
 "cn" = (
-/turf/simulated/wall/voxshuttle,
+/turf/simulated/wall/raidershuttle,
 /area/space)
 "co" = (
 /obj/machinery/door/airlock/glass{
@@ -1312,40 +1312,18 @@
 	icon_state = "tube1";
 	dir = 1
 	},
-/obj/item/stack/material/steel{
-	amount = 50;
-	pixel_x = 0;
-	pixel_y = 0
-	},
-/obj/item/stack/material/steel{
-	amount = 50;
-	pixel_x = 0;
-	pixel_y = 0
-	},
-/obj/item/stack/material/steel{
-	amount = 50;
-	pixel_x = 0;
-	pixel_y = 0
-	},
-/obj/item/stack/material/steel{
-	amount = 50;
-	pixel_x = 0;
-	pixel_y = 0
-	},
-/obj/item/stack/material/steel{
-	amount = 50;
-	pixel_x = 0;
-	pixel_y = 0
-	},
+/obj/item/stack/material/sheet/mapped/steel/fifty,
+/obj/item/stack/material/sheet/mapped/steel/fifty,
+/obj/item/stack/material/sheet/mapped/steel/fifty,
+/obj/item/stack/material/sheet/mapped/steel/fifty,
+/obj/item/stack/material/sheet/mapped/steel/fifty,
 /obj/random/tech_supply,
 /obj/random/maintenance,
 /turf/simulated/floor/tiled/dark,
 /area/constructionsite/teleporter)
 "ep" = (
 /obj/structure/table/reinforced,
-/obj/item/stack/material/plasteel{
-	amount = 50
-	},
+/obj/item/stack/material/reinforced/mapped/plasteel/fifty,
 /obj/random/tech_supply,
 /obj/random/maintenance,
 /turf/simulated/floor/tiled/dark,
@@ -1590,7 +1568,6 @@
 /area/constructionsite/hallway/fore)
 "fa" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/blue{
-	icon_state = "intact";
 	dir = 5
 	},
 /obj/machinery/light/small,
@@ -1625,7 +1602,6 @@
 /area/constructionsite/teleporter)
 "fc" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/blue{
-	icon_state = "intact";
 	dir = 4
 	},
 /obj/machinery/door/airlock/external{
@@ -1637,7 +1613,6 @@
 /area/constructionsite/teleporter)
 "fd" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/blue{
-	icon_state = "intact";
 	dir = 4
 	},
 /obj/effect/floor_decal/industrial/warning{
@@ -1648,7 +1623,6 @@
 /area/constructionsite/teleporter)
 "fe" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/blue{
-	icon_state = "intact";
 	dir = 10
 	},
 /turf/simulated/floor/tiled,
@@ -1784,7 +1758,6 @@
 /area/constructionsite/teleporter)
 "fv" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/blue{
-	icon_state = "intact";
 	dir = 9
 	},
 /turf/simulated/floor/tiled/dark,
@@ -2222,7 +2195,7 @@
 	},
 /area/constructionsite/hallway/aft)
 "hf" = (
-/obj/machinery/door/airlock/multi_tile/glass{
+/obj/machinery/door/airlock/double/glass{
 	name = "Emergency Entrance"
 	},
 /turf/simulated/floor/airless,
@@ -2628,8 +2601,7 @@
 /area/constructionsite/hallway/aft)
 "iG" = (
 /obj/machinery/atmospherics/pipe/simple/hidden{
-	dir = 4;
-	icon_state = "intact"
+	dir = 4
 	},
 /turf/simulated/wall,
 /area/constructionsite/atmospherics)
@@ -2873,7 +2845,6 @@
 /area/constructionsite/atmospherics)
 "jq" = (
 /obj/machinery/atmospherics/pipe/simple/visible{
-	icon_state = "intact";
 	dir = 5
 	},
 /turf/simulated/floor/airless,
@@ -3601,21 +3572,11 @@
 /area/space)
 "nb" = (
 /obj/structure/table/reinforced,
-/obj/item/stack/material/glass{
-	amount = 50
-	},
-/obj/item/stack/material/glass{
-	amount = 50
-	},
-/obj/item/stack/material/glass{
-	amount = 50
-	},
-/obj/item/stack/material/glass{
-	amount = 50
-	},
-/obj/item/stack/material/glass{
-	amount = 50
-	},
+/obj/item/stack/material/pane/mapped/glass/fifty,
+/obj/item/stack/material/pane/mapped/glass/fifty,
+/obj/item/stack/material/pane/mapped/glass/fifty,
+/obj/item/stack/material/pane/mapped/glass/fifty,
+/obj/item/stack/material/pane/mapped/glass/fifty,
 /obj/random/tech_supply,
 /obj/random/maintenance,
 /obj/machinery/camera/motion{

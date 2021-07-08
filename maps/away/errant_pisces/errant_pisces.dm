@@ -1,3 +1,4 @@
+#include "../../../mods/content/corporate/_corporate.dme"
 #include "errant_pisces_areas.dm"
 
 /obj/effect/overmap/visitable/ship/errant_pisces
@@ -20,7 +21,7 @@
 /mob/living/simple_animal/hostile/carp/shark // generally stronger version of a carp that doesn't die from a mean look. Fance new sprites included, credits to F-Tang Steve
 	name = "cosmoshark"
 	desc = "Enormous creature that resembles a shark with magenta glowing lines along its body and set of long deep-purple teeth."
-	icon = 'maps/away/errant_pisces/errant_pisces_sprites.dmi'
+	icon = 'maps/away/errant_pisces/icons/cosmoshark.dmi'
 	icon_state = "shark"
 	icon_living = "shark"
 	icon_dead = "shark_dead"
@@ -59,7 +60,7 @@
 			var/tackle_length = rand(3,5)
 			for (var/i = 1 to tackle_length)
 				var/turf/T = get_step(L.loc, dir)//on a first step of tackling standing mob would block movement so let's check if there's something behind it. Works for consequent moves too
-				if (T.density || LinkBlocked(L.loc, T) || TurfBlockedNonWindow(T) || DirBlocked(T, GLOB.flip_dir[dir]))
+				if (T.density || LinkBlocked(L.loc, T) || TurfBlockedNonWindow(T) || DirBlocked(T, global.flip_dir[dir]))
 					break
 				sleep(2)
 				forceMove(T)//maybe there's better manner then just forceMove() them
@@ -84,7 +85,7 @@
 /obj/structure/net//if you want to have fun, make them to be draggable as a whole unless at least one piece is attached to a non-space turf or anchored object
 	name = "industrial net"
 	desc = "A sturdy industrial net of synthetic belts reinforced with plasteel threads."
-	icon = 'maps/away/errant_pisces/errant_pisces_sprites.dmi'
+	icon = 'maps/away/errant_pisces/icons/net.dmi'
 	icon_state = "net_f"
 	anchored = 1
 	layer = CATWALK_LAYER//probably? Should cover cables, pipes and the rest of objects that are secured on the floor
@@ -130,7 +131,7 @@
 		return TRUE
 	. = ..()
 
-/obj/structure/net/physically_destroyed()
+/obj/structure/net/physically_destroyed(var/skip_qdel)
 	SHOULD_CALL_PARENT(FALSE)
 	visible_message("<span class='warning'>\The [src] is torn apart!</span>")
 	qdel(src)
@@ -147,7 +148,7 @@
 	overlays.Cut()
 	var/turf/T = get_turf(src)
 	for (var/turf/AT in T.CardinalTurfs(FALSE))
-		if ( (locate(/obj/structure/net) in AT) || (!istype(AT, /turf/simulated/open) && !istype(AT, /turf/space)) || (locate(/obj/structure/lattice) in AT) )//connects to another net objects or walls/floors or lattices
+		if((locate(/obj/structure/net) in AT) || (locate(/obj/structure/lattice) in AT))//connects to another net objects or walls/floors or lattices
 			var/image/I = image(icon,"[icon_state]_ol_[get_dir(src,AT)]")
 			overlays += I
 
@@ -177,8 +178,7 @@
 /obj/item/stack/net
 	name = "industrial net roll"
 	desc = "Sturdy industrial net reinforced with plasteel threads."
-	singular_name = "industrial net"
-	icon = 'maps/away/errant_pisces/errant_pisces_sprites.dmi'
+	icon = 'maps/away/errant_pisces/icons/net_roll.dmi'
 	icon_state = "net_roll"
 	w_class = ITEM_SIZE_LARGE
 	force = 3.0
@@ -232,12 +232,10 @@
 	if (amount < 1)
 		qdel(src)
 
-/obj/item/clothing/under/carp//as far as I know sprites are taken from /tg/
+/obj/item/clothing/under/carp //as far as I know sprites are taken from /tg/
 	name = "space carp suit"
 	desc = "A suit in a shape of a space carp. Usually worn by corporate interns who are sent to entertain children during HQ excursions."
-	icon_state = "carp_suit"
-	icon = 'maps/away/errant_pisces/errant_pisces_sprites.dmi'
-	item_icons = list(slot_w_uniform_str = 'maps/away/errant_pisces/errant_pisces_sprites.dmi')
+	icon = 'maps/away/errant_pisces/icons/carpsuit.dmi'
 
 /obj/effect/landmark/corpse/carp_fisher
 	name = "carp fisher"

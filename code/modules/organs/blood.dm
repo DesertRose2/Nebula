@@ -2,40 +2,64 @@
 				BLOOD SYSTEM
 ****************************************************/
 
-/mob/living/carbon/human/var/datum/reagents/vessel // Container for blood and BLOOD ONLY. Do not transfer other chems here.
+/mob/living/carbon/human
+	var/datum/reagents/vessel // Container for blood and BLOOD ONLY. Do not transfer other chems here.
 
 //Initializes blood vessels
 /mob/living/carbon/human/proc/make_blood()
-
 	if(vessel)
 		return
-
-	vessel = new/datum/reagents(species.blood_volume, src)
-
+	vessel = new /datum/reagents(species.blood_volume, src)
 	if(!should_have_organ(BP_HEART)) //We want the var for safety but we can do without the actual blood.
 		return
+	reset_blood()
 
-	vessel.add_reagent(species.blood_reagent, species.blood_volume)
-	fixblood()
+//Modifies blood level
+/mob/living/carbon/human/proc/adjust_blood(var/amt, var/blood_data)
+	if(!vessel)
+		make_blood()
+
+	if(!should_have_organ(BP_HEART))
+		return
+
+	if(amt && species.blood_reagent)
+		if(amt > 0)
+			vessel.add_reagent(species.blood_reagent, amt, blood_data)
+		else
+			vessel.remove_any(abs(amt))
 
 //Resets blood data
-/mob/living/carbon/human/proc/fixblood()
-	var/list/blooddata = list(
-		"donor" = weakref(src),
-		"species" = species.name,
-		"blood_DNA" = dna.unique_enzymes,
+/mob/living/carbon/human/proc/reset_blood()
+	if(!vessel)
+		make_blood()
+
+	if(!should_have_organ(BP_HEART))
+		vessel.clear_reagents()
+		return
+
+	if(vessel.total_volume < species.blood_volume)
+		vessel.maximum_volume = species.blood_volume
+		adjust_blood(species.blood_volume - vessel.total_volume)
+	else if(vessel.total_volume > species.blood_volume)
+		vessel.remove_any(vessel.total_volume - species.blood_volume)
+		vessel.maximum_volume = species.blood_volume
+
+	LAZYSET(vessel.reagent_data, species.blood_reagent, list(
+		"donor" =        weakref(src),
+		"species" =      species.name,
+		"blood_DNA" =    dna?.unique_enzymes,
 		"blood_colour" = species.get_blood_colour(src),
-		"blood_type" = dna.b_type,
+		"blood_type" =   dna?.b_type,
 		"trace_chem" = null
-	)
-	LAZYSET(vessel.reagent_data, species.blood_reagent, blooddata)
+	))
 
 //Makes a blood drop, leaking amt units of blood from the mob
 /mob/living/carbon/human/proc/drip(var/amt, var/tar = src, var/ddir)
+	var/datum/reagents/bloodstream = get_injected_reagents()
 	if(remove_blood(amt))
-		if(bloodstr.total_volume && vessel.total_volume)
-			var/chem_share = round(0.3 * amt * (bloodstr.total_volume/vessel.total_volume), 0.01)
-			bloodstr.remove_any(chem_share * bloodstr.total_volume)
+		if(bloodstream.total_volume && vessel.total_volume)
+			var/chem_share = round(0.3 * amt * (bloodstream.total_volume/vessel.total_volume), 0.01)
+			bloodstream.remove_any(chem_share * bloodstream.total_volume)
 		blood_splatter(tar, src, (ddir && ddir>0), spray_dir = ddir)
 		return amt
 	return 0
@@ -44,7 +68,7 @@
 /mob/living/carbon/human/proc/blood_squirt(var/amt, var/turf/sprayloc)
 	if(amt <= 0 || !istype(sprayloc))
 		return
-	var/spraydir = pick(GLOB.alldirs)
+	var/spraydir = pick(global.alldirs)
 	amt = ceil(amt/BLOOD_SPRAY_DISTANCE)
 	var/bled = 0
 	spawn(0)
@@ -74,12 +98,12 @@
 						if(ran_zone() == BP_HEAD)
 							blinding = TRUE
 							for(var/obj/item/I in list(H.head, H.glasses, H.wear_mask))
-								if(I && (I.body_parts_covered & EYES))
+								if(I && (I.body_parts_covered & SLOT_EYES))
 									blinding = FALSE
 									break
 						if(blinding)
-							H.eye_blurry = max(H.eye_blurry, 10)
-							H.eye_blind = max(H.eye_blind, 5)
+							SET_STATUS_MAX(H, STAT_BLURRY, 10)
+							SET_STATUS_MAX(H, STAT_BLIND, 5)
 							to_chat(H, "<span class='danger'>You are blinded by a spray of blood!</span>")
 						else
 							to_chat(H, "<span class='danger'>You are hit by a spray of blood!</span>")
@@ -121,6 +145,9 @@
 //For humans, blood does not appear from blue, it comes from vessels.
 /mob/living/carbon/human/take_blood(obj/item/chems/container, var/amount)
 
+	if(!vessel)
+		make_blood()
+
 	if(!should_have_organ(BP_HEART))
 		reagents.trans_to_obj(container, amount)
 		return 1
@@ -148,7 +175,7 @@
 	if(blood_incompatible(LAZYACCESS(injected_data, "blood_type"), LAZYACCESS(injected_data, "species")))
 		reagents.add_reagent(/decl/material/liquid/coagulated_blood, amount * 0.5)
 	else
-		vessel.add_reagent(species.blood_reagent, amount, injected_data)
+		adjust_blood(amount, injected_data)
 	..()
 
 /mob/living/carbon/human/proc/blood_incompatible(blood_type, blood_species)
@@ -177,7 +204,7 @@
 	var/blood_volume_raw = vessel.total_volume
 	amount = max(0,min(amount, species.blood_volume - blood_volume_raw))
 	if(amount)
-		vessel.add_reagent(species.blood_reagent, amount, get_blood_data())
+		adjust_blood(amount, get_blood_data())
 	return amount
 
 /mob/living/carbon/proc/get_blood_data()
@@ -191,11 +218,11 @@
 	for(var/R in reagents.reagent_volumes)
 		temp_chem[R] = REAGENT_VOLUME(reagents, R)
 	data["trace_chem"] = temp_chem
-	data["dose_chem"] = chem_doses.Copy()
+	data["dose_chem"] = chem_doses ? chem_doses.Copy() : list()
 	data["blood_colour"] = species.get_blood_colour(src)
 	return data
 
-proc/blood_splatter(var/target, var/source, var/large, var/spray_dir)
+/proc/blood_splatter(var/target, var/source, var/large, var/spray_dir)
 
 	var/obj/effect/decal/cleanable/blood/splatter
 	var/decal_type = /obj/effect/decal/cleanable/blood/splatter
@@ -241,9 +268,9 @@ proc/blood_splatter(var/target, var/source, var/large, var/spray_dir)
 	if(spray_dir)
 		splatter.icon_state = "squirt"
 		splatter.set_dir(spray_dir)
-
 	// Update blood information.
 	if(blood_data["blood_DNA"])
+		LAZYSET(splatter.blood_data, blood_data["blood_DNA"], blood_data)
 		splatter.blood_DNA = list()
 		if(blood_data["blood_type"])
 			splatter.blood_DNA[blood_data["blood_DNA"]] = blood_data["blood_type"]
@@ -262,7 +289,7 @@ proc/blood_splatter(var/target, var/source, var/large, var/spray_dir)
 
 //Percentage of maximum blood volume, affected by the condition of circulation organs
 /mob/living/carbon/human/proc/get_blood_circulation()
-	var/obj/item/organ/internal/heart/heart = internal_organs_by_name[BP_HEART]
+	var/obj/item/organ/internal/heart/heart = get_internal_organ(BP_HEART)
 	var/blood_volume = get_blood_volume()
 	if(!heart)
 		return 0.25 * blood_volume
@@ -286,11 +313,14 @@ proc/blood_splatter(var/target, var/source, var/large, var/spray_dir)
 				pulse_mod *= 1.25
 	blood_volume *= pulse_mod
 
+	if(lying)
+		blood_volume *= 1.25
+
 	var/min_efficiency = recent_pump ? 0.5 : 0.3
 	blood_volume *= max(min_efficiency, (1-(heart.damage / heart.max_damage)))
 
-	if(!heart.open && chem_effects[CE_BLOCKAGE])
-		blood_volume *= max(0, 1-chem_effects[CE_BLOCKAGE])
+	if(!heart.open && has_chemical_effect(CE_BLOCKAGE, 1))
+		blood_volume *= max(0, 1-GET_CHEMICAL_EFFECT(src, CE_BLOCKAGE))
 
 	return min(blood_volume, 100)
 
@@ -312,7 +342,7 @@ proc/blood_splatter(var/target, var/source, var/large, var/spray_dir)
 
 	var/blood_volume_mod = max(0, 1 - getOxyLoss()/(species.total_health/2))
 	var/oxygenated_mult = 0
-	if(chem_effects[CE_OXYGENATED])
+	if(has_chemical_effect(CE_OXYGENATED, 1))
 		oxygenated_mult = 0.5
 	blood_volume_mod = blood_volume_mod + oxygenated_mult - (blood_volume_mod * oxygenated_mult)
 	blood_volume = blood_volume * blood_volume_mod

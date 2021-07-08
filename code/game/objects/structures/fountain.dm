@@ -14,18 +14,20 @@
 /obj/structure/fountain/Initialize()
 	. = ..()
 	light_color = get_random_colour(lower = 190)
-	set_light(0.6, 3, 5, 2, light_color)
+	set_light(5, 0.5, light_color)
 
-/obj/structure/fountain/attack_hand(var/mob/living/user)
+/obj/structure/fountain/attack_hand(var/mob/user)
 	if(user.incapacitated())
 		return
 	if(!CanPhysicallyInteract(user))
 		return
 	if(used)
-		to_chat(user, "\The [src] is still and lifeless...")
+		to_chat(user,  SPAN_WARNING("\The [src] is still and lifeless..."))
 		return
-	if(!ishuman(user) || user.isSynthetic())
-		to_chat(user, "Try as you might to touch the fountain, some force prevents you from doing so.")
+
+	var/mob/living/carbon/human/H = user
+	if(!istype(H) || H.isSynthetic())
+		to_chat(user, SPAN_WARNING("A feeling of foreboding stills your hand. The fountain is not for your kind."))
 		return
 
 	if(alert("As you reach out to touch the fountain, a feeling of doubt overcomes you. Steel yourself and proceed?",,"Yes", "No") == "Yes")
@@ -37,7 +39,8 @@
 /obj/structure/fountain/proc/time_dilation(var/mob/living/carbon/human/user)
 	for(var/mob/living/L in oviewers(7, src))
 		L.flash_eyes(3)
-		L.eye_blurry += 9
+		SET_STATUS_MAX(L, STAT_BLURRY, 9)
+
 	visible_message("<span class='warning'>\The [src] erupts in a bright flash of light!</span>")
 	playsound(src,'sound/items/time.ogg',100)
 
@@ -47,11 +50,11 @@
 		user.became_older = TRUE
 		user.change_hair_color(80, 80, 80)
 		var/age_holder = round(rand(15,20))
-		user.age += age_holder
+		user.set_age(age_holder)
 	else               //become younger
 		to_chat(user, "<span class='cultannounce'>You touch the fountain. Everything stops - then reverses. You relive in an instant the events of your life. The fountain, yesterday's lunch, your first love, your first kiss. It all feels as though it just happened moments ago. Then it feels like it never happened at all. Time reverses back into normality and continues its advance. You feel great, but why are you here?</span>")
 		user.became_younger = TRUE
-		user.age = round(rand(15,17))
+		user.set_age(rand(15,17))
 	used = TRUE
 	desc = "The water flows beautifully from the spout, but the water in the pool does not ripple."
 
