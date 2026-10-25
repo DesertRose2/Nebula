@@ -11,13 +11,15 @@
 	desc = "Used to control a room's automated defenses."
 	icon = 'icons/obj/machines/turret_control.dmi'
 	icon_state = "control_standby"
-	anchored = 1
-	density = 0
+	anchored = TRUE
+	density = FALSE
+	obj_flags = OBJ_FLAG_MOVES_UNSUPPORTED
+	directional_offset = @'{"NORTH":{"y":-32}, "SOUTH":{"y":32}, "EAST":{"x":-32}, "WEST":{"x":32}}'
+
 	var/enabled = 0
 	var/lethal = 0
 	var/locked = 1
 	var/area/control_area //can be area name, path or nothing.
-	var/mob/living/silicon/ai/master_ai
 
 	var/check_arrest = 1	//checks if the perp is set to arrest
 	var/check_records = 1	//checks if a security record exists at all
@@ -46,13 +48,19 @@
 	. = ..()
 
 /obj/machinery/turretid/Initialize()
+	. = ..()
+	return INITIALIZE_HINT_LATELOAD // Because areas initialize AFTER these!
+
+/obj/machinery/turretid/LateInitialize()
 	if(!control_area)
 		control_area = get_area(src)
 	else if(istext(control_area))
-		for(var/area/A in world)
+		for(var/area/A in global.areas)
 			if(A.name && A.name==control_area)
 				control_area = A
 				break
+	else if(ispath(control_area))
+		control_area = locate(control_area) in global.areas
 
 	if(control_area)
 		var/area/A = control_area
@@ -69,11 +77,6 @@
 		to_chat(user, "<span class='notice'>There seems to be a firewall preventing you from accessing this device.</span>")
 		return 1
 
-	if(malf_upgraded && master_ai)
-		if((user == master_ai) || (user in master_ai.connected_robots))
-			return 0
-		return 1
-
 	if(locked && !issilicon(user))
 		to_chat(user, "<span class='notice'>Access denied.</span>")
 		return 1
@@ -86,18 +89,18 @@
 
 	return ..()
 
-/obj/machinery/turretid/attackby(obj/item/W, mob/user)
+/obj/machinery/turretid/attackby(obj/item/used_item, mob/user)
 	if(stat & BROKEN)
-		return
+		return FALSE
 
-	if(istype(W, /obj/item/card/id)||istype(W, /obj/item/modular_computer))
-		if(src.allowed(usr))
+	if(istype(used_item, /obj/item/card/id)||istype(used_item, /obj/item/modular_computer))
+		if(src.allowed(user))
 			if(emagged)
 				to_chat(user, "<span class='notice'>The turret control is unresponsive.</span>")
 			else
 				locked = !locked
 				to_chat(user, "<span class='notice'>You [ locked ? "lock" : "unlock"] the panel.</span>")
-		return
+		return TRUE
 	return ..()
 
 /obj/machinery/turretid/emag_act(var/remaining_charges, var/mob/user)
@@ -138,10 +141,9 @@
 		ui.open()
 		ui.set_auto_update(1)
 
-/obj/machinery/turretid/Topic(href, href_list)
-	if(..())
-		return 1
-
+/obj/machinery/turretid/OnTopic(mob/user, href_list)
+	if((. = ..()))
+		return
 
 	if(href_list["command"] && href_list["value"])
 		var/log_action = null
@@ -169,10 +171,10 @@
 			check_anomalies = value
 
 		if(!isnull(log_action))
-			log_and_message_admins("has [log_action]", 1)
+			log_and_message_admins("has [log_action]", user, loc)
 
 		updateTurrets()
-		return 1
+		return TOPIC_REFRESH
 
 /obj/machinery/turretid/proc/updateTurrets()
 	var/datum/turret_checks/TC = new
@@ -200,13 +202,13 @@
 	else if (enabled)
 		if (lethal)
 			icon_state = "control_kill"
-			set_light(1, 0.5, 2, 2, "#990000")
+			set_light(1.5, 1,COLOR_BLOOD_RED)
 		else
 			icon_state = "control_stun"
-			set_light(1, 0.5, 2, 2, "#ff9900")
+			set_light(1.5, 1,"#ff9900")
 	else
 		icon_state = "control_standby"
-		set_light(1, 0.5, 2, 2, "#003300")
+		set_light(1.5, 1,"#003300")
 
 /obj/machinery/turretid/emp_act(severity)
 	if(enabled)
@@ -230,13 +232,3 @@
 				updateTurrets()
 
 	..()
-
-
-/obj/machinery/turretid/malf_upgrade(var/mob/living/silicon/ai/user)
-	..()
-	malf_upgraded = 1
-	locked = 1
-	ailock = 0
-	to_chat(user, "\The [src] has been upgraded. It has been locked and can not be tampered with by anyone but you and your cyborgs.")
-	master_ai = user
-	return 1

@@ -4,24 +4,24 @@
 	icon = 'icons/obj/items/device/inducer.dmi'
 	icon_state = "inducer-sci"
 	item_state = "inducer-sci"
-	force = 7
-	origin_tech = "{'powerstorage':6,'engineering':4}"
+	_base_attack_force = 7
+	origin_tech = @'{"powerstorage":6,"engineering":4}'
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
-	slot_flags = SLOT_BELT
+	matter = list(/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT)
+	slot_flags = SLOT_LOWER_BODY
 
 	var/powertransfer = 500
 	var/coefficient = 0.9
-	var/opened = FALSE
 	var/failsafe = 0
-	var/obj/item/cell/cell = /obj/item/cell
 	var/recharging = FALSE
 
 /obj/item/inducer/Initialize()
 	. = ..()
-	if(ispath(cell))
-		cell = new cell(src)
+	setup_power_supply()
 	update_icon()
+
+/obj/item/inducer/setup_power_supply(loaded_cell_type, accepted_cell_type, power_supply_extension_type, charge_value)
+	return ..(/obj/item/cell, /obj/item/cell, /datum/extension/loaded_cell/panel, charge_value)
 
 /obj/item/inducer/proc/induce(obj/item/cell/target)
 	var/obj/item/cell/MyC = get_cell()
@@ -32,16 +32,8 @@
 	MyC.update_icon()
 	target.update_icon()
 
-/obj/item/inducer/get_cell()
-	return cell
-
-/obj/item/inducer/emp_act(severity)
-	..()
-	if(cell)
-		cell.emp_act(severity)
-
-/obj/item/inducer/afterattack(obj/O, mob/living/carbon/user, var/proximity)
-	if (!proximity || user.a_intent == I_HURT || CannotUse(user) || !recharge(O, user))
+/obj/item/inducer/afterattack(obj/O, mob/living/user, var/proximity)
+	if (!proximity || user.check_intent(I_FLAG_HARM) || CannotUse(user) || !recharge(O, user))
 		return ..()
 
 /obj/item/inducer/proc/CannotUse(mob/user)
@@ -54,29 +46,19 @@
 		return TRUE
 	return FALSE
 
+/obj/item/inducer/attackby(obj/item/used_item, mob/user)
+	var/obj/item/cell/my_cell = get_cell()
+	var/datum/extension/loaded_cell/panel/cell_loaded = get_extension(src, /datum/extension/loaded_cell)
 
-/obj/item/inducer/attackby(obj/item/W, mob/user)
-	if(isScrewdriver(W))
-		opened = !opened
-		to_chat(user, "<span class='notice'>You [opened ? "open" : "close"] the battery compartment.</span>")
-		update_icon()
-	if(istype(W, /obj/item/cell))
-		if (istype(W, /obj/item/cell/device))
-			to_chat(user, "<span class='warning'>\The [src] only takes full-size power cells.</span>")
-			return
-		if(opened)
-			if(!cell)
-				if(!user.unEquip(W, src))
-					return
-				to_chat(user, "<span class='notice'>You insert \the [W] into \the [src].</span>")
-				cell = W
-				update_icon()
-				return
-			else
-				to_chat(user, "<span class='notice'>\The [src] already has \a [cell] installed!</span>")
-				return
-	if(CannotUse(user) || recharge(W, user))
-		return
+	if(cell_loaded?.has_tool_unload_interaction(used_item))
+		return cell_loaded.try_unload(user, used_item)
+
+	else if(!istype(my_cell) && istype(used_item, /obj/item/cell))
+		return cell_loaded?.try_load(user, used_item)
+
+	else if(CannotUse(user) || recharge(used_item, user))
+		return TRUE
+
 	return ..()
 
 /obj/item/inducer/proc/recharge(atom/A, mob/user)
@@ -87,40 +69,37 @@
 	else
 		recharging = TRUE
 	var/obj/item/cell/MyC = get_cell()
-	var/obj/item/cell/C = A.get_cell()
+	var/obj/item/cell/cell = A.get_cell()
 	var/obj/O
 	if(istype(A, /obj))
 		O = A
-	if(C)
-		var/length = 10
+	if(cell)
+		var/charge_length = 10
 		var/done_any = FALSE
-		var/datum/effect/effect/system/spark_spread/sparks = new /datum/effect/effect/system/spark_spread()
-		sparks.set_up(1, 1, user.loc)
-		sparks.start()
-		if(C.charge >= C.maxcharge)
+		spark_at(user, amount = 1, cardinal_only = TRUE)
+		if(cell.charge >= cell.maxcharge)
 			to_chat(user, "<span class='notice'>\The [A] is fully charged!</span>")
 			recharging = FALSE
 			return TRUE
 		user.visible_message("\The [user] starts recharging \the [A] with \the [src].","<span class='notice'>You start recharging \the [A] with \the [src].</span>")
 		if (istype(A, /obj/item/gun/energy))
-			length = 30
+			charge_length = 30
 			if (user.get_skill_value(SKILL_WEAPONS) <= SKILL_ADEPT)
-				length += rand(10, 30)
+				charge_length += rand(10, 30)
 		if (user.get_skill_value(SKILL_ELECTRICAL) < SKILL_ADEPT)
-			length += rand(40, 60)
-		while(C.charge < C.maxcharge)
-			if(MyC.charge > max(0, MyC.charge*failsafe) && do_after(user, length, target = user))
+			charge_length += rand(40, 60)
+		while(cell.charge < cell.maxcharge)
+			if(MyC.charge > max(0, MyC.charge*failsafe) && do_after(user, charge_length, target = user))
 				if(CannotUse(user))
 					return TRUE
-				if(QDELETED(C))
+				if(QDELETED(cell))
 					return TRUE
-				sparks.start()
+				spark_at(user, amount = 1, cardinal_only = TRUE)
 				done_any = TRUE
-				induce(C)
+				induce(cell)
 				if(O)
 					O.update_icon()
 			else
-				qdel(sparks)
 				break
 		if(done_any) // Only show a message if we succeeded at least once
 			user.visible_message("\The [user] recharged \the [A]!","<span class='notice'>You recharged \the [A]!</span>")
@@ -137,41 +116,14 @@
 	else
 		return 0
 
-/obj/item/inducer/attack(mob/M, mob/user)
-	return
-
-
-/obj/item/inducer/attack_self(mob/user)
-	if(opened && cell)
-		user.visible_message("\The [user] removes \the [cell] from \the [src]!","<span class='notice'>You remove \the [cell].</span>")
-		cell.update_icon()
-		user.put_in_hands(cell)
-		cell = null
-		update_icon()
-
-
-/obj/item/inducer/examine(mob/living/M)
-	. = ..()
-	var/obj/item/cell/MyC = get_cell()
-	if(MyC)
-		to_chat(M, "<span class='notice'>Its display shows: [MyC.percent()]%.</span>")
-	else
-		to_chat(M,"<span class='notice'>Its display is dark.</span>")
-	if(opened)
-		to_chat(M,"<span class='notice'>Its battery compartment is open.</span>")
+/obj/item/inducer/use_on_mob(mob/living/target, mob/living/user, animate = TRUE)
+	return FALSE
 
 /obj/item/inducer/on_update_icon()
-	overlays.Cut()
-	if(opened)
-		if(!get_cell())
-			overlays += image(icon, "inducer-nobat")
-		else
-			overlays += image(icon,"inducer-bat")
-
-/obj/item/inducer/Destroy()
 	. = ..()
-	if(!ispath(cell))
-		QDEL_NULL(cell)
+	var/datum/extension/loaded_cell/panel/cell_loaded = get_extension(src, /datum/extension/loaded_cell)
+	if(istype(cell_loaded) && cell_loaded.panel_open)
+		add_overlay("inducer-[get_cell()? "bat" : "nobat"]")
 
 // module version
 
@@ -179,16 +131,14 @@
 	icon_state = "inducer-engi"
 	item_state = "inducer-engi"
 	failsafe = 0.2
-	cell = null
 
-/obj/item/inducer/borg/attackby(obj/item/W, mob/user)
-	if(isScrewdriver(W))
-		return
-	. = ..()
+/obj/item/inducer/borg/setup_power_supply(loaded_cell_type, accepted_cell_type, power_supply_extension_type, charge_value)
+	SHOULD_CALL_PARENT(FALSE)
+	return
 
 /obj/item/inducer/borg/on_update_icon()
 	. = ..()
-	overlays += image("icons/obj/guns/gui.dmi","safety[safety()]")
+	add_overlay(overlay_image("icons/obj/guns/gui.dmi", "safety[safety()]"))
 
 /obj/item/inducer/borg/verb/toggle_safety(var/mob/user)
 	set src in usr
@@ -203,4 +153,4 @@
 		to_chat(user, "<span class='notice'>You switch your battery output failsafe [safety() ? "on" : "off"	].</span>")
 
 /obj/item/inducer/borg/get_cell()
-	return loc ? loc.get_cell() : null
+	return loc?.get_cell()

@@ -2,15 +2,15 @@
 	name = "advanced energy gun"
 	desc = "An energy gun with an experimental miniaturized reactor."
 	icon = 'icons/obj/guns/adv_egun.dmi'
-	origin_tech = "{'combat':3,'materials':5,'powerstorage':3}"
-	slot_flags = SLOT_BELT
+	origin_tech = @'{"combat":3,"materials":5,"powerstorage":3}'
+	slot_flags = SLOT_LOWER_BODY
 	w_class = ITEM_SIZE_LARGE
-	force = 8 //looks heavier than a pistol
+	_base_attack_force = 8 //looks heavier than a pistol
 	self_recharge = 1
 	one_hand_penalty = 1 //bulkier than an e-gun, but not quite the size of a carbine
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/metal/uranium = MATTER_AMOUNT_TRACE
 	)
 
@@ -40,7 +40,7 @@
 			if(ismob(loc))
 				to_chat(loc, "<span class='warning'>\The [src] feels pleasantly warm.</span>")
 
-/obj/item/gun/energy/gun/nuclear/proc/get_charge_color()
+/obj/item/gun/energy/gun/nuclear/get_charge_color()
 	switch(get_charge_ratio())
 		if(25)
 			return COLOR_RED
@@ -54,15 +54,10 @@
 /obj/item/gun/energy/gun/nuclear/on_update_icon()
 	indicator_color = get_charge_color()
 	. = ..()
-	var/list/new_overlays = list()
-
 	var/reactor_icon = fail_counter ? "danger" : "clean"
-	new_overlays += get_mutable_overlay(icon, "[get_world_inventory_state()]_[reactor_icon]")
+	add_overlay("[get_world_inventory_state()]_[reactor_icon]")
 	var/datum/firemode/current_mode = firemodes[sel_mode]
-	new_overlays += get_mutable_overlay(icon, "[get_world_inventory_state()]_[current_mode.name]")
+	add_overlay("[get_world_inventory_state()]_[current_mode.name]")
 
-	overlays += new_overlays
-
-/obj/item/gun/energy/gun/nuclear/add_onmob_charge_meter(image/I)
-	I.overlays += get_mutable_overlay(icon, "[I.icon_state]_charge", get_charge_color())
-	return I
+/obj/item/gun/energy/gun/nuclear/get_charge_state(var/initial_state)
+	return "[initial_state]_charge"

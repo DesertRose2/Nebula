@@ -1,0 +1,67 @@
+/obj/item/remains
+	name = "remains"
+	gender = PLURAL
+	icon = 'icons/effects/remains.dmi'
+	icon_state = "remains"
+	anchored = FALSE
+	material = /decl/material/solid/organic/bone
+
+/obj/item/remains/human
+	desc = "They look like human remains. They have a strange aura about them."
+
+/obj/item/remains/ribcage
+	desc = "They look like animal remains of some sort... You hope."
+	icon_state = "remainsribcage"
+
+/obj/item/remains/deer
+	desc = "They look like the remains of a large herbivore, picked clean."
+	icon_state = "remainsdeer"
+
+/obj/item/remains/posi
+	desc = "This looks like part of an old humanoid synthetic. Hopefully it wasn't sentient."
+	icon_state = "remainsposi"
+
+/obj/item/remains/mummy1
+	name = "mummified remains"
+	desc = "They look like human remains. They've been here a long time."
+	icon_state = "mummified1"
+
+/obj/item/remains/mummy2
+	name = "mummified remains"
+	desc = "They look like human remains. They've been here a long time."
+	icon_state = "mummified2"
+
+
+/obj/item/remains/xeno
+	desc = "They look like the remains of something... alien. They have a strange aura about them."
+	icon_state = "remainsxeno"
+
+/obj/item/remains/xeno/charred
+	color = COLOR_DARK_GRAY
+
+/obj/item/remains/robot
+	desc = "They look like the remains of something mechanical. They have a strange aura about them."
+	icon = 'icons/mob/robots/_gibs.dmi'
+	icon_state = "remainsrobot"
+	material = /decl/material/solid/metal/steel
+
+/obj/item/remains/mouse
+	desc = "They look like the remains of a small rodent."
+	icon_state = "mouse"
+
+/obj/item/remains/lizard
+	desc = "They look like the remains of a small rodent."
+	icon_state = "lizard"
+
+/obj/item/remains/attack_hand(mob/user)
+	SHOULD_CALL_PARENT(FALSE)
+	to_chat(user, SPAN_NOTICE("\The [src] sinks together into a pile of ash."))
+	var/turf/floor = get_turf(src)
+	if(floor?.is_floor() && floor.simulated)
+		new /obj/effect/decal/cleanable/ash(floor)
+	qdel(src)
+	return TRUE
+
+/obj/item/remains/robot/attack_hand(mob/user)
+	SHOULD_CALL_PARENT(FALSE)
+	return TRUE

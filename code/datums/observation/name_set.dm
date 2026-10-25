@@ -8,11 +8,10 @@
 //			/old_name: name before the change
 //			/new_name: name after the change
 
-GLOBAL_DATUM_INIT(name_set_event, /decl/observ/name_set, new)
-
 /decl/observ/name_set
 	name = "Name Set"
 	expected_type = /atom
+	flags = OBSERVATION_NO_GLOBAL_REGISTRATIONS
 
 /*********************
 * Name Set Handling *
@@ -25,4 +24,6 @@ GLOBAL_DATUM_INIT(name_set_event, /decl/observ/name_set, new)
 		if(has_extension(src, /datum/extension/labels))
 			var/datum/extension/labels/L = get_extension(src, /datum/extension/labels)
 			name = L.AppendLabelsToName(name)
-		GLOB.name_set_event.raise_event(src, old_name, new_name)
+		if(event_listeners?[/decl/observ/name_set])
+			raise_event_non_global(/decl/observ/name_set, old_name, new_name)
+		update_above()

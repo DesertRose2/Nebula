@@ -15,7 +15,7 @@
 	var/datum/shuttle/S = SSshuttle.shuttles[shuttle_tag]
 
 	var/list/destinations = list()
-	for(var/obj/effect/shuttle_landmark/WP in world)
+	for(var/obj/effect/shuttle_landmark/WP in global.shuttle_landmarks)
 		destinations += WP
 
 	var/obj/effect/shuttle_landmark/destination = input(user, "Select the destination for this jump.") as null|anything in destinations
@@ -29,7 +29,7 @@
 		var/move_duration = input(user, "How many seconds will this jump take?") as num
 
 		S.long_jump(destination, transition, move_duration)
-		log_and_message_admins("has initiated a jump to [destination] (<A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[destination.x];Y=[destination.y];Z=[destination.z]'>JMP</a>) lasting [move_duration] seconds in transit at [transition] (<A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[transition.x];Y=[transition.y];Z=[transition.z]'>JMP</a>) for the [shuttle_tag] shuttle")
+		log_and_message_admins("has initiated a jump to [destination] (<A HREF='byond://?_src_=holder;adminplayerobservecoodjump=1;X=[destination.x];Y=[destination.y];Z=[destination.z]'>JMP</a>) lasting [move_duration] seconds in transit at [transition] (<A HREF='byond://?_src_=holder;adminplayerobservecoodjump=1;X=[transition.x];Y=[transition.y];Z=[transition.z]'>JMP</a>) for the [shuttle_tag] shuttle")
 	else
 		S.short_jump(destination)
-		log_and_message_admins("has initiated a jump to [destination] (<A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[destination.x];Y=[destination.y];Z=[destination.z]'>JMP</a>) for the [shuttle_tag] shuttle")
+		log_and_message_admins("has initiated a jump to [destination] (<A HREF='byond://?_src_=holder;adminplayerobservecoodjump=1;X=[destination.x];Y=[destination.y];Z=[destination.z]'>JMP</a>) for the [shuttle_tag] shuttle")

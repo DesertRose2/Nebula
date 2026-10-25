@@ -3,8 +3,8 @@
 	desc = "A blocky, plastic novelty launcher that claims to be able to shoot money at considerable velocities."
 	icon = 'icons/obj/guns/launcher/money.dmi'
 	icon_state = ICON_STATE_WORLD
-	origin_tech = "{'combat':1,'materials':1}"
-	slot_flags = SLOT_BELT
+	origin_tech = @'{"combat":1,"materials":1}'
+	slot_flags = SLOT_LOWER_BODY
 	w_class = ITEM_SIZE_SMALL
 	release_force = 80
 	fire_sound_text = "a whoosh and a crisp, papery rustle"
@@ -18,8 +18,8 @@
 /obj/item/gun/launcher/money/hacked
 	emagged = 1
 
-/obj/item/gun/launcher/money/proc/vomit_cash(var/mob/vomit_onto, var/projectile_vomit)
-	var/bundle_worth = Floor(receptacle_value / 10)
+/obj/item/gun/launcher/money/proc/vomit_cash(var/mob/living/vomit_onto, var/projectile_vomit)
+	var/bundle_worth = floor(receptacle_value / 10)
 	var/turf/T = get_turf(vomit_onto)
 	for(var/i = 1 to 10)
 		var/nv = bundle_worth
@@ -30,16 +30,16 @@
 		var/obj/item/cash/bling = new(T)
 		bling.adjust_worth(nv)
 		if(projectile_vomit)
-			for(var/j = 1, j <= rand(2, 4), j++)
-				step(bling, pick(GLOB.cardinal))
+			for(var/j in 1 to rand(2, 4))
+				step(bling, pick(global.cardinal))
 
 	if(projectile_vomit)
-		vomit_onto.AdjustStunned(3)
-		vomit_onto.AdjustWeakened(3)
+		ADJ_STATUS(vomit_onto, STAT_STUN, 3)
+		ADJ_STATUS(vomit_onto, STAT_WEAK, 3)
 		vomit_onto.visible_message("<span class='danger'>\The [vomit_onto] blasts themselves full in the face with \the [src]!</span>")
 		playsound(T, "sound/weapons/gunshot/money_launcher_jackpot.ogg", 100, 1)
 	else
-		var/decl/currency/cur = decls_repository.get_decl(GLOB.using_map.default_currency)
+		var/decl/currency/cur = GET_DECL(global.using_map.default_currency)
 		vomit_onto.visible_message("<span class='danger'>\The [vomit_onto] ejects a few [cur.name] into their face.</span>")
 		playsound(T, 'sound/weapons/gunshot/money_launcher.ogg', 100, 1)
 
@@ -64,7 +64,7 @@
 	var/obj/item/cash/bling = new
 	bling.adjust_worth(receptacle_value)
 	user.put_in_hands(bling)
-	var/decl/currency/cur = decls_repository.get_decl(GLOB.using_map.default_currency)
+	var/decl/currency/cur = GET_DECL(global.using_map.default_currency)
 	to_chat(user, "<span class='notice'>You eject [receptacle_value] [cur.name_singular] from [src]'s receptacle.</span>")
 	receptacle_value = 0
 
@@ -77,7 +77,7 @@
 	to_chat(user, "<span class='notice'>You load [bling] into [src].</span>")
 	qdel(bling)
 
-/obj/item/gun/launcher/money/consume_next_projectile(mob/user=null)
+/obj/item/gun/launcher/money/consume_next_projectile()
 	if(!receptacle_value || receptacle_value < 1)
 		return null
 
@@ -92,14 +92,12 @@
 	bling.update_icon()
 	update_release_force(bling.absolute_worth)
 	if(release_force >= 1)
-		var/datum/effect/effect/system/spark_spread/s = new()
-		s.set_up(3, 1, src)
-		s.start()
+		spark_at(src, cardinal_only = TRUE)
 
 	return bling
 
 /obj/item/gun/launcher/money/attack_self(mob/user)
-	var/decl/currency/cur = decls_repository.get_decl(GLOB.using_map.default_currency)
+	var/decl/currency/cur = GET_DECL(global.using_map.default_currency)
 	var/disp_amount = min(input(user, "How many [cur.name_singular] do you want to dispense at a time? (0 to [src.receptacle_value])", "Money Cannon Settings", 20) as num, receptacle_value)
 	if (disp_amount < 1)
 		to_chat(user, "<span class='warning'>You have to dispense at least one [cur.name_singular] at a time!</span>")
@@ -108,49 +106,46 @@
 	to_chat(user, "<span class='notice'>You set [src] to dispense [dispensing] [cur.name_singular] at a time.</span>")
 
 /obj/item/gun/launcher/money/attack_hand(mob/user)
-	if(user.get_inactive_hand() == src)
-		unload_receptacle(user)
-	else
+	if(!user.is_holding_offhand(src) || !user.check_dexterity(DEXTERITY_HOLD_ITEM, TRUE))
 		return ..()
+	unload_receptacle(user)
+	return TRUE
 
-/obj/item/gun/launcher/money/attackby(obj/item/W, mob/user)
-	if(istype(W, /obj/item/cash/))
-		var/obj/item/cash/bling = W
+/obj/item/gun/launcher/money/attackby(obj/item/used_item, mob/user)
+	if(istype(used_item, /obj/item/cash))
+		var/obj/item/cash/bling = used_item
 		if(bling.absolute_worth < 1)
 			to_chat(user, "<span class='warning'>You can't seem to get \the [bling] to slide into the receptacle.</span>")
-			return
+			return TRUE
 
-		var/decl/currency/cur = decls_repository.get_decl(bling.currency)
-		if(bling.currency != GLOB.using_map.default_currency)
+		var/decl/currency/cur = GET_DECL(bling.currency)
+		if(bling.currency != global.using_map.default_currency)
 			to_chat(user, SPAN_WARNING("Due to local legislation and budget cuts, \the [src] will only accept [cur.name]."))
-			return
+			return TRUE
 
 		receptacle_value += bling.absolute_worth
 		to_chat(user, "<span class='notice'>You slide [bling.get_worth()] [cur.name_singular] into [src]'s receptacle.</span>")
 		qdel(bling)
-
+		return TRUE
 	else
-		to_chat(user, "<span class='warning'>That's not going to fit in there.</span>")
+		return ..()
 
-/obj/item/gun/launcher/money/examine(mob/user)
+/obj/item/gun/launcher/money/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..(user)
-	var/decl/currency/cur = decls_repository.get_decl(GLOB.using_map.default_currency)
-	to_chat(user, "It is configured to dispense [dispensing] [cur.name_singular] at a time.")
-
+	var/decl/currency/cur = GET_DECL(global.using_map.default_currency)
+	. += "It is configured to dispense [dispensing] [cur.name_singular] at a time."
 	if(receptacle_value >= 1)
-		to_chat(user, "The receptacle is loaded with [receptacle_value] [cur.name_singular].")
-
+		. += "The receptacle is loaded with [receptacle_value] [cur.name_singular]."
 	else
-		to_chat(user, "The receptacle is empty.")
-
+		. += "The receptacle is empty."
 	if(emagged)
-		to_chat(user, "<span class='notice'>Its motors are severely overloaded.</span>")
+		. += SPAN_NOTICE("Its motors are severely overloaded.")
 
 /obj/item/gun/launcher/money/handle_suicide(mob/living/user)
 	if(!ishuman(user))
 		return
 
-	var/mob/living/carbon/human/M = user
+	var/mob/living/human/M = user
 	M.visible_message("<span class='danger'>[user] sticks [src] in their mouth, ready to pull the trigger...</span>")
 
 	if(!do_after(user, 40, progress = 0))
@@ -164,8 +159,6 @@
 	if(!emagged)
 		emagged = 1
 		to_chat(user, "<span class='notice'>You slide the sequencer into [src]... only for it to spit it back out and emit a motorized squeal!</span>")
-		var/datum/effect/effect/system/spark_spread/s = new()
-		s.set_up(3, 1, src)
-		s.start()
+		spark_at(src, cardinal_only = TRUE)
 	else
 		to_chat(user, "<span class='notice'>[src] seems to have been tampered with already.</span>")

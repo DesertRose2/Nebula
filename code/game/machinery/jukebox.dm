@@ -1,27 +1,11 @@
-//This file was auto-corrected by findeclaration.exe on 25.5.2012 20:42:32
-
-/datum/track
-	var/title
-	var/track
-
-/datum/track/New(var/title, var/track)
-	src.title = title
-	src.track = track
-
-datum/track/proc/GetTrack()
-	if(ispath(track, /music_track))
-		var/music_track/music_track = decls_repository.get_decl(track)
-		return music_track.song
-	return track // Allows admins to continue their adminbus simply by overriding the track var
-
 /obj/machinery/media/jukebox
 	name = "mediatronic jukebox"
 	desc = "An immense, standalone touchscreen on a swiveling base, equipped with phased array speakers. Embossed on one corner of the ultrathin bezel is the brand name, 'Leitmotif Enterprise Edition'."
 	icon = 'icons/obj/jukebox_new.dmi'
 	icon_state = "jukebox3-nopower"
 	var/state_base = "jukebox3"
-	anchored = 1
-	density = 1
+	anchored = TRUE
+	density = TRUE
 	power_channel = EQUIP
 	idle_power_usage = 10
 	active_power_usage = 100
@@ -33,7 +17,7 @@ datum/track/proc/GetTrack()
 	construct_state = /decl/machine_construction/default/panel_closed
 
 	var/playing = 0
-	var/volume = 20
+	var/music_volume = 20
 
 	var/sound_id
 	var/datum/sound_token/sound_token
@@ -100,7 +84,7 @@ datum/track/proc/GetTrack()
 		"current_track" = current_track != null ? current_track.title : "No track selected",
 		"playing" = playing,
 		"tracks" = juke_tracks,
-		"volume" = volume
+		"volume" = music_volume
 	)
 
 	ui = SSnano.try_update_ui(user, src, ui_key, ui, data, force_open)
@@ -126,7 +110,7 @@ datum/track/proc/GetTrack()
 		if(emagged)
 			emag_play()
 		else if(!current_track)
-			to_chat(usr, "No track selected.")
+			to_chat(user, "No track selected.")
 		else
 			StartPlaying()
 		return TOPIC_REFRESH
@@ -137,20 +121,20 @@ datum/track/proc/GetTrack()
 
 /obj/machinery/media/jukebox/proc/emag_play()
 	playsound(loc, 'sound/items/AirHorn.ogg', 100, 1)
-	for(var/mob/living/carbon/M in ohearers(6, src))
-		if(istype(M, /mob/living/carbon/human))
-			var/mob/living/carbon/human/H = M
+	for(var/mob/living/M in ohearers(6, src))
+		if(ishuman(M))
+			var/mob/living/human/H = M
 			if(H.get_sound_volume_multiplier() < 0.2)
 				continue
-		M.sleeping = 0
-		M.stuttering += 20
-		M.ear_deaf += 30
-		M.Weaken(3)
+		M.set_status_condition(STAT_ASLEEP,    0)
+		ADJ_STATUS(M, STAT_STUTTER,  20)
+		SET_STATUS_MAX(M, STAT_DEAF, 30)
+		SET_STATUS_MAX(M, STAT_WEAK,  3)
 		if(prob(30))
-			M.Stun(10)
-			M.Paralyse(4)
+			SET_STATUS_MAX(M, STAT_STUN, 10)
+			SET_STATUS_MAX(M, STAT_PARA,  4)
 		else
-			M.make_jittery(400)
+			M.set_status_condition(STAT_JITTER, 400)
 	spawn(15)
 		explode()
 
@@ -159,24 +143,21 @@ datum/track/proc/GetTrack()
 	return TRUE
 
 /obj/machinery/media/jukebox/proc/explode()
-	walk_to(src,0)
 	src.visible_message("<span class='danger'>\the [src] blows apart!</span>", 1)
 
 	explosion(src.loc, 0, 0, 1, rand(1,2), 1)
 
-	var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-	s.set_up(3, 1, src)
-	s.start()
+	spark_at(src, cardinal_only = TRUE)
 
 	new /obj/effect/decal/cleanable/blood/oil(src.loc)
 	qdel(src)
 
-/obj/machinery/media/jukebox/attackby(obj/item/W, mob/user)
-	if(isWrench(W) && !panel_open)
+/obj/machinery/media/jukebox/attackby(obj/item/used_item, mob/user)
+	if((IS_WRENCH(used_item) || IS_HAMMER(used_item)) && !panel_open)
 		add_fingerprint(user)
-		wrench_floor_bolts(user, 0)
+		wrench_floor_bolts(user, 0, used_item)
 		power_change()
-		return
+		return TRUE
 	return ..()
 
 /obj/machinery/media/jukebox/emag_act(var/remaining_charges, var/mob/user)
@@ -190,7 +171,6 @@ datum/track/proc/GetTrack()
 /obj/machinery/media/jukebox/proc/StopPlaying()
 	playing = 0
 	update_use_power(POWER_USE_IDLE)
-	update_icon()
 	QDEL_NULL(sound_token)
 
 
@@ -200,13 +180,12 @@ datum/track/proc/GetTrack()
 		return
 
 	// Jukeboxes cheat massively and actually don't share id. This is only done because it's music rather than ambient noise.
-	sound_token = GLOB.sound_player.PlayLoopingSound(src, sound_id, current_track.GetTrack(), volume = volume, range = 7, falloff = 3, prefer_mute = TRUE, preference = /datum/client_preference/play_game_music)
+	sound_token = play_looping_sound(src, sound_id, current_track.GetTrack(), volume = music_volume, range = 7, falloff = 3, prefer_mute = TRUE, preference = /datum/client_preference/play_game_music, streaming = TRUE)
 
 	playing = 1
 	update_use_power(POWER_USE_ACTIVE)
-	update_icon()
 
 /obj/machinery/media/jukebox/proc/AdjustVolume(var/new_volume)
-	volume = Clamp(new_volume, 0, 50)
+	music_volume = clamp(new_volume, 0, 50)
 	if(sound_token)
-		sound_token.SetVolume(volume)
+		sound_token.SetVolume(music_volume)

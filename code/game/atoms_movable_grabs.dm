@@ -3,16 +3,36 @@
 		return FALSE
 	if(!CanPhysicallyInteract(grabber))
 		return FALSE
-	if(grabber.anchored || grabber.buckled)
+	if(!buckled_grab_check(grabber))
 		return FALSE
 	if(anchored)
 		to_chat(grabber, SPAN_WARNING("\The [src] won't budge!"))
 		return FALSE
 	return TRUE
 
-/atom/movable/proc/reset_pixel_offsets_for_grab(var/obj/item/grab/G)
-	reset_plane_and_layer()
+/atom/movable/proc/buckled_grab_check(var/mob/grabber)
+	if(grabber.buckled == src && (grabber in get_buckled_mobs()))
+		return TRUE
+	if(grabber.anchored)
+		return FALSE
+	if(grabber.buckled)
+		return FALSE
+	return TRUE
 
-/atom/movable/proc/adjust_pixel_offsets_for_grab(var/obj/item/grab/G, var/grab_dir)
-	reset_plane_and_layer()
+/atom/movable/handle_grab_interaction(var/mob/user)
 
+	// Anchored check so we can operate switches etc on grab intent without getting grab failure msgs.
+	// NOTE: /mob/living overrides this to return FALSE in favour of using default_grab_interaction
+	if(isliving(user) && user.check_intent(I_FLAG_GRAB) && !user.current_posture.prone && !anchored)
+		return try_make_grab(user)
+	return ..()
+
+/atom/movable/proc/try_make_grab(mob/living/user, defer_hand = FALSE)
+	if(istype(user) && CanPhysicallyInteract(user) && !user.current_posture.prone)
+		if(user in get_buckled_mobs())
+			return give_control_grab(user)
+		return user.make_grab(src, defer_hand = defer_hand)
+	return null
+
+/atom/movable/proc/give_control_grab(var/mob/M)
+	return

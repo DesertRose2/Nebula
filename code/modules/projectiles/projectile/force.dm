@@ -3,14 +3,30 @@
 	icon = 'icons/obj/projectiles.dmi'
 	icon_state = "ice_1"
 	damage = 20
-	damage_type = BURN
+	atom_damage_type = BURN
 	damage_flags = 0
-
-/obj/item/projectile/forcebolt/strong
-	name = "force bolt"
+	impact_effect_type = /obj/effect/temp_visual/impact_effect/blue_laser
+	hitsound_non_mob = 'sound/weapons/searwall.ogg'
 
 /obj/item/projectile/forcebolt/on_hit(var/atom/movable/target, var/blocked = 0)
-	if(istype(target))
-		var/throwdir = get_dir(firer,target)
+	if(istype(target) && isturf(target.loc))
+		var/throwdir = get_dir(firer_ref?.resolve(),target)
 		target.throw_at(get_edge_target_turf(target, throwdir),10,10)
 		return 1
+
+/obj/item/projectile/firebolt
+	name = "fireball"
+	icon_state = "fireball"
+	fire_sound = 'sound/magic/fireball.ogg'
+	damage = 20
+	atom_damage_type = BURN
+	damage_flags = 0
+
+	var/ex_severe = -1
+	var/ex_heavy =  -1
+	var/ex_light =   1
+	var/ex_flash =   2
+
+/obj/item/projectile/firebolt/on_impact(var/atom/A)
+	. = ..()
+	explosion(A, ex_severe, ex_heavy, ex_light, ex_flash)

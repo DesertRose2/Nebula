@@ -3,21 +3,19 @@
 /obj/effect/step_trigger
 	var/affect_ghosts = 0
 	var/stopper = 1 // stops throwers
-	invisibility = 101 // nope cant see this shit
-	anchored = 1
+	invisibility = INVISIBILITY_ABSTRACT // nope cant see this shit
+	anchored = TRUE
+	icon = 'icons/misc/mark.dmi'
+	icon_state = "X"
 
 /obj/effect/step_trigger/proc/Trigger(var/atom/movable/A)
 	return 0
 
-/obj/effect/step_trigger/Crossed(H)
+/obj/effect/step_trigger/Crossed(atom/movable/AM)
 	..()
-	if(!H)
+	if(!AM || (isobserver(AM) && !(isghost(AM) && affect_ghosts)))
 		return
-	if(isobserver(H) && !(isghost(H) && affect_ghosts))
-		return
-	Trigger(H)
-
-
+	Trigger(AM)
 
 /* Tosses things in a certain direction */
 
@@ -94,17 +92,17 @@
 	var/teleport_y = 0
 	var/teleport_z = 0
 
-	Trigger(var/atom/movable/A)
-		if(teleport_x && teleport_y && teleport_z)
+/obj/effect/step_trigger/teleporter/Trigger(var/atom/movable/A)
+	if(teleport_x && teleport_y && teleport_z)
 
-			A.x = teleport_x
-			A.y = teleport_y
-			A.z = teleport_z
+		A.x = teleport_x
+		A.y = teleport_y
+		A.z = teleport_z
 
 /* Random teleporter, teleports atoms to locations ranging from teleport_x - teleport_x_offset, etc */
 
 /obj/effect/step_trigger/teleporter/random
-	opacity = 1
+	opacity = TRUE
 	var/teleport_x_offset = 0
 	var/teleport_y_offset = 0
 	var/teleport_z_offset = 0

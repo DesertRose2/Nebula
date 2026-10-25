@@ -1,10 +1,11 @@
-var/list/cag_card_text_lists = list()
+var/global/list/cag_card_text_lists = list()
 
 // This is a parody of Cards Against Humanity (https://en.wikipedia.org/wiki/Cards_Against_Humanity)
 // which is licensed under CC BY-NC-SA 2.0, the full text of which can be found at the following URL:
 // https://creativecommons.org/licenses/by-nc-sa/2.0/legalcode
 
 /obj/item/deck/cag
+	abstract_type = /obj/item/deck/cag
 	var/load_text_from_file
 
 /obj/item/deck/cag/Initialize()

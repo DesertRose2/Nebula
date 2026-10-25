@@ -3,7 +3,7 @@
 	desc = "A paper scanning module. It can scan writing and save it to a file."
 	external_slot = TRUE
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
+	matter = list(/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT)
 
 /obj/item/stock_parts/computer/scanner/paper/can_use_scanner(mob/user, obj/item/paper/target, proximity = TRUE)
 	if(!..())
@@ -27,7 +27,7 @@
 	driver.scan_file_type = target.scan_file_type
 
 	if(target.type == /obj/item/paper/bodyscan)
-		driver.data_buffer = display_medical_data(target.metadata.Copy(),user.get_skill_value(SKILL_MEDICAL), TRUE)	
+		driver.data_buffer = display_medical_data(driver.metadata_buffer,user.get_skill_value(SKILL_MEDICAL), TRUE)
 	else
 		driver.data_buffer = data
 
@@ -36,3 +36,4 @@
 
 /obj/item/stock_parts/computer/scanner/paper/do_on_attackby(mob/user, atom/target)
 	do_on_afterattack(user, target, TRUE)
+	return can_use_scanner(user, target, TRUE)

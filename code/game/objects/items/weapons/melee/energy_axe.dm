@@ -1,0 +1,21 @@
+/obj/item/energy_blade/axe
+	name = "energy axe"
+	desc = "An energised battle axe."
+	icon = 'icons/obj/items/weapon/e_axe.dmi'
+	lighting_color = COLOR_SABER_AXE
+	throw_speed = 1
+	throw_range = 5
+	w_class = ITEM_SIZE_NORMAL
+	atom_flags = ATOM_FLAG_NO_BLOOD
+	obj_flags = OBJ_FLAG_CONDUCTIBLE
+	item_flags = ITEM_FLAG_IS_WEAPON
+	origin_tech = @'{"magnets":3,"combat":4}'
+	active_attack_verb =   list("attacked", "chopped", "cleaved", "torn", "cut")
+	inactive_attack_verb = list("attacked", "chopped", "cleaved", "torn", "cut")
+	sharp = TRUE
+	edge = TRUE
+	base_parry_chance =    30
+	active_parry_chance =  30
+	melee_accuracy_bonus = 15
+	_active_base_attack_force = 40
+	_base_attack_force = 20

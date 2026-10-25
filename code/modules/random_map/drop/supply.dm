@@ -18,7 +18,7 @@
 			var/obj/structure/largecrate/C = locate() in T
 			for(var/drop_type in supplied_drop_types)
 				var/atom/movable/A = new drop_type(T)
-				if(!istype(A, /mob))
+				if(!ismob(A))
 					if(!C) C = new(T)
 					C.contents |= A
 			return
@@ -90,4 +90,4 @@
 	if(choice == "No")
 		return
 	log_admin("[key_name(usr)] dropped supplies at ([usr.x],[usr.y],[usr.z])")
-	new /datum/random_map/droppod/supply(null, usr.x-2, usr.y-2, usr.z, supplied_drops = chosen_loot_types, supplied_drop = chosen_loot_type)
+	new /datum/random_map/droppod/supply(usr.x-2, usr.y-2, usr.z, supplied_drops = chosen_loot_types, supplied_drop = chosen_loot_type)

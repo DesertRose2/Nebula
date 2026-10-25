@@ -1,22 +1,28 @@
 // Pretty much everything here is stolen from the dna scanner FYI
 /obj/machinery/bodyscanner
-	var/mob/living/carbon/human/occupant
+	var/mob/living/human/occupant
 	var/locked
-	name = "Body Scanner"
+	name = "body scanner"
 	icon = 'icons/obj/Cryogenic2.dmi'
 	icon_state = "body_scanner_0"
-	density = 1
-	anchored = 1
+	density = TRUE
+	anchored = TRUE
 	idle_power_usage = 60
 	active_power_usage = 10000	//10 kW. It's a big all-body scanner.
 	construct_state = /decl/machine_construction/default/panel_closed
 	uncreated_component_parts = null
-	stat_immune = 0
+	var/open_sound = 'sound/machines/podopen.ogg'
+	var/close_sound = 'sound/machines/podclose.ogg'
 
-/obj/machinery/bodyscanner/examine(mob/user)
+// Don't dump out the occupant!
+/obj/machinery/bodyscanner/proc/dump_obj_contents()
+	for(var/obj/O in get_contained_external_atoms())
+		O.dropInto(loc)
+
+/obj/machinery/bodyscanner/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
 	if (occupant && user.Adjacent(src))
-		occupant.examine(arglist(args))
+		occupant.get_examine_strings(user, distance, infix, suffix)
 
 /obj/machinery/bodyscanner/relaymove(mob/user)
 	..()
@@ -42,39 +48,34 @@
 	usr.client.perspective = EYE_PERSPECTIVE
 	usr.client.eye = src
 
-/obj/machinery/bodyscanner/proc/drop_contents()
-	for(var/obj/O in (contents - component_parts))
-		O.dropInto(loc)
-
 /obj/machinery/bodyscanner/proc/go_out()
 	if ((!( src.occupant ) || src.locked))
 		return
-	drop_contents()
+	dump_obj_contents()
 	if (src.occupant.client)
 		src.occupant.client.eye = src.occupant.client.mob
 		src.occupant.client.perspective = MOB_PERSPECTIVE
 	src.occupant.dropInto(loc)
 	src.occupant = null
 	update_use_power(POWER_USE_IDLE)
-	update_icon()
 	SetName(initial(name))
+	if(open_sound)
+		playsound(src, open_sound, 40)
 
 /obj/machinery/bodyscanner/state_transition(var/decl/machine_construction/default/new_state)
 	. = ..()
 	if(istype(new_state))
 		updateUsrDialog()
 
-/obj/machinery/bodyscanner/attackby(obj/item/grab/G, user)
-	if(istype(G))
-		var/mob/M = G.get_affecting_mob()
-		if(!M || !user_can_move_target_inside(M, user))
-			return
-		qdel(G)
+/obj/machinery/bodyscanner/grab_attack(obj/item/grab/grab, mob/user)
+	var/mob/living/victim = grab.get_affecting_mob()
+	if(istype(victim) && user_can_move_target_inside(victim, user))
+		qdel(grab)
 		return TRUE
 	return ..()
 
 /obj/machinery/bodyscanner/proc/user_can_move_target_inside(var/mob/target, var/mob/user)
-	if(!istype(user) || !istype(target))
+	if(!istype(user) || !istype(target) || target.anchored)
 		return FALSE
 	if(occupant)
 		to_chat(user, "<span class='warning'>The scanner is already occupied!</span>")
@@ -90,11 +91,12 @@
 	src.occupant = target
 
 	update_use_power(POWER_USE_ACTIVE)
-	update_icon()
-	drop_contents()
+	dump_obj_contents()
 	SetName("[name] ([occupant])")
 
 	src.add_fingerprint(user)
+	if(close_sound)
+		playsound(src, close_sound, 40)
 	return TRUE
 
 /obj/machinery/bodyscanner/on_update_icon()
@@ -106,19 +108,18 @@
 		icon_state = "body_scanner_2"
 
 //Like grap-put, but for mouse-drop.
-/obj/machinery/bodyscanner/MouseDrop_T(var/mob/target, var/mob/user)
-	if(!CanMouseDrop(target, user) || !istype(target))
-		return FALSE
-	user.visible_message("<span class='notice'>\The [user] begins placing \the [target] into \the [src].</span>", "<span class='notice'>You start placing \the [target] into \the [src].</span>")
-	if(!do_after(user, 30, src))
-		return
-	if(!user_can_move_target_inside(target, user))
-		return
-
-/obj/machinery/bodyscanner/explosion_act(severity)
+/obj/machinery/bodyscanner/receive_mouse_drop(atom/dropping, mob/user, params)
 	. = ..()
-	if(. && !QDELETED(src) && prob(severity == 1 ? 100 : (100 - (25 * severity))))
-		physically_destroyed(src)
+	if(!. && isliving(dropping))
+		var/mob/living/M = dropping
+		if(M.anchored)
+			return FALSE
+		user.visible_message( \
+			SPAN_NOTICE("\The [user] begins placing \the [dropping] into \the [src]."), \
+			SPAN_NOTICE("You start placing \the [dropping] into \the [src]."))
+		if(do_after(user, 30, src))
+			user_can_move_target_inside(dropping, user)
+		return TRUE
 
 /obj/machinery/bodyscanner/Destroy()
 	if(occupant)

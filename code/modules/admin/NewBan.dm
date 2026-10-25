@@ -1,5 +1,5 @@
-var/CMinutes = null
-var/savefile/Banlist
+var/global/CMinutes = null
+var/global/savefile/Banlist
 
 
 /proc/CheckBan(var/ckey, var/id, var/address)
@@ -10,8 +10,9 @@ var/savefile/Banlist
 
 	. = list()
 	var/appeal
-	if(config && config.banappeals)
-		appeal = "\nFor more information on your ban, or to appeal, head to <a href='[config.banappeals]'>[config.banappeals]</a>"
+	var/appealurl = get_config_value(/decl/config/text/banappeals)
+	if(appealurl)
+		appeal = "\nFor more information on your ban, or to appeal, head to <a href='[appealurl]'>[appealurl]</a>"
 	Banlist.cd = "/base"
 	if( "[ckey][id]" in Banlist.dir )
 		Banlist.cd = "[ckey][id]"
@@ -57,9 +58,6 @@ var/savefile/Banlist
 /proc/UpdateTime() //No idea why i made this a proc.
 	CMinutes = (world.realtime / 10) / 60
 	return 1
-
-/hook/startup/proc/loadBans()
-	return LoadBans()
 
 /proc/LoadBans()
 
@@ -114,14 +112,14 @@ var/savefile/Banlist
 	else
 		Banlist.dir.Add("[ckey][computerid]")
 		Banlist.cd = "/base/[ckey][computerid]"
-		Banlist["key"] << ckey
-		Banlist["id"] << computerid
-		Banlist["ip"] << address
-		Banlist["reason"] << reason
-		Banlist["bannedby"] << bannedby
-		Banlist["temp"] << temp
+		to_savefile(Banlist, "key",      ckey)
+		to_savefile(Banlist, "id",       computerid)
+		to_savefile(Banlist, "ip",       address)
+		to_savefile(Banlist, "reason",   reason)
+		to_savefile(Banlist, "bannedby", bannedby)
+		to_savefile(Banlist, "temp",     temp)
 		if (temp)
-			Banlist["minutes"] << bantimestamp
+			to_savefile(Banlist, "minutes", bantimestamp)
 	return 1
 
 /proc/RemoveBan(foldername)
@@ -129,8 +127,8 @@ var/savefile/Banlist
 	var/id
 
 	Banlist.cd = "/base/[foldername]"
-	Banlist["key"] >> key
-	Banlist["id"] >> id
+	from_savefile(Banlist, "key", key)
+	from_savefile(Banlist, "id", id)
 	Banlist.cd = "/base"
 
 	if (!Banlist.dir.Remove(foldername)) return 0
@@ -188,7 +186,7 @@ var/savefile/Banlist
 			if(!expiry)		expiry = "Removal Pending"
 		else				expiry = "Permaban"
 
-		dat += text("<tr><td><A href='?src=[ref];unbanf=[key][id]'>(U)</A><A href='?src=[ref];unbane=[key][id]'>(E)</A> Key: <B>[key]</B></td><td>ComputerID: <B>[id]</B></td><td>IP: <B>[ip]</B></td><td> [expiry]</td><td>(By: [by])</td><td>(Reason: [reason])</td></tr>")
+		dat += text("<tr><td><A href='byond://?src=[ref];unbanf=[key][id]'>(U)</A><A href='byond://?src=[ref];unbane=[key][id]'>(E)</A> Key: <B>[key]</B></td><td>ComputerID: <B>[id]</B></td><td>IP: <B>[ip]</B></td><td> [expiry]</td><td>(By: [by])</td><td>(Reason: [reason])</td></tr>")
 
 	dat += "</table>"
 	dat = "<HR><B>Bans:</B> <FONT COLOR=blue>(U) = Unban , (E) = Edit Ban</FONT> - <FONT COLOR=green>([count] Bans)</FONT><HR><table border=1 rules=all frame=void cellspacing=0 cellpadding=3 >[dat]"
@@ -210,17 +208,19 @@ var/savefile/Banlist
 			Banlist.cd = "/base"
 			Banlist.dir.Add("trash[i]trashid[i]")
 			Banlist.cd = "/base/trash[i]trashid[i]"
-			Banlist["key"] << "trash[i]"
+			to_savefile(Banlist, "key", "trash[i]")
 		else
 			Banlist.cd = "/base"
 			Banlist.dir.Add("[last]trashid[i]")
 			Banlist.cd = "/base/[last]trashid[i]"
-			Banlist["key"] << last
-		Banlist["id"] << "trashid[i]"
-		Banlist["reason"] << "Trashban[i]."
-		Banlist["temp"] << a
-		Banlist["minutes"] << CMinutes + rand(1,2000)
-		Banlist["bannedby"] << "trashmin"
+			to_savefile(Banlist, "key", last)
+
+		to_savefile(Banlist, "id",        "trashid[i]")
+		to_savefile(Banlist, "reason",    "Trashban[i].")
+		to_savefile(Banlist, "temp",      a)
+		to_savefile(Banlist, "minutes",   CMinutes + rand(1,2000))
+		to_savefile(Banlist, "bannedby", "trashmin")
+
 		last = "trash[i]"
 
 	Banlist.cd = "/base"

@@ -13,6 +13,8 @@
 	extended_desc = "A management tool that allows for ordering of various supplies through the facility's cargo system. Some features may require additional access."
 	size = 21
 	available_on_network = 1
+	requires_network = 1
+	requires_network_feature = NET_FEATURE_DECK
 	category = PROG_SUPPLY
 
 /datum/computer_file/program/supply/is_supported_by_hardware(var/hardware_flag, var/mob/user, var/loud = FALSE)
@@ -25,7 +27,7 @@
 				computer.show_error(user, "Unable to contact the supply shuttle.")
 			return FALSE
 		var/obj/physical_router = net.router.holder
-		if(!ARE_Z_CONNECTED(shuttle.waypoint_station.z, physical_router.z))
+		if(!LEVELS_ARE_Z_CONNECTED(shuttle.waypoint_station.z, physical_router.z))
 			if(loud)
 				computer.show_error(user, "Unable to contact a supply shuttle serving your location.")
 			return FALSE
@@ -59,10 +61,10 @@
 	var/notifications_enabled = FALSE
 	var/admin_access = list(access_cargo, access_mailsorting)
 
-/datum/nano_module/supply/ui_interact(mob/user, ui_key = "main", datum/nanoui/ui = null, force_open = 1, state = GLOB.default_state)
+/datum/nano_module/supply/ui_interact(mob/user, ui_key = "main", datum/nanoui/ui = null, force_open = 1, state = global.default_topic_state)
 	var/list/data = host.initial_data()
 	var/is_admin = check_access(user, admin_access)
-	var/decl/security_state/security_state = decls_repository.get_decl(GLOB.using_map.security_state)
+	var/decl/security_state/security_state = GET_DECL(global.using_map.security_state)
 	if(!LAZYLEN(category_names) || !LAZYLEN(category_contents) || current_security_level != security_state.current_security_level || emagged_memory != emagged )
 		generate_categories()
 		current_security_level = security_state.current_security_level
@@ -75,7 +77,7 @@
 	data["screen"] = screen
 	data["credits"] = "[SSsupply.points]"
 
-	var/decl/currency/cur = decls_repository.get_decl(GLOB.using_map.default_currency)
+	var/decl/currency/cur = GET_DECL(global.using_map.default_currency)
 	data["currency"] = cur.name
 
 	switch(screen)
@@ -100,13 +102,15 @@
 
 		if(3)// Shuttle monitoring and control
 			var/datum/shuttle/autodock/ferry/supply/shuttle = SSsupply.shuttle
-			data["shuttle_name"] = shuttle.name
 			if(istype(shuttle))
-				data["shuttle_location"] = shuttle.at_station() ? GLOB.using_map.name : "Remote location"
+				data["shuttle_name"] =        shuttle.name
+				data["shuttle_location"] =    shuttle.at_station() ? global.using_map.name : "Remote location"
+				data["shuttle_can_control"] = shuttle.can_launch()
 			else
-				data["shuttle_location"] = "No Connection"
+				data["shuttle_name"] =        "No Connection"
+				data["shuttle_location"] =    "No Connection"
+				data["shuttle_can_control"] = FALSE
 			data["shuttle_status"] = get_shuttle_status()
-			data["shuttle_can_control"] = shuttle.can_launch()
 
 		if(4)// Order processing
 			if(is_admin) // No bother sending all of this if the user can't see it.
@@ -123,7 +127,7 @@
 				data["requests"] = requests
 				data["done"] = done
 				data["can_print"] = can_print()
-				data["is_NTOS"] = istype(nano_host(), /obj/item/modular_computer) // Can we even use notifications?
+				data["is_OS"] = istype(nano_host(), /obj/item/modular_computer) // Can we even use notifications?
 				data["notifications_enabled"] = notifications_enabled
 
 	ui = SSnano.try_update_ui(user, src, ui_key, ui, data, force_open)
@@ -162,11 +166,11 @@
 
 	if(href_list["order"])
 		clear_order_contents()
-		var/decl/hierarchy/supply_pack/P = locate(href_list["order"]) in SSsupply.master_supply_list
-		if(!istype(P))
+		var/decl/hierarchy/supply_pack/pack = locate(href_list["order"]) in SSsupply.master_supply_list
+		if(!istype(pack))
 			return 1
 
-		if(P.hidden && !emagged)
+		if(pack.hidden && !emagged)
 			return 1
 
 		var/reason = sanitize(input(user,"Reason:","Why do you require this item?","") as null|text,,0)
@@ -176,7 +180,7 @@
 		var/idname = "*None Provided*"
 		var/idrank = "*None Provided*"
 		if(ishuman(user))
-			var/mob/living/carbon/human/H = user
+			var/mob/living/human/H = user
 			idname = H.get_authentification_name()
 			idrank = H.get_assignment()
 		else if(issilicon(user))
@@ -186,7 +190,7 @@
 
 		var/datum/supply_order/O = new /datum/supply_order()
 		O.ordernum = SSsupply.ordernum
-		O.object = P
+		O.object = pack
 		O.orderedby = idname
 		O.reason = reason
 		O.orderedrank = idrank
@@ -224,7 +228,6 @@
 
 			var/datum/signal/status_signal = new
 			status_signal.source = src
-			status_signal.transmission_method = 1
 			status_signal.data["command"] = "supply"
 			frequency.post_signal(src, status_signal)
 		return 1
@@ -310,33 +313,34 @@
 /datum/nano_module/supply/proc/generate_categories()
 	category_names.Cut()
 	category_contents.Cut()
-	var/decl/hierarchy/supply_pack/root = decls_repository.get_decl(/decl/hierarchy/supply_pack)
-	var/decl/currency/cur = decls_repository.get_decl(GLOB.using_map.default_currency)
-	for(var/decl/hierarchy/supply_pack/sp in root.children)
-		if(!sp.is_category())
+	var/decl/hierarchy/supply_pack/root = GET_DECL(/decl/hierarchy/supply_pack)
+	var/decl/currency/cur = GET_DECL(global.using_map.default_currency)
+	// FIXME: This probably doesn't even work properly? It assumes there aren't any nested categories...
+	for(var/decl/hierarchy/supply_pack/pack in root.children)
+		if(!pack.is_category())
 			continue // No children
-		category_names.Add(sp.name)
+		category_names.Add(pack.name)
 		var/list/category[0]
-		for(var/decl/hierarchy/supply_pack/spc in sp.get_descendents())
-			if((spc.hidden || spc.contraband || !spc.sec_available()) && !emagged)
+		for(var/decl/hierarchy/supply_pack/child_pack in pack.get_descendants())
+			if((child_pack.hidden || child_pack.contraband || !child_pack.sec_available()) && !emagged)
 				continue
 			category.Add(list(list(
-				"name" = spc.name,
-				"cost" = cur.format_value(spc.cost),
-				"ref" = "\ref[spc]"
+				"name" = child_pack.name,
+				"cost" = cur.format_value(child_pack.cost),
+				"ref" = "\ref[child_pack]"
 			)))
-		category_contents[sp.name] = category
+		category_contents[pack.name] = category
 
 /datum/nano_module/supply/proc/generate_order_contents(var/order_ref)
-	var/decl/hierarchy/supply_pack/sp = locate(order_ref) in SSsupply.master_supply_list
-	if(!istype(sp))
+	var/decl/hierarchy/supply_pack/pack = locate(order_ref) in SSsupply.master_supply_list
+	if(!istype(pack))
 		return FALSE
 	contents_of_order.Cut()
 	showing_contents_of_ref = order_ref
-	for(var/item_path in sp.contains) // Thanks to Lohikar for helping me with type paths - CarlenWhite
+	for(var/item_path in pack.contains) // Thanks to Lohikar for helping me with type paths - CarlenWhite
 		var/obj/item/stack/OB = item_path // Not always a stack, but will always have a name we can fetch.
 		var/name = initial(OB.name)
-		var/amount = sp.contains[item_path] || 1 // If it's just one item (has no number associated), fallback to 1.
+		var/amount = pack.contains[item_path] || 1 // If it's just one item (has no number associated), fallback to 1.
 		if(ispath(item_path, /obj/item/stack)) // And if it is a stack, consider the amount
 			amount *= initial(OB.amount)
 
@@ -346,9 +350,9 @@
 			"amount" = amount
 		)))
 
-	if(sp.contains.len == 0) // Handles the case where sp.contains is empty, e.g. for livecargo
+	if(!length(pack.contains)) // Handles the case where pack.contains is empty, e.g. for livecargo
 		contents_of_order.Add(list(list(
-			"name" = sp.containername,
+			"name" = pack.containername,
 			"amount" = 1
 		)))
 
@@ -365,7 +369,7 @@
 		return "No Connection"
 
 	if(shuttle.has_arrive_time())
-		return "In transit ([shuttle.eta_seconds()] s)"
+		return "In transit ([shuttle.eta_readable()])"
 
 	if (shuttle.can_launch())
 		return "Docked"
@@ -382,7 +386,7 @@
 		))
 
 /datum/nano_module/supply/proc/can_print()
-	var/datum/extension/interactive/ntos/os = get_extension(nano_host(), /datum/extension/interactive/ntos)
+	var/datum/extension/interactive/os/os = get_extension(nano_host(), /datum/extension/interactive/os)
 	if(os)
 		return os.has_component(PART_PRINTER)
 	return 0
@@ -392,10 +396,10 @@
 		return
 
 	var/t = ""
-	t += "<h3>[GLOB.using_map.station_name] Supply Requisition Reciept</h3><hr>"
+	t += "<h3>[global.using_map.station_name] Supply Requisition Receipt</h3><hr>"
 	t += "INDEX: #[O.ordernum]<br>"
 	t += "REQUESTED BY: [O.orderedby]<br>"
-	t += "RANK: [O.orderedrank]<br>"
+	t += "ASSIGNMENT: [O.orderedrank]<br>"
 	t += "REASON: [O.reason]<br>"
 	t += "SUPPLY CRATE TYPE: [O.object.name]<br>"
 	t += "ACCESS RESTRICTION: [get_access_desc(O.object.access)]<br>"
@@ -406,7 +410,7 @@
 
 /datum/nano_module/supply/proc/print_summary(var/mob/user)
 	var/t = ""
-	t += "<center><BR><b><large>[GLOB.using_map.station_name]</large></b><BR><i>[station_date]</i><BR><i>Export overview<field></i></center><hr>"
+	t += "<center><BR><b><large>[global.using_map.station_name]</large></b><BR><i>[station_date]</i><BR><i>Export overview<field></i></center><hr>"
 	for(var/source in SSsupply.point_source_descriptions)
 		t += "[SSsupply.point_source_descriptions[source]]: [SSsupply.point_sources[source] || 0]<br>"
 	print_text(t, user)

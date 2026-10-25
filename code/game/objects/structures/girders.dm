@@ -5,9 +5,14 @@
 	anchored = FALSE
 	density =  TRUE
 	layer =    BELOW_OBJ_LAYER
+	obj_flags = OBJ_FLAG_MOVES_UNSUPPORTED
 	material_alteration =    MAT_FLAG_ALTERATION_NAME | MAT_FLAG_ALTERATION_COLOR
 	tool_interaction_flags = (TOOL_INTERACTION_ANCHOR | TOOL_INTERACTION_DECONSTRUCT)
-	maxhealth = 100
+	max_health = 100
+	material = /decl/material/solid/metal/steel
+	parts_amount = 5
+	parts_type = /obj/item/stack/material/rods
+
 	var/cover = 50
 	var/prepped_for_fakewall
 
@@ -15,21 +20,13 @@
 	set_extension(src, /datum/extension/penetration/simple, 100)
 	. = ..()
 
-/obj/structure/girder/can_unanchor(var/mob/user)
-	. = ..()
-	if(!anchored && .)
-		var/turf/simulated/open/T = loc
-		if(istype(T))
-			to_chat(user, SPAN_WARNING("You can only secure \the [src] to solid ground."))
-			return FALSE
-
 /obj/structure/girder/handle_default_screwdriver_attackby(var/mob/user, var/obj/item/screwdriver)
 
 	if(reinf_material)
 		playsound(src.loc, 'sound/items/Screwdriver.ogg', 100, 1)
-		visible_message(SPAN_NOTICE("\The [user] begins unscrewing \the [reinf_material.solid_name] struts from \the [src]."))
+		visible_message(SPAN_NOTICE("\The [user] begins unscrewing \the [reinf_material.solid_name] rods from \the [src]."))
 		if(do_after(user, 5 SECONDS, src) || QDELETED(src) || !reinf_material)
-			visible_message(SPAN_NOTICE("\The [user] unscrews and removes \the [reinf_material.solid_name] struts from \the [src]."))
+			visible_message(SPAN_NOTICE("\The [user] unscrews and removes \the [reinf_material.solid_name] rods from \the [src]."))
 			reinf_material.place_dismantled_product(get_turf(src))
 			reinf_material = null
 		return TRUE
@@ -44,7 +41,7 @@
 	return TRUE
 
 /obj/structure/girder/on_update_icon()
-	. = ..()
+	..()
 	if(!anchored)
 		icon_state = "displaced"
 	else if(reinf_material)
@@ -54,17 +51,17 @@
 
 /obj/structure/girder/displaced/Initialize()
 	. = ..()
-	anchored = prob(50)
+	set_anchored(prob(50))
 
 /obj/structure/girder/bullet_act(var/obj/item/projectile/Proj)
-	
+
 	var/effective_cover = cover
 	if(reinf_material)
 		effective_cover *= 2
-	if(!anchored) 
+	if(!anchored)
 		effective_cover *= 0.5
-	effective_cover = Clamp(Floor(effective_cover), 0, 100)
-	if(Proj.original != src && !prob(effective_cover))
+	effective_cover = clamp(floor(effective_cover), 0, 100)
+	if(Proj.original_ref?.resolve() != src && !prob(effective_cover))
 		return PROJECTILE_CONTINUE
 	var/damage = Proj.get_structure_damage()
 	if(!damage)
@@ -72,19 +69,23 @@
 	if(!istype(Proj, /obj/item/projectile/beam))
 		damage *= 0.4
 	if(reinf_material)
-		damage = Floor(damage * 0.75)
+		damage = floor(damage * 0.75)
 	..()
 	if(damage)
-		take_damage(damage)
+		take_damage(damage, Proj.atom_damage_type)
 
 /obj/structure/girder/CanFluidPass(var/coming_from)
 	return TRUE
 
 /obj/structure/girder/can_unanchor(var/mob/user)
 	if(anchored && reinf_material)
-		to_chat(user, SPAN_WARNING("You must remove the support struts before you can dislodge \the [src]."))
+		to_chat(user, SPAN_WARNING("You must remove the support rods before you can dislodge \the [src]."))
 		return FALSE
 	. = ..()
+	var/turf/T = loc
+	if(!anchored && . && (!istype(T) || T.is_open()))
+		to_chat(user, SPAN_WARNING("You can only secure \the [src] to solid ground."))
+		return FALSE
 
 /obj/structure/girder/can_dismantle(var/mob/user)
 	if(reinf_material)
@@ -92,42 +93,39 @@
 		return FALSE
 	. = ..()
 
-/obj/structure/girder/attackby(var/obj/item/W, var/mob/user)
-	. = ..()
-	if(!.)
-
-		// Other methods of quickly destroying a girder.
-		if(W.is_special_cutting_tool(TRUE))
-			if(istype(W, /obj/item/gun/energy/plasmacutter))
-				var/obj/item/gun/energy/plasmacutter/cutter = W
-				if(!cutter.slice(user))
-					return
-			playsound(src.loc, 'sound/items/Welder.ogg', 100, 1)
-			visible_message(SPAN_NOTICE("\The [user] begins slicing apart \the [src] with \the [W]."))
-			if(do_after(user,reinf_material ? 40: 20,src))
-				visible_message(SPAN_NOTICE("\The [user] slices apart \the [src] with \the [W]."))
-				dismantle()
-			return TRUE
-		if(istype(W, /obj/item/pickaxe/diamonddrill))
-			playsound(src.loc, 'sound/weapons/Genhit.ogg', 100, 1)
-			visible_message(SPAN_NOTICE("\The [user] begins drilling through \the [src] with \the [W]."))
-			if(do_after(user,reinf_material ? 60 : 40,src))
-				visible_message(SPAN_NOTICE("\The [user] drills through \the [src] with \the [W]."))
-				dismantle()
-			return TRUE
-		// Reinforcing a girder, or turning it into a wall.
-		if(istype(W, /obj/item/stack/material))
-			if(anchored)
-				return construct_wall(W, user)
-			else
-				if(reinf_material)
-					to_chat(user, SPAN_WARNING("\The [src] is already reinforced with [reinf_material.solid_name]."))
-				else
-					return reinforce_with_material(W, user)
-			return TRUE
-		// Other objects.
-		take_damage(W.force)
+/obj/structure/girder/attackby(var/obj/item/used_item, var/mob/user)
+	// Other methods of quickly destroying a girder.
+	if(used_item.is_special_cutting_tool(TRUE))
+		if(istype(used_item, /obj/item/gun/energy/plasmacutter))
+			var/obj/item/gun/energy/plasmacutter/cutter = used_item
+			if(!cutter.slice(user))
+				return TRUE
+		playsound(src.loc, 'sound/items/Welder.ogg', 100, 1)
+		visible_message(SPAN_NOTICE("\The [user] begins slicing apart \the [src] with \the [used_item]."))
+		if(do_after(user,reinf_material ? 40: 20,src))
+			visible_message(SPAN_NOTICE("\The [user] slices apart \the [src] with \the [used_item]."))
+			dismantle_structure(user)
 		return TRUE
+
+	if(IS_PICK(used_item))
+		if(used_item.material?.hardness < material.hardness)
+			to_chat(user, SPAN_WARNING("\The [used_item] is not hard enough to excavate [material.solid_name]."))
+		else if(used_item.get_tool_quality(TOOL_PICK) < TOOL_QUALITY_GOOD)
+			to_chat(user, SPAN_WARNING("\The [used_item] is not capable of destroying \the [src]."))
+		else if(used_item.do_tool_interaction(TOOL_PICK, user, src, (reinf_material ? 6 : 4) SECONDS, set_cooldown = TRUE))
+			dismantle_structure(user)
+		return TRUE
+	// Reinforcing a girder, or turning it into a wall.
+	if(istype(used_item, /obj/item/stack/material))
+		if(anchored)
+			return construct_wall(used_item, user)
+		else
+			if(reinf_material)
+				to_chat(user, SPAN_WARNING("\The [src] is already reinforced with [reinf_material.solid_name]."))
+			else
+				return reinforce_with_material(used_item, user)
+		return TRUE
+	. = ..()
 
 /obj/structure/girder/proc/construct_wall(obj/item/stack/material/S, mob/user)
 	if(S.get_amount() < 2)
@@ -145,7 +143,7 @@
 		to_chat(user, SPAN_WARNING("You will need a support made of sturdier material to hold up [S.material.solid_name] cladding."))
 		return FALSE
 
-	add_hiddenprint(usr)
+	add_hiddenprint(user)
 	if(S.material.integrity < 50)
 		to_chat(user, SPAN_WARNING("This material is too soft for use in wall construction."))
 		return 0
@@ -161,11 +159,11 @@
 		to_chat(user, SPAN_NOTICE("You create a false wall! Push on it to open or close the passage."))
 
 	var/turf/Tsrc = get_turf(src)
-	Tsrc.ChangeTurf(/turf/simulated/wall)
-	var/turf/simulated/wall/T = get_turf(src)
-	T.set_material(S.material, reinf_material, material)
+	Tsrc.ChangeTurf(/turf/wall)
+	var/turf/wall/T = get_turf(src)
+	T.set_turf_materials(S.material, reinf_material, null, material)
 	T.can_open = prepped_for_fakewall
-	T.add_hiddenprint(usr)
+	T.add_hiddenprint(user)
 	material = null
 	reinf_material = null
 	qdel(src)
@@ -182,7 +180,7 @@
 	if(!istype(M) || M.integrity < 50)
 		to_chat(user, SPAN_WARNING("You cannot reinforce \the [src] with [M.solid_name]; it is too soft."))
 		return TRUE
-	visible_message(SPAN_NOTICE("\The [user] begins installing [M.solid_name] struts into \the [src]."))
+	visible_message(SPAN_NOTICE("\The [user] begins installing [M.solid_name] rods into \the [src]."))
 	if (!do_after(user, 4 SECONDS, src) || !S.use(2))
 		return TRUE
 	visible_message(SPAN_NOTICE("\The [user] finishes reinforcing \the [src] with [M.solid_name]."))
@@ -190,36 +188,16 @@
 	update_icon()
 	return 1
 
-/obj/structure/girder/attack_hand(mob/user)
-	if (MUTATION_HULK in user.mutations)
-		visible_message(SPAN_DANGER("\The [user] smashes \the [src] apart!"))
-		dismantle()
-		return
-	return ..()
-
-
 /obj/structure/girder/explosion_act(severity)
 	..()
 	if(severity == 1 || (severity == 2 && prob(30)) || (severity == 3 && prob(5)))
 		physically_destroyed()
 
-/obj/structure/girder/cult
-	icon= 'icons/obj/cult.dmi'
-	icon_state= "cultgirder"
-	maxhealth = 150
-	cover = 70
-
-/obj/structure/girder/cult/dismantle()
-	material = null
-	reinf_material = null
-	parts_type = null
-	. = ..()
-
 /obj/structure/girder/wood
-	material = /decl/material/solid/wood/mahogany
+	material = /decl/material/solid/organic/wood/mahogany
 
 /obj/structure/grille/wood
-	material = /decl/material/solid/wood/mahogany
+	material = /decl/material/solid/organic/wood/mahogany
 
 /obj/structure/lattice/wood
-	material = /decl/material/solid/wood/mahogany
+	material = /decl/material/solid/organic/wood/mahogany

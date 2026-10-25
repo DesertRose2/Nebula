@@ -1,12 +1,22 @@
 /mob
 	var/moving           = FALSE
 
-/mob/proc/SelfMove(var/direction)
+/atom/movable/proc/SelfMove(var/direction)
 	if(DoMove(direction, src) & MOVEMENT_HANDLED)
-		return TRUE // Doesn't necessarily mean the mob physically moved
+		return TRUE // Doesn't necessarily mean the atom physically moved
+
+/mob/living/SelfMove(var/direction)
+	// If on walk intent, don't willingly step into hazardous tiles.
+	// Unless the walker is confused.
+	var/turf/destination = get_step(src, direction)
+	if(istype(destination) && MOVING_DELIBERATELY(src) && !HAS_STATUS(src, STAT_CONFUSE))
+		if(!destination.is_safe_to_enter(src))
+			to_chat(src, SPAN_WARNING("\The [destination] is dangerous to move into."))
+			return FALSE // In case any code wants to know if movement happened.
+	return ..() // Parent call should make the mob move.
 
 /mob/CanPass(atom/movable/mover, turf/target, height=0, air_group=0)
-	. = lying || ..() || (mover == buckled)
+	. = current_posture?.prone || ..() || !mover.density
 
 /mob/proc/SetMoveCooldown(var/timeout)
 	var/datum/movement_handler/mob/delay/delay = GetMovementHandler(/datum/movement_handler/mob/delay)
@@ -39,91 +49,45 @@
 			attack_self()
 			return
 		if(SOUTHWEST)
-			if(iscarbon(usr))
-				var/mob/living/carbon/C = usr
-				C.toggle_throw_mode()
+			if(isliving(mob))
+				mob.toggle_throw_mode()
 			else
-				to_chat(usr, "<span class='warning'>This mob type cannot throw items.</span>")
+				to_chat(src, "<span class='warning'>This mob type cannot throw items.</span>")
 			return
 		if(NORTHWEST)
 			mob.hotkey_drop()
 
 /mob/proc/hotkey_drop()
-	. = has_extension(src, /datum/extension/hattable)
+	return FALSE
 
 /mob/living/hotkey_drop()
-	if(length(get_active_grabs()) || ..())
-		drop_item()
-
-/mob/living/carbon/hotkey_drop()
-	var/obj/item/hand = get_active_hand()
-	if(hand?.can_be_dropped_by_client(src) || ..())
+	if(length(get_active_grabs()))
+		. = TRUE
+	else
+		var/obj/item/hand = get_active_held_item()
+		. = hand?.can_be_dropped_by_client(src)
+	if(.)
 		drop_item()
 
 /client/verb/swap_hand()
 	set hidden = 1
-	if(istype(mob, /mob/living/carbon))
-		mob:swap_hand()
-	if(istype(mob,/mob/living/silicon/robot))
-		var/mob/living/silicon/robot/R = mob
-		R.cycle_modules()
-	return
+	if(ismob(mob))
+		var/mob/M = mob
+		M.swap_hand()
 
 /client/verb/attack_self()
 	set hidden = 1
 	if(mob)
 		mob.mode()
-	return
 
-/client/verb/toggle_throw_mode()
-	set hidden = 1
-	if(!istype(mob, /mob/living/carbon))
-		return
-	if (!mob.stat && isturf(mob.loc) && !mob.restrained())
-		mob:toggle_throw_mode()
-	else
-		return
-
-/client/verb/drop_item()
-	set hidden = 1
-	if(!isrobot(mob) && mob.stat == CONSCIOUS && isturf(mob.loc))
-		var/obj/item/I = mob.get_active_hand()
-		if(I && I.can_be_dropped_by_client(mob))
-			mob.drop_item()
+/client/verb/toggle_throw_mode_verb()
+	set hidden = TRUE
+	if(!mob.stat && isturf(mob.loc) && !mob.restrained())
+		mob.toggle_throw_mode()
 
 //This proc should never be overridden elsewhere at /atom/movable to keep directions sane.
 /atom/movable/Move(newloc, direct)
-	if (direct & (direct - 1))
-		if (direct & 1)
-			if (direct & 4)
-				if (step(src, NORTH))
-					step(src, EAST)
-				else
-					if (step(src, EAST))
-						step(src, NORTH)
-			else
-				if (direct & 8)
-					if (step(src, NORTH))
-						step(src, WEST)
-					else
-						if (step(src, WEST))
-							step(src, NORTH)
-		else
-			if (direct & 2)
-				if (direct & 4)
-					if (step(src, SOUTH))
-						step(src, EAST)
-					else
-						if (step(src, EAST))
-							step(src, SOUTH)
-				else
-					if (direct & 8)
-						if (step(src, SOUTH))
-							step(src, WEST)
-						else
-							if (step(src, WEST))
-								step(src, SOUTH)
-	else
+	if (IS_POWER_OF_TWO(direct))
 		var/atom/A = src.loc
 
 		var/olddir = dir //we can't override this without sacrificing the rest of movable/New()
@@ -134,10 +98,22 @@
 
 		src.move_speed = world.time - src.l_move_time
 		src.l_move_time = world.time
-		src.m_flag = 1
 		if ((A != src.loc && A && A.z == src.z))
 			src.last_move = get_dir(A, src.loc)
-	
+	else // This doesn't handle 3D moves properly, but the old code didn't either.
+		moving_diagonally = /atom/movable::FIRST_DIAGONAL_STEP
+		var/first_dir = FIRST_DIR(direct)
+		var/second_dir = direct & ~first_dir
+		if(step(src, first_dir))
+			if(moving_diagonally) // check if unset by falling
+				moving_diagonally = /atom/movable::SECOND_DIAGONAL_STEP
+				step(src, second_dir)
+		else if(step(src, second_dir))
+			if(moving_diagonally)
+				moving_diagonally = /atom/movable::SECOND_DIAGONAL_STEP
+				step(src, first_dir)
+		moving_diagonally = FALSE
+
 	if(!inertia_moving)
 		inertia_next_move = world.time + inertia_move_delay
 		space_drift(direct ? direct : last_move)
@@ -145,103 +121,77 @@
 /client/Move(n, direction)
 	if(!user_acted(src))
 		return
+
 	if(!mob)
 		return // Moved here to avoid nullrefs below
+
 	return mob.SelfMove(direction)
 
-/mob/Process_Spacemove(var/allow_movement)
-	. = ..()
-	if(.)
+/mob/is_space_movement_permitted(allow_movement = FALSE)
+	if((. = ..()))
 		return
+	var/atom/movable/footing = get_solid_footing()
+	if(footing)
+		if(istype(footing) && allow_movement)
+			return footing
+		return SPACE_MOVE_SUPPORTED
 
-	var/atom/movable/backup = get_spacemove_backup()
-	if(backup)
-		if(istype(backup) && allow_movement)
-			return backup
-		return -1
+/mob/living/is_space_movement_permitted(allow_movement = FALSE)
+	var/obj/item/tank/jetpack/thrust = get_jetpack()
+	if(thrust?.on && (allow_movement || thrust.stabilization_on) && thrust.allow_thrust(0.01, src))
+		return SPACE_MOVE_PERMITTED
+	return ..()
 
-/mob/proc/space_do_move(var/allow_move, var/direction)	
-	if(ismovable(allow_move))//push off things in space
-		handle_space_pushoff(allow_move, direction)
-		allow_move = -1
-
-	if(allow_move == -1 && handle_spaceslipping())
-		return 0
-
-	return 1
+// space_move_result can be:
+// - SPACE_MOVE_FORBIDDEN,
+// - SPACE_MOVE_PERMITTED,
+// - SPACE_MOVE_SUPPORTED (for non-movable atoms),
+// - or an /atom/movable that provides footing.
+/mob/proc/try_space_move(space_move_result, direction)
+	if(ismovable(space_move_result))//push off things in space
+		handle_space_pushoff(space_move_result, direction)
+		space_move_result = SPACE_MOVE_SUPPORTED
+	return space_move_result != SPACE_MOVE_SUPPORTED || !handle_spaceslipping()
 
 /mob/proc/handle_space_pushoff(var/atom/movable/AM, var/direction)
 	if(AM.anchored)
 		return
-
 	if(ismob(AM))
 		var/mob/M = AM
-		if(M.check_space_footing())
+		if(!M.can_slip(magboots_only = TRUE))
 			return
-
 	AM.inertia_ignore = src
 	if(step(AM, turn(direction, 180)))
-		to_chat(src, "<span class='info'>You push off of [AM] to propel yourself.</span>")
+		to_chat(src, SPAN_INFO("You push off of \the [AM] to propel yourself."))
 		inertia_ignore = AM
-
-/mob/proc/get_spacemove_backup()//rename this
-	var/shoegrip = Check_Shoegrip()
-
-	for(var/thing in RANGE_TURFS(src, 1))//checks for walls or grav turf first
-		var/turf/T = thing
-		if(T.density || T.is_wall() || (T.is_floor() && (shoegrip || T.has_gravity())))
-			return T
-
-	var/obj/item/grab/G = locate() in src
-	for(var/A in range(1, get_turf(src)))
-		if(istype(A,/atom/movable))
-			var/atom/movable/AM = A
-			if(AM == src || AM == inertia_ignore || !AM.simulated || !AM.mouse_opacity || AM == buckled)	//mouse_opacity is hacky as hell, need better solution
-				continue
-			if(ismob(AM))
-				var/mob/M = AM
-				if(M.buckled)
-					continue
-			if(AM.density || !AM.CanPass(src))
-				if(AM.anchored)
-					return AM
-				if(G && AM == G.affecting)
-					continue
-				. = AM
-
-/mob/proc/check_space_footing()	//checks for gravity or maglockable turfs to prevent space related movement
-	if(has_gravity() || anchored || buckled)
-		return 1
-
-	if(Check_Shoegrip())
-		for(var/thing in RANGE_TURFS(src, 1))	//checks for turfs that one can maglock to
-			var/turf/T = thing
-			if(T.density || T.is_wall() || T.is_floor())
-				return 1
-
-	return 0
-
-/mob/proc/Check_Shoegrip()
-	return 0
 
 //return 1 if slipped, 0 otherwise
 /mob/proc/handle_spaceslipping()
-	if(prob(skill_fail_chance(SKILL_EVA, slip_chance(10), SKILL_EXPERT)))
-		to_chat(src, "<span class='warning'>You slipped!</span>")
+	if(prob(skill_fail_chance(SKILL_EVA, get_eva_slip_prob(), SKILL_EXPERT)))
+		to_chat(src, SPAN_DANGER("You slipped!"))
 		step(src,turn(last_move, pick(45,-45)))
-		return 1
-	return 0
+		return TRUE
+	return FALSE
 
-/mob/proc/slip_chance(var/prob_slip = 10)
-	if(stat)
-		return 0
-	if(buckled)
-		return 0
-	if(Check_Shoegrip())
-		return 0
-	if(MOVING_DELIBERATELY(src))
-		prob_slip *= 0.5
-	return prob_slip
+/mob/proc/get_eva_slip_prob(var/prob_slip = 10)
+	// General slip check.
+	if((has_gravity() || has_magnetised_footing()) && get_solid_footing())
+		. = 0
+	else
+		//Check hands and mod slip
+		for(var/hand_slot in get_held_item_slots())
+			var/datum/inventory_slot/inv_slot = get_inventory_slot_datum(hand_slot)
+			var/obj/item/held = inv_slot?.get_equipped_item()
+			if(!held)
+				prob_slip -= 2
+			else if(held.w_class <= ITEM_SIZE_SMALL)
+				prob_slip -= 1
+		// If we're walking carefully, lower the chance.
+		if(MOVING_DELIBERATELY(src))
+			prob_slip *= 0.5
+		. = prob_slip
+	// Avoid negative probs.
+	. = max(0, .)
 
 #define DO_MOVE(this_dir) var/final_dir = turn(this_dir, -dir2angle(dir)); Move(get_step(mob, final_dir), final_dir);
 
@@ -271,40 +221,39 @@
 	var/checking_intent = (istype(move_intent) ? move_intent.type : move_intents[1])
 	for(var/i = 1 to length(move_intents)) // One full iteration of the move set.
 		checking_intent = next_in_list(checking_intent, move_intents)
-		if(set_move_intent(decls_repository.get_decl(checking_intent)))
+		if(set_move_intent(GET_DECL(checking_intent)))
 			return
 
 /mob/proc/set_move_intent(var/decl/move_intent/next_intent)
 	if(next_intent && move_intent != next_intent && next_intent.can_be_used_by(src))
 		move_intent = next_intent
-		if(hud_used)
-			hud_used.move_intent.icon_state = move_intent.hud_icon_state
+		refresh_hud_element(HUD_MOVEMENT)
 		return TRUE
 	return FALSE
 
 /mob/proc/get_movement_datum_by_flag(var/move_flag = MOVE_INTENT_DELIBERATE)
 	for(var/m_intent in move_intents)
-		var/decl/move_intent/check_move_intent = decls_repository.get_decl(m_intent)
+		var/decl/move_intent/check_move_intent = GET_DECL(m_intent)
 		if(check_move_intent.flags & move_flag)
 			return check_move_intent
 
 /mob/proc/get_movement_datum_by_missing_flag(var/move_flag = MOVE_INTENT_DELIBERATE)
 	for(var/m_intent in move_intents)
-		var/decl/move_intent/check_move_intent = decls_repository.get_decl(m_intent)
+		var/decl/move_intent/check_move_intent = GET_DECL(m_intent)
 		if(!(check_move_intent.flags & move_flag))
 			return check_move_intent
 
 /mob/proc/get_movement_datums_by_flag(var/move_flag = MOVE_INTENT_DELIBERATE)
 	. = list()
 	for(var/m_intent in move_intents)
-		var/decl/move_intent/check_move_intent = decls_repository.get_decl(m_intent)
+		var/decl/move_intent/check_move_intent = GET_DECL(m_intent)
 		if(check_move_intent.flags & move_flag)
 			. += check_move_intent
 
 /mob/proc/get_movement_datums_by_missing_flag(var/move_flag = MOVE_INTENT_DELIBERATE)
 	. = list()
 	for(var/m_intent in move_intents)
-		var/decl/move_intent/check_move_intent = decls_repository.get_decl(m_intent)
+		var/decl/move_intent/check_move_intent = GET_DECL(m_intent)
 		if(!(check_move_intent.flags & move_flag))
 			. += check_move_intent
 
@@ -315,7 +264,7 @@
 	var/choice = input(usr, "Select a default walk.", "Set Default Walk") as null|anything in get_movement_datums_by_missing_flag(MOVE_INTENT_QUICK)
 	if(choice && (choice in get_movement_datums_by_missing_flag(MOVE_INTENT_QUICK)))
 		default_walk_intent = choice
-		to_chat(src, "You will now default to [default_walk_intent] when moving deliberately.")
+		to_chat(src, SPAN_NOTICE("You will now default to [default_walk_intent] when moving deliberately."))
 
 /mob/verb/SetDefaultRun()
 	set name = "Set Default Run"
@@ -324,7 +273,7 @@
 	var/choice = input(usr, "Select a default run.", "Set Default Run") as null|anything in get_movement_datums_by_flag(MOVE_INTENT_QUICK)
 	if(choice && (choice in get_movement_datums_by_flag(MOVE_INTENT_QUICK)))
 		default_run_intent = choice
-		to_chat(src, "You will now default to [default_run_intent] when moving quickly.")
+		to_chat(src, SPAN_NOTICE("You will now default to [default_run_intent] when moving quickly."))
 
 /client/verb/setmovingslowly()
 	set hidden = 1
@@ -349,10 +298,10 @@
 		set_move_intent(default_run_intent)
 
 /mob/proc/can_sprint()
-	return FALSE
+	return TRUE
 
 /mob/proc/adjust_stamina(var/amt)
-	return
+	return TRUE
 
 /mob/proc/get_stamina()
 	return 100

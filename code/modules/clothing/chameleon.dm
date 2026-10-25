@@ -2,36 +2,37 @@
 //**Cham Jumpsuit**
 //*****************
 
+#define CHAMELEON_VERB(TYPE, VERB_NAME)\
+##TYPE/verb/change(picked in disguise_choices){ \
+	set name = VERB_NAME; \
+	set category = "Chameleon Items"; \
+	set src in usr; \
+	if(usr.incapacitated()) return; \
+	if(!ispath(disguise_choices[picked])) return; \
+	disguise(disguise_choices[picked], usr); \
+	update_clothing_icon(); \
+}
+
 /obj/item/proc/disguise(var/newtype, var/mob/user)
-	if(!user || !CanPhysicallyInteract(user))
-		return
-	//this is necessary, unfortunately, as initial() does not play well with list vars
-	var/obj/item/copy = new newtype(null)
-
-	desc = copy.desc
-	name = copy.name
-	icon = copy.icon
-	color = copy.color
-	icon_state = copy.icon_state
-	item_state = copy.item_state
-	body_parts_covered = copy.body_parts_covered
-	flags_inv = copy.flags_inv
-	gender = copy.gender
-
-	if(copy.item_icons)
-		item_icons = copy.item_icons.Copy()
-	if(copy.item_state_slots)
-		item_state_slots = copy.item_state_slots.Copy()
-	if(copy.sprite_sheets)
-		sprite_sheets = copy.sprite_sheets.Copy()
-	//copying sprite_sheets_obj should be unnecessary as chameleon items are not refittable.
-
-	OnDisguise(copy, user)
-	qdel(copy)
+	SHOULD_NOT_OVERRIDE(TRUE)
+	if(user && CanPhysicallyInteract(user))
+		return OnDisguise(atom_info_repository.get_instance_of(newtype), user)
+	return FALSE
 
 // Subtypes shall override this, not /disguise()
 /obj/item/proc/OnDisguise(var/obj/item/copy, var/mob/user)
-	return
+	. = istype(copy) && !QDELETED(copy)
+	if(.)
+		desc                 = copy.desc
+		name                 = copy.name
+		icon                 = copy.icon
+		color                = copy.color
+		icon_state           = copy.icon_state
+		item_state           = copy.item_state
+		body_parts_covered   = copy.body_parts_covered
+		sprite_sheets        = copy.sprite_sheets?.Copy()
+		flags_inv            = copy.flags_inv
+		set_gender(copy.gender) // mostly for plural/neuter, e.g. "some prayer beads" versus "a necklace"
 
 /proc/generate_chameleon_choices(var/basetype)
 	. = list()
@@ -47,35 +48,66 @@
 			if(name in .)
 				name += " \[[i++]\]"
 			.[name] = typepath
-	return sortAssoc(.)
+	return sortTim(., /proc/cmp_text_asc)
+
+/obj/item/clothing/pants/chameleon
+	name = "grey slacks"
+	desc = "Crisp grey slacks. Moderately formal. There's a small dial on the waistband."
+	icon = 'icons/clothing/pants/slacks.dmi'
+	origin_tech = @'{"esoteric":3}'
+	item_flags = ITEM_FLAG_INVALID_FOR_CHAMELEON
+	var/static/list/disguise_choices
+
+/obj/item/clothing/pants/chameleon/Initialize()
+	. = ..()
+	if(!disguise_choices)
+		var/static/list/clothing_types = list(
+			/obj/item/clothing/pants,
+			/obj/item/clothing/skirt
+		)
+		disguise_choices = generate_chameleon_choices(clothing_types)
+
+CHAMELEON_VERB(/obj/item/clothing/pants/chameleon, "Change Pants Appearance")
+
+/obj/item/clothing/shirt/chameleon
+	name = "dress shirt"
+	desc = "A crisply pressed white button-up shirt. Somewhat formal. There's a small dial on the cuff."
+	icon = 'icons/clothing/shirts/button_up.dmi'
+	origin_tech = @'{"esoteric":3}'
+	item_flags = ITEM_FLAG_INVALID_FOR_CHAMELEON
+	var/static/list/disguise_choices
+
+/obj/item/clothing/shirt/chameleon/Initialize()
+	. = ..()
+	if(!disguise_choices)
+		var/static/list/clothing_types = list(
+			/obj/item/clothing/shirt
+		)
+		disguise_choices = generate_chameleon_choices(clothing_types)
+
+CHAMELEON_VERB(/obj/item/clothing/shirt/chameleon, "Change Shirt Appearance")
 
 //starts off as a jumpsuit
-/obj/item/clothing/under/chameleon
+/obj/item/clothing/jumpsuit/chameleon
 	name = "jumpsuit"
-	icon_state = "jumpsuit"
-	item_state = "jumpsuit"
-	worn_state = "jumpsuit"
+	icon = 'icons/clothing/jumpsuits/jumpsuit.dmi'
 	desc = "It's a plain jumpsuit. It seems to have a small dial on the wrist."
-	origin_tech = "{'esoteric':3}"
+	origin_tech = @'{"esoteric":3}'
 	item_flags = ITEM_FLAG_INVALID_FOR_CHAMELEON
-	var/global/list/clothing_choices
+	bodytype_equip_flags = null
+	var/static/list/disguise_choices
 
-/obj/item/clothing/under/chameleon/Initialize()
+/obj/item/clothing/jumpsuit/chameleon/Initialize()
 	. = ..()
-	if(!clothing_choices)
-		clothing_choices = generate_chameleon_choices(/obj/item/clothing/under)
+	if(!disguise_choices)
+		var/static/list/clothing_types = list(
+			/obj/item/clothing/jumpsuit,
+			/obj/item/clothing/dress,
+			/obj/item/clothing/costume
+		)
+		disguise_choices = generate_chameleon_choices(clothing_types)
 
-/obj/item/clothing/under/chameleon/verb/change(picked in clothing_choices)
-	set name = "Change Jumpsuit Appearance"
-	set category = "Chameleon Items"
-	set src in usr
-
-	if (!(usr.incapacitated()))
-		if(!ispath(clothing_choices[picked]))
-			return
-
-		disguise(clothing_choices[picked], usr)
-		update_clothing_icon()	//so our overlays update.
+CHAMELEON_VERB(/obj/item/clothing/jumpsuit/chameleon, "Change Jumpsuit Appearance")
 
 //*****************
 //**Chameleon Hat**
@@ -83,29 +115,20 @@
 
 /obj/item/clothing/head/chameleon
 	name = "grey cap"
-	icon_state = "greysoft"
 	desc = "It looks like a plain hat, but upon closer inspection, there's an advanced holographic array installed inside. It seems to have a small dial inside."
-	origin_tech = "{'esoteric':3}"
+	icon = 'icons/clothing/head/softcap.dmi'
+	origin_tech = @'{"esoteric":3}'
 	body_parts_covered = 0
 	item_flags = ITEM_FLAG_INVALID_FOR_CHAMELEON
-	var/global/list/clothing_choices
+	bodytype_equip_flags = null
+	var/static/list/disguise_choices
 
 /obj/item/clothing/head/chameleon/Initialize()
 	. = ..()
-	if(!clothing_choices)
-		clothing_choices = generate_chameleon_choices(/obj/item/clothing/head)
+	if(!disguise_choices)
+		disguise_choices = generate_chameleon_choices(/obj/item/clothing/head)
 
-/obj/item/clothing/head/chameleon/verb/change(picked in clothing_choices)
-	set name = "Change Hat/Helmet Appearance"
-	set category = "Chameleon Items"
-	set src in usr
-
-	if (!(usr.incapacitated()))
-		if(!ispath(clothing_choices[picked]))
-			return
-
-		disguise(clothing_choices[picked], usr)
-		update_clothing_icon()	//so our overlays update.
+CHAMELEON_VERB(/obj/item/clothing/head/chameleon, "Change Hat/Helmet Appearance")
 
 //******************
 //**Chameleon Suit**
@@ -113,90 +136,56 @@
 
 /obj/item/clothing/suit/chameleon
 	name = "armor"
-
-	item_state = 'icons/clothing/suit/armor/vest.dmi'
-	desc = "It appears to be a vest of standard armor, except this is embedded with a hidden holographic cloaker, allowing it to change it's appearance, but offering no protection.. It seems to have a small dial inside."
-	origin_tech = "{'esoteric':3}"
+	icon = 'icons/clothing/suits/armor/vest.dmi'
+	desc = "It appears to be a vest of standard armor, except this is embedded with a hidden holographic cloaker, allowing it to change its appearance, but offering no protection. It seems to have a small dial inside."
+	origin_tech = @'{"esoteric":3}'
 	item_flags = ITEM_FLAG_INVALID_FOR_CHAMELEON
-	var/global/list/clothing_choices
+	bodytype_equip_flags = null
+	var/static/list/disguise_choices
 
 /obj/item/clothing/suit/chameleon/Initialize()
 	. = ..()
-	if(!clothing_choices)
-		clothing_choices = generate_chameleon_choices(/obj/item/clothing/suit)
+	if(!disguise_choices)
+		disguise_choices = generate_chameleon_choices(/obj/item/clothing/suit)
 
-/obj/item/clothing/suit/chameleon/verb/change(picked in clothing_choices)
-	set name = "Change Oversuit Appearance"
-	set category = "Chameleon Items"
-	set src in usr
-
-	if (!(usr.incapacitated()))
-		if(!ispath(clothing_choices[picked]))
-			return
-
-		disguise(clothing_choices[picked], usr)
-		update_clothing_icon()	//so our overlays update.
+CHAMELEON_VERB(/obj/item/clothing/suit/chameleon, "Change Oversuit Appearance")
 
 //*******************
 //**Chameleon Shoes**
 //*******************
 /obj/item/clothing/shoes/chameleon
 	name = "black shoes"
-	icon_state = "black"
-	item_state = "black"
-	desc = "They're comfy black shoes, with clever cloaking technology built in. It seems to have a small dial on the back of each shoe."
-	origin_tech = "{'esoteric':3}"
+	icon = 'icons/clothing/feet/colored_shoes.dmi'
+	desc = "They're comfy black shoes, with clever cloaking technology built-in. It seems to have a small dial on the back of each shoe."
+	origin_tech = @'{"esoteric":3}'
 	item_flags = ITEM_FLAG_INVALID_FOR_CHAMELEON
-	var/global/list/clothing_choices
+	bodytype_equip_flags = null
+	var/static/list/disguise_choices
 
 /obj/item/clothing/shoes/chameleon/Initialize()
 	. = ..()
-	if(!clothing_choices)
-		clothing_choices = generate_chameleon_choices(/obj/item/clothing/shoes)
+	if(!disguise_choices)
+		disguise_choices = generate_chameleon_choices(/obj/item/clothing/shoes)
 
-/obj/item/clothing/shoes/chameleon/verb/change(picked in clothing_choices)
-	set name = "Change Footwear Appearance"
-	set category = "Chameleon Items"
-	set src in usr
-
-	if (!(usr.incapacitated()))
-		if(!ispath(clothing_choices[picked]))
-			return
-
-		disguise(clothing_choices[picked], usr)
-		update_clothing_icon()	//so our overlays update.
+CHAMELEON_VERB(/obj/item/clothing/shoes/chameleon, "Change Footwear Appearance")
 
 //**********************
 //**Chameleon Backpack**
 //**********************
-/obj/item/storage/backpack/chameleon
+/obj/item/backpack/chameleon
 	name = "backpack"
 	desc = "A backpack outfitted with cloaking tech. It seems to have a small dial inside, kept away from the storage."
-	origin_tech = "{'esoteric':3}"
+	origin_tech = @'{"esoteric":3}'
 	item_flags = ITEM_FLAG_INVALID_FOR_CHAMELEON
 	icon = 'icons/obj/items/storage/backpack/backpack.dmi'
-	var/global/list/clothing_choices
+	var/static/list/disguise_choices
 
-/obj/item/storage/backpack/chameleon/Initialize()
+/obj/item/backpack/chameleon/Initialize()
 	. = ..()
-	if(!clothing_choices)
-		clothing_choices = generate_chameleon_choices(/obj/item/storage/backpack)
+	if(!disguise_choices)
+		disguise_choices = generate_chameleon_choices(/obj/item/backpack)
 
-/obj/item/storage/backpack/chameleon/verb/change(picked in clothing_choices)
-	set name = "Change Backpack Appearance"
-	set category = "Chameleon Items"
-	set src in usr
-
-	if (!(usr.incapacitated()))
-		if(!ispath(clothing_choices[picked]))
-			return
-
-		disguise(clothing_choices[picked], usr)
-
-	//so our overlays update.
-	if (ismob(src.loc))
-		var/mob/M = src.loc
-		M.update_inv_back()
+CHAMELEON_VERB(/obj/item/backpack/chameleon, "Change Backpack Appearance")
 
 //********************
 //**Chameleon Gloves**
@@ -208,26 +197,17 @@
 	color = COLOR_GRAY40
 	icon = 'icons/clothing/hands/gloves_generic.dmi'
 	desc = "It looks like a pair of gloves, but it seems to have a small dial inside."
-	origin_tech = "{'esoteric':3}"
+	origin_tech = @'{"esoteric":3}'
 	item_flags = ITEM_FLAG_INVALID_FOR_CHAMELEON
-	var/global/list/clothing_choices
+	bodytype_equip_flags = null
+	var/static/list/disguise_choices
 
 /obj/item/clothing/gloves/chameleon/Initialize()
 	. = ..()
-	if(!clothing_choices)
-		clothing_choices = generate_chameleon_choices(/obj/item/clothing/gloves)
+	if(!disguise_choices)
+		disguise_choices = generate_chameleon_choices(/obj/item/clothing/gloves)
 
-/obj/item/clothing/gloves/chameleon/verb/change(picked in clothing_choices)
-	set name = "Change Gloves Appearance"
-	set category = "Chameleon Items"
-	set src in usr
-
-	if (!(usr.incapacitated()))
-		if(!ispath(clothing_choices[picked]))
-			return
-
-		disguise(clothing_choices[picked], usr)
-		update_clothing_icon()	//so our overlays update.
+CHAMELEON_VERB(/obj/item/clothing/gloves/chameleon, "Change Gloves Appearance")
 
 //******************
 //**Chameleon Mask**
@@ -235,29 +215,19 @@
 
 /obj/item/clothing/mask/chameleon
 	name = "gas mask"
-	icon_state = "fullgas"
-	item_state = "gas_alt"
-	desc = "It looks like a plain gask mask, but on closer inspection, it seems to have a small dial inside."
-	origin_tech = "{'esoteric':3}"
+	icon = 'icons/clothing/mask/gas_mask_full.dmi'
+	desc = "It looks like a plain gas mask, but on closer inspection, it seems to have a small dial inside."
+	origin_tech = @'{"esoteric":3}'
 	item_flags = ITEM_FLAG_INVALID_FOR_CHAMELEON
-	var/global/list/clothing_choices
+	bodytype_equip_flags = null
+	var/static/list/disguise_choices
 
 /obj/item/clothing/mask/chameleon/Initialize()
 	. = ..()
-	if(!clothing_choices)
-		clothing_choices = generate_chameleon_choices(/obj/item/clothing/mask)
+	if(!disguise_choices)
+		disguise_choices = generate_chameleon_choices(/obj/item/clothing/mask)
 
-/obj/item/clothing/mask/chameleon/verb/change(picked in clothing_choices)
-	set name = "Change Mask Appearance"
-	set category = "Chameleon Items"
-	set src in usr
-
-	if (!(usr.incapacitated()))
-		if(!ispath(clothing_choices[picked]))
-			return
-
-		disguise(clothing_choices[picked], usr)
-		update_clothing_icon()	//so our overlays update.
+CHAMELEON_VERB(/obj/item/clothing/mask/chameleon, "Change Mask Appearance")
 
 //*********************
 //**Chameleon Glasses**
@@ -265,29 +235,19 @@
 
 /obj/item/clothing/glasses/chameleon
 	name = "Optical Meson Scanner"
-	icon_state = "meson"
-	item_state = "glasses"
+	icon = 'icons/clothing/eyes/scanner_meson.dmi'
 	desc = "It looks like a plain set of mesons, but on closer inspection, it seems to have a small dial inside."
-	origin_tech = "{'esoteric':3}"
+	origin_tech = @'{"esoteric":3}'
 	item_flags = ITEM_FLAG_INVALID_FOR_CHAMELEON
-	var/global/list/clothing_choices
+	bodytype_equip_flags = null
+	var/static/list/disguise_choices
 
 /obj/item/clothing/glasses/chameleon/Initialize()
 	. = ..()
-	if(!clothing_choices)
-		clothing_choices = generate_chameleon_choices(/obj/item/clothing/glasses)
+	if(!disguise_choices)
+		disguise_choices = generate_chameleon_choices(/obj/item/clothing/glasses)
 
-/obj/item/clothing/glasses/chameleon/verb/change(picked in clothing_choices)
-	set name = "Change Glasses Appearance"
-	set category = "Chameleon Items"
-	set src in usr
-
-	if (!(usr.incapacitated()))
-		if(!ispath(clothing_choices[picked]))
-			return
-
-		disguise(clothing_choices[picked], usr)
-		update_clothing_icon()	//so our overlays update.
+CHAMELEON_VERB(/obj/item/clothing/glasses/chameleon, "Change Glasses Appearance")
 
 //*********************
 //**Chameleon Headset**
@@ -295,76 +255,48 @@
 
 /obj/item/radio/headset/chameleon
 	name = "radio headset"
-	icon_state = "headset"
-	item_state = "headset"
+	icon = 'icons/obj/items/device/radio/headsets/headset.dmi'
 	desc = "An updated, modular intercom that fits over the head. This one seems to have a small dial on it."
-	origin_tech = "{'esoteric':3}"
+	origin_tech = @'{"esoteric":3}'
 	item_flags = ITEM_FLAG_INVALID_FOR_CHAMELEON
-	var/list/global/clothing_choices
+	var/static/list/disguise_choices
 
 /obj/item/radio/headset/chameleon/Initialize()
 	. = ..()
-	if(!clothing_choices)
-		clothing_choices = generate_chameleon_choices(/obj/item/radio/headset)
+	if(!disguise_choices)
+		disguise_choices = generate_chameleon_choices(/obj/item/radio/headset)
 
-/obj/item/radio/headset/chameleon/verb/change(picked in clothing_choices)
-	set name = "Change Headset Appearance"
-	set category = "Chameleon Items"
-	set src in usr
-
-	if (!(usr.incapacitated()))
-		if(!ispath(clothing_choices[picked]))
-			return
-
-		disguise(clothing_choices[picked], usr)
-		if (ismob(src.loc))
-			var/mob/M = src.loc
-			M.update_inv_ears()
+CHAMELEON_VERB(/obj/item/radio/headset/chameleon, "Change Headset Appearance")
 
 //***********************
 //**Chameleon Accessory**
 //***********************
 
-/obj/item/clothing/accessory/chameleon
+/obj/item/clothing/chameleon
 	name = "tie"
-	icon_state = "tie"
-	item_state = ""
+	icon = 'icons/clothing/accessories/ties/tie.dmi'
 	desc = "A neosilk clip-on tie. It seems to have a small dial on its back."
-	origin_tech = "{'esoteric':3}"
+	origin_tech = @'{"esoteric":3}'
 	item_flags = ITEM_FLAG_INVALID_FOR_CHAMELEON
-	var/global/list/clothing_choices
+	w_class = ITEM_SIZE_SMALL
+	fallback_slot = slot_wear_mask_str
+	var/static/list/disguise_choices
+	var/static/list/decor_types = list(
+		/obj/item/clothing/neck,
+		/obj/item/clothing/badge,
+		/obj/item/clothing/medal,
+		/obj/item/clothing/suspenders,
+		/obj/item/clothing/armband,
+		/obj/item/clothing/webbing,
+		/obj/item/clothing/sensor
+	)
 
-/obj/item/clothing/accessory/chameleon/Initialize()
+/obj/item/clothing/chameleon/Initialize()
 	. = ..()
-	if(!clothing_choices)
-		clothing_choices = generate_chameleon_choices(/obj/item/clothing/accessory)
+	if(!disguise_choices)
+		disguise_choices = generate_chameleon_choices(get_non_abstract_types(decor_types))
 
-/obj/item/clothing/accessory/chameleon/verb/change(picked in clothing_choices)
-	set name = "Change Accessory Appearance"
-	set category = "Chameleon Items"
-	set src in usr
-
-	if (!(usr.incapacitated()))
-		if(!ispath(clothing_choices[picked]))
-			return
-
-		disguise(clothing_choices[picked], usr)
-		update_clothing_icon()	//so our overlays update.
-
-/obj/item/clothing/accessory/chameleon/disguise(var/newtype, var/mob/user)
-	var/obj/item/clothing/accessory/copy = ..()
-	if (!copy)
-		return
-
-	slot = copy.slot
-	has_suit = copy.has_suit
-	inv_overlay = copy.inv_overlay
-	mob_overlay = copy.mob_overlay
-	overlay_state = copy.overlay_state
-	accessory_icons = copy.accessory_icons
-	on_rolled = copy.on_rolled
-	high_visibility = copy.high_visibility
-	return copy
+CHAMELEON_VERB(/obj/item/clothing/chameleon, "Change Accessory Appearance")
 
 //*****************
 //**Chameleon Gun**
@@ -375,7 +307,7 @@
 	icon = 'icons/obj/guns/revolvers.dmi'
 	icon_state = "revolver"
 	w_class = ITEM_SIZE_SMALL
-	origin_tech = "{'combat':2,'materials':2,'esoteric':8}"
+	origin_tech = @'{"combat":2,"materials":2,"esoteric":8}'
 	item_flags = ITEM_FLAG_INVALID_FOR_CHAMELEON
 	matter = list()
 
@@ -386,12 +318,12 @@
 	max_shots = 50
 
 	var/obj/item/projectile/copy_projectile
-	var/global/list/gun_choices
+	var/static/list/disguise_choices
 
 /obj/item/gun/energy/chameleon/Initialize()
 	. = ..()
-	if(!gun_choices)
-		gun_choices = generate_chameleon_choices(/obj/item/gun)
+	if(!disguise_choices)
+		disguise_choices = generate_chameleon_choices(/obj/item/gun)
 
 /obj/item/gun/energy/chameleon/consume_next_projectile()
 	var/obj/item/projectile/P = ..()
@@ -400,8 +332,14 @@
 		P.icon = initial(copy_projectile.icon)
 		P.icon_state = initial(copy_projectile.icon_state)
 		P.pass_flags = initial(copy_projectile.pass_flags)
+		P.fire_sound = initial(copy_projectile.fire_sound)
+		P.silenced = copy_projectile.silenced
+		P.hitsound = initial(copy_projectile.hitsound)
+		P.hitsound_non_mob = initial(copy_projectile.hitsound_non_mob)
 		P.hitscan = initial(copy_projectile.hitscan)
 		P.step_delay = initial(copy_projectile.step_delay)
+		P.speed = initial(copy_projectile.speed)
+		P.range = initial(copy_projectile.range)
 		P.muzzle_type = initial(copy_projectile.muzzle_type)
 		P.tracer_type = initial(copy_projectile.tracer_type)
 		P.impact_type = initial(copy_projectile.impact_type)
@@ -424,19 +362,4 @@
 		copy_projectile = null
 		//charge_meter = 0
 
-/obj/item/gun/energy/chameleon/verb/change(picked in gun_choices)
-	set name = "Change Gun Appearance"
-	set category = "Chameleon Items"
-	set src in usr
-
-	if (!(usr.incapacitated()))
-		if(!ispath(gun_choices[picked]))
-			return
-
-		disguise(gun_choices[picked], usr)
-
-	//so our overlays update.
-	if (ismob(src.loc))
-		var/mob/M = src.loc
-		M.update_inv_r_hand()
-		M.update_inv_l_hand()
+CHAMELEON_VERB(/obj/item/gun/energy/chameleon, "Change Gun Appearance")

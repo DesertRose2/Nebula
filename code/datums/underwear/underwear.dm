@@ -1,17 +1,18 @@
 /****************************
 * Category Collection Setup *
 ****************************/
+// TODO: replace underwear category stuff with decls or something? unlike player_setup_collection they're all singletons
+// i hate to say it but the way this works may actually be perfect for /decl/hierarchy
+var/global/datum/category_collection/underwear/underwear = new()
 /datum/category_collection/underwear
 	category_group_type = /datum/category_group/underwear
 
 /*************
 * Categories *
 *************/
+// Lower sort order is applied as icons first
 /datum/category_group/underwear
-	var/sort_order		// Lower sort order is applied as icons first
-
-datum/category_group/underwear/dd_SortValue()
-	return sort_order
+	abstract_type = /datum/category_group/underwear
 
 /datum/category_group/underwear/top
 	name = "Underwear, top"
@@ -66,10 +67,10 @@ datum/category_group/underwear/dd_SortValue()
 
 	var/obj/item/underwear/UW = new underwear_type()
 	UW.SetName(underwear_name)
-	UW.gender = underwear_gender
+	UW.set_gender(underwear_gender)
 	UW.icon = icon
 	UW.icon_state = icon_state
 
 	for(var/datum/gear_tweak/gt in tweaks)
-		gt.tweak_item(user, UW, metadata && metadata["[gt]"] ? metadata["[gt]"] : gt.get_default())
+		gt.tweak_item(user, UW, ((metadata && metadata["[gt]"]) ? metadata["[gt]"] : gt.get_default()))
 	return UW

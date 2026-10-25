@@ -1,45 +1,52 @@
 /obj/machinery/computer/design_console
 	name = "design database console"
 	desc = "A console for interfacing with a research and development design network."
+	maximum_component_parts = list(
+		/obj/item/stock_parts/item_holder/disk_reader = 1,
+		/obj/item/stock_parts = 15,
+	)
 
+	/// A cached reference to our disk reader part, if present.
+	var/obj/item/stock_parts/item_holder/disk_reader/disk_reader
 	var/initial_network_id
 	var/initial_network_key
 	var/list/local_cache
-	var/obj/item/disk/design_disk/disk
 	var/obj/machinery/design_database/viewing_database
 	var/showing_designs = FALSE
 
 /obj/machinery/computer/design_console/Initialize()
 	. = ..()
-	set_extension(src, /datum/extension/network_device, initial_network_id, initial_network_key, NETWORK_CONNECTION_WIRED)
+	set_extension(src, /datum/extension/network_device, initial_network_id, initial_network_key, RECEIVER_STRONG_WIRELESS)
 
-/obj/machinery/computer/design_console/attackby(obj/item/I, mob/user)
-	if(istype(I, /obj/item/disk/design_disk))
-		if(disk)
-			to_chat(user, SPAN_WARNING("\The [src] already has a disk inserted."))
-			return
-		if(user.unEquip(I, src))
-			visible_message("\The [user] slots \the [I] into \the [src].")
-			disk = I
-			return
+/obj/machinery/computer/design_console/Destroy()
+	viewing_database = null
+	disk_reader = null
+	return ..()
+
+/obj/machinery/computer/design_console/modify_mapped_vars(map_hash)
+	..()
+	ADJUST_TAG_VAR(initial_network_id, map_hash)
+	ADJUST_TAG_VAR(initial_network_key, map_hash)
+
+/obj/machinery/computer/design_console/RefreshParts()
 	. = ..()
+	disk_reader = get_component_of_type(/obj/item/stock_parts/item_holder/disk_reader)
+	if(disk_reader)
+		disk_reader.register_on_insert(CALLBACK(src, PROC_REF(update_ui)))
+		disk_reader.register_on_eject(CALLBACK(src, PROC_REF(update_ui)))
+
+/obj/machinery/computer/design_console/proc/try_get_disk()
+	return disk_reader?.get_inserted()
+
+/obj/machinery/computer/design_console/proc/update_ui()
+	SSnano.update_uis(src)
+
+/obj/machinery/computer/design_console/handle_post_network_connection()
+	..()
+	sync_network()
 
 /obj/machinery/computer/design_console/proc/eject_disk(var/mob/user)
-	if(disk)
-		disk.dropInto(loc)
-		if(user)
-			if(!issilicon(user))
-				user.put_in_hands(disk)
-			if(Adjacent(user, src))
-				visible_message(SPAN_NOTICE("\The [user] removes \the [disk] from \the [src]."))
-		disk = null
-		return TRUE
-	return FALSE
-
-/obj/machinery/computer/design_console/AltClick(mob/user)
-	if(disk)
-		eject_disk()
-	. = ..()
+	return !!disk_reader.eject_item(user)
 
 /obj/machinery/computer/design_console/interface_interact(mob/user)
 	ui_interact(user)
@@ -52,9 +59,13 @@
 	var/datum/computer_network/network = device.get_network()
 	data["network_id"] = device.network_tag
 
+	var/obj/item/disk/design_disk/disk = try_get_disk()
 	if(disk)
 		data["disk_name"] = disk.name
-		data["disk_tech"] = disk.blueprint ? disk.blueprint.name : "no design saved"
+		if(istype(disk))
+			data["disk_tech"] = disk.blueprint ? disk.blueprint.name : "no design saved"
+		else
+			data["disk_tech"] = "invalid data format"
 	else
 		data["disk_name"] = "no disk loaded"
 
@@ -64,7 +75,7 @@
 		var/list/show_tech_levels = list()
 		for(var/tech in viewing_database.tech_levels)
 			var/decl/research_field/field = SSfabrication.get_research_field_by_id(tech)
-			show_tech_levels += list(list("field" = field.name, "level" = "[viewing_database.tech_levels[tech]].0 GQ"))
+			show_tech_levels += list(list("field" = field.name, "desc" = field.desc, "level" = "[viewing_database.tech_levels[tech]].0 GQ"))
 		data["tech_levels"] = show_tech_levels
 
 	else if(showing_designs)
@@ -82,11 +93,11 @@
 		var/list/show_tech_levels = list()
 		for(var/tech in local_cache)
 			var/decl/research_field/field = SSfabrication.get_research_field_by_id(tech)
-			show_tech_levels += list(list("field" = field.name, "level" = "[local_cache[tech]].0 GQ"))
+			show_tech_levels += list(list("field" = field.name, "level" = "[local_cache[tech]].0 GQ", "desc" = field.desc))
 		data["tech_levels"] = show_tech_levels
 
 		var/list/found_databases = list()
-		for(var/obj/machinery/design_database/db in network?.get_devices_by_type(/obj/machinery/design_database, user))
+		for(var/obj/machinery/design_database/db in network?.get_devices_by_type(/obj/machinery/design_database, user.GetAccess()))
 			var/list/database = list("name" = db.name, "ref" = "\ref[db]")
 			if(db.stat & (BROKEN|NOPOWER))
 				database["status"] = "Offline"
@@ -97,7 +108,7 @@
 		data["connected_databases"] = found_databases
 
 		var/list/found_analyzers = list()
-		for(var/obj/machinery/destructive_analyzer/az in network?.get_devices_by_type(/obj/machinery/destructive_analyzer, user))
+		for(var/obj/machinery/destructive_analyzer/az in network?.get_devices_by_type(/obj/machinery/destructive_analyzer, user.GetAccess()))
 			var/list/analyzer = list("name" = az.name, "ref" = "\ref[az]")
 			if(az.stat & (BROKEN|NOPOWER))
 				analyzer["status"] = "Offline"
@@ -156,7 +167,8 @@
 
 		if(href_list["save_design"])
 			var/datum/fabricator_recipe/design = locate(href_list["save_design"])
-			if(istype(design) && disk)
+			var/obj/item/disk/design_disk/disk = try_get_disk()
+			if(istype(design) && istype(disk))
 				disk.blueprint = design
 				disk.SetName("[initial(disk.name)] ([disk.blueprint.name])")
 			return TOPIC_REFRESH
@@ -174,12 +186,18 @@
 	if(!(analyzer in network?.get_devices_by_type(/obj/machinery/destructive_analyzer)))
 		return
 	var/list/adding_to_cache = analyzer.process_loaded()
-	LAZYINITLIST(local_cache)
-	for(var/tech in adding_to_cache)
-		local_cache[tech] = max(local_cache[tech], adding_to_cache[tech])
-	UNSETEMPTY(local_cache)
-	if(length(local_cache))
-		sync_network()
+	if(length(adding_to_cache))
+		LAZYINITLIST(local_cache)
+		for(var/tech in adding_to_cache)
+			var/current_level = local_cache[tech]     || 0
+			var/new_level =     adding_to_cache[tech] || 0
+			if(new_level == current_level)
+				local_cache[tech] = current_level+1
+			else
+				local_cache[tech] = max(current_level, new_level)
+		UNSETEMPTY(local_cache)
+		if(length(local_cache))
+			sync_network()
 
 /obj/machinery/computer/design_console/proc/get_network_tech_levels()
 	. = local_cache || list()

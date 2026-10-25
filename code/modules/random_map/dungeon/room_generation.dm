@@ -18,7 +18,7 @@
 	return 1
 
 /datum/random_room/proc/apply_loot(var/xorigin = 1,var/yorigin = 1,var/zorigin = 1, var/type)
-	if(!item_spawns || !item_spawns.len)
+	if(!LAZYLEN(item_spawns))
 		return 0
 	var/place = pick(item_spawns)
 	if(istype(place,/obj)) //we assume what object we get is some sort of container.
@@ -26,7 +26,7 @@
 		if(O.contents && prob(O.contents.len * (25 / O.w_class)))
 			return 0
 		new type(place)
-	else if(istype(place,/mob))
+	else if(ismob(place))
 		var/mob/M = place
 		var/atom/movable/A = new type(M.loc)
 		M.equip_to_appropriate_slot(A) //we dont have to check if its an object or not since hte proc in question already does that

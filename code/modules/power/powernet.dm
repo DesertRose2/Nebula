@@ -40,7 +40,7 @@
 	return max(avail - load, 0)
 
 /datum/powernet/proc/draw_power(var/amount)
-	var/draw = between(0, amount, avail - load)
+	var/draw = clamp(0, amount, avail - load)
 	load += draw
 	return draw
 
@@ -101,10 +101,9 @@
 	if(problem > 0)
 		problem = max(problem - 1, 0)
 
-	if(nodes && nodes.len) // Added to fix a bad list bug -- TLE
-		for(var/obj/machinery/power/terminal/term in nodes)
-			if( istype( term.master_machine(), /obj/machinery/power/apc ) )
-				numapc++
+	for(var/obj/machinery/power/terminal/term in nodes)
+		if( istype( term.master_machine(), /obj/machinery/apc ) )
+			numapc++
 
 	netexcess = avail - load
 
@@ -121,7 +120,7 @@
 
 	// At this point, all other machines have finished using power. Anything left over may be used up to charge SMESs.
 	if(inputting.len && smes_demand)
-		var/smes_input_percentage = between(0, (netexcess / smes_demand) * 100, 100)
+		var/smes_input_percentage = clamp(0, (netexcess / smes_demand) * 100, 100)
 		for(var/obj/machinery/power/smes/S in inputting)
 			S.input_power(smes_input_percentage)
 
@@ -149,11 +148,11 @@
 		var/smes_used = load - (avail - smes_avail) 			// SMESs are always last to provide power
 		if(!smes_used || smes_used < 0 || !smes_avail)			// SMES power isn't available or being used at all, SMES load is therefore 0%
 			return 0
-		return between(0, (smes_used / smes_avail) * 100, 100)	// Otherwise return percentage load of SMESs.
+		return clamp(0, (smes_used / smes_avail) * 100, 100)	// Otherwise return percentage load of SMESs.
 	else
 		if(!load)
 			return 0
-		return between(0, (avail / load) * 100, 100)
+		return clamp(0, (avail / load) * 100, 100)
 
 /datum/powernet/proc/get_electrocute_damage()
 	switch(avail)
@@ -178,13 +177,9 @@
 // return a knot cable (O-X) if one is present in the turf
 // null if there's none
 /turf/proc/get_cable_node()
-	if(!istype(src, /turf/simulated))
-		return null
 	for(var/obj/structure/cable/C in src)
 		if(C.d1 == 0)
 			return C
-	return null
-
 
 /area/proc/get_apc()
 	return apc

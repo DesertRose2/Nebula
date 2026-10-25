@@ -1,13 +1,8 @@
-//wrapper macros for easier grepping
-#define DIRECT_OUTPUT(A, B) A << B
-#define WRITE_FILE(file, text) DIRECT_OUTPUT(file, text)
-
-
 // On Linux/Unix systems the line endings are LF, on windows it's CRLF, admins that don't use notepad++
 // will get logs that are one big line if the system is Linux and they are using notepad.  This solves it by adding CR to every line ending
 // in the logs.  ascii character 13 = CR
 
-/var/global/log_end= world.system_type == UNIX ? ascii2text(13) : ""
+var/global/log_end= world.system_type == UNIX ? ascii2text(13) : ""
 
 
 /proc/error(msg)
@@ -21,9 +16,6 @@
 	if (log_world)
 		to_world_log("SS[subsystem]: [text]")
 
-/proc/log_ss_init(text)
-	game_log("SS", "[text]")
-
 #define WARNING(MSG) warning("[MSG] in [__FILE__] at line [__LINE__] src: [src] usr: [usr].")
 //print a warning message to world.log
 /proc/warning(msg)
@@ -34,15 +26,15 @@
 	to_world_log("## TESTING: [msg][log_end]")
 
 /proc/game_log(category, text)
-	diary << "\[[time_stamp()]] [game_id] [category]: [text][log_end]"
+	to_file(diary, "\[[time_stamp()]] [game_id] [category]: [text][log_end]")
 
 /proc/log_admin(text)
-	GLOB.admin_log.Add(text)
-	if (config.log_admin)
+	global.admin_log.Add(text)
+	if (get_config_value(/decl/config/toggle/log_admin))
 		game_log("ADMIN", text)
 
 /proc/log_debug(text)
-	if (config.log_debug)
+	if (get_config_value(/decl/config/toggle/log_debug))
 		game_log("DEBUG", text)
 	to_debug_listeners(text)
 
@@ -55,53 +47,53 @@
 	to_debug_listeners(text, "WARNING")
 
 /proc/to_debug_listeners(text, prefix = "DEBUG")
-	for(var/client/C in GLOB.admins)
-		if(C.get_preference_value(/datum/client_preference/staff/show_debug_logs) == GLOB.PREF_SHOW)
+	for(var/client/C in global.admins)
+		var/print_to_chat = TRUE
+		if(C.prefs?.preference_values)
+			print_to_chat = C.get_preference_value(/datum/client_preference/staff/show_debug_logs) == PREF_SHOW
+		if(print_to_chat)
 			to_chat(C, "[prefix]: [text]")
 
 /proc/log_game(text)
-	if (config.log_game)
+	if (get_config_value(/decl/config/toggle/log_game))
 		game_log("GAME", text)
 
 /proc/log_vote(text)
-	if (config.log_vote)
+	if (get_config_value(/decl/config/toggle/log_vote))
 		game_log("VOTE", text)
 
 /proc/log_access(text)
-	if (config.log_access)
+	if (get_config_value(/decl/config/toggle/log_access))
 		game_log("ACCESS", text)
 
 /proc/log_say(text)
-	if (config.log_say)
+	if (get_config_value(/decl/config/toggle/log_say))
 		game_log("SAY", text)
 
 /proc/log_ooc(text)
-	if (config.log_ooc)
+	if (get_config_value(/decl/config/toggle/log_ooc))
 		game_log("OOC", text)
 
 /proc/log_whisper(text)
-	if (config.log_whisper)
+	if (get_config_value(/decl/config/toggle/log_whisper))
 		game_log("WHISPER", text)
 
 /proc/log_emote(text)
-	if (config.log_emote)
+	if (get_config_value(/decl/config/toggle/log_emotes))
 		game_log("EMOTE", text)
 
 /proc/log_attack(text)
-	if (config.log_attack)
+	if (get_config_value(/decl/config/toggle/log_attack))
 		game_log("ATTACK", text)
 
 /proc/log_adminsay(text)
-	if (config.log_adminchat)
+	global.admin_log.Add(text)
+	if (get_config_value(/decl/config/toggle/log_adminchat))
 		game_log("ADMINSAY", text)
 
 /proc/log_adminwarn(text)
-	if (config.log_adminwarn)
+	if (get_config_value(/decl/config/toggle/log_adminwarn))
 		game_log("ADMINWARN", text)
-
-/proc/log_pda(text)
-	if (config.log_pda)
-		game_log("PDA", text)
 
 /proc/log_misc(text)
 	game_log("MISC", text)
@@ -111,25 +103,13 @@
 	log_debug(text)
 
 /proc/log_qdel(text)
-	WRITE_FILE(GLOB.world_qdel_log, "\[[time_stamp()]]QDEL: [text]")
+	to_file(global.world_qdel_log, "\[[time_stamp()]]QDEL: [text]")
 
 //This replaces world.log so it displays both in DD and the file
 /proc/log_world(text)
 	to_world_log(text) //this comes before the config check because it can't possibly runtime
-	if(config.log_world_output)
+	if(get_config_value(/decl/config/toggle/log_world_output))
 		game_log("DD_OUTPUT", text)
-
-//pretty print a direction bitflag, can be useful for debugging.
-/proc/dir_text(var/dir)
-	var/list/comps = list()
-	if(dir & NORTH) comps += "NORTH"
-	if(dir & SOUTH) comps += "SOUTH"
-	if(dir & EAST) comps += "EAST"
-	if(dir & WEST) comps += "WEST"
-	if(dir & UP) comps += "UP"
-	if(dir & DOWN) comps += "DOWN"
-
-	return english_list(comps, nothing_text="0", and_text="|", comma_text="|")
 
 //more or less a logging utility
 /proc/key_name(var/whom, var/include_link = null, var/include_name = 1, var/highlight_special_characters = 1, var/datum/ticket/ticket = null)
@@ -162,7 +142,7 @@
 
 	if(key)
 		if(include_link && C)
-			. += "<a href='?priv_msg=\ref[C];ticket=\ref[ticket]'>"
+			. += "<a href='byond://?priv_msg=\ref[C];ticket=\ref[ticket]'>"
 
 		. += key
 
@@ -182,7 +162,7 @@
 
 
 		if(include_link && is_special_character(M) && highlight_special_characters)
-			. += "/(<font color='#ffa500'>[name]</font>)" //Orange
+			. += "/([SPAN_ORANGE(name)])"
 		else
 			. += "/([name])"
 
@@ -199,7 +179,7 @@
 	return "[..()] ([isnum(z) ? "[x],[y],[z]" : "0,0,0"])"
 
 /turf/get_log_info_line()
-	var/obj/effect/overmap/visitable/O = map_sectors["[z]"]
+	var/obj/effect/overmap/visitable/O = global.overmap_sectors[z]
 	if(istype(O))
 		return "[..()] ([x],[y],[z] - [O.name]) ([loc ? loc.type : "NULL"])"
 	else
@@ -208,7 +188,7 @@
 /atom/movable/get_log_info_line()
 	var/turf/t = get_turf(src)
 	if(t)
-		var/obj/effect/overmap/visitable/O = map_sectors["[t.z]"]
+		var/obj/effect/overmap/visitable/O = global.overmap_sectors[t.z]
 		if(istype(O))
 			return "[..()] ([t]) ([t.x],[t.y],[t.z] - [O.name]) ([t.type])"
 		return "[..()] ([t]) ([t.x],[t.y],[t.z]) ([t.type])"
@@ -221,16 +201,19 @@
 	if(isnull(d))
 		return "*null*"
 	if(islist(d))
-		var/list/L = list()
-		for(var/e in d)
+		var/list/out = list()
+		var/list/dlist = d
+		for(var/entry in dlist)
 			// Indexing on numbers just gives us the same number again in the best case and causes an index out of bounds runtime in the worst
-			var/v = isnum(e) ? null : d[e]
-			L += "[log_info_line(e)][" - [log_info_line(v)]"]"
-		return "\[[jointext(L, ", ")]\]" // We format the string ourselves, rather than use json_encode(), because it becomes difficult to read recursively escaped "
+			var/value = isnum(entry) ? null : dlist[entry]
+			out += "[log_info_line(entry)][" - [log_info_line(value)]"]"
+		return "\[[jointext(out, ", ")]\]" // We format the string ourselves, rather than use json_encode(), because it becomes difficult to read recursively escaped "
 	if(!istype(d))
 		return json_encode(d)
 	return d.get_log_info_line()
 
+var/global/_gag_report_progress = 0
 /proc/report_progress(var/progress_message)
-	admin_notice("<span class='boldannounce'>[progress_message]</span>", R_DEBUG)
-	to_world_log(progress_message)
+	if(global._gag_report_progress <= 0)
+		admin_notice("<span class='boldannounce'>[progress_message]</span>", R_DEBUG)
+		to_world_log(progress_message)

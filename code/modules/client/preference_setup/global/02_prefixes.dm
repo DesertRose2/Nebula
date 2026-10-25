@@ -11,9 +11,9 @@
 	..()
 	SETUP_SUBTYPE_DECLS_BY_NAME(/decl/prefix, prefix_by_name)
 
-/datum/category_item/player_setup_item/player_global/prefixes/load_preferences(var/savefile/S)
+/datum/category_item/player_setup_item/player_global/prefixes/load_preferences(datum/pref_record_reader/R)
 	var/list/prefix_keys_by_name
-	from_file(S["prefix_keys"], prefix_keys_by_name)
+	prefix_keys_by_name = R.read("prefix_keys")
 
 	if(istype(prefix_keys_by_name))
 		pref.prefix_keys_by_type = list()
@@ -22,13 +22,13 @@
 			if(prefix_instance)
 				pref.prefix_keys_by_type[prefix_instance.type] = prefix_keys_by_name[prefix_name]
 
-/datum/category_item/player_setup_item/player_global/prefixes/save_preferences(var/savefile/S)
+/datum/category_item/player_setup_item/player_global/prefixes/save_preferences(datum/pref_record_writer/writer)
 	var/list/prefix_keys_by_name = list()
 	for(var/prefix_type in pref.prefix_keys_by_type)
-		var/decl/prefix/prefix_instance = decls_repository.get_decl(prefix_type)
+		var/decl/prefix/prefix_instance = GET_DECL(prefix_type)
 		prefix_keys_by_name[prefix_instance.name] = pref.prefix_keys_by_type[prefix_type]
 
-	to_file(S["prefix_keys"], prefix_keys_by_name)
+	writer.write("prefix_keys", prefix_keys_by_name)
 
 /datum/category_item/player_setup_item/player_global/prefixes/sanitize_preferences()
 	if(!istype(pref.prefix_keys_by_type))
@@ -57,14 +57,14 @@
 			. += "<span class='linkOff'>Change</span>"
 		else
 
-			. += "<a href='?src=\ref[src];change_prefix=\ref[prefix_instance]'>Change</a>"
+			. += "<a href='byond://?src=\ref[src];change_prefix=\ref[prefix_instance]'>Change</a>"
 
 		. += "</td><td>"
 
 		if(prefix_instance.is_locked || current_prefix == prefix_instance.default_key)
 			. += "<span class='linkOff'>Reset</span>"
 		else
-			. += "<a href='?src=\ref[src];reset_prefix=\ref[prefix_instance]'>Reset</a>"
+			. += "<a href='byond://?src=\ref[src];reset_prefix=\ref[prefix_instance]'>Reset</a>"
 		. += "</td></tr>"
 	. += "</table>"
 
@@ -100,8 +100,8 @@
 						continue
 					var/prefix_key = pref.prefix_keys_by_type[prefix_type]
 					if(prefix_key == new_key)
-						var/decl/prefix/pi = decls_repository.get_decl(prefix_type)
-						pref.prefix_keys_by_type[pi.type] = pi.default_key
+						var/decl/prefix/prefix = GET_DECL(prefix_type)
+						pref.prefix_keys_by_type[prefix.type] = prefix.default_key
 				// Then we reset any and all duplicates
 				reset_duplicate_keys()
 				// Then, if the new key was reset it means it matched a default key.
@@ -133,11 +133,11 @@
 		var/list/prefix_types = prefixes_by_key[prefix_key]
 		if(prefix_types.len > 1)
 			for(var/prefix_type in prefix_types)
-				var/decl/prefix/prefix_instance = decls_repository.get_decl(prefix_type)
+				var/decl/prefix/prefix_instance = GET_DECL(prefix_type)
 				pref.prefix_keys_by_type[prefix_instance.type] = prefix_instance.default_key
 
 /mob/proc/get_prefix_key(var/prefix_type)
 	if(client && client.prefs)
 		return client.prefs.prefix_keys_by_type[prefix_type]
-	var/decl/prefix/prefix_instance = decls_repository.get_decl(prefix_type)
+	var/decl/prefix/prefix_instance = GET_DECL(prefix_type)
 	return prefix_instance.default_key

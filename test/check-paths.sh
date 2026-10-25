@@ -9,9 +9,9 @@ exactly() { # exactly N name search [mode] [filter]
 	name="$2"
 	search="$3"
 	mode="${4:--E}"
-	filter="${5:-**/*.dm}"
+	filter="${5:-*.dm}"
 
-	num="$(grep "$mode" "$search" $filter | wc -l || true)"
+	num="$(git grep "$mode" "$search" $filter | wc -l || true)"
 
 	if [ $num -eq $count ]; then
 		echo "$num $name"
@@ -22,51 +22,40 @@ exactly() { # exactly N name search [mode] [filter]
 }
 
 # With the potential exception of << if you increase any of these numbers you're probably doing it wrong
-exactly 0 "escapes" '\\\\(red|blue|green|black|b|i[^mc])'
-exactly 4 "Del()s" '\WDel\('
+# Additional exception August 2020: \b is a regex symbol as well as a BYOND macro.
+exactly 3 "escapes" '\\(red|blue|green|black|b|i[^mc])'
+exactly 3 "Del()s" '(?<!world/)\bDel\('  -P
 exactly 2 "/atom text paths" '"/atom'
 exactly 2 "/area text paths" '"/area'
 exactly 2 "/datum text paths" '"/datum'
 exactly 2 "/mob text paths" '"/mob'
 exactly 6 "/obj text paths" '"/obj'
-exactly 8 "/turf text paths" '"/turf'
-exactly 1 "world<< uses" 'world<<|world[[:space:]]<<'
-exactly 1 "world.log<< uses" 'world.log<<|world.log[[:space:]]<<'
-exactly 183 "<< uses" '(?<!<)<<(?!<)' -P
+exactly 10 "/turf text paths" '"/turf'
+exactly 1 "world<< uses" 'world\s*<<'
+exactly 76 "'in world' uses" '\s+\bin world\b(?=\s*$|\s*//|\s*\))' -P
+exactly 1 "world.log<< uses" 'world.log\s*<<'
+exactly 23 "<< uses" '(?<![<\\])<<(?!<)' -P
+exactly 1 "direct_output uses" '\bdirect_output\('
+exactly 3 ">> uses" '(?<![>\\])>>(?!>)' -P
 exactly 0 "incorrect indentations" '^( {4,})' -P
-exactly 19 "text2path uses" 'text2path'
-exactly 3 "update_icon() override" '/update_icon\((.*)\)'  -P
-exactly 1 "goto uses" 'goto '
-exactly 6 "atom/New uses" '^/(obj|atom|area|mob|turf).*/New\('
-exactly 0 "tag uses" '\stag = ' -P '**/*.dmm'
-# With the potential exception of << if you increase any of these numbers you're probably doing it wrong
+exactly 22 "text2path uses" 'text2path'
+exactly 4 "update_icon() overrides" '\/update_icon\(' -P
+exactly 0 "goto uses" '\bgoto\b'
+exactly 11 "atom/New uses" '^/(obj|atom|area|mob|turf).*/New\('
+exactly 1 "decl/New uses" '^/decl.*/New\('
+exactly 3 "tag uses" '(?<!/)\btag\s*=(?!=)' -P '*.dm *.dmm'
+exactly 3 "unmarked globally scoped variables" '^/?var/(?!global)' -P
+exactly 0 "global-marked member variables" '\t+/?var.*/global/' -P
+exactly 0 "static-marked globally scoped variables" '^/?var.*/static/.+' -P
+exactly 1 "direct usage of decls_repository.get_decl()" 'decls_repository\.get_decl\(' -P
+exactly 19 "direct loc set" '[^ ,(/]\bloc\s*=(?!=)' -P
+exactly 6  "pronoun macro use" '\\(he|she|him|her|his|hers|himself|herself|He|She|Him|Her|His|Hers|Himself|Herself)\b' -P
+exactly 0 "magic number mouse opacity set" 'mouse_opacity\s*=\s*[0-2]' -P
+exactly 0 "magic number density set" '\bdensity\s*=\s*[01]\b' -P
+exactly 0 "magic number anchored set" '\banchored\s*=\s*[01]\b' -P
+exactly 0 "magic number opacity set" '\bopacity\s*=\s*[01]\b(?!\.)' -P
 
-broken_files=0
-while read -r file; do
-	ftype="$(uchardet "$file")"
-	case "$ftype" in
-		ASCII)
-			continue;;
-		UTF-8)
-			if diff -d "$file" <(<"$file" iconv -c -f utf8 -t iso8859-1 2>/dev/null | tr -d $'\x7F-\x9F' | iconv -c -f iso8859-1 -t utf8 2>/dev/null); then
-				continue
-			else
-				echo "$file contains Unicode characters outside the ISO 8859-1 character set"
-				(( broken_files = broken_files + 1 ))
-			fi;;
-		*)
-			if diff -d "$file" <(<"$file" tr -d $'\x7F-\x9F' | iconv -c -f iso8859-1 -t utf8 2>/dev/null | iconv -c -f utf8 -t iso8859-1 2>/dev/null); then
-				continue
-			else
-				echo "$file contains characters outside the ISO 8859-1 character set"
-				(( broken_files = broken_files + 1 ))
-			fi;;
-	esac
-done < <(find . -name '*.dm')
-echo "$broken_files files with invalid characters"
-if (( broken_files > 0 )); then
-	FAILED=1
-fi
+# With the potential exception of << if you increase any of these numbers you're probably doing it wrong
 
 num=`find ./html/changelogs -not -name "*.yml" | wc -l`
 echo "$num non-yml files (expecting exactly 2)"

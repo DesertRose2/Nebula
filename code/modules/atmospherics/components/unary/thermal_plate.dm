@@ -1,6 +1,8 @@
 #define RADIATION_CAPACITY 30000 //Radiation isn't particularly effective (TODO BALANCE)
 
 
+// LMAO? This should probably be removed.
+// Check Q2 2025 if this is gone yet or not.
 /obj/machinery/atmospherics/unary/thermal_plate
 //Based off Heat Reservoir and Space Heater
 //Transfers heat between a pipe system and environment, based on which has a greater thermal energy concentration
@@ -8,14 +10,15 @@
 	icon = 'icons/obj/atmospherics/cold_sink.dmi'
 	icon_state = "intact_off"
 
-	name = "Thermal Transfer Plate"
-	desc = "Transfers heat to and from an area"
+	name = "thermal transfer plate"
+	desc = "A device that transfers heat to and from an area."
 	uncreated_component_parts = null
 	frame_type = /obj/item/pipe
 	construct_state = /decl/machine_construction/pipe
+	interact_offline = TRUE
 
 /obj/machinery/atmospherics/unary/thermal_plate/on_update_icon()
-	if(node)
+	if(LAZYLEN(nodes_to_networks))
 		icon_state = "intact_off"
 	else
 		icon_state = "exposed"
@@ -23,17 +26,15 @@
 /obj/machinery/atmospherics/unary/thermal_plate/Process()
 	..()
 
-	var/datum/gas_mixture/environment = loc.return_air()
+	var/datum/gas_mixture/environment = loc?.return_air()
+	if(!environment)
+		return
 
 	//Get processable air sample and thermal info from environment
 
 	var/transfer_moles = 0.25 * environment.get_total_moles()
 	var/datum/gas_mixture/external_removed = environment.remove(transfer_moles)
-
-	if (!external_removed)
-		return radiate()
-
-	if (external_removed.get_total_moles() < 10)
+	if (external_removed?.get_total_moles() < 10)
 		return radiate()
 
 	//Get same info from connected gas
@@ -57,7 +58,7 @@
 	internal_removed.temperature = final_temperature
 	air_contents.merge(internal_removed)
 
-	network.update = 1
+	update_networks()
 
 	return 1
 
@@ -77,7 +78,6 @@
 	internal_removed.temperature = final_temperature
 	air_contents.merge(internal_removed)
 
-	if (network)
-		network.update = 1
+	update_networks()
 
 	return 1

@@ -1,10 +1,10 @@
 /datum/unit_test/extensions
 	name = "EXTENSIONS template"
-	template = /datum/unit_test/extensions
+	abstract_type = /datum/unit_test/extensions
 	async = 0
 
 /datum/unit_test/extensions/basic_extension_shall_lazy_initalize_as_expected
-	name = "EXTENSIONS - Basic extension shall lazy initialize as expected"
+	name = "EXTENSIONS: Basic extension shall lazy initialize as expected"
 
 /datum/unit_test/extensions/basic_extension_shall_lazy_initalize_as_expected/start_test()
 	var/turf/start = get_safe_turf()
@@ -40,7 +40,7 @@
 	return TRUE
 
 /datum/unit_test/extensions/basic_immediate_extension_shall_initalize_as_expected
-	name = "EXTENSIONS - Basic immediate extension shall initialize as expected"
+	name = "EXTENSIONS: Basic immediate extension shall initialize as expected"
 
 /datum/unit_test/extensions/basic_immediate_extension_shall_initalize_as_expected/start_test()
 	var/turf/start = get_safe_turf()
@@ -71,7 +71,7 @@
 	return TRUE
 
 /datum/unit_test/extensions/shall_acquire_extension_subtype_as_expected
-	name = "EXTENSIONS - Shall acquire extension subtype as expected"
+	name = "EXTENSIONS: Shall acquire extension subtype as expected"
 
 /datum/unit_test/extensions/shall_acquire_extension_subtype_as_expected/start_test()
 	var/turf/start = get_safe_turf()
@@ -88,7 +88,7 @@
 	return TRUE
 
 /datum/unit_test/extensions/extension_shall_be_provided_arguments_as_expected
-	name = "EXTENSIONS - Extension shall be provided arguments as expected"
+	name = "EXTENSIONS: Extension shall be provided arguments as expected"
 
 /datum/unit_test/extensions/extension_shall_be_provided_arguments_as_expected/start_test()
 	var/turf/start = get_safe_turf()
@@ -101,10 +101,11 @@
 	else
 		fail("[log_info_line(four)] had unexpected arguments:\n[log_info_line(four.holder)]\n[log_info_line(four.first_argument)]\n[log_info_line(four.second_argument)]")
 
+	qdel(O)
 	return TRUE
 
 /datum/unit_test/extensions/immediate_extension_shall_be_provided_arguments_as_expected
-	name = "EXTENSIONS - Immediate extension shall be provided arguments as expected"
+	name = "EXTENSIONS: Immediate extension shall be provided arguments as expected"
 
 /datum/unit_test/extensions/immediate_extension_shall_be_provided_arguments_as_expected/start_test()
 	var/turf/start = get_safe_turf()
@@ -117,10 +118,11 @@
 	else
 		fail("[log_info_line(five)] had unexpected arguments:\n[log_info_line(five.holder)]\n[log_info_line(five.first_argument)]\n[log_info_line(five.second_argument)]")
 
+	qdel(O)
 	return TRUE
 
 /datum/unit_test/extensions/get_or_create_extension_shall_initialize_as_expected
-	name = "EXTENSIONS - get_or_create() shall initialize as expected"
+	name = "EXTENSIONS: get_or_create() shall initialize as expected"
 
 /datum/unit_test/extensions/get_or_create_extension_shall_initialize_as_expected/start_test()
 	var/turf/start = get_safe_turf()
@@ -141,10 +143,11 @@
 	else
 		pass("All assertions passed.")
 
+	qdel(O)
 	return TRUE
 
 /datum/unit_test/extensions/get_or_create_extension_with_arguments_shall_initialize_as_expected
-	name = "EXTENSIONS - get_or_create() with arguments shall initialize as expected"
+	name = "EXTENSIONS: get_or_create() with arguments shall initialize as expected"
 
 /datum/unit_test/extensions/get_or_create_extension_with_arguments_shall_initialize_as_expected/start_test()
 	var/turf/start = get_safe_turf()
@@ -156,6 +159,7 @@
 	else
 		fail("[log_info_line(four)] had unexpected arguments:\n[log_info_line(four.holder)]\n[log_info_line(four.first_argument)]\n[log_info_line(four.second_argument)]")
 
+	qdel(O)
 	return TRUE
 
 /datum/extension/test_one

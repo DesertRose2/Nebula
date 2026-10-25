@@ -1,4 +1,4 @@
-GLOBAL_LIST_INIT(carp_count,list())// a list of Z levels (string), associated with a list of all the carp spawned by carp events
+var/global/list/carp_count = list() // a list of Z levels (string), associated with a list of all the carp spawned by carp events
 
 /datum/event/carp_migration
 	announceWhen	= 45
@@ -15,8 +15,8 @@ GLOBAL_LIST_INIT(carp_count,list())// a list of Z levels (string), associated wi
 /datum/event/carp_migration/proc/count_carps()
 	var/total_carps
 	var/local_carps
-	for(var/Z in GLOB.carp_count)
-		var/list/L = GLOB.carp_count[Z]
+	for(var/Z in global.carp_count)
+		var/list/L = global.carp_count[Z]
 		total_carps += L.len
 		if(text2num(Z) in affecting_z)
 			local_carps += L.len
@@ -32,7 +32,7 @@ GLOBAL_LIST_INIT(carp_count,list())// a list of Z levels (string), associated wi
 		announcement = "A massive migration of unknown biological entities has been detected in the vicinity of the [location_name()]. Exercise external operations with caution."
 	else
 		announcement = "A large migration of unknown biological entities has been detected in the vicinity of the [location_name()]. Caution is advised."
-	
+
 	command_announcement.Announce(announcement, "[location_name()] Sensor Array", zlevels = affecting_z)
 
 /datum/event/carp_migration/tick()
@@ -48,7 +48,7 @@ GLOBAL_LIST_INIT(carp_count,list())// a list of Z levels (string), associated wi
 	var/Z = pick(affecting_z)
 
 	if(!direction)
-		direction = pick(GLOB.cardinal)
+		direction = pick(global.cardinal)
 
 	if(!speed)
 		speed = rand(1,3)
@@ -57,24 +57,24 @@ GLOBAL_LIST_INIT(carp_count,list())// a list of Z levels (string), associated wi
 	var/I = 0
 	while(I < n)
 		var/turf/T = get_random_edge_turf(direction,TRANSITIONEDGE + 2, Z)
-		if(istype(T,/turf/space))
+		if(isspaceturf(T))
 			var/mob/living/simple_animal/hostile/M
 			if(prob(96))
 				M = new /mob/living/simple_animal/hostile/carp(T)
 			else
 				M = new /mob/living/simple_animal/hostile/carp/pike(T)
 				I += 3
-			GLOB.death_event.register(M,src,/datum/event/carp_migration/proc/reduce_carp_count)
-			GLOB.destroyed_event.register(M,src,/datum/event/carp_migration/proc/reduce_carp_count)
-			LAZYADD(GLOB.carp_count["[Z]"], M)
+			events_repository.register(/decl/observ/death, M,src, TYPE_PROC_REF(/datum/event/carp_migration, reduce_carp_count))
+			events_repository.register(/decl/observ/destroyed, M,src, TYPE_PROC_REF(/datum/event/carp_migration, reduce_carp_count))
+			LAZYADD(global.carp_count[num2text(Z)], M)
 			spawned_carp ++
-			M.throw_at(get_random_edge_turf(GLOB.reverse_dir[direction],TRANSITIONEDGE + 2, Z), 250, speed, callback = CALLBACK(src,/datum/event/carp_migration/proc/check_gib,M))
+			M.throw_at(get_random_edge_turf(global.reverse_dir[direction],TRANSITIONEDGE + 2, Z), 250, speed, callback = CALLBACK(src, TYPE_PROC_REF(/datum/event/carp_migration, check_gib), M))
 		I++
 		if(no_show)
 			break
 
 /datum/event/carp_migration/proc/check_gib(var/mob/living/simple_animal/hostile/carp/M)	//awesome road kills
-	if(M.health <= 0 && prob(60))
+	if(M.current_health <= 0 && prob(60))
 		M.gib()
 
 /proc/get_random_edge_turf(var/direction, var/clearance = TRANSITIONEDGE + 1, var/Z)
@@ -93,12 +93,12 @@ GLOBAL_LIST_INIT(carp_count,list())// a list of Z levels (string), associated wi
 
 /datum/event/carp_migration/proc/reduce_carp_count(var/mob/M)
 	for(var/Z in affecting_z)
-		var/list/L = GLOB.carp_count["[Z]"]
+		var/list/L = global.carp_count[num2text(Z)]
 		if(M in L)
 			LAZYREMOVE(L,M)
 			break
-	GLOB.death_event.unregister(M,src,/datum/event/carp_migration/proc/reduce_carp_count)
-	GLOB.destroyed_event.unregister(M,src,/datum/event/carp_migration/proc/reduce_carp_count)
+	events_repository.unregister(/decl/observ/death, M,src, TYPE_PROC_REF(/datum/event/carp_migration, reduce_carp_count))
+	events_repository.unregister(/decl/observ/destroyed, M,src, TYPE_PROC_REF(/datum/event/carp_migration, reduce_carp_count))
 
 /datum/event/carp_migration/end()
 	log_debug("Carp migration event spawned [spawned_carp] carp.")

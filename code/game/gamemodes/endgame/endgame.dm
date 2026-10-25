@@ -1,3 +1,4 @@
+var/global/universe_has_ended = 0
 /**********************
  * ENDGAME STUFF
  **********************/
@@ -26,18 +27,7 @@
 
 // Actually decay the turf.
 /datum/universal_state/proc/DecayTurf(var/turf/T)
-	if(istype(T,/turf/simulated/wall))
-		var/turf/simulated/wall/W=T
-		W.melt()
-		return
-	if(istype(T,/turf/simulated/floor))
-		var/turf/simulated/floor/F=T
-		// Burnt?
-		if(!F.burnt)
-			F.burn_tile()
-		else
-			F.ReplaceWithLattice()
-		return
+	T.handle_universal_decay()
 
 // Return 0 to cause shuttle call to fail.
 /datum/universal_state/proc/OnShuttleCall(var/mob/user)
@@ -54,6 +44,7 @@
 
 // Apply changes when entering state
 /datum/universal_state/proc/OnEnter()
+	set waitfor = FALSE
  	// Does nothing by default
 
 // Apply changes to a new turf.
@@ -71,10 +62,10 @@
 
 /proc/SetUniversalState(var/newstate,var/on_exit=1, var/on_enter=1, list/arguments=null)
 	if(on_exit)
-		GLOB.universe.OnExit()
+		global.universe.OnExit()
 	if(arguments)
-		GLOB.universe = new newstate(arglist(arguments))
+		global.universe = new newstate(arglist(arguments))
 	else
-		GLOB.universe = new newstate
+		global.universe = new newstate
 	if(on_enter)
-		GLOB.universe.OnEnter()
+		global.universe.OnEnter()

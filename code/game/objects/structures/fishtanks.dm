@@ -1,20 +1,18 @@
-GLOBAL_LIST_INIT(fishtank_cache, new)
+var/global/list/fishtank_cache = list()
 
 /obj/effect/glass_tank_overlay
 	name = ""
-	mouse_opacity = 0
-	var/obj/structure/glass_tank/AQ
+	mouse_opacity = MOUSE_OPACITY_UNCLICKABLE
+	var/obj/structure/glass_tank/aquarium
 
-/obj/effect/glass_tank_overlay/Initialize(ml, aquarium)
+/obj/effect/glass_tank_overlay/Initialize(ml, _aquarium)
 	. = ..()
-	AQ = aquarium
+	aquarium = _aquarium
 	verbs.Cut()
 
 /obj/effect/glass_tank_overlay/Destroy()
-	if(!QDELETED(AQ))
-		if(!QDELETED(AQ.AO))
-			QDEL_NULL(AQ.AO)
-		QDEL_NULL(AQ)
+	if(!QDELETED(aquarium))
+		QDEL_NULL(aquarium)
 	. = ..()
 
 /obj/structure/glass_tank
@@ -22,60 +20,64 @@ GLOBAL_LIST_INIT(fishtank_cache, new)
 	desc = "A clear glass box for keeping specimens in."
 	icon_state = "preview"
 	icon = 'icons/obj/structures/fishtanks.dmi'
-	anchored = 1
-	density = 1
+	anchored = TRUE
+	density = TRUE
 	atom_flags = ATOM_FLAG_CHECKS_BORDER | ATOM_FLAG_CLIMBABLE
 	mob_offset = TRUE
-	maxhealth = 50
+	max_health = 50
+	chem_volume = 300
 
 	var/deleting
 	var/fill_type
-	var/fill_amt
-	var/obj/effect/glass_tank_overlay/AO // I don't like this, but there's no other way to get a mouse-transparent overlay :(
+	var/obj/effect/glass_tank_overlay/tank_overlay // I don't like this, but there's no other way to get a mouse-transparent overlay :(
 
 /obj/structure/glass_tank/aquarium
 	name = "aquarium"
 	desc = "A clear glass box for keeping specimens in. This one is full of water."
 	fill_type = /decl/material/liquid/water
-	fill_amt = 300
 
-/obj/structure/glass_tank/Initialize()
+/obj/structure/glass_tank/Initialize(mapload)
+	tank_overlay = new(loc, src)
 	. = ..()
-	initial_fill()
-	AO = new(loc, src)
-	update_icon(1)
+	update_icon()
+	if(!mapload)
+		update_nearby_tiles()
 
 /obj/structure/glass_tank/Destroy()
-	if(!QDELETED(AO))
-		QDEL_NULL(AO)
+	if(!QDELETED(tank_overlay))
+		QDEL_NULL(tank_overlay)
 	var/oldloc = loc
 	. = ..()
 	for(var/obj/structure/glass_tank/A in orange(1, oldloc))
 		A.update_icon()
 
-/obj/structure/glass_tank/proc/initial_fill()
-	if(fill_type && fill_amt)
-		create_reagents(fill_amt)
-		reagents.add_reagent(fill_type, fill_amt)
+/obj/structure/glass_tank/populate_reagents()
+	if(fill_type)
+		add_to_reagents(fill_type, REAGENT_MAXIMUM_VOLUME(reagents))
 
 /obj/structure/glass_tank/attack_hand(var/mob/user)
+	if(user.check_intent(I_FLAG_HARM))
+		return ..()
 	visible_message(SPAN_NOTICE("\The [user] taps on \the [src]."))
+	return TRUE
 
-/obj/structure/glass_tank/attackby(var/obj/item/W, var/mob/user)
-	if(W.force < 5 || user.a_intent != I_HURT)
+/obj/structure/glass_tank/attackby(var/obj/item/used_item, var/mob/user)
+	if(used_item.get_attack_force(user) < 5 || !user.check_intent(I_FLAG_HARM))
 		attack_animation(user)
-		visible_message(SPAN_NOTICE("\The [user] taps \the [src] with \the [W]."))
+		visible_message(SPAN_NOTICE("\The [user] taps \the [src] with \the [used_item]."))
 	else
 		. = ..()
 
 /obj/structure/glass_tank/physically_destroyed(var/silent)
 	SHOULD_CALL_PARENT(FALSE)
-	deleting = 1
+	deleting = TRUE
 	var/turf/T = get_turf(src)
 	playsound(T, "shatter", 70, 1)
-	new /obj/item/shard(T)
+	var/obj/item/shard/shard = new(T)
+	if(paint_color)
+		shard.set_color(paint_color)
 	if(!silent)
-		if(contents.len || reagents.total_volume)
+		if(contents.len || REAGENT_TOTAL_VOLUME(reagents))
 			visible_message(SPAN_DANGER("\The [src] shatters, spilling its contents everywhere!"))
 		else
 			visible_message(SPAN_DANGER("\The [src] shatters!"))
@@ -85,84 +87,86 @@ GLOBAL_LIST_INIT(fishtank_cache, new)
 			A.physically_destroyed(TRUE)
 	qdel(src)
 
-/obj/structure/glass_tank/dump_contents()
+/obj/structure/glass_tank/dump_contents(atom/forced_loc = loc, mob/user)
 	. = ..()
-	if(reagents && reagents.total_volume)
-		var/turf/T = get_turf(src)
-		var/obj/effect/fluid/F = locate() in T
-		if(!F) F = new(T)
-		reagents.trans_to_holder(F.reagents, reagents.total_volume)
+	var/turf/T = get_turf(forced_loc)
+	if(REAGENT_TOTAL_VOLUME(reagents) && T)
+		reagents.trans_to_turf(T, REAGENT_TOTAL_VOLUME(reagents))
 
-GLOBAL_LIST_INIT(aquarium_states_and_layers, list(
+var/global/list/global/aquarium_states_and_layers = list(
 	"b" = FLY_LAYER - 0.02,
 	"w" = FLY_LAYER - 0.01,
 	"f" = FLY_LAYER,
 	"z" = FLY_LAYER + 0.01
-))
+)
 
-/obj/structure/glass_tank/on_update_icon(propagate = 0)
+/obj/structure/glass_tank/update_nearby_tiles(need_rebuild)
+	. = ..()
+	for(var/obj/structure/glass_tank/tank in orange(1, src))
+		if(tank.type != type)
+			continue
+		tank.update_icon()
+
+/obj/structure/glass_tank/on_update_icon()
 	var/list/connect_dirs = list()
-	for(var/obj/structure/glass_tank/A in orange(1, src))
-		if(A.type == type)
-			connect_dirs |= get_dir(src, A)
+	for(var/obj/structure/glass_tank/tank in orange(1, src))
+		if(tank.type != type)
+			continue
+		connect_dirs |= get_dir(src, tank)
 	var/list/c_states = dirs_to_unified_corner_states(connect_dirs)
 
-	icon_state = "base"
-	var/new_overlays
-	for(var/i = 1 to 4)
-		for(var/key_mod in GLOB.aquarium_states_and_layers)
-			if(key_mod == "w" && (!reagents || !reagents.total_volume))
-				continue
-			var/cache_key = "[c_states[i]][key_mod]-[i]"
-			if(!GLOB.fishtank_cache[cache_key])
-				var/image/I = image(icon, icon_state = "[c_states[i]][key_mod]", dir = 1 << (i-1))
-				if(GLOB.aquarium_states_and_layers[key_mod])
-					I.layer = GLOB.aquarium_states_and_layers[key_mod]
-				GLOB.fishtank_cache[cache_key] = I
-			LAZYADD(new_overlays, GLOB.fishtank_cache[cache_key])
-	AO.overlays = new_overlays
+	if(tank_overlay)
+		tank_overlay.cut_overlays()
+		for(var/i = 1 to 4)
+			for(var/key_mod in global.aquarium_states_and_layers)
+				if(key_mod == "w" && (!reagents || !REAGENT_TOTAL_VOLUME(reagents)))
+					continue
+				var/cache_key = "[c_states[i]][key_mod]-[i]"
+				if(!global.fishtank_cache[cache_key])
+					var/image/I = image(icon, icon_state = "[c_states[i]][key_mod]", dir = BITFLAG(i-1))
+					if(global.aquarium_states_and_layers[key_mod])
+						I.layer = global.aquarium_states_and_layers[key_mod]
+					global.fishtank_cache[cache_key] = I
+				tank_overlay.add_overlay(global.fishtank_cache[cache_key])
 
 	// Update overlays with contents.
-	new_overlays = null
-	for(var/atom/movable/AM in contents)
-		if(AM.simulated)
-			LAZYADD(new_overlays, AM)
-	overlays = new_overlays
+	// TODO: Can this just use vis_contents...?
+	// Or add its contents to vis_contents on some sort of helper atom,
+	// which has the VIS_UNDERLAY flag so it shows up under the transparent part?
+	icon_state = "base"
+	..()
+	for(var/atom/movable/AM in get_contained_external_atoms())
+		add_overlay(AM)
 
-	if(propagate)
-		for(var/obj/structure/glass_tank/A in orange(1, src))
-			if(A.type == type)
-				A.update_icon()
-
-/obj/structure/glass_tank/can_climb(var/mob/living/user, post_climb_check=0)
+/obj/structure/glass_tank/can_climb(mob/living/user, post_climb_check = FALSE, silent = FALSE)
 	if (!user.can_touch(src) || !(atom_flags & ATOM_FLAG_CLIMBABLE) || (!post_climb_check && (user in climbers)))
-		return 0
-
+		return FALSE
 	if (!Adjacent(user))
-		to_chat(user, SPAN_DANGER("You can't climb there, the way is blocked."))
-		return 0
-
+		if(!silent)
+			to_chat(user, SPAN_WARNING("You can't climb there, the way is blocked."))
+		return FALSE
 	var/obj/occupied = turf_is_crowded()
 	if(occupied)
-		to_chat(user, SPAN_DANGER("There's \a [occupied] in the way."))
-		return 0
-	return 1
+		if(!silent)
+			to_chat(user, SPAN_WARNING("There's \a [occupied] in the way."))
+		return FALSE
+	return TRUE
 
 /obj/structure/glass_tank/do_climb(var/mob/living/user)
+	if(!istype(user) || !can_climb(user))
+		return
+	user.visible_message(SPAN_WARNING("\The [user] starts climbing into \the [src]!"))
+	if(!do_after(user, 5 SECONDS))
+		return
 	if (!can_climb(user))
 		return
-	usr.visible_message(SPAN_WARNING("\The [user] starts climbing into \the [src]!"))
-	if(!do_after(user,50))
-		return
-	if (!can_climb(user))
-		return
-	usr.forceMove(src.loc)
+	user.forceMove(src.loc)
 	if (get_turf(user) == get_turf(src))
-		usr.visible_message(SPAN_WARNING("\The [user] climbs into \the [src]!"))
+		user.visible_message(SPAN_WARNING("\The [user] climbs into \the [src]!"))
 
 /obj/structure/glass_tank/verb/climb_out()
 	set name = "Climb Out Of Tank"
-	set desc = "Climbs out of a fishtank."
+	set desc = "Climbs out of a tank."
 	set category = "Object"
 	set src in oview(0) // Same turf.
 
@@ -171,7 +175,7 @@ GLOBAL_LIST_INIT(aquarium_states_and_layers, list(
 
 	var/list/valid_turfs = list()
 
-	for(var/turf/T in orange(1))
+	for(var/turf/T as anything in RANGE_TURFS(loc, 1))
 		if(Adjacent(T) && !(locate(/obj/structure/glass_tank) in T))
 			valid_turfs |= T
 
@@ -180,27 +184,18 @@ GLOBAL_LIST_INIT(aquarium_states_and_layers, list(
 	else
 		to_chat(usr, SPAN_WARNING("There's nowhere to climb out to!"))
 
-/mob/living/MouseDrop(atom/over)
-	if(usr == src && isturf(over))
-		var/turf/T = over
-		var/obj/structure/glass_tank/A = locate() in usr.loc
-		if(A && A.Adjacent(usr) && A.Adjacent(T))
-			A.do_climb_out(usr, T)
-			return
-	return ..()
-
 /obj/structure/glass_tank/proc/do_climb_out(mob/living/user, turf/target)
 	if(get_turf(user) != get_turf(src))
 		return
 	if(!Adjacent(target))
 		return
-	usr.visible_message(SPAN_WARNING("\The [user] starts climbing out of \the [src]!"))
+	user.visible_message(SPAN_WARNING("\The [user] starts climbing out of \the [src]!"))
 	if(!do_after(user,50))
 		return
 	if (!Adjacent(target))
 		return
-	usr.forceMove(target)
-	usr.visible_message(SPAN_WARNING("\The [user] climbs out of \the [src]!"))
+	user.forceMove(target)
+	user.visible_message(SPAN_WARNING("\The [user] climbs out of \the [src]!"))
 
 /obj/structure/glass_tank/CanPass(atom/movable/mover, turf/target, height=0, air_group=0)
 	. = locate(/obj/structure/glass_tank) in (target == loc) ? (mover && mover.loc) : target

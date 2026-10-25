@@ -2,130 +2,89 @@
 /atom/proc/attack_generic(mob/user)
 	return 0
 
-/*
-	Humans:
-	Adds an exception for gloves, to allow special glove types like the ninja ones.
+/atom/proc/handle_grab_interaction(var/mob/user)
+	return FALSE
 
-	Otherwise pretty standard.
-*/
-/mob/living/carbon/human/UnarmedAttack(var/atom/A, var/proximity)
+/atom/proc/can_interact_with_storage(user, strict = FALSE)
+	return isliving(user)
 
-	if(!..())
-		return
-
-	// Special glove functions:
-	// If the gloves do anything, have them return 1 to stop
-	// normal attack_hand() here.
-	var/obj/item/clothing/gloves/G = gloves // not typecast specifically enough in defines
-	if(istype(G) && G.Touch(A,1))
-		return
-
-	A.attack_hand(src)
+/atom/proc/get_required_interaction_dexterity()
+	return DEXTERITY_NONE
 
 /atom/proc/attack_hand(mob/user)
-	. = FALSE
+	SHOULD_CALL_PARENT(TRUE)
 
-/mob/proc/attack_empty_hand(var/bp_hand)
+	if(!user.check_dexterity(get_required_interaction_dexterity(), silent = TRUE))
+		return FALSE
+
+	if(can_interact_with_storage(user, strict = TRUE) && storage && user.check_dexterity((DEXTERITY_HOLD_ITEM|DEXTERITY_EQUIP_ITEM), TRUE))
+		add_fingerprint(user)
+		storage.open(user)
+		return TRUE
+
+	if(handle_grab_interaction(user))
+		return TRUE
+
+	if(try_handle_interactions(user, get_standard_interactions(user), user?.get_active_held_item(), check_alt_interactions = FALSE))
+		return TRUE
+
+	if(!LAZYLEN(climbers) || (user in climbers) || !user.check_dexterity(DEXTERITY_HOLD_ITEM, silent = TRUE))
+		return FALSE
+
+	user.visible_message(
+		SPAN_DANGER("\The [user] shakes \the [src]!"),
+		SPAN_DANGER("You shake \the [src]!")
+	)
+
+	object_shaken()
+	return TRUE
+
+/mob/proc/attack_empty_hand()
 	return
 
-/mob/living/carbon/human/RestrainedClickOn(var/atom/A)
-	return
+/mob/living/attack_empty_hand()
+	// Handle any prepared ability/spell/power invocations.
+	var/datum/extension/abilities/abilities = get_extension(src, /datum/extension/abilities)
+	if(abilities?.do_self_invocation())
+		return TRUE
+	return FALSE
 
-/mob/living/CtrlClickOn(var/atom/A)
-	. = ..()
-	if(!. && a_intent == I_GRAB && length(available_maneuvers))
-		. = perform_maneuver(prepared_maneuver || available_maneuvers[1], A)
-
-/mob/living/carbon/human/RangedAttack(var/atom/A, var/params)
+/mob/living/human/RangedAttack(var/atom/A, var/params)
 	//Climbing up open spaces
-	if((istype(A, /turf/simulated/floor) || istype(A, /turf/unsimulated/floor) || istype(A, /obj/structure/lattice) || istype(A, /obj/structure/catwalk)) && isturf(loc) && bound_overlay && !is_physically_disabled()) //Climbing through openspace
+	if(isturf(loc) && bound_overlay && !is_physically_disabled() && istype(A) && A.can_climb_from_below(src))
 		return climb_up(A)
 
-	if(gloves)
-		var/obj/item/clothing/gloves/G = gloves
-		if(istype(G) && G.Touch(A,0)) // for magic gloves
-			return TRUE
+	var/obj/item/clothing/gloves/G = get_equipped_item(slot_gloves_str)
+	if(istype(G) && G.Touch(A, FALSE)) // for magic gloves
+		return TRUE
 
 	. = ..()
 
+/atom/proc/attack_hand_ranged(mob/user)
+	SHOULD_CALL_PARENT(TRUE)
+	return FALSE
+
 /mob/living/RestrainedClickOn(var/atom/A)
-	return
-
-/*
-	Aliens
-*/
-
-/mob/living/carbon/alien/RestrainedClickOn(var/atom/A)
-	return
-
-/mob/living/carbon/alien/UnarmedAttack(var/atom/A, var/proximity)
-
-	if(!..())
-		return 0
-
-	setClickCooldown(DEFAULT_ATTACK_COOLDOWN)
-	A.attack_generic(src,rand(5,6),"bites")
-
-/*
-	Slimes
-	Nothing happening here
-*/
-
-/mob/living/carbon/slime/RestrainedClickOn(var/atom/A)
-	return
-
-/mob/living/carbon/slime/UnarmedAttack(var/atom/A, var/proximity)
-
-	if(!..())
-		return
-
-	// Eating
-	if(Victim)
-		if (Victim == A)
-			Feedstop()
-		return
-
-	//should have already been set if we are attacking a mob, but it doesn't hurt and will cover attacking non-mobs too
-	setClickCooldown(DEFAULT_ATTACK_COOLDOWN)
-	var/mob/living/M = A
-	if(!istype(M))
-		A.attack_generic(src, (is_adult ? rand(20,40) : rand(5,25)), "glomped") // Basic attack.
-	else
-		var/power = max(0, min(10, (powerlevel + rand(0, 3))))
-
-		switch(src.a_intent)
-			if (I_HELP) // We just poke the other
-				M.visible_message("<span class='notice'>[src] gently pokes [M]!</span>", "<span class='notice'>[src] gently pokes you!</span>")
-			if (I_DISARM) // We stun the target, with the intention to feed
-				var/stunprob = 1
-
-				if (powerlevel > 0 && !istype(A, /mob/living/carbon/slime))
-					switch(power * 10)
-						if(0) stunprob *= 10
-						if(1 to 2) stunprob *= 20
-						if(3 to 4) stunprob *= 30
-						if(5 to 6) stunprob *= 40
-						if(7 to 8) stunprob *= 60
-						if(9) 	   stunprob *= 70
-						if(10) 	   stunprob *= 95
-
-				if(prob(stunprob))
-					var/shock_damage = max(0, powerlevel-3) * rand(6,10)
-					M.electrocute_act(shock_damage, src, 1.0, ran_zone())
-				else if(prob(40))
-					M.visible_message("<span class='danger'>[src] has pounced at [M]!</span>", "<span class='danger'>[src] has pounced at you!</span>")
-					M.Weaken(power)
-				else
-					M.visible_message("<span class='danger'>[src] has tried to pounce at [M]!</span>", "<span class='danger'>[src] has tried to pounce at you!</span>")
-				M.updatehealth()
-			if (I_GRAB) // We feed
-				Wrap(M)
-			if (I_HURT) // Attacking
-				if(iscarbon(M) && prob(15))
-					M.visible_message("<span class='danger'>[src] has pounced at [M]!</span>", "<span class='danger'>[src] has pounced at you!</span>")
-					M.Weaken(power)
-				else
-					A.attack_generic(src, (is_adult ? rand(20,40) : rand(5,25)), "glomped")
+	if (A != src)
+		return ..()
+	if(world.time < next_restraint_chew || !get_equipped_item(slot_handcuffed_str) || !check_intent(I_FLAG_HARM) || get_target_zone() != BP_MOUTH)
+		return FALSE
+	// Cannot chew with a mask or a full body restraint.
+	if (get_equipped_item(slot_wear_mask_str) || istype(get_equipped_item(slot_wear_suit_str), /obj/item/clothing/suit/straight_jacket))
+		return FALSE
+	// Type to hand so drakes don't chew off their own head.
+	var/obj/item/organ/external/hand/O = GET_EXTERNAL_ORGAN(src, get_active_held_item_slot())
+	if(!istype(O))
+		return FALSE
+	var/decl/pronouns/pronouns = get_pronouns()
+	visible_message(
+		SPAN_DANGER("\The [src] chews on [pronouns.his] [O.name]"),
+		SPAN_DANGER("You chew on your [O.name]!")
+	)
+	admin_attacker_log(src, "chewed on their [O.name]!")
+	O.take_damage(3, damage_flags = (DAM_SHARP|DAM_EDGE), inflicter = "teeth marks")
+	next_restraint_chew = world.time + (2.5 SECONDS)
+	return TRUE
 
 /*
 	New Players:
@@ -137,22 +96,22 @@
 /*
 	Animals
 */
-/mob/living/simple_animal/UnarmedAttack(var/atom/A, var/proximity)
+/// Make unarmed attacks use natural weapons on harm intent.
+/mob/living/simple_animal/ResolveUnarmedAttack(atom/A)
+	var/attacking_with = get_natural_weapon()
+	if(check_intent(I_FLAG_HELP) || !attacking_with)
+		return A.attack_animal(src)
 
-	if(!..())
-		return
-	setClickCooldown(DEFAULT_ATTACK_COOLDOWN)
-	if(istype(A,/mob/living))
-		if(!istype(natural_weapon) || a_intent == I_HELP)
-			custom_emote(1,"[friendly] [A]!")
-			return
-		if(ckey)
-			admin_attack_log(src, A, "Has attacked its victim.", "Has been attacked by its attacker.")
-	if(a_intent == I_HELP)
-		A.attack_animal(src)
-	else
-		A.attackby(get_natural_weapon(), src)
+	set_intent(I_FLAG_HARM)
+	. = A.attackby(attacking_with, src)
+	// attack effects are handled in natural_weapon's apply_hit_effect() instead of here
+	if(!.)
+		reset_offsets(anim_time = 2)
 
 // Attack hand but for simple animals
 /atom/proc/attack_animal(mob/user)
-	return attack_hand(user)
+	return attack_hand_with_interaction_checks(user)
+
+// Used to check for physical interactivity in case of nonstandard attack_hand calls.
+/atom/proc/attack_hand_with_interaction_checks(var/mob/user)
+	return CanPhysicallyInteract(user) && attack_hand(user)

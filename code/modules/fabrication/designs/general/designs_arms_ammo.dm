@@ -11,10 +11,10 @@
 
 /datum/fabricator_recipe/arms_ammo/flaregun
 	name = "flare gun"
-	path = /obj/item/weapon/gun/projectile/flare
+	path = /obj/item/gun/projectile/flare
 
 /datum/fabricator_recipe/arms_ammo/hidden
-	path = /obj/item/hatchet/machete/steel
+	path = /obj/item/tool/machete/steel
 	hidden = TRUE
 
 /datum/fabricator_recipe/arms_ammo/hidden/shotgun
@@ -28,9 +28,6 @@
 /datum/fabricator_recipe/arms_ammo/hidden/magazine_smg_rubber
 	name = "ammunition (SMG rubber) top mounted"
 	path = /obj/item/ammo_magazine/smg/rubber
-
-/datum/fabricator_recipe/arms_ammo/hidden/flamethrower
-	path = /obj/item/flamethrower/full
 
 /datum/fabricator_recipe/arms_ammo/hidden/speedloader_magnum
 	name = "ammunition (speedloader, magnum)"
@@ -47,6 +44,14 @@
 /datum/fabricator_recipe/arms_ammo/hidden/magazine_small
 	name = "ammunition (holdout)"
 	path = /obj/item/ammo_magazine/pistol/small
+
+/datum/fabricator_recipe/arms_ammo/hidden/magazine_practice
+	name = "ammunition (pistol, practice)"
+	path = /obj/item/ammo_magazine/pistol/practice
+
+/datum/fabricator_recipe/arms_ammo/hidden/magazine_flass
+	name = "ammunition (pistol, flash)"
+	path = /obj/item/ammo_magazine/pistol/flash
 
 /datum/fabricator_recipe/arms_ammo/hidden/magazine_smg_topmounted
 	name = "ammunition (SMG, top mounted)"
@@ -73,4 +78,8 @@
 
 /datum/fabricator_recipe/arms_ammo/hidden/speedloader_laser
 	name = "ammunition (speedloader, laserbulb)"
-	path = /obj/item/ammo_magazine/laser_revolver
+	path = /obj/item/ammo_magazine/speedloader/laser_revolver
+
+/datum/fabricator_recipe/arms_ammo/hidden/mine_assembly
+	name = "mine assembly"
+	path = /obj/item/mine/assembly

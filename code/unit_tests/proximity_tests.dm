@@ -2,27 +2,29 @@
 * Template Setup *
 *****************/
 /datum/unit_test/proximity
-	template = /datum/unit_test/proximity
-	var/turf/simulated/wall/wall
+	abstract_type = /datum/unit_test/proximity
+	var/turf/wall/wall
 	var/obj/proximity_listener/proximity_listener
 
 /datum/unit_test/proximity/New()
 	name = "PROXIMITY: " + name
 
 /datum/unit_test/proximity/setup_test()
-	proximity_listener = new(get_turf(locate(/obj/effect/landmark/proximity_spawner)))
-	wall = get_turf(locate(/obj/effect/landmark/proximity_wall))
+	..()
+	proximity_listener = new(get_turf(locate(/obj/abstract/landmark/proximity_spawner)))
+	wall = get_turf(locate(/obj/abstract/landmark/proximity_wall))
 
 /datum/unit_test/proximity/teardown_test()
 	QDEL_NULL(proximity_listener)
 	wall = null
+	..()
 
 /datum/unit_test/proximity/proc/SetWallOpacity(opacity)
-	for(var/turf/simulated/wall/wall in range(7, proximity_listener))
+	for(var/turf/wall/wall in range(7, proximity_listener))
 		wall.set_opacity(opacity)
 
 /datum/unit_test/proximity/visibility
-	template = /datum/unit_test/proximity/visibility
+	abstract_type = /datum/unit_test/proximity/visibility
 	var/list/expected_number_of_turfs_by_trigger_type
 
 /datum/unit_test/proximity/visibility/start_test()
@@ -67,7 +69,8 @@
 	name = "Shall see the number of expected turfs on init"
 	expected_number_of_turfs_by_trigger_type = list(
 		/datum/proximity_trigger/line = 3,
-		/datum/proximity_trigger/square = 5*5
+		/datum/proximity_trigger/square = 5*5,
+		/datum/proximity_trigger/angle = 5*3
 	)
 
 
@@ -75,15 +78,16 @@
 	name = "Shall see the number of expected turfs after opacity change"
 	expected_number_of_turfs_by_trigger_type = list(
 		/datum/proximity_trigger/line = 5,
-		/datum/proximity_trigger/square = (5*5)+6
+		/datum/proximity_trigger/square = (5*5)+6,
+		/datum/proximity_trigger/angle = (5*3)+6
 	)
 
 /datum/unit_test/proximity/visibility/shall_see_the_number_of_expected_turfs_after_opacity_change/AfterSetTrigger()
-	var/turf/T = get_turf(locate(/obj/effect/landmark/proximity_wall))
+	var/turf/T = get_turf(locate(/obj/abstract/landmark/proximity_wall))
 	T.set_opacity(FALSE)
 
 /datum/unit_test/proximity/visibility/shall_see_the_number_of_expected_turfs_after_opacity_change/AfterTestRun()
-	var/turf/T = get_turf(locate(/obj/effect/landmark/proximity_wall))
+	var/turf/T = get_turf(locate(/obj/abstract/landmark/proximity_wall))
 	T.set_opacity(TRUE)
 
 
@@ -91,7 +95,8 @@
 	name = "Shall see the number of expected turfs after opacity changes"
 	expected_number_of_turfs_by_trigger_type = list(
 		/datum/proximity_trigger/line = 5,
-		/datum/proximity_trigger/square = 9*9
+		/datum/proximity_trigger/square = 9*9,
+		/datum/proximity_trigger/angle = 9*5
 	)
 
 /datum/unit_test/proximity/visibility/shall_see_the_number_of_expected_turfs_after_opacity_changes/AfterSetTrigger()
@@ -105,7 +110,8 @@
 	name = "Shall see the number of expected turfs after multiple opacity changes"
 	expected_number_of_turfs_by_trigger_type = list(
 		/datum/proximity_trigger/line = 3,
-		/datum/proximity_trigger/square = 5*5
+		/datum/proximity_trigger/square = 5*5,
+		/datum/proximity_trigger/angle = 5*3
 	)
 
 /datum/unit_test/proximity/visibility/shall_see_the_number_of_expected_turfs_after_multiple_opacity_changes/AfterSetTrigger()
@@ -127,7 +133,7 @@
 
 /obj/proximity_listener/proc/SetTrigger(trigger_type, listener_flags)
 	QDEL_NULL(trigger)
-	trigger = new trigger_type(src, /obj/proximity_listener/proc/OnTurfEntered, /obj/proximity_listener/proc/OnTurfsChanged, 7, listener_flags)
+	trigger = new trigger_type(src, TYPE_PROC_REF(/obj/proximity_listener, OnTurfEntered), TYPE_PROC_REF(/obj/proximity_listener, OnTurfsChanged), 7, listener_flags, null, 90, 270)
 	trigger.register_turfs()
 
 /obj/proximity_listener/Destroy()
@@ -145,6 +151,6 @@
 /area/test_area/proximity
 	icon_state = "green"
 
-/obj/effect/landmark/proximity_spawner
+/obj/abstract/landmark/proximity_spawner
 
-/obj/effect/landmark/proximity_wall
+/obj/abstract/landmark/proximity_wall

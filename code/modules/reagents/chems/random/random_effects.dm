@@ -3,6 +3,7 @@
 #define RANDOM_CHEM_EFFECT_FLOAT 3
 
 /decl/random_chem_effect
+	abstract_type = /decl/random_chem_effect
 	var/minimum = 0
 	var/maximum = 1
 	var/mode = RANDOM_CHEM_EFFECT_TRUE
@@ -25,7 +26,7 @@
 
 /decl/random_chem_effect/proc/on_property_recompute(var/decl/material/liquid/random/reagent, var/value)
 
-/decl/random_chem_effect/proc/affect_blood(var/mob/living/carbon/M, var/alien, var/removed, var/value)
+/decl/random_chem_effect/proc/affect_blood(var/mob/living/M, var/removed, var/value)
 
 // This is referring to monetary value.
 /decl/random_chem_effect/proc/get_value(var/value)
@@ -45,10 +46,10 @@
 	mode = RANDOM_CHEM_EFFECT_INT
 
 /decl/random_chem_effect/general_properties/name/on_property_recompute(var/decl/material/liquid/random/reagent, var/value)
-	reagent.name = "[initial(reagent.name)]-[value]"
+	reagent.name = "[initial(reagent.name)]-[value]" // this is a valid use of initial(reagent.name) since we're resetting it to the base value
 
 /decl/random_chem_effect/general_properties/color/get_random_value()
-	return color_rotation(round(rand(0,360),20))
+	return color_matrix_rotate_hue(round(rand(0,360),20))
 
 /decl/random_chem_effect/general_properties/color/on_property_recompute(var/decl/material/liquid/random/reagent, var/value)
 	reagent.color = value
@@ -96,7 +97,7 @@
 /decl/random_chem_effect/random_properties
 	var/chem_effect_define                //If it corresponds to a CE_WHATEVER define, place here and it will do generic affect blood based on it
 
-/decl/random_chem_effect/random_properties/affect_blood(var/mob/living/carbon/M, var/alien, var/removed, var/value)
+/decl/random_chem_effect/random_properties/affect_blood(var/mob/living/M, var/removed, var/value)
 	if(chem_effect_define)
 		M.add_chemical_effect(chem_effect_define, value)
 
@@ -227,15 +228,15 @@
 	mode = RANDOM_CHEM_EFFECT_INT
 	desc = "acute toxicity"
 
-/decl/random_chem_effect/random_properties/heal_brute/affect_blood(var/mob/living/carbon/M, var/alien, var/removed, var/value)
-	M.adjustToxLoss(value * removed)
+/decl/random_chem_effect/random_properties/tox_damage/affect_blood(var/mob/living/M, var/removed, var/value)
+	M.take_damage(value * removed, TOX)
 
 /decl/random_chem_effect/random_properties/heal_brute
 	beneficial = 1
 	maximum = 10
 	desc = "tissue repair"
 
-/decl/random_chem_effect/random_properties/heal_brute/affect_blood(var/mob/living/carbon/M, var/alien, var/removed, var/value)
+/decl/random_chem_effect/random_properties/heal_brute/affect_blood(var/mob/living/M, var/removed, var/value)
 	M.heal_organ_damage(removed * value, 0)
 
 /decl/random_chem_effect/random_properties/heal_burns
@@ -243,7 +244,7 @@
 	maximum = 10
 	desc = "burn repair"
 
-/decl/random_chem_effect/random_properties/heal_brute/affect_blood(var/mob/living/carbon/M, var/alien, var/removed, var/value)
+/decl/random_chem_effect/random_properties/heal_burns/affect_blood(var/mob/living/M, var/removed, var/value)
 	M.heal_organ_damage(0, removed * value)
 
 #undef RANDOM_CHEM_EFFECT_TRUE

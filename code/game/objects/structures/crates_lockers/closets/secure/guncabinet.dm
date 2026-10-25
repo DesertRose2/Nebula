@@ -8,18 +8,23 @@
 	. = ..()
 	update_icon()
 
+/obj/structure/closet/secure_closet/guncabinet/LateInitialize(mapload, ...)
+	. = ..()
+	update_icon()
+
 /obj/structure/closet/secure_closet/guncabinet/toggle()
 	..()
 	update_icon()
 
-/obj/structure/closet/secure_closet/guncabinet/open() //There are plenty of things that can open it that don't use toggle
-	..()
+/obj/structure/closet/secure_closet/guncabinet/open(mob/user) //There are plenty of things that can open it that don't use toggle
+	. = ..()
 	update_icon()
 
+// TODO rewrite to use parent call and proper closet icon stuff.
 /obj/structure/closet/secure_closet/guncabinet/on_update_icon()
-	overlays.Cut()
+	cut_overlays()
 	if(opened)
-		overlays += icon(icon,"door_open")
+		add_overlay("door_open")
 	else
 		var/lazors = 0
 		var/shottas = 0
@@ -40,14 +45,26 @@
 				gun.pixel_x = i*4
 				overlays += gun
 
-		overlays += icon(src.icon, "door")
+		add_overlay("door")
 
 		if(welded)
-			overlays += icon(src.icon,"welded")
+			add_overlay("welded")
 
 		if(!broken)
 			if(locked)
-				overlays += icon(src.icon,"locked")
+				add_overlay("locked")
 			else
-				overlays += icon(src.icon,"open")
+				add_overlay("open")
 
+// Subtypes
+/obj/structure/closet/secure_closet/guncabinet/sidearm
+	name = "emergency weapon cabinet"
+	req_access = list(
+		access_armory,
+		access_captain
+	)
+
+/obj/structure/closet/secure_closet/guncabinet/sidearm/WillContain()
+	return list(
+		/obj/item/gun/energy/gun = 4
+	)

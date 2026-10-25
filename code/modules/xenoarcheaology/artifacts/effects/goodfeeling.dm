@@ -1,9 +1,9 @@
 /datum/artifact_effect/goodfeeling
 	name = "good feeling"
-	origin_type = EFFECT_PSIONIC
-	var/global/list/messages = list("You feel good.",
-		"Everything seems to be going alright",
-		"You've got a good feeling about this",
+	origin_type = XA_EFFECT_PSIONIC
+	var/static/list/messages = list("You feel good.",
+		"Everything seems to be going alright.",
+		"You've got a good feeling about this.",
 		"Your instincts tell you everything is going to be getting better.",
 		"There's a good feeling in the air.",
 		"Something smells... good.",
@@ -16,7 +16,7 @@
 		"Everything seems a little lighter.",
 		"The troubles of the world seem to fade away.")
 
-	var/global/list/drastic_messages = list("You want to hug everyone you meet!",
+	var/static/list/drastic_messages = list("You want to hug everyone you meet!",
 		"Everything is going so well!",
 		"You feel euphoric.",
 		"You feel giddy.",
@@ -24,25 +24,25 @@
 		"You feel like the world is out to help you.")
 
 /datum/artifact_effect/goodfeeling/DoEffectTouch(var/mob/user)
-	if(istype(user, /mob/living/carbon/human))
+	if(ishuman(user))
 		affect_human(user, 50, 50)
 		return 1
 
 /datum/artifact_effect/goodfeeling/DoEffectAura()
 	if(holder)
 		var/turf/T = get_turf(holder)
-		for (var/mob/living/carbon/human/H in range(effect_range,T))
+		for (var/mob/living/human/H in range(effect_range,T))
 			affect_human(H, 5, 5)
 		return 1
 
 /datum/artifact_effect/goodfeeling/DoEffectPulse()
 	if(holder)
 		var/turf/T = get_turf(holder)
-		for (var/mob/living/carbon/human/H in range(effect_range,T))
+		for (var/mob/living/human/H in range(effect_range,T))
 			affect_human(H, 50, 50)
 		return 1
 
-/datum/artifact_effect/goodfeeling/proc/affect_human(mob/living/carbon/human/H, message_prob, dizziness_prob)
+/datum/artifact_effect/goodfeeling/proc/affect_human(mob/living/human/H, message_prob, dizziness_prob)
 	if(H.stat)
 		return
 	if(prob(message_prob))
@@ -52,4 +52,4 @@
 			to_chat(H, SPAN_NOTICE(pick(drastic_messages)))
 
 	if(prob(dizziness_prob))
-		H.dizziness += rand(3,5)
+		ADJ_STATUS(H, STAT_DIZZY, rand(3,5))

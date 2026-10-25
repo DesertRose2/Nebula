@@ -1,3 +1,15 @@
+/obj/item/modular_computer/get_contained_external_atoms()
+	. = ..()
+	var/datum/extension/assembly/assembly = get_extension(src, /datum/extension/assembly)
+	if(assembly)
+		LAZYREMOVE(., assembly.parts)
+
+/obj/item/modular_computer/get_contained_matter(include_reagents = TRUE)
+	. = ..()
+	var/datum/extension/assembly/assembly = get_extension(src, /datum/extension/assembly)
+	for(var/obj/part in assembly?.parts)
+		. = MERGE_ASSOCS_WITH_NUM_VALUES(., part.get_contained_matter(include_reagents))
+
 /obj/item/modular_computer/Process()
 	var/datum/extension/assembly/assembly = get_extension(src, /datum/extension/assembly)
 	if(assembly)
@@ -5,7 +17,7 @@
 		if(!assembly.enabled)
 			return
 
-	var/datum/extension/interactive/ntos/os = get_extension(src, /datum/extension/interactive/ntos)
+	var/datum/extension/interactive/os/os = get_extension(src, /datum/extension/interactive/os)
 	if(os)
 		os.Process()
 
@@ -15,7 +27,7 @@
 		playsound(src.loc, pick(beepsounds),15,1,10, is_ambiance = 1)
 
 /obj/item/modular_computer/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1)
-	var/datum/extension/interactive/ntos/os = get_extension(src, /datum/extension/interactive/ntos)
+	var/datum/extension/interactive/os/os = get_extension(src, /datum/extension/interactive/os)
 	if(os)
 		os.ui_interact(user)
 
@@ -27,7 +39,7 @@
 
 // Used to install preset-specific programs
 /obj/item/modular_computer/proc/install_default_programs()
-	var/mob/living/carbon/human/H = get_holder_of_type(src, /mob)
+	var/mob/living/human/H = get_recursive_loc_of_type(/mob)
 	var/list/job_programs = list()
 	if(H)
 		var/datum/job/jb = SSjobs.get_by_title(H.job)
@@ -41,23 +53,17 @@
 		var/datum/computer_file/program/prog_file = prog_type
 		if(initial(prog_file.usage_flags) & assembly.hardware_flag)
 			prog_file = new prog_file
-			HDD.store_file(prog_file)
+			HDD.store_file(prog_file, OS_PROGRAMS_DIR, TRUE)
 
 /obj/item/modular_computer/Initialize()
 	START_PROCESSING(SSobj, src)
-	set_extension(src, /datum/extension/interactive/ntos/device)
+	set_extension(src, /datum/extension/interactive/os/device)
 	set_extension(src, computer_type)
-
 	if(stores_pen && ispath(stored_pen))
 		stored_pen = new stored_pen(src)
-
 	update_icon()
 	update_verbs()
 	update_name()
-	
-	var/datum/extension/assembly/modular_computer/assembly = get_extension(src, /datum/extension/assembly/modular_computer)
-	if(istype(assembly) && assembly.enabled_by_default)
-		enable_computer()
 	..()
 	return INITIALIZE_HINT_LATELOAD
 
@@ -65,9 +71,12 @@
 	. = ..()
 	install_default_hardware()
 	install_default_programs()
+	var/datum/extension/assembly/modular_computer/assembly = get_extension(src, /datum/extension/assembly)
+	if(istype(assembly) && assembly.enabled_by_default)
+		enable_computer()
 
 /obj/item/modular_computer/Destroy()
-	QDEL_NULL_LIST(terminals)
+	shutdown_computer(loud = FALSE)
 	STOP_PROCESSING(SSobj, src)
 	if(istype(stored_pen))
 		QDEL_NULL(stored_pen)
@@ -83,26 +92,28 @@
 		return 1
 
 /obj/item/modular_computer/on_update_icon()
-	cut_overlays()
+	. = ..()
 	for(var/decal_state in decals)
 		var/image/I = image(icon, "[icon_state]-[decal_state]")
 		I.color = decals[decal_state]
 		I.appearance_flags |= RESET_COLOR
 		add_overlay(I)
-	var/datum/extension/interactive/ntos/os = get_extension(src, /datum/extension/interactive/ntos)
+	var/datum/extension/interactive/os/os = get_extension(src, /datum/extension/interactive/os)
 	var/image/screen_overlay = os?.get_screen_overlay()
 	if(screen_overlay)
 		add_overlay(screen_overlay)
+	else if(dark_screen_state)
+		add_overlay(dark_screen_state)
 	var/image/keyboard_overlay = os?.get_keyboard_overlay()
 	if(keyboard_overlay)
 		add_overlay(keyboard_overlay)
 	update_lighting()
 
 /obj/item/modular_computer/proc/update_lighting()
-	var/datum/extension/interactive/ntos/os = get_extension(src, /datum/extension/interactive/ntos)
+	var/datum/extension/interactive/os/os = get_extension(src, /datum/extension/interactive/os)
 	var/datum/extension/assembly/modular_computer/assembly = get_extension(src, /datum/extension/assembly)
 	if(assembly && assembly.enabled)
-		set_light(0.2, 0.1, light_strength, l_color = (assembly.bsod || os?.updating) ? "#0000ff" : light_color)
+		set_light(light_strength, l_color = (assembly.bsod || os?.updating) ? "#0000ff" : light_color)
 	else
 		set_light(0)
 
@@ -123,11 +134,12 @@
 		if(user)
 			ui_interact(user)
 
-/obj/item/modular_computer/GetIdCard()
+/obj/item/modular_computer/GetIdCards(list/exceptions)
+	. = ..()
 	var/datum/extension/assembly/assembly = get_extension(src, /datum/extension/assembly)
 	var/obj/item/stock_parts/computer/card_slot/card_slot = assembly.get_component(PART_CARD)
-	if(card_slot && card_slot.can_broadcast && istype(card_slot.stored_card) && card_slot.check_functionality())
-		return card_slot.stored_card
+	if(card_slot && card_slot.can_broadcast && istype(card_slot.stored_card) && card_slot.check_functionality() && !is_type_in_list(card_slot.stored_card, exceptions))
+		LAZYDISTINCTADD(., card_slot.stored_card)
 
 /obj/item/modular_computer/GetChargeStick()
 	var/datum/extension/assembly/assembly = get_extension(src, /datum/extension/assembly)
@@ -135,7 +147,8 @@
 	if(mstick_slot && mstick_slot.can_broadcast && istype(mstick_slot.stored_stick) && mstick_slot.check_functionality())
 		return mstick_slot.stored_stick
 
-/obj/item/modular_computer/proc/update_name()
+/obj/item/modular_computer/update_name()
+	return
 
 /obj/item/modular_computer/get_cell()
 	var/datum/extension/assembly/assembly = get_extension(src, /datum/extension/assembly)

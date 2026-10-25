@@ -5,6 +5,7 @@
 
 /mob/observer/eye
 	name = "Eye"
+	mob_sort_value = 1
 	var/name_sufix = "Eye"
 	icon = 'icons/mob/eye.dmi'
 	icon_state = "default-eye"
@@ -14,11 +15,12 @@
 	var/acceleration = 1
 	var/owner_follows_eye = 0
 	var/living_eye = TRUE 	// Whether or not the eye uses normal living vision handling.
-	
+
 	var/click_handler_type = /datum/click_handler/eye/ // Set if the eye uses special click handling. Distinct from parent mob click handling for AI etc.
-	
+
 	see_in_dark = 7
 	invisibility = INVISIBILITY_EYE
+	is_spawnable_type = FALSE // No, don't.
 
 	ghost_image_flag = GHOST_IMAGE_ALL
 	var/mob/owner = null
@@ -31,7 +33,7 @@
 /mob/observer/eye/Move(n, direct)
 	if(owner == src)
 		return EyeMove(direct)
-	return 0
+	return FALSE
 
 /mob/observer/eye/facedir(var/ndir)
 	if(!canface())
@@ -39,7 +41,7 @@
 	set_dir(ndir)
 	return 1
 
-/mob/observer/eye/examinate()
+/mob/observer/eye/examine_verb()
 	set popup_menu = 0
 	set src = usr.contents
 	return 0
@@ -49,7 +51,7 @@
 	set src = usr.contents
 	return 0
 
-/mob/observer/eye/examine(mob/user)
+/mob/observer/eye/examined_by(mob/user)
 	SHOULD_CALL_PARENT(FALSE)
 	return TRUE
 
@@ -77,6 +79,7 @@
 	LAZYREMOVE(user.additional_vision_handlers, src)
 	remove_visual(owner)
 	owner.eyeobj = null
+	owner.reset_view()
 	if(click_handler_type)
 		owner.RemoveClickHandler(click_handler_type)
 	owner = null
@@ -111,7 +114,7 @@
 
 /mob/proc/EyeMove(n, direct)
 	if(!eyeobj)
-		return
+		return FALSE
 
 	return eyeobj.EyeMove(n, direct)
 
@@ -126,10 +129,10 @@
 		var/turf/destination = (direct == UP) ? GetAbove(src) : GetBelow(src)
 		if(!destination)
 			to_chat(owner, "<span class='notice'>There is nothing of interest in this direction.</span>")
-			return
+			return FALSE
 
 		setLoc(destination)		// No sprinting up and down.
-		return
+		return FALSE
 
 	for(var/i = 0; i < max(sprint, initial); i += 20)
 		var/turf/step = get_turf(get_step(src, direct))
@@ -141,7 +144,7 @@
 		sprint = min(sprint + 0.5, max_sprint)
 	else
 		sprint = initial
-	return 1
+	return TRUE
 
 // Used to apply fullscreen effects etc. to owner
 /mob/observer/eye/apply_visual(var/mob/M)
@@ -157,7 +160,7 @@
 /mob/observer/eye/ClickOn(var/atom/A, var/params)
 	if(owner)
 		return owner.ClickOn(A, params)
-	
+
 	return ..()
 
 /datum/click_handler/eye/OnClick(var/atom/A, params)

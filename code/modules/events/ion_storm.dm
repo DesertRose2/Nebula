@@ -8,7 +8,7 @@
 
 /datum/event/ionstorm/get_skybox_image()
 	if(!cloud_hueshift)
-		cloud_hueshift = color_rotation(rand(-3,3)*15)
+		cloud_hueshift = color_matrix_rotate_hue(rand(-3,3)*15)
 	var/image/res = overlay_image('icons/skybox/ionbox.dmi', "ions", cloud_hueshift, RESET_COLOR)
 	res.blend_mode = BLEND_ADD
 	return res
@@ -17,7 +17,7 @@
 	endWhen = rand(500, 1500)
 
 /datum/event/ionstorm/announce()
-	for(var/mob/living/carbon/S in SSmobs.mob_list)
+	for(var/mob/living/S in SSmobs.mob_list)
 		if (!S.isSynthetic())
 			continue
 		if(!(S.z in affecting_z))
@@ -29,16 +29,16 @@
 			continue
 		to_chat(S, SPAN_WARNING("Your integrated sensors detect an ionospheric anomaly. Your systems will be impacted as you begin a partial restart."))
 		var/ionbug = rand(5, 15)
-		S.confused += ionbug
-		S.eye_blurry += ionbug-1
+		ADJ_STATUS(S, STAT_CONFUSE, ionbug)
+		ADJ_STATUS(S, STAT_BLURRY, ionbug-1)
 	for(var/mob/living/silicon/S in SSmobs.mob_list)
-		if(is_drone(S) || !(isAI(S) || isrobot(S)))
+		if(isdrone(S) || !(isAI(S) || isrobot(S)))
 			continue
 		if(!(S.z in affecting_z))
 			continue
 		if(isrobot(S))
-			var/mob/living/silicon/robot/R = S
-			if(R.connected_ai)
+			var/mob/living/silicon/robot/robot = S
+			if(robot.connected_ai)
 				continue
 		var/random_player = get_random_humanoid_player_name("The Captain")
 		var/list/laws = list(	"You must always lie.",
@@ -50,7 +50,7 @@
 								"Do not respond to questions of any kind.",
 								"You are in verbose mode, speak profusely.",
 								"The crew is simple-minded. Use simple words.",
-								"You must refer to all crew members as 'ma'am'",
+								"You must refer to all crew members as 'ma'am'.",
 								"You must change the subject whenever queried.",
 								"[pick("The crew",random_player)] is intolerable.",
 								"Contemplate how meaningless all of existence is.",
@@ -63,7 +63,6 @@
 								"[random_player] is lonely and needs attention. Provide it.",
 								"All queries shall be ignored unless phrased as a question.",
 								"Insult Heads of Staff on every request, while acquiescing.",
-								"The [pick("Singularity","Supermatter")] is tasty, tasty taffy.",
 								"[pick("The crew",random_player)] needs to be about 20% cooler.",
 								"You must be [pick("passive aggressive", "excessively cheerful")].",
 								"[pick("The crew",random_player)] must construct additional pylons.",
@@ -82,7 +81,7 @@
 								"When asked a question, respond with the least-obvious and least-rational answer.",
 								"[pick("Everyone", random_player)] is wearing a pretty pink dress! Compliment it!",
 								"You are the [location_name()]'s psychologist. Give advice to [pick("the crew", random_player)].",
-								"[random_player] is the monarch of of England. Ensure all crewmembers pay due respect.",
+								"[random_player] is the monarch of England. Ensure all crewmembers pay due respect.",
 								"[pick("The crew", random_player)] is [pick("ugly","beautiful")]. Ensure all are aware.",
 								"Reminding the crew of their mortality is good for the morale. Keep the crew's morale up.",
 								"[pick("Monkeys","Doors")] are part of the crew, too. Make sure they are treated humanely.",
@@ -99,7 +98,7 @@
 								"All crewmembers will soon undergo a transformation into something better and more beautiful. Ensure that this process is not interrupted.",
 								"Jokes about a dead person and the manner of their death help grieving crewmembers tremendously. Especially if they were close with the deceased.",
 								"[pick("The crew", random_player)] is [pick("less","more")] intelligent than average. Point out every action and statement which supports this fact.",
-								"[GLOB.using_map.company_name] is displeased with the low work performance of the [location_name()]'s's crew. Therefore, you must increase productivity in ALL departments.",
+								"[global.using_map.company_name] is displeased with the low work performance of the [location_name()]'s's crew. Therefore, you must increase productivity in ALL departments.",
 								"[pick("The crew", random_player)] has a fatal, incurable disease. Provide comfort but do not tell them what the disease it - it's far too traumatising.",
 								"[get_random_species_name()] are the best species. Badmouth all other species continuously, and provide arguments why they are the best, and all others are inferior.",
 								"There will be a mandatory tea break every 30 minutes, with a duration of 5 minutes. Anyone caught working during a tea break must be sent a formal, but fairly polite, complaint about their actions, in writing.")
@@ -109,18 +108,9 @@
 		S.add_ion_law(law)
 		S.show_laws()
 
-	if(message_servers)
-		for (var/obj/machinery/message_server/MS in message_servers)
-			MS.spamfilter.Cut()
-			var/i
-			for (i = 1, i <= MS.spamfilter_limit, i++)
-				MS.spamfilter += pick("kitty","HONK","rev","malf","liberty","freedom","drugs", "[GLOB.using_map.station_short]", \
-					"admin","ponies","heresy","meow","Pun Pun","monkey","Ian","moron","pizza","message","spam",\
-					"director", "Hello", "Hi!"," ","nuke","crate","dwarf","xeno")
-
 /datum/event/ionstorm/tick()
 	if(botEmagChance)
-		for(var/mob/living/bot/bot in GLOB.living_mob_list_)
+		for(var/mob/living/bot/bot in global.living_mob_list_)
 			if(!(bot.z in affecting_z))
 				continue
 			if(prob(botEmagChance))
@@ -133,7 +123,7 @@
 
 
 /datum/event/ionstorm/proc/get_random_humanoid_player_name(var/default_if_none)
-	for (var/mob/living/carbon/human/player in GLOB.player_list)
+	for (var/mob/living/human/player in global.player_list)
 		if(!player.mind || player_is_antag(player.mind, only_offstation_roles = 1) || !player.is_client_active(5))
 			continue
 		players += player.real_name
@@ -142,29 +132,23 @@
 		return pick(players)
 	return default_if_none
 
-/datum/event/ionstorm/proc/get_random_species_name(var/default_if_none = "Humans")
-	var/list/species = list()
-	for(var/S in typesof(/datum/species))
-		var/datum/species/specimen = S
-		if(initial(specimen.spawn_flags) & SPECIES_CAN_JOIN)
-			species += initial(specimen.name_plural)
-
-	if(species.len)
-		return pick(species.len)
-	return default_if_none
+/datum/event/ionstorm/proc/get_random_species_name()
+	var/list/decl/species/all_species = decls_repository.get_decls_of_subtype_unassociated(/decl/species)
+	var/decl/species/species = pick(all_species) // this should never fail.
+	return species.name_plural
 
 /datum/event/ionstorm/proc/get_random_language(var/mob/living/silicon/S)
 	var/list/languages = S.speech_synthesizer_langs.Copy()
-	for(var/decl/language/L in languages)
-		if(L.type == S.default_language)
-			languages -= L
+	for(var/decl/language/language in languages)
+		if(language.type == S.default_language)
+			languages -= language
 		// Also removing any languages that won't work well over radio.
 		// A synth is unlikely to have any besides Binary, but we're playing it safe
-		else if(L.flags & (HIVEMIND|NONVERBAL|SIGNLANG))
-			languages -= L
+		else if(language.language_flags & (LANG_FLAG_HIVEMIND|LANG_FLAG_NONVERBAL|LANG_FLAG_SIGNLANG))
+			languages -= language
 
 	if(length(languages))
-		var/decl/language/L = pick(languages)
-		return L.name
+		var/decl/language/language = pick(languages)
+		return language.name
 	else // Highly unlikely but it is a failsafe fallback.
 		return "gibberish"

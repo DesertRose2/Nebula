@@ -23,32 +23,32 @@
 		return english_list(descriptors)
 
 	var/list/flavor_text = list()
-	if((status & ORGAN_CUT_AWAY) && !is_stump() && !(parent && parent.status & ORGAN_CUT_AWAY))
+	if((status & ORGAN_CUT_AWAY) && !(parent && parent.status & ORGAN_CUT_AWAY))
 		flavor_text += "a tear at the [amputation_point] so severe that it hangs by a scrap of flesh"
 
 	var/list/wound_descriptors = list()
-	for(var/datum/wound/W in wounds)
-		var/this_wound_desc = W.desc
-		if(W.damage_type == BURN && W.salved)
+	for(var/datum/wound/wound in wounds)
+		var/this_wound_desc = wound.desc
+		if(wound.damage_type == BURN && wound.salved)
 			this_wound_desc = "salved [this_wound_desc]"
 
-		if(W.bleeding())
-			if(W.wound_damage() > W.bleed_threshold)
+		if(wound.bleeding())
+			if(wound.wound_damage() > wound.bleed_threshold)
 				this_wound_desc = "<b>bleeding</b> [this_wound_desc]"
 			else
 				this_wound_desc = "bleeding [this_wound_desc]"
-		else if(W.bandaged)
+		else if(wound.bandaged)
 			this_wound_desc = "bandaged [this_wound_desc]"
 
-		if(W.germ_level > 600)
+		if(wound.germ_level > 600)
 			this_wound_desc = "badly infected [this_wound_desc]"
-		else if(W.germ_level > 330)
+		else if(wound.germ_level > 330)
 			this_wound_desc = "lightly infected [this_wound_desc]"
 
 		if(wound_descriptors[this_wound_desc])
-			wound_descriptors[this_wound_desc] += W.amount
+			wound_descriptors[this_wound_desc] += wound.amount
 		else
-			wound_descriptors[this_wound_desc] = W.amount
+			wound_descriptors[this_wound_desc] = wound.amount
 
 	if(how_open() >= SURGERY_RETRACTED)
 		var/bone = encased ? encased : "bone"
@@ -84,15 +84,17 @@
 		. += "[capitalize(artery_name)] ruptured"
 	if(status & ORGAN_TENDON_CUT)
 		. += "Severed [tendon_name]"
-	if(dislocated == 2) // non-magical constants when
+	if(is_dislocated())
 		. += "Dislocated"
 	if(splinted)
 		. += "Splinted"
 	if(status & ORGAN_BLEEDING)
 		. += "Bleeding"
+	if(limb_flags & ORGAN_FLAG_SKELETAL)
+		. += "Skeletal"
 	if(status & ORGAN_BROKEN)
 		. += capitalize(broken_description)
-	if (implants.len)
+	if (LAZYLEN(implants))
 		var/unknown_body = 0
 		for(var/I in implants)
 			var/obj/item/implant/imp = I
@@ -105,16 +107,21 @@
 			unknown_body++
 		if(unknown_body)
 			. += "Unknown body present"
-	for(var/obj/item/organ/internal/augment/aug in internal_organs)
-		if(istype(aug) && aug.known)
-			. += "[capitalize(aug.name)] implanted"
+	var/obj/item/organ/internal/lungs/L = locate() in src
+	if( L && L.is_bruised())
+		. += "Lung ruptured"
 
 /obj/item/organ/external/proc/inspect(mob/user)
-	if(is_stump())
-		to_chat(user, "<span class='notice'>[owner] is missing that bodypart.</span>")
-		return
 
 	user.visible_message("<span class='notice'>[user] starts inspecting [owner]'s [name] carefully.</span>")
+	for(var/ailment in has_diagnosable_ailments(user, scanner = FALSE))
+		if(!do_mob(user, owner, 5))
+			return
+		to_chat(user, SPAN_NOTICE(ailment))
+
+	if(!do_mob(user, owner, 5))
+		return
+
 	if(LAZYLEN(wounds))
 		to_chat(user, "<span class='warning'>You find [get_wounds_desc()]</span>")
 		var/list/stuff = list()
@@ -126,7 +133,7 @@
 	else
 		to_chat(user, "<span class='notice'>You find no visible wounds.</span>")
 
-	to_chat(user, "<span class='notice'>Checking skin now...</span>")
+	to_chat(user, "<span class='notice'>You start checking [owner]'s skin...</span>")
 	if(!do_mob(user, owner, 10))
 		to_chat(user, "<span class='notice'>You must stand still to check [owner]'s skin for abnormalities.</span>")
 		return
@@ -142,20 +149,20 @@
 	else
 		to_chat(user, "<span class='warning'>[owner]'s skin is [english_list(badness)].</span>")
 
-	to_chat(user, "<span class='notice'>Checking bones now...</span>")
+	to_chat(user, "<span class='notice'>You start checking [owner]'s bones...</span>")
 	if(!do_mob(user, owner, 10))
 		to_chat(user, "<span class='notice'>You must stand still to feel [src] for fractures.</span>")
 		return
 
 	if(status & ORGAN_BROKEN)
-		to_chat(user, "<span class='warning'>The [encased ? encased : "bone in the [name]"] moves slightly when you poke it!</span>")
+		to_chat(user, "<span class='warning'>The [encased ? encased : "bone in \the [src]"] moves slightly when you poke it!</span>")
 		owner.custom_pain("Your [name] hurts where it's poked.",40, affecting = src)
 	else
-		to_chat(user, "<span class='notice'>The [encased ? encased : "bones in the [name]"] seem to be fine.</span>")
+		to_chat(user, "<span class='notice'>The [encased ? encased : "bones in \the [src]"] seem to be fine.</span>")
 
 	if(status & ORGAN_TENDON_CUT)
 		to_chat(user, "<span class='warning'>The tendons in [name] are severed!</span>")
-	if(dislocated == 2)
+	if(is_dislocated())
 		to_chat(user, "<span class='warning'>The [joint] is dislocated!</span>")
 	return 1
 
@@ -166,11 +173,12 @@
 		if(gutsound)
 			sounds += gutsound
 	if(!sounds.len)
-		if(owner.pulse())
+		if(owner.get_pulse())
 			sounds += "faint pulse"
 	return sounds
 
 /decl/diagnostic_sign
+	abstract_type = /decl/diagnostic_sign
 	var/name = "Some symptom"
 	var/descriptor
 	var/explanation
@@ -182,7 +190,7 @@
 /decl/diagnostic_sign/proc/get_description(mob/user)
 	. = descriptor
 	if(user && user.skill_check(SKILL_MEDICAL, hint_min_skill))
-		. += "<small><a href='?src=\ref[src];show_diagnostic_hint=1'>(?)</a></small>"
+		. += "<small><a href='byond://?src=\ref[src];show_diagnostic_hint=1'>(?)</a></small>"
 
 /decl/diagnostic_sign/Topic(var/href, var/list/href_list)
 	. = ..()
@@ -206,7 +214,7 @@
 	explanation = "Patient has internal organ damage."
 
 /decl/diagnostic_sign/liver/manifested_in(obj/item/organ/external/victim)
-	return victim.owner && victim.owner.getToxLoss() >= 25
+	return victim.owner && victim.owner.get_damage(TOX) >= 25
 
 /decl/diagnostic_sign/oxygenation
 	name = "Cyanosis"

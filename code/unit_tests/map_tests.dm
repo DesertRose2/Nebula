@@ -5,11 +5,6 @@
  *
  *
  */
-
-#define FAILURE 0
-#define SUCCESS 1
-
-
 /datum/unit_test/apc_area_test
 	name = "MAP: Area Test APC / Scrubbers / Vents"
 
@@ -18,34 +13,37 @@
 	var/list/bad_areas = list()
 	var/area_test_count = 0
 
-	for(var/area/A in world)
+	for(var/area/A in global.areas)
 		if(!A.z)
 			continue
 		if(!isPlayerLevel(A.z))
 			continue
 		area_test_count++
 		var/area_good = 1
-		var/bad_msg = "--------------- [A.name]([A.type])"
+		var/bad_msg = "--------------- [A.proper_name]([A.type])"
 
 		var/exemptions = get_exemptions(A)
-		if(!A.apc && !(exemptions & GLOB.using_map.NO_APC))
+		if(exemptions & global.using_map.SKIP_ALL_TESTS)
+			continue
+
+		if(!A.apc && !(exemptions & global.using_map.NO_APC))
 			log_bad("[bad_msg] lacks an APC.")
 			area_good = 0
-		else if(A.apc && (exemptions & GLOB.using_map.NO_APC))
+		else if(A.apc && (exemptions & global.using_map.NO_APC))
 			log_bad("[bad_msg] is not supposed to have an APC.")
 			area_good = 0
 
-		if(!A.air_scrub_names.len && !(exemptions & GLOB.using_map.NO_SCRUBBER))
+		if(!A.air_scrub_names.len && !(exemptions & global.using_map.NO_SCRUBBER))
 			log_bad("[bad_msg] lacks an air scrubber.")
 			area_good = 0
-		else if(A.air_scrub_names.len && (exemptions & GLOB.using_map.NO_SCRUBBER))
+		else if(A.air_scrub_names.len && (exemptions & global.using_map.NO_SCRUBBER))
 			log_bad("[bad_msg] is not supposed to have an air scrubber.")
 			area_good = 0
 
-		if(!A.air_vent_names.len && !(exemptions & GLOB.using_map.NO_VENT))
+		if(!A.air_vent_names.len && !(exemptions & global.using_map.NO_VENT))
 			log_bad("[bad_msg] lacks an air vent.[ascii_reset]")
 			area_good = 0
-		else if(A.air_vent_names.len && (exemptions & GLOB.using_map.NO_VENT))
+		else if(A.air_vent_names.len && (exemptions & global.using_map.NO_VENT))
 			log_bad("[bad_msg] is not supposed to have an air vent.")
 			area_good = 0
 
@@ -61,10 +59,10 @@
 
 /datum/unit_test/apc_area_test/proc/get_exemptions(var/area)
 	// We assume deeper types come last
-	for(var/i = GLOB.using_map.apc_test_exempt_areas.len; i>0; i--)
-		var/exempt_type = GLOB.using_map.apc_test_exempt_areas[i]
+	for(var/i = global.using_map.apc_test_exempt_areas.len; i>0; i--)
+		var/exempt_type = global.using_map.apc_test_exempt_areas[i]
 		if(istype(area, exempt_type))
-			return GLOB.using_map.apc_test_exempt_areas[exempt_type]
+			return global.using_map.apc_test_exempt_areas[exempt_type]
 
 /datum/unit_test/air_alarm_connectivity
 	name = "MAP: Air alarms shall receive updates."
@@ -74,28 +72,70 @@
 	return 1
 
 /datum/unit_test/air_alarm_connectivity/subsystems_to_await()
-	return list(SStimer)
+	return list(SStimer, SSalarm, SSmachines)
 
 /datum/unit_test/air_alarm_connectivity/check_result()
 	var/failed = FALSE
-	for(var/area/A in world)
+	for(var/area/A in global.areas)
 		if(!A.z)
 			continue
 		if(!isPlayerLevel(A.z))
 			continue
-		var/obj/machinery/alarm/alarm = locate() in A // Only test areas with functional alarms
-		if(!alarm)
-			continue
-		if(alarm.stat & (NOPOWER | BROKEN))
+		// Only test areas with functional alarms
+		var/obj/machinery/alarm/found_alarm
+		for (var/obj/machinery/alarm/alarm in A)
+			if(alarm.inoperable()) // must have at least one functional alarm
+				continue
+			found_alarm = alarm
+
+		if(!found_alarm)
 			continue
 
-		for(var/tag in A.air_vent_names) // The point of this test is that while the names list is registered at init, the info is transmitted by radio.
+		//Make a list of devices that are being controlled by their air alarms
+		var/list/vents_in_area = list()
+		var/list/scrubbers_in_area = list()
+		for(var/obj/machinery/atmospherics/unary/vent_pump/V in A.contents)
+			if(V.controlled)
+				vents_in_area[V.id_tag] = V
+		for(var/obj/machinery/atmospherics/unary/vent_scrubber/V in A.contents)
+			if(V.controlled)
+				scrubbers_in_area[V.id_tag] = V
+
+		for(var/tag in vents_in_area) // The point of this test is that while the names list is registered at init, the info is transmitted by radio.
 			if(!A.air_vent_info[tag])
-				log_bad("Vent [A.air_vent_names[tag]] with id_tag [tag] did not update the air alarm in area [A].")
+				var/obj/machinery/atmospherics/unary/vent_pump/V = vents_in_area[tag]
+				var/logtext = "Vent [A.air_vent_names[tag]] ([V.x], [V.y], [V.z]) with id_tag [tag] did not update [log_info_line(found_alarm)] in area [A]."
+				if(V.inoperable())
+					logtext = "[logtext] The vent was not functional."
+				var/alarm_dist = get_dist(found_alarm, V)
+				if(alarm_dist > 60)
+					logtext += " The vent may be out of transmission range (max 60, was [alarm_dist])."
+				var/V_freq
+				for(var/obj/item/stock_parts/radio/radio_component in V.component_parts)
+					V_freq ||= radio_component.frequency
+				if(isnull(V_freq))
+					logtext += " The vent had no frequency set."
+				else if(V_freq != found_alarm.frequency)
+					logtext += " Frequencies did not match (alarm: [found_alarm.frequency], vent: [V_freq])."
+				log_bad(logtext)
 				failed = TRUE
-		for(var/tag in A.air_scrub_names)
+		for(var/tag in scrubbers_in_area)
 			if(!A.air_scrub_info[tag])
-				log_bad("Scrubber [A.air_scrub_names[tag]] with id_tag [tag] did not update the air alarm in area [A].")
+				var/obj/machinery/atmospherics/unary/vent_scrubber/V = scrubbers_in_area[tag]
+				var/logtext = "Scrubber [A.air_scrub_names[tag]] ([V.x], [V.y], [V.z]) with id_tag [tag] did not update [log_info_line(found_alarm)] in area [A]."
+				if(V.inoperable())
+					logtext = "[logtext] The scrubber was not functional."
+				var/alarm_dist = get_dist(found_alarm, V)
+				if(alarm_dist > 60)
+					logtext += " The scrubber may be out of transmission range (max 60, was [alarm_dist])."
+				var/V_freq
+				for(var/obj/item/stock_parts/radio/radio_component in V.component_parts)
+					V_freq ||= radio_component.frequency
+				if(isnull(V_freq))
+					logtext += " The scrubber had no frequency set."
+				else if(V_freq != found_alarm.frequency)
+					logtext += " Frequencies did not match (alarm: [found_alarm.frequency], scrubber: [V_freq])."
+				log_bad(logtext)
 				failed = TRUE
 
 	if(failed)
@@ -147,7 +187,7 @@
 /datum/unit_test/wire_dir_and_icon_stat/start_test()
 	var/list/bad_cables = list()
 
-	for(var/obj/structure/cable/C in world)
+	for(var/obj/structure/cable/C in global.all_cables)
 		var/expected_icon_state = "[C.d1]-[C.d2]"
 		if(C.icon_state != expected_icon_state)
 			bad_cables |= C
@@ -171,7 +211,7 @@
 /datum/unit_test/closet_test/start_test()
 	var/bad_tests = 0
 
-	for(var/obj/structure/closet/C in world)
+	for(var/obj/structure/closet/C in global.closets)
 		if(!C.opened && isPlayerLevel(C.z))
 			var/total_content_size = 0
 			for(var/atom/movable/AM in C.contents)
@@ -196,7 +236,7 @@
 /datum/unit_test/closet_containment_test/start_test()
 	var/bad_tests = 0
 
-	for(var/obj/structure/closet/C in world)
+	for(var/obj/structure/closet/C in global.closets)
 		if(exceptions[C.type])
 			continue
 		if(!C.opened && isPlayerLevel(C.z))
@@ -227,10 +267,13 @@
 /datum/unit_test/storage_map_test/start_test()
 	var/bad_tests = 0
 
-	for(var/obj/item/storage/S in world)
-		if(isPlayerLevel(S.z))
-			var/bad_msg = "[ascii_red]--------------- [S.name] \[[S.type]\] \[[S.x] / [S.y] / [S.z]\]"
-			bad_tests += test_storage_capacity(S, bad_msg)
+// We have to ifdef this because _test_storage_items doesn't exist when UNIT_TEST isn't defined.
+#ifdef UNIT_TEST
+	for(var/datum/storage/storage in global._test_storage_items)
+		if(storage.holder?.z && isPlayerLevel(storage.holder.z))
+			var/bad_msg = "[ascii_red]--------------- [storage.holder.name] \[[storage.holder.type]\] \[[storage.holder.x] / [storage.holder.y] / [storage.holder.z]\]"
+			bad_tests += test_storage_capacity(storage, bad_msg)
+#endif
 
 	if(bad_tests)
 		fail("\[[bad_tests]\] Some on-map storage items were not able to hold their initial contents.")
@@ -238,19 +281,18 @@
 		pass("All on-map storage items were able to hold their initial contents.")
 
 	return 1
-
 /datum/unit_test/map_image_map_test
 	name = "MAP: All map levels shall have a corresponding map image."
 
 /datum/unit_test/map_image_map_test/start_test()
 	var/failed = FALSE
 
-	for(var/z in GLOB.using_map.map_levels)
+	for(var/z in SSmapping.map_levels)
 		var/file_name = map_image_file_name(z)
 		var/file_path = MAP_IMAGE_PATH + file_name
 		if(!fexists(file_path))
 			failed = TRUE
-			log_unit_test("[GLOB.using_map.path]-[z] is missing its map image [file_name].")
+			log_unit_test("[global.using_map.path]-[z] is missing its map image [file_name].")
 
 	if(failed)
 		fail("One or more map levels were missing a corresponding map image.")
@@ -261,40 +303,79 @@
 
 //=======================================================================================
 
-datum/unit_test/correct_allowed_spawn_test
-	name = "MAP: All allowed_spawns entries should have spawnpoints on map."
+/datum/unit_test/correct_allowed_spawn_test
+	name = "MAP: All allowed_latejoin_spawns entries should have spawnpoints on map."
 
-datum/unit_test/correct_allowed_spawn_test/start_test()
-	var/failed = FALSE
+/datum/unit_test/correct_allowed_spawn_test/start_test()
 
-	for(var/spawn_name in GLOB.using_map.allowed_spawns)
-		var/datum/spawnpoint/spawnpoint = spawntypes()[spawn_name]
-		if(!spawnpoint)
-			log_unit_test("Map allows spawning in [spawn_name], but [spawn_name] is null!")
-			failed = TRUE
-		else if(!length(spawnpoint.turfs))
-			log_unit_test("Map allows spawning in [spawn_name], but [spawn_name] has no associated spawn turfs.")
-			failed = TRUE
+	var/list/failed = list()
+	var/list/check_spawn_flags = list(
+		"SPAWN_FLAG_PRISONERS_CAN_SPAWN"   = SPAWN_FLAG_PRISONERS_CAN_SPAWN,
+		"SPAWN_FLAG_JOBS_CAN_SPAWN"        = SPAWN_FLAG_JOBS_CAN_SPAWN,
+		"SPAWN_FLAG_PERSISTENCE_CAN_SPAWN" = SPAWN_FLAG_PERSISTENCE_CAN_SPAWN
+	)
 
-	if(failed)
-		log_unit_test("Following spawn points exist:")
-		for(var/spawnpoint in spawntypes())
-			log_unit_test("\t[spawnpoint] ([any2ref(spawnpoint)])")
-		log_unit_test("Following spawn points are allowed:")
-		for(var/spawnpoint in GLOB.using_map.allowed_spawns)
-			log_unit_test("\t[spawnpoint] ([any2ref(spawnpoint)])")
-		fail("Some of the entries in allowed_spawns have no spawnpoint turfs.")
+	// Check that all flags are represented in compiled spawnpoints.
+	// The actual validation will happen at the end of the proc.
+	var/list/all_spawnpoints = decls_repository.get_decls_of_subtype(/decl/spawnpoint)
+	for(var/spawn_type in all_spawnpoints)
+		var/decl/spawnpoint/spawnpoint = all_spawnpoints[spawn_type]
+		// No turfs probably means it isn't mapped; if it's in the allowed list this will be picked up below.
+		if(!length(spawnpoint.get_spawn_turfs()))
+			continue
+		if(spawnpoint.spawn_flags)
+			for(var/spawn_flag in check_spawn_flags)
+				if(spawnpoint.spawn_flags & check_spawn_flags[spawn_flag])
+					check_spawn_flags -= spawn_flag
+		if(!length(check_spawn_flags))
+			break
+
+	// Check if spawn points have any turfs at all associated.
+	for(var/decl/spawnpoint/spawnpoint as anything in global.using_map.allowed_latejoin_spawns)
+		if(!length(spawnpoint.get_spawn_turfs()))
+			log_unit_test("Map allows spawning in [spawnpoint.name], but [spawnpoint.name] has no associated spawn turfs.")
+			failed += spawnpoint.type
+
+	// Validate our forced job spawnpoints since they may not be included in allowed_latejoin_spawns.
+	for(var/job_title in SSjobs.titles_to_datums)
+		var/datum/job/job = SSjobs.titles_to_datums[job_title]
+		if(!job.forced_spawnpoint)
+			continue
+		var/decl/spawnpoint/spawnpoint = GET_DECL(job.forced_spawnpoint)
+		if(!spawnpoint.check_job_spawning(job))
+			log_unit_test("Forced spawnpoint for [job_title], [spawnpoint.name], does not permit the job to spawn there.")
+			failed += spawnpoint.type
+		if(!length(spawnpoint.get_spawn_turfs()))
+			log_unit_test("Job [job_title] forces spawning in [spawnpoint.name], but [spawnpoint.name] has no associated spawn turfs.")
+			failed += spawnpoint.type
+
+	// Observer spawn is special and isn't in the using_map list.
+	var/decl/spawnpoint/observer_spawn = GET_DECL(/decl/spawnpoint/observer)
+	if(!length(observer_spawn.get_spawn_turfs()))
+		log_unit_test("Map has no [observer_spawn.name] spawn turfs.")
+		failed += observer_spawn.type
+	if(!(observer_spawn.spawn_flags & SPAWN_FLAG_GHOSTS_CAN_SPAWN))
+		log_unit_test("[observer_spawn.name] is missing SPAWN_FLAG_GHOSTS_CAN_SPAWN.")
+		failed |= observer_spawn.type
+
+	// Report test outcome.
+	if(!length(failed) && !length(check_spawn_flags))
+		pass("All allowed spawnpoints have spawnpoint turfs.")
 	else
-		pass("All entries in allowed_spawns have spawnpoints.")
-
+		var/list/failstring = list()
+		if(length(failed))
+			failstring += "Some allowed spawnpoints have no spawnpoint turfs:\n[jointext(failed, "\n")]"
+		if(length(check_spawn_flags))
+			failstring += "Some required spawn flags are not set on available spawnpoints:\n[jointext(check_spawn_flags, "\n")]"
+		fail(jointext(failstring, "\n"))
 	return 1
 
 //=======================================================================================
 
-datum/unit_test/map_check
+/datum/unit_test/map_check
 	name = "MAP: Map Check"
 
-datum/unit_test/map_check/start_test()
+/datum/unit_test/map_check/start_test()
 	if(world.maxx < 1 || world.maxy < 1 || world.maxz < 1)
 		fail("Unexpected map size. Was a map properly included?")
 	else
@@ -302,20 +383,20 @@ datum/unit_test/map_check/start_test()
 	return 1
 //=======================================================================================
 
-datum/unit_test/ladder_check
+/datum/unit_test/ladder_check
 	name = "MAP: Ladder Check"
 
-datum/unit_test/ladder_check/start_test()
+/datum/unit_test/ladder_check/start_test()
 	var/failed
 	for(var/obj/structure/ladder/L)
 		if(HasAbove(L.z))
 			var/turf/T = GetAbove(L)
-			if(!istype(T, /turf/simulated/open) && (locate(/obj/structure/ladder) in T))
+			if(!istype(T) || !T.is_open() && (locate(/obj/structure/ladder) in T))
 				LAZYADD(failed, "[L.x],[L.y],[L.z]")
 				continue
 		if(HasBelow(L.z))
-			var/turf/T = GetBelow(L)
-			if(!istype(L.loc, /turf/simulated/open) && (locate(/obj/structure/ladder) in T))
+			var/turf/T = get_turf(L)
+			if((!istype(T) || !T.is_open()) && (locate(/obj/structure/ladder) in GetBelow(L)))
 				LAZYADD(failed, "[L.x],[L.y],[L.z]")
 				continue
 	if(LAZYLEN(failed))
@@ -333,15 +414,15 @@ datum/unit_test/ladder_check/start_test()
 	var/safe_landmarks = 0
 	var/space_landmarks = 0
 
-	for(var/lm in landmarks_list)
-		var/obj/effect/landmark/landmark = lm
-		if(istype(landmark, /obj/effect/landmark/test/safe_turf))
+	for(var/lm in global.all_landmarks)
+		var/obj/abstract/landmark/landmark = lm
+		if(istype(landmark, /obj/abstract/landmark/test/safe_turf))
 			log_debug("Safe landmark found: [log_info_line(landmark)]")
 			safe_landmarks++
-		else if(istype(landmark, /obj/effect/landmark/test/space_turf))
+		else if(istype(landmark, /obj/abstract/landmark/test/space_turf))
 			log_debug("Space landmark found: [log_info_line(landmark)]")
 			space_landmarks++
-		else if(istype(landmark, /obj/effect/landmark/test))
+		else if(istype(landmark, /obj/abstract/landmark/test))
 			log_debug("Test landmark with unknown tag found: [log_info_line(landmark)]")
 
 	if(safe_landmarks != 1 || space_landmarks != 1)
@@ -365,12 +446,12 @@ datum/unit_test/ladder_check/start_test()
 
 	for(var/obj/machinery/cryopod/C in SSmachines.machinery)
 		if(!C.control_computer)
-			log_bad("[get_area(C)] lacks a cryopod control computer while holding a cryopod.")
+			log_bad("[get_area_name(C)] lacks a cryopod control computer while holding a cryopod.")
 			pass = FALSE
 
 	for(var/obj/machinery/computer/cryopod/C in SSmachines.machinery)
 		if(!(locate(/obj/machinery/cryopod) in get_area(C)))
-			log_bad("[get_area(C)] lacks a cryopod while holding a control computer.")
+			log_bad("[get_area_name(C)] lacks a cryopod while holding a control computer.")
 			pass = FALSE
 
 	if(pass)
@@ -388,13 +469,13 @@ datum/unit_test/ladder_check/start_test()
 /datum/unit_test/camera_nil_c_tag_check/start_test()
 	var/pass = TRUE
 
-	for(var/obj/machinery/camera/C in world)
+	for(var/obj/machinery/camera/C in SSmachines.machinery)
 		if(!C.c_tag)
 			log_bad("Following camera does not have a c_tag set: [log_info_line(C)]")
 			pass = FALSE
 
 	if(pass)
-		pass("Have cameras have the c_tag set.")
+		pass("All cameras have the c_tag set.")
 	else
 		fail("One or more cameras do not have the c_tag set.")
 
@@ -409,7 +490,7 @@ datum/unit_test/ladder_check/start_test()
 	var/cameras_by_ctag = list()
 	var/checked_cameras = 0
 
-	for(var/obj/machinery/camera/C in world)
+	for(var/obj/machinery/camera/C in SSmachines.machinery)
 		if(!C.c_tag)
 			continue
 		checked_cameras++
@@ -424,6 +505,28 @@ datum/unit_test/ladder_check/start_test()
 	return 1
 
 //=======================================================================================
+
+// These vars are used to avoid in-world loops in the following unit test.
+var/global/_unit_test_disposal_segments = list()
+var/global/_unit_test_sort_junctions = list()
+
+#ifdef UNIT_TEST
+/obj/structure/disposalpipe/segment/Initialize(mapload)
+	. = ..()
+	_unit_test_disposal_segments += src
+
+/obj/structure/disposalpipe/segment/Destroy()
+	_unit_test_disposal_segments -= src
+	return ..()
+
+/obj/structure/disposalpipe/sortjunction/Initialize(mapload)
+	. = ..()
+	_unit_test_sort_junctions += src
+
+/obj/structure/disposalpipe/sortjunction/Destroy()
+	_unit_test_sort_junctions -= src
+	return ..()
+#endif
 
 /datum/unit_test/disposal_segments_shall_connect_with_other_disposal_pipes
 	name = "MAP: Disposal segments shall connect with other disposal pipes"
@@ -444,7 +547,7 @@ datum/unit_test/ladder_check/start_test()
 		num2text(SOUTH) = list(list(SOUTH, list(NORTH, WEST)), list(EAST,  list(NORTH, EAST))),
 		num2text(WEST)  = list(list(EAST,  list(NORTH, EAST)), list(SOUTH, list(SOUTH, EAST))))
 
-	for(var/obj/structure/disposalpipe/segment/D in world)
+	for(var/obj/structure/disposalpipe/segment/D in _unit_test_disposal_segments)
 		if(!D.loc)
 			continue
 		if(D.icon_state == "pipe-s")
@@ -496,12 +599,13 @@ datum/unit_test/ladder_check/start_test()
 
 //=======================================================================================
 
-/datum/unit_test/simple_pipes_shall_not_face_north_or_west // The init code is worthless and cannot handle it
+// Having them face north or west is now supported fully in code; this is for map consistency.
+/datum/unit_test/simple_pipes_shall_not_face_north_or_west
 	name = "MAP: Simple pipes shall not face north or west"
 
 /datum/unit_test/simple_pipes_shall_not_face_north_or_west/start_test()
 	var/failures = 0
-	for(var/obj/machinery/atmospherics/pipe/simple/pipe in world) // Pipes are removed from the SSmachines list during init.
+	for(var/obj/machinery/atmospherics/pipe/simple/pipe in SSmachines.machinery)
 		if(!istype(pipe, /obj/machinery/atmospherics/pipe/simple/hidden) && !istype(pipe, /obj/machinery/atmospherics/pipe/simple/visible))
 			continue
 		if(pipe.dir == NORTH || pipe.dir == WEST)
@@ -524,7 +628,7 @@ datum/unit_test/ladder_check/start_test()
 	for(var/obj/machinery/atmospherics/valve/shutoff/SV in SSmachines.machinery)
 		SV.close()
 	for(var/obj/machinery/atmospherics/valve/shutoff/SV in SSmachines.machinery)
-		if(SV.network_node1 == SV.network_node2)
+		if(SV.network_in_dir(SV.dir) == SV.network_in_dir(turn(SV.dir, 180)))
 			log_bad("Following shutoff valve does not connect to two different pipe networks: [log_info_line(SV)]")
 			failures++
 
@@ -536,20 +640,21 @@ datum/unit_test/ladder_check/start_test()
 
 //=======================================================================================
 
-/datum/unit_test/station_pipes_shall_not_leak
-	name = "MAP: Station pipes shall not leak"
+/datum/unit_test/pipes_shall_not_leak
+	name = "MAP: Pipes shall not leak unless allowed"
 
-/datum/unit_test/station_pipes_shall_not_leak/start_test()
+/datum/unit_test/pipes_shall_not_leak/start_test()
 	var/failures = 0
-	for(var/obj/machinery/atmospherics/pipe/P in world)
-		if(P.leaking && isStationLevel(P.z))
+	for(var/obj/machinery/atmospherics/pipe/P in SSmachines.machinery)
+		var/turf/pipe_turf = get_turf(P)
+		if(P.leaking && !(locate(/obj/abstract/landmark/allowed_leak) in pipe_turf))
 			failures++
-			log_bad("Following pipe is leaking: [log_info_line(P)]")
+			log_bad("Following pipe is leaking: [log_info_line(P)], area is [get_area(pipe_turf)]")
 
 	if(failures)
-		fail("[failures] station pipe\s leak.")
+		fail("[failures] pipe\s leaking without allowed leak landmark!")
 	else
-		pass("No station pipes are leaking")
+		pass("No pipes are leaking.")
 	return 1
 
 //=======================================================================================
@@ -576,7 +681,7 @@ datum/unit_test/ladder_check/start_test()
 				break
 		if(!found_cable)
 			failures++
-			log_bad("Unwired terminal : [log_info_line(term)]")
+			log_bad("Unwired terminal : [log_info_line(term)], area is [get_area(T)], possible sources are [english_list(T.contents)]")
 
 	if(failures)
 		fail("[failures] unwired power terminal\s.")
@@ -593,6 +698,8 @@ datum/unit_test/ladder_check/start_test()
 /datum/unit_test/station_wires_shall_be_connected/start_test()
 	var/failures = 0
 
+	exceptions = global.using_map.disconnected_wires_test_exempt_turfs
+
 	var/exceptions_by_turf = list()
 	for(var/exception in exceptions)
 		var/turf/T = locate(exception[1], exception[2], exception[3])
@@ -603,8 +710,8 @@ datum/unit_test/ladder_check/start_test()
 		exceptions_by_turf[T] += exception[4]
 	exceptions = exceptions_by_turf
 
-	for(var/obj/structure/cable/C in world)
-		if(!all_ends_connected(C))
+	for(var/obj/structure/cable/C in global.all_cables)
+		if(!QDELETED(C) && !all_ends_connected(C))
 			failures++
 
 	if(failures)
@@ -634,7 +741,7 @@ datum/unit_test/ladder_check/start_test()
 	for(var/dir in list(C.d1, C.d2))
 		if(!dir) // Don't care about knots
 			continue
-		var/rev_dir = GLOB.reverse_dir[dir]
+		var/rev_dir = global.reverse_dir[dir]
 
 		var/list/exception = exceptions[source_turf]
 		if(exception && (dir in exception))
@@ -658,7 +765,7 @@ datum/unit_test/ladder_check/start_test()
 				break
 
 		if(!connected)
-			log_bad("Disconnected wire: [dir2text(dir)] - [log_info_line(C)]")
+			log_bad("Disconnected wire: [dir2text(dir)] - [log_info_line(C)], area is [get_area(target_turf)]")
 			. = FALSE
 
 /datum/unit_test/networked_disposals_shall_deliver_tagged_packages
@@ -679,10 +786,12 @@ datum/unit_test/ladder_check/start_test()
 /datum/unit_test/networked_disposals_shall_deliver_tagged_packages/start_test()
 	. = 1
 	var/fail = FALSE
-	for(var/obj/structure/disposalpipe/sortjunction/sort in world)
+	for(var/obj/structure/disposalpipe/sortjunction/sort in _unit_test_sort_junctions)
 		if(!sort.loc)
 			continue
 		if(is_type_in_list(sort, exempt_junctions))
+			continue
+		if(sort.sort_type in global.using_map.disconnected_disposals_tags)
 			continue
 		var/obj/machinery/disposal/bin = get_bin_from_junction(sort)
 		if(!bin)
@@ -710,9 +819,22 @@ datum/unit_test/ladder_check/start_test()
 	package.test = src
 	packages_awaiting_delivery[package] = start_tag
 
+/datum/unit_test/networked_disposals_shall_deliver_tagged_packages/fail(message)
+	. = ..()
+	if(length(packages_awaiting_delivery))
+		log_unit_test("[ascii_red]!!! FAILURE !!! [length(packages_awaiting_delivery)] package\s still processing.")
+		for(var/obj/structure/disposalholder/unit_test/package in packages_awaiting_delivery)
+			var/turf/package_turf = get_turf(package)
+			log_unit_test("[ascii_red] - [packages_awaiting_delivery[package]]: [package_turf?.x || "NULL"],[package_turf?.y || "NULL"],[package_turf?.z || "NULL"]")
+		packages_awaiting_delivery.Cut()
+
 /obj/structure/disposalholder/unit_test
-	var/datum/unit_test/networked_disposals_shall_deliver_tagged_packages/test
+	is_spawnable_type = FALSE // NO
 	speed = 100
+	var/datum/unit_test/networked_disposals_shall_deliver_tagged_packages/test
+
+/obj/structure/disposalholder/unit_test/merge()
+	return FALSE
 
 /obj/structure/disposalholder/unit_test/Destroy()
 	test.package_delivered(src)
@@ -768,7 +890,7 @@ datum/unit_test/ladder_check/start_test()
 			return trunk.linked
 		var/obj/structure/disposalpipe/next_pipe
 		for(var/obj/structure/disposalpipe/P in get_step(our_pipe, current_dir))
-			if(GLOB.reverse_dir[current_dir] & P.dpdir)
+			if(global.reverse_dir[current_dir] & P.dpdir)
 				next_pipe = P
 				break
 		if(!istype(next_pipe))
@@ -817,5 +939,34 @@ datum/unit_test/ladder_check/start_test()
 
 	return TRUE
 
-#undef SUCCESS
-#undef FAILURE
+/datum/unit_test/doors_shall_be_on_appropriate_turfs
+	name = "MAP: Doors shall be on appropriate turfs"
+
+/datum/level_data/proc/get_door_turf_exceptions(var/obj/machinery/door/D)
+	return LAZYACCESS(UT_turf_exceptions_by_door_type, D.type)
+
+/datum/unit_test/doors_shall_be_on_appropriate_turfs/start_test()
+	var/bad_doors = 0
+	for(var/obj/machinery/door/D in SSmachines.machinery)
+		if(QDELETED(D))
+			continue
+		if(!isturf(D.loc))
+			bad_doors++
+			log_bad("Invalid door turf: [log_info_line(D.loc)]")
+		else
+			var/datum/level_data/level_data = SSmapping.levels_by_z[D.loc.z]
+			var/list/turf_exceptions = level_data?.get_door_turf_exceptions(D)
+
+			var/is_bad_door = FALSE
+			for(var/turf/T in D.locs)
+				if(T.is_open() && !(T.type in turf_exceptions))
+					is_bad_door = TRUE
+					log_bad("Invalid door turf: [log_info_line(T)]")
+			if(is_bad_door)
+				bad_doors++
+
+	if(bad_doors)
+		fail("Found [bad_doors] door\s on inappropriate turfs")
+	else
+		pass("All doors are on appropriate turfs")
+	return TRUE

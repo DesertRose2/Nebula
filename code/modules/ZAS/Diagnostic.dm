@@ -1,55 +1,57 @@
-client/proc/Zone_Info(turf/T as null|turf)
+/client/proc/Zone_Info(turf/T as null|turf)
 	set category = "Debug"
-	if(T)
-		if(istype(T,/turf/simulated) && T:zone)
-			T:zone:dbg_data(src)
-		else
-			to_chat(mob, "No zone here.")
-			var/datum/gas_mixture/mix = T.return_air()
-			to_chat(mob, "[mix.return_pressure()] kPa [mix.temperature]C")
-			for(var/g in mix.gas)
-				to_chat(mob, "[g]: [mix.gas[g]]\n")
+	if(!T)
+		return
+	if(isturf(T) && T.zone)
+		T.zone.dbg_data(src)
+		if(length(T.zone.contents) < ZONE_MIN_SIZE)
+			to_chat(mob, SPAN_NOTICE("This turf's zone is below the minimum size, and will merge over zone blockers."))
 	else
-		if(zone_debug_images)
-			for(var/zone in  zone_debug_images)
-				images -= zone_debug_images[zone]
-			zone_debug_images = null
+		to_chat(mob, "ZONE: No zone here.")
+		var/datum/gas_mixture/mix = T.return_air()
+		to_chat(mob, "ZONE: [mix.return_pressure()] kPa [mix.temperature] k")
+		for(var/gas_type, gas_amount in mix.gas)
+			to_chat(mob, "ZONE GASES: [gas_type]: [gas_amount]\n")
 
-client/var/list/zone_debug_images
-
-client/proc/Test_ZAS_Connection(var/turf/simulated/T)
+/client/proc/Test_ZAS_Connection(var/turf/T)
 	set category = "Debug"
 	if(!istype(T))
 		return
 
-	var/direction_list = list(\
-	"North" = NORTH,\
-	"South" = SOUTH,\
-	"East" = EAST,\
-	"West" = WEST,\
+	var/direction_list = list(
+	"North" = NORTH,
+	"South" = SOUTH,
+	"East" = EAST,
+	"West" = WEST,
 	#ifdef MULTIZAS
-	"Up" = UP,\
-	"Down" = DOWN,\
+	"Up" = UP,
+	"Down" = DOWN,
 	#endif
 	"N/A" = null)
 	var/direction = input("What direction do you wish to test?","Set direction") as null|anything in direction_list
 	if(!direction)
 		return
 
+	var/airblock
 	if(direction == "N/A")
-		if(!(T.c_airblock(T) & AIR_BLOCKED))
+		to_chat(mob, "Testing self-blocking...")
+		ATMOS_CANPASS_TURF(airblock, T, T)
+		if(!(airblock & AIR_BLOCKED))
 			to_chat(mob, "The turf can pass air! :D")
 		else
 			to_chat(mob, "No air passage :x")
 		return
 
-	var/turf/simulated/other_turf = get_step(T, direction_list[direction])
+	var/turf/other_turf = get_step(T, direction_list[direction])
 	if(!istype(other_turf))
 		return
 
-	var/t_block = T.c_airblock(other_turf)
-	var/o_block = other_turf.c_airblock(T)
+	var/t_block
+	ATMOS_CANPASS_TURF(t_block, T, other_turf)
+	var/o_block
+	ATMOS_CANPASS_TURF(o_block, other_turf, T)
 
+	to_chat(mob, "Testing connection between ([T.x], [T.y], [T.z]) and ([other_turf.x], [other_turf.y], [other_turf.z])...")
 	if(o_block & AIR_BLOCKED)
 		if(t_block & AIR_BLOCKED)
 			to_chat(mob, "Neither turf can connect. :(")
@@ -76,7 +78,7 @@ client/proc/Test_ZAS_Connection(var/turf/simulated/T)
 		else
 			to_chat(mob, "both turfs can merge.")
 
-client/proc/ZASSettings()
+/client/proc/ZASSettings()
 	set category = "Debug"
 
 	vsc.SetDefault(mob)

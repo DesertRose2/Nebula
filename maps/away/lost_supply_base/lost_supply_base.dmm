@@ -14,10 +14,9 @@
 "ad" = (
 /obj/machinery/power/tracker,
 /obj/structure/cable/yellow{
-	d2 = 2;
 	icon_state = "0-2"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/space)
 "ae" = (
 /obj/effect/shuttle_landmark/nav_lost_supply_base/nav3,
@@ -25,156 +24,116 @@
 /area/space)
 "af" = (
 /obj/structure/cable/yellow{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/space)
 "ag" = (
 /obj/structure/cable/yellow{
-	d2 = 2;
 	icon_state = "0-2"
 	},
 /obj/machinery/power/solar{
-	id = "auxsolarstarboard";
 	name = "Starboard Auxiliary Solar Array"
 	},
 /obj/effect/floor_decal/solarpanel,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/space)
 "ah" = (
 /obj/structure/cable/yellow{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
-/obj/item/stack/material/steel,
-/turf/simulated/floor/airless,
+/obj/item/stack/material/sheet/mapped/steel,
+/turf/floor/plating/airless,
 /area/space)
 "ai" = (
 /obj/structure/cable/yellow{
-	d1 = 2;
-	d2 = 4;
 	icon_state = "2-4"
 	},
 /obj/structure/cable/yellow{
-	d1 = 1;
-	d2 = 4;
 	icon_state = "1-4"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/space)
 "aj" = (
 /obj/structure/cable/yellow{
-	d1 = 2;
-	d2 = 4;
 	icon_state = "2-4"
 	},
 /obj/structure/cable/yellow{
-	d1 = 1;
-	d2 = 4;
 	icon_state = "1-4"
 	},
 /obj/structure/cable/yellow{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/space)
 "ak" = (
 /obj/structure/cable/yellow{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/space)
 "al" = (
 /obj/structure/cable/yellow{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
 /obj/structure/cable/yellow{
-	d1 = 2;
-	d2 = 8;
 	icon_state = "2-8"
 	},
 /obj/structure/cable/yellow{
-	d1 = 2;
-	d2 = 4;
 	icon_state = "2-4"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/space)
 "am" = (
 /obj/structure/cable/yellow{
-	d1 = 2;
-	d2 = 8;
 	icon_state = "2-8"
 	},
 /obj/structure/cable/yellow{
-	d1 = 1;
-	d2 = 8;
 	icon_state = "1-8"
 	},
 /obj/structure/cable/yellow{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/space)
 "an" = (
 /obj/structure/cable/yellow{
-	d1 = 2;
-	d2 = 8;
 	icon_state = "2-8"
 	},
 /obj/structure/cable/yellow{
-	d1 = 1;
-	d2 = 8;
 	icon_state = "1-8"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/space)
 "ao" = (
 /obj/structure/cable/yellow,
 /obj/machinery/power/solar{
-	id = "auxsolarstarboard";
 	name = "Starboard Auxiliary Solar Array"
 	},
 /obj/effect/floor_decal/solarpanel,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/space)
 "ap" = (
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/space)
 "aq" = (
-/obj/item/stack/material/rods,
+/obj/item/stack/material/rods/mapped/steel,
 /turf/space,
 /area/space)
 "ar" = (
 /obj/structure/cable/yellow{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
-/obj/item/stack/material/rods{
-	amount = 50
-	},
-/obj/item/stack/material/steel,
-/turf/simulated/floor/airless,
+/obj/item/stack/material/rods/mapped/steel/fifty,
+/obj/item/stack/material/sheet/mapped/steel,
+/turf/floor/plating/airless,
 /area/space)
 "as" = (
 /obj/machinery/power/solar{
-	id = "auxsolarstarboard";
 	name = "Starboard Auxiliary Solar Array"
 	},
 /obj/effect/floor_decal/solarpanel,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/space)
 "at" = (
 /obj/effect/shuttle_landmark/nav_lost_supply_base/nav1,
@@ -182,12 +141,11 @@
 /area/space)
 "au" = (
 /obj/machinery/power/solar{
-	id = "auxsolarstarboard";
 	name = "Starboard Auxiliary Solar Array"
 	},
 /obj/structure/cable/yellow,
 /obj/effect/floor_decal/solarpanel,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/space)
 "av" = (
 /obj/structure/girder/displaced,
@@ -197,25 +155,22 @@
 /obj/structure/lattice,
 /obj/structure/grille,
 /obj/structure/grille,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/space)
 "ax" = (
-/turf/simulated/wall/r_wall,
+/turf/wall/r_wall,
 /area/lost_supply_base/solar)
 "ay" = (
 /obj/machinery/door/airlock/external{
-	icon_state = "door_locked";
 	id_tag = "solar_outer";
 	locked = 1;
 	name = "Solar External Access"
 	},
 /obj/structure/cable/yellow{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
 /obj/machinery/shield_diffuser,
-/turf/simulated/floor/plating,
+/turf/floor/plating,
 /area/lost_supply_base/solar)
 "az" = (
 /obj/machinery/embedded_controller/radio/airlock/airlock_controller{
@@ -225,10 +180,10 @@
 	tag_airpump = "solar_starboard_pump";
 	tag_chamber_sensor = "solar_starboard_sensor";
 	tag_exterior_door = "solar_starboard_outer";
-	tag_interior_door = "solar_starboard_inner"
+	tag_interior_door = "solar_starboard_inner";
+	dir = 8
 	},
 /obj/machinery/atmospherics/unary/vent_pump/high_volume/external_air{
-	dir = 2;
 	id_tag = "solar_starboard_pump"
 	},
 /obj/machinery/airlock_sensor{
@@ -237,36 +192,31 @@
 	pixel_y = 12
 	},
 /obj/structure/cable/yellow{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
 /obj/effect/floor_decal/industrial/warning/full,
 /obj/machinery/light/small{
 	dir = 8
 	},
-/turf/simulated/floor/plating,
+/turf/floor/plating,
 /area/lost_supply_base/solar)
 "aA" = (
-/turf/simulated/wall/r_wall,
+/turf/wall/r_wall,
 /area/lost_supply_base)
 "aB" = (
 /obj/machinery/door/airlock/external{
-	icon_state = "door_locked";
 	id_tag = "solar_inner";
 	locked = 1;
 	name = "Solar Access"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden,
 /obj/structure/cable/yellow{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
-/turf/simulated/floor/plating,
+/turf/floor/plating,
 /area/lost_supply_base/solar)
 "aC" = (
-/turf/simulated/wall/r_wall,
+/turf/wall/r_wall,
 /area/lost_supply_base/office)
 "aD" = (
 /turf/space,
@@ -278,62 +228,55 @@
 "aF" = (
 /obj/machinery/portable_atmospherics/canister/air,
 /obj/machinery/atmospherics/portables_connector,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "aG" = (
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "aH" = (
 /obj/item/frame/light,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "aI" = (
 /obj/structure/cable{
-	d2 = 2;
-	icon_state = "0-2";
-	pixel_y = 0
+	icon_state = "0-2"
 	},
-/obj/machinery/power/apc{
+/obj/machinery/apc{
 	dir = 1;
 	name = "north bump";
-	pixel_x = 0;
 	pixel_y = 24
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "aJ" = (
-/obj/structure/table/rack,
+/obj/structure/rack,
 /obj/random/tech_supply,
 /obj/random/tech_supply,
 /obj/random/tech_supply,
 /obj/random/toolbox,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "aK" = (
-/turf/simulated/wall,
+/turf/wall,
 /area/lost_supply_base/solar)
 "aL" = (
 /obj/machinery/power/solar_control{
-	id = "suuplybasesolar";
-	name = "Solar Control";
-	track = 0
+	name = "Solar Control"
 	},
 /obj/structure/cable/yellow{
-	d2 = 4;
 	icon_state = "0-4"
 	},
 /obj/effect/floor_decal/industrial/warning/corner{
 	dir = 4
 	},
-/turf/simulated/floor/plating,
+/turf/floor/plating,
 /area/lost_supply_base/solar)
 "aM" = (
 /obj/effect/floor_decal/industrial/warning{
 	dir = 1
 	},
 /obj/machinery/atmospherics/pipe/manifold/hidden{
-	dir = 8;
-	icon_state = "map"
+	dir = 8
 	},
 /obj/machinery/button/access/interior{
 	id_tag = "solar_starboard_airlock";
@@ -343,16 +286,12 @@
 	req_access = newlist()
 	},
 /obj/structure/cable/yellow{
-	d1 = 1;
-	d2 = 8;
 	icon_state = "1-8"
 	},
 /obj/structure/cable/yellow{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
-/turf/simulated/floor/plating,
+/turf/floor/plating,
 /area/lost_supply_base/solar)
 "aN" = (
 /obj/machinery/portable_atmospherics/canister/air/airlock,
@@ -363,85 +302,75 @@
 	dir = 1
 	},
 /obj/effect/floor_decal/industrial/outline/yellow,
-/turf/simulated/floor/plating,
+/turf/floor/plating,
 /area/lost_supply_base/solar)
 "aO" = (
 /obj/structure/cable{
-	d1 = 2;
-	d2 = 4;
 	icon_state = "2-4"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
 	dir = 6
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "aP" = (
 /obj/structure/cable{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
 	dir = 4
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "aQ" = (
 /obj/structure/cable{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
 	dir = 4
 	},
-/turf/simulated/wall/r_wall,
+/turf/wall/r_wall,
 /area/lost_supply_base/office)
 "aR" = (
 /obj/structure/cable{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
 /obj/item/paper,
 /obj/machinery/atmospherics/unary/vent_pump/on{
 	dir = 8
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "aS" = (
 /obj/structure/cable{
-	d2 = 8;
 	icon_state = "0-8"
 	},
-/obj/machinery/power/apc{
+/obj/machinery/apc{
 	dir = 1;
 	name = "north bump";
-	pixel_x = 0;
 	pixel_y = 24
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "aT" = (
-/obj/structure/bed/chair/comfy/captain,
-/turf/simulated/floor/tiled/airless,
+/obj/structure/chair/comfy/captain,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "aU" = (
 /obj/machinery/computer/modular{
 	dir = 8
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "aV" = (
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "aW" = (
 /obj/item/paper,
 /obj/structure/safe,
 /obj/random/drinkbottle,
 /obj/random/handgun,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "aX" = (
 /obj/machinery/atmospherics/unary/vent_pump/tank{
@@ -458,59 +387,55 @@
 	pump_direction = 0;
 	use_power = 1
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "aY" = (
 /obj/machinery/atmospherics/binary/pump/on{
 	dir = 8;
 	target_pressure = 200
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "aZ" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/cyan{
-	dir = 4;
-	icon_state = "intact"
+	dir = 4
 	},
-/turf/simulated/wall/r_wall,
+/turf/wall/r_wall,
 /area/lost_supply_base)
 "ba" = (
 /obj/effect/floor_decal/industrial/warning{
 	dir = 1
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/cyan{
-	dir = 9;
-	icon_state = "intact"
+	dir = 9
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bb" = (
 /obj/effect/floor_decal/industrial/warning{
-	icon_state = "warning";
-	dir = 5
+	dir = 5;
+	icon_state = "warning"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bc" = (
 /obj/random/projectile,
-/obj/effect/landmark/corpse/syndicate,
-/turf/simulated/floor/airless,
+/obj/abstract/landmark/corpse/syndicate,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bd" = (
 /obj/random/trash,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "be" = (
 /obj/structure/cable{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bf" = (
 /obj/structure/closet/crate/solar,
-/turf/simulated/floor/plating,
+/turf/floor/plating,
 /area/lost_supply_base/solar)
 "bg" = (
 /obj/machinery/atmospherics/binary/pump/on{
@@ -518,58 +443,51 @@
 	target_pressure = 200
 	},
 /obj/structure/cable/yellow{
-	d1 = 1;
-	d2 = 4;
 	icon_state = "1-4"
 	},
-/turf/simulated/floor/plating,
+/turf/floor/plating,
 /area/lost_supply_base/solar)
 "bh" = (
 /obj/machinery/power/terminal,
 /obj/structure/cable/yellow{
-	d2 = 8;
 	icon_state = "0-8"
 	},
 /obj/machinery/light/small{
 	dir = 4
 	},
-/turf/simulated/floor/plating,
+/turf/floor/plating,
 /area/lost_supply_base/solar)
 "bi" = (
 /obj/structure/cable{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/supply,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "bj" = (
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "bk" = (
 /obj/structure/table/steel_reinforced,
 /obj/random/handgun,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "bl" = (
 /obj/structure/table/steel_reinforced,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "bm" = (
 /obj/item/stack/tile/floor_dark{
 	pixel_x = 5;
 	pixel_y = -3
 	},
-/obj/item/stack/material/steel,
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_burned0"
-	},
+/obj/item/stack/material/sheet/mapped/steel,
+/obj/abstract/landmark/proc_caller/floor_burner,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "bn" = (
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_burned0"
-	},
+/obj/abstract/landmark/proc_caller/floor_burner,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "bo" = (
 /obj/item/stack/tile/floor_dark{
@@ -584,157 +502,131 @@
 /area/space)
 "bq" = (
 /obj/effect/floor_decal/industrial/hatch/yellow,
-/turf/simulated/floor/airless,
-/area/lost_supply_base)
-"br" = (
-/obj/machinery/door/airlock/external{
-	icon_state = "door_locked";
-	id_tag = "centcom_shuttle_bay_door";
-	locked = 1;
-	name = "Transport Airlock"
-	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bs" = (
 /obj/effect/floor_decal/industrial/hatch/yellow,
 /obj/machinery/button/access/interior{
 	id_tag = "solar_starboard_airlock";
 	name = "interior access button";
-	pixel_x = -24;
+	pixel_x = -20;
 	pixel_y = 24;
-	req_access = newlist()
+	req_access = newlist();
+	dir = 4
 	},
-/turf/simulated/floor/airless,
-/area/lost_supply_base)
-"bt" = (
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_broken4"
-	},
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bu" = (
 /obj/effect/decal/cleanable/blood,
 /obj/effect/floor_decal/industrial/hatch/yellow,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bv" = (
 /obj/effect/floor_decal/industrial/hatch/yellow,
 /obj/effect/floor_decal/industrial/hatch/yellow,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bw" = (
 /obj/structure/cable{
-	d1 = 1;
-	d2 = 4;
 	icon_state = "1-4"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bx" = (
 /obj/structure/cable{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "by" = (
 /obj/structure/cable{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
-/obj/structure/table/rack,
+/obj/structure/rack,
 /obj/random/tech_supply,
 /obj/random/tech_supply,
 /obj/random/tech_supply,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bz" = (
 /obj/structure/cable{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
-/turf/simulated/wall,
+/turf/wall,
 /area/lost_supply_base/solar)
 "bA" = (
 /obj/structure/cable{
-	icon_state = "0-4";
-	d2 = 4
+	icon_state = "0-4"
 	},
 /obj/structure/cable{
-	d2 = 8;
 	icon_state = "0-8"
 	},
-/obj/machinery/power/apc{
+/obj/machinery/apc{
 	dir = 8;
 	name = "west bump";
 	pixel_x = -24
 	},
-/turf/simulated/floor/plating,
+/turf/floor/plating,
 /area/lost_supply_base/solar)
 "bB" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/universal,
 /obj/structure/cable{
-	d1 = 2;
-	d2 = 8;
 	icon_state = "2-8"
 	},
 /obj/structure/cable{
-	d1 = 2;
-	d2 = 4;
 	icon_state = "2-4"
 	},
-/turf/simulated/floor/plating,
+/turf/floor/plating,
 /area/lost_supply_base/solar)
 "bC" = (
 /obj/machinery/power/smes/buildable{
-	charge = 0;
+	RCon_tag = "Supply base MAIN";
 	input_level = 5000;
-	input_level_max = 20000;
-	RCon_tag = "Supply base MAIN"
+	input_level_max = 20000
 	},
 /obj/structure/cable{
-	d2 = 8;
 	icon_state = "0-8"
 	},
-/turf/simulated/floor/plating,
+/turf/floor/plating,
 /area/lost_supply_base/solar)
 "bD" = (
 /obj/machinery/light{
 	dir = 8;
-	icon_state = "tube1";
-	pixel_y = 0
+	icon_state = "tube1"
 	},
 /obj/structure/cable{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/supply,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "bE" = (
 /obj/item/pen/red,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "bF" = (
-/obj/effect/landmark/corpse/engineer,
-/turf/simulated/floor/tiled/airless,
+/obj/abstract/landmark/corpse/engineer,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "bG" = (
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_broken4"
+/obj/effect/floor_decal/industrial/hatch/yellow,
+/obj/machinery/button/access/interior{
+	id_tag = "solar_starboard_airlock";
+	name = "interior access button";
+	pixel_x = -24;
+	pixel_y = 24;
+	req_access = newlist();
+	dir = 4
 	},
-/area/lost_supply_base/office)
+/turf/floor/plating/airless,
+/area/lost_supply_base)
 "bH" = (
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_broken1"
-	},
+/obj/abstract/landmark/proc_caller/floor_breaker,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "bI" = (
 /obj/effect/wallframe_spawn/reinforced,
-/turf/simulated/wall/r_wall,
+/turf/floor/plating/airless,
 /area/lost_supply_base/office)
 "bJ" = (
 /obj/machinery/embedded_controller/radio/airlock/airlock_controller{
@@ -744,197 +636,195 @@
 	tag_airpump = "solar_starboard_pump";
 	tag_chamber_sensor = "solar_starboard_sensor";
 	tag_exterior_door = "solar_starboard_outer";
-	tag_interior_door = "solar_starboard_inner"
+	tag_interior_door = "solar_starboard_inner";
+	dir = 8;
+	pixel_y = -4
 	},
 /obj/machinery/airlock_sensor{
 	id_tag = "solar_starboard_sensor";
 	pixel_x = 24;
-	pixel_y = 12
+	pixel_y = 8;
+	dir = 8
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bK" = (
 /obj/effect/floor_decal/industrial/warning,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bL" = (
 /obj/effect/floor_decal/industrial/warning{
-	icon_state = "warning";
-	dir = 6
+	dir = 6;
+	icon_state = "warning"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bM" = (
-/obj/structure/table/rack,
+/obj/structure/rack,
 /obj/random/tech_supply,
 /obj/random/tech_supply,
 /obj/random/tech_supply,
 /obj/random/tech_supply,
 /obj/item/radio,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bN" = (
 /obj/machinery/atmospherics/pipe/simple/hidden,
 /obj/structure/cable{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base/solar)
 "bO" = (
 /obj/random/ammo,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "bP" = (
 /obj/structure/girder/displaced,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "bQ" = (
 /turf/space,
 /area/lost_supply_base/office)
 "bR" = (
 /obj/effect/wallframe_spawn/reinforced,
-/turf/simulated/wall/r_wall,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bS" = (
 /obj/random/trash,
 /obj/effect/floor_decal/industrial/hatch/yellow,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bT" = (
 /obj/item/stack/tile/floor_dark{
 	pixel_x = 5;
 	pixel_y = -3
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bU" = (
 /obj/machinery/atmospherics/pipe/simple/hidden,
 /obj/structure/cable{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "bV" = (
-/turf/simulated/wall,
+/turf/wall,
 /area/lost_supply_base)
 "bW" = (
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_broken1"
-	},
+/obj/abstract/landmark/proc_caller/floor_breaker,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "bX" = (
 /obj/machinery/door/airlock{
 	name = "Control room"
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "bY" = (
 /obj/machinery/atmospherics/unary/vent_scrubber,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "bZ" = (
 /obj/machinery/light,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "ca" = (
 /obj/effect/decal/cleanable/blood/splatter,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/office)
 "cb" = (
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_broken0"
+/obj/machinery/door/airlock/external{
+	id_tag = "centcom_shuttle_bay_door";
+	locked = 1;
+	name = "Transport Airlock"
 	},
-/area/lost_supply_base/office)
+/turf/floor/plating/airless,
+/area/lost_supply_base)
 "cc" = (
-/obj/item/stack/material/steel,
+/obj/item/stack/material/sheet/mapped/steel,
 /turf/space,
 /area/space)
 "cd" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
 	dir = 4
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "ce" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
 	dir = 10
 	},
-/turf/simulated/floor/airless,
+/obj/abstract/landmark/allowed_leak,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cf" = (
-/obj/item/stack/material/rods,
-/obj/item/stack/material/steel,
-/turf/simulated/floor/airless,
+/obj/item/stack/material/rods/mapped/steel,
+/obj/item/stack/material/sheet/mapped/steel,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cg" = (
 /obj/structure/cable{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/supply,
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 6
 	},
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_broken4"
-	},
+/obj/abstract/landmark/proc_caller/floor_burner,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "ch" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 4
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "ci" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 4
 	},
-/turf/simulated/wall/r_wall,
+/turf/wall/r_wall,
 /area/lost_supply_base/common)
 "cj" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 9
 	},
-/turf/simulated/wall/r_wall,
+/turf/wall/r_wall,
 /area/lost_supply_base/common)
 "ck" = (
-/turf/simulated/wall/r_wall,
+/turf/wall/r_wall,
 /area/lost_supply_base/common)
 "cl" = (
 /obj/effect/floor_decal/industrial/warning{
-	icon_state = "warning";
-	dir = 1
+	dir = 1;
+	icon_state = "warning"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cm" = (
 /obj/random/trash,
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_broken1"
-	},
+/obj/abstract/landmark/proc_caller/floor_breaker,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "cn" = (
 /obj/effect/floor_decal/industrial/warning{
-	icon_state = "warning";
-	dir = 5
+	dir = 5;
+	icon_state = "warning"
 	},
 /obj/random/trash,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "co" = (
 /obj/effect/decal/cleanable/blood/gibs/body,
 /obj/effect/floor_decal/industrial/hatch/yellow,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cp" = (
 /obj/structure/door_assembly,
 /obj/effect/floor_decal/industrial/hatch/yellow,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cq" = (
 /obj/machinery/atmospherics/omni/mixer{
@@ -945,20 +835,17 @@
 	tag_west = 2;
 	use_power = 0
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cr" = (
 /obj/structure/cable,
 /obj/structure/cable{
-	icon_state = "0-4";
-	d2 = 4
+	icon_state = "0-4"
 	},
 /obj/structure/cable{
-	d2 = 2;
-	icon_state = "0-2";
-	pixel_y = 0
+	icon_state = "0-2"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cs" = (
 /obj/item/stack/tile/floor_dark{
@@ -969,191 +856,159 @@
 	pixel_x = 5;
 	pixel_y = -3
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "ct" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/supply,
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "cu" = (
 /obj/item/stack/tile/floor_dark{
 	pixel_x = 5;
 	pixel_y = -3
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "cv" = (
-/turf/simulated/wall,
+/turf/wall,
 /area/lost_supply_base/common)
 "cw" = (
 /obj/machinery/fabricator/replicator,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "cx" = (
-/obj/structure/table/standard,
+/obj/structure/table,
 /obj/structure/cable{
-	d2 = 8;
 	icon_state = "0-8"
 	},
 /obj/machinery/light{
 	dir = 1
 	},
-/obj/machinery/power/apc{
+/obj/machinery/apc{
 	dir = 1;
 	name = "north bump";
-	pixel_x = 0;
 	pixel_y = 24
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "cy" = (
 /obj/machinery/gibber,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "cz" = (
 /obj/structure/closet/secure_closet/freezer/meat,
 /obj/machinery/cooker/oven,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "cA" = (
 /obj/structure/closet/secure_closet/freezer/meat,
 /obj/machinery/light{
 	dir = 1
 	},
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_burned1"
-	},
+/obj/abstract/landmark/proc_caller/floor_burner,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "cB" = (
 /obj/structure/closet/secure_closet/freezer/meat,
 /obj/structure/closet/secure_closet/freezer/meat,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "cC" = (
 /obj/structure/closet/crate/freezer,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cD" = (
 /obj/effect/floor_decal/industrial/warning{
 	dir = 4
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cE" = (
-/obj/item/stack/material/cardboard,
-/turf/simulated/floor/airless,
+/obj/item/stack/material/cardstock/mapped/cardboard,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cF" = (
 /obj/item/scanner/price,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cG" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/supply,
-/turf/simulated/floor/airless,
+/obj/abstract/landmark/allowed_leak,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cH" = (
 /obj/machinery/portable_atmospherics/canister/carbon_dioxide,
-/turf/simulated/floor/airless,
-/area/lost_supply_base)
-"cI" = (
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_broken0"
-	},
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cJ" = (
 /obj/structure/cable{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/supply,
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers,
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_burned1"
-	},
+/obj/abstract/landmark/proc_caller/floor_burner,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "cK" = (
-/turf/simulated/floor/tiled/airless,
-/area/lost_supply_base/common)
-"cL" = (
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_burned1"
-	},
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "cM" = (
 /obj/effect/wallframe_spawn/reinforced,
-/turf/space,
+/turf/floor/plating/airless,
 /area/lost_supply_base/common)
-"cN" = (
-/obj/item/frame/light,
-/turf/simulated/floor/airless,
-/area/lost_supply_base)
 "cO" = (
-/obj/structure/closet/crate/freezer/rations,
-/turf/simulated/floor/airless,
+/obj/structure/closet/crate/plastic/rations,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cP" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
 	dir = 5
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cQ" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
 	dir = 4
 	},
-/turf/simulated/wall,
+/turf/wall,
 /area/lost_supply_base)
 "cR" = (
 /obj/item/frame/light,
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
 	dir = 4
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cS" = (
 /obj/machinery/portable_atmospherics/canister/oxygen,
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
 	dir = 10
 	},
-/turf/simulated/floor/airless,
+/obj/abstract/landmark/allowed_leak,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cT" = (
 /obj/structure/girder/displaced,
 /turf/space,
 /area/lost_supply_base)
-"cU" = (
-/obj/structure/cable{
-	d1 = 1;
-	d2 = 2;
-	icon_state = "1-2"
-	},
-/obj/machinery/atmospherics/pipe/simple/hidden/supply,
-/obj/machinery/atmospherics/pipe/simple/hidden/scrubbers,
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_burned0"
-	},
-/area/lost_supply_base)
 "cV" = (
 /obj/random/junk,
-/turf/simulated/floor/tiled/airless,
-/area/lost_supply_base/common)
-"cW" = (
-/obj/effect/wallframe_spawn/reinforced,
-/turf/simulated/wall/r_wall,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "cX" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 6
 	},
-/turf/simulated/floor/airless,
+/obj/abstract/landmark/allowed_leak,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cY" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 4
 	},
-/turf/simulated/floor/airless,
+/obj/abstract/landmark/allowed_leak,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "cZ" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
@@ -1162,12 +1017,11 @@
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 4
 	},
-/turf/simulated/wall,
+/obj/abstract/landmark/allowed_leak,
+/turf/wall,
 /area/lost_supply_base)
 "da" = (
 /obj/structure/cable{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
 /obj/machinery/atmospherics/pipe/manifold/hidden/supply{
@@ -1176,42 +1030,41 @@
 /obj/machinery/atmospherics/pipe/manifold/hidden/scrubbers{
 	dir = 4
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "db" = (
 /obj/machinery/door/window/southleft,
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_burned1"
-	},
+/obj/abstract/landmark/proc_caller/floor_burner,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "dc" = (
-/obj/structure/table/standard,
-/obj/item/trash/tray{
+/obj/structure/table,
+/obj/item/plate/tray{
 	pixel_x = 10
 	},
-/obj/item/trash/tray,
-/turf/simulated/floor/tiled/airless,
+/obj/item/plate/tray,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "dd" = (
-/obj/structure/table/standard,
-/turf/simulated/floor/tiled/airless,
+/obj/structure/table,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "de" = (
-/obj/structure/table/standard,
-/obj/item/kitchen/utensil/fork,
-/turf/simulated/floor/tiled/airless,
+/obj/structure/table,
+/obj/item/utensil/fork,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "df" = (
-/obj/structure/table/standard,
+/obj/structure/table,
 /obj/machinery/microwave,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "dg" = (
 /obj/structure/closet/crate/secure/explosives{
 	name = "mineral crate";
 	req_access = newlist()
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "dh" = (
 /obj/effect/floor_decal/industrial/warning{
@@ -1221,58 +1074,54 @@
 	name = "mineral crate";
 	req_access = newlist()
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "di" = (
 /obj/random/junk,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "dj" = (
 /obj/random/ammo,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "dk" = (
 /obj/structure/mech_wreckage/powerloader,
 /obj/effect/decal/cleanable/blood,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "dl" = (
 /obj/item/frame/light,
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "dm" = (
-/obj/item/stack/material/steel,
-/turf/simulated/floor/airless,
+/obj/item/stack/material/sheet/mapped/steel,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "dn" = (
 /obj/structure/closet/firecloset,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "do" = (
 /obj/machinery/light{
 	dir = 8;
-	icon_state = "tube1";
-	pixel_y = 0
+	icon_state = "tube1"
 	},
 /obj/structure/cable{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
 /obj/machinery/atmospherics/pipe/manifold/hidden/supply{
 	dir = 8
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "dp" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
 	dir = 4
 	},
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_burned1"
-	},
+/obj/abstract/landmark/proc_caller/floor_burner,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "dq" = (
 /obj/machinery/door/airlock{
@@ -1281,249 +1130,203 @@
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
 	dir = 4
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "dr" = (
 /obj/machinery/atmospherics/unary/vent_pump/on{
 	dir = 8
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "ds" = (
 /obj/structure/closet/crate/secure/gear,
 /obj/effect/floor_decal/industrial/warning,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "dt" = (
 /obj/effect/floor_decal/industrial/warning,
 /obj/structure/closet/crate/hydroponics,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "du" = (
 /obj/effect/floor_decal/industrial/warning{
-	icon_state = "warning";
-	dir = 6
+	dir = 6;
+	icon_state = "warning"
 	},
-/obj/item/storage/backpack/dufflebag,
-/turf/simulated/floor/airless,
+/obj/item/backpack/dufflebag,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "dv" = (
 /obj/effect/decal/cleanable/blood/drip,
 /obj/effect/decal/cleanable/blood/writing,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "dw" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers,
-/turf/simulated/wall,
+/turf/wall,
 /area/lost_supply_base)
 "dx" = (
-/obj/item/kitchen/utensil/spoon,
-/turf/simulated/floor/tiled/airless,
+/obj/item/utensil/spoon,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "dy" = (
-/obj/structure/bed/chair{
+/obj/structure/chair{
 	dir = 4
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "dz" = (
-/obj/structure/table/standard{
+/obj/structure/table{
 	name = "plastic table frame"
 	},
-/obj/item/trash/plate,
-/turf/simulated/floor/tiled/airless,
+/obj/item/plate,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "dA" = (
-/obj/structure/table/standard{
+/obj/structure/table{
 	name = "plastic table frame"
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "dB" = (
-/obj/item/kitchen/utensil/fork,
-/obj/structure/bed/chair{
+/obj/item/utensil/fork,
+/obj/structure/chair{
 	dir = 8
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "dC" = (
 /obj/random/trash,
 /obj/machinery/light{
-	icon_state = "tube1";
-	dir = 4
+	dir = 4;
+	icon_state = "tube1"
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "dE" = (
 /obj/machinery/door/airlock/external{
-	icon_state = "door_locked";
 	id_tag = "centcom_shuttle_hatch";
 	locked = 1;
 	name = "Shuttle Hatch"
 	},
-/turf/simulated/floor/shuttle/blue,
+/turf/floor/shuttle/blue,
 /area/space)
 "dF" = (
-/turf/simulated/shuttle/wall{
-	dir = 4;
-	icon_state = "swall"
-	},
-/area/space)
-"dG" = (
-/turf/simulated/shuttle/wall{
-	icon_state = "swall_t";
-	dir = 1
-	},
-/area/space)
-"dH" = (
-/turf/simulated/shuttle/wall{
-	icon_state = "swall_straight";
-	dir = 4
-	},
-/area/space)
-"dI" = (
-/turf/simulated/shuttle/wall{
-	icon_state = "swall_s";
-	dir = 2
+/turf/wall/shuttle{
+	unique_merge_identifier = "supply_base"
 	},
 /area/space)
 "dJ" = (
 /obj/random/junk,
 /obj/effect/floor_decal/industrial/hatch/yellow,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "dL" = (
 /obj/machinery/atmospherics/unary/tank/oxygen,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "dM" = (
 /obj/machinery/atmospherics/unary/tank/air,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "dN" = (
 /obj/structure/cable{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/supply,
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "dO" = (
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_burned0"
-	},
+/obj/abstract/landmark/proc_caller/floor_burner,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "dP" = (
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_burned0"
-	},
+/obj/abstract/landmark/proc_caller/floor_burner,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
-"dR" = (
-/turf/simulated/shuttle/wall{
-	icon_state = "swall_straight";
-	dir = 1
-	},
-/area/space)
 "dS" = (
-/turf/simulated/floor/shuttle/blue,
+/turf/floor/shuttle/blue,
 /area/space)
 "dT" = (
-/obj/structure/bed/chair,
+/obj/structure/chair,
 /obj/random/handgun,
-/turf/simulated/floor/shuttle/blue,
+/turf/floor/shuttle/blue,
 /area/space)
 "dU" = (
-/obj/structure/bed/chair,
-/turf/simulated/floor/shuttle/blue,
+/obj/structure/chair,
+/turf/floor/shuttle/blue,
 /area/space)
 "dV" = (
-/obj/structure/bed/chair,
+/obj/structure/chair,
 /obj/random/smokes,
-/turf/simulated/floor/shuttle/blue,
-/area/space)
-"dW" = (
-/turf/simulated/shuttle/wall{
-	dir = 1;
-	icon_state = "swall_f"
-	},
+/turf/floor/shuttle/blue,
 /area/space)
 "dX" = (
 /obj/structure/window/reinforced{
 	dir = 1;
-	health = 1e+006
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "dY" = (
 /obj/item/stack/tile/floor_dark,
 /obj/structure/window/reinforced{
 	dir = 1;
-	health = 1e+006
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "dZ" = (
 /obj/effect/floor_decal/industrial/warning{
-	icon_state = "warning";
-	dir = 8
+	dir = 8;
+	icon_state = "warning"
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "eb" = (
 /obj/structure/reagent_dispensers/fueltank,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "ec" = (
 /obj/random/tank,
 /obj/machinery/atmospherics/portables_connector{
 	dir = 1
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "ed" = (
 /obj/machinery/atmospherics/portables_connector{
 	dir = 1
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "ee" = (
 /obj/random/trash,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "ef" = (
-/obj/structure/bed/chair{
+/obj/structure/chair{
 	dir = 8
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "eg" = (
-/obj/structure/shuttle/engine/propulsion{
-	icon_state = "propulsion_r";
+/obj/structure/shuttle/engine/propulsion/right{
 	dir = 8
 	},
 /turf/space,
 /area/space)
 "eh" = (
 /obj/structure/shuttle/engine/heater{
-	icon_state = "heater";
 	dir = 8
 	},
 /obj/structure/window/reinforced{
 	dir = 4
 	},
-/turf/simulated/floor/shuttle/blue,
-/area/space)
-"ei" = (
-/turf/simulated/shuttle/wall{
-	icon_state = "swall";
-	dir = 1
-	},
+/turf/floor/shuttle/blue,
 /area/space)
 "ej" = (
 /obj/machinery/computer/modular,
-/turf/simulated/floor/shuttle/blue,
+/turf/floor/shuttle/blue,
 /area/space)
 "ek" = (
 /obj/structure/grille,
@@ -1535,199 +1338,166 @@
 /obj/structure/window/reinforced{
 	dir = 4
 	},
-/turf/simulated/floor/plating,
+/turf/floor/plating,
 /area/space)
 "el" = (
 /obj/machinery/portable_atmospherics/canister/oxygen,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "em" = (
 /obj/effect/decal/cleanable/blood/splatter,
-/obj/effect/landmark/corpse/engineer,
-/turf/simulated/floor/airless,
+/obj/abstract/landmark/corpse/engineer,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "en" = (
 /obj/effect/floor_decal/industrial/warning{
-	icon_state = "warning";
-	dir = 8
+	dir = 8;
+	icon_state = "warning"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "eo" = (
 /obj/random/tool,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "ep" = (
 /obj/random/tank,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "eq" = (
 /obj/structure/closet/medical_wall{
-	pixel_x = -30
+	pixel_x = -30;
+	dir = 4
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "er" = (
-/obj/structure/table/standard{
+/obj/structure/table{
 	name = "plastic table frame"
 	},
-/obj/item/flame/lighter/random,
-/turf/simulated/floor/tiled/airless,
+/obj/item/flame/fuelled/lighter/random,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "es" = (
-/obj/structure/table/standard{
+/obj/structure/table{
 	name = "plastic table frame"
 	},
-/obj/item/chems/food/drinks/cans/waterbottle,
-/turf/simulated/floor/tiled/airless,
+/obj/item/chems/drinks/cans/waterbottle,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "et" = (
 /obj/machinery/light{
-	icon_state = "tube1";
-	dir = 4
+	dir = 4;
+	icon_state = "tube1"
 	},
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_burned0"
-	},
+/obj/abstract/landmark/proc_caller/floor_burner,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "ev" = (
 /obj/machinery/portable_atmospherics/canister,
-/turf/simulated/floor/shuttle/blue,
+/turf/floor/shuttle/blue,
 /area/space)
 "ew" = (
 /obj/structure/door/shuttle,
-/turf/simulated/floor/shuttle/blue,
+/turf/floor/shuttle/blue,
 /area/space)
 "ex" = (
-/obj/structure/bed/chair{
+/obj/structure/chair{
 	dir = 4
 	},
 /obj/item/key,
-/turf/simulated/floor/shuttle/blue,
+/turf/floor/shuttle/blue,
 /area/space)
 "ey" = (
-/obj/item/stack/material/cardboard,
+/obj/item/stack/material/cardstock/mapped/cardboard,
 /obj/item/grenade/fake,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "ez" = (
 /obj/structure/reagent_dispensers/watertank,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "eA" = (
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_broken4"
-	},
+/obj/abstract/landmark/proc_caller/floor_breaker,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
-"eB" = (
-/turf/simulated/shuttle/wall{
-	dir = 2;
-	icon_state = "swall"
-	},
-/area/space)
 "eD" = (
 /obj/machinery/atmospherics/unary/tank/hydrogen{
-	dir = 2;
-	volume = 3200
+	gas_volume = 3200
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "eE" = (
 /obj/item/bedsheet,
 /obj/structure/cable{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/supply,
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "eF" = (
 /obj/machinery/atmospherics/unary/vent_scrubber,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "eG" = (
 /obj/machinery/light,
 /obj/structure/reagent_dispensers/water_cooler,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "eH" = (
 /obj/machinery/computer/arcade,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "eI" = (
 /obj/machinery/light,
 /obj/machinery/computer/arcade,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "eJ" = (
 /obj/machinery/media/jukebox,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
 "eK" = (
 /obj/machinery/portable_atmospherics/canister/oxygen,
-/turf/simulated/floor/shuttle/blue,
+/turf/floor/shuttle/blue,
 /area/space)
 "eL" = (
-/obj/structure/table/rack,
+/obj/structure/rack,
 /obj/item/tank/air,
 /obj/random/tech_supply,
 /obj/item/clothing/mask/breath,
-/turf/simulated/floor/shuttle/blue,
+/turf/floor/shuttle/blue,
 /area/space)
 "eM" = (
-/obj/structure/bed/chair{
+/obj/structure/chair{
 	dir = 1
 	},
-/turf/simulated/floor/shuttle/blue,
+/turf/floor/shuttle/blue,
 /area/space)
 "eN" = (
-/obj/structure/bed/chair{
+/obj/structure/chair{
 	dir = 1
 	},
 /obj/random/voidhelmet,
-/turf/simulated/floor/shuttle/blue,
+/turf/floor/shuttle/blue,
 /area/space)
-"eO" = (
-/turf/simulated/shuttle/wall{
-	icon_state = "swall_f";
-	dir = 4
-	},
-/area/space)
-"eP" = (
-/turf/simulated/shuttle/wall{
-	icon_state = "swall_s";
-	dir = 8
-	},
-/area/space)
-"eQ" = (
-/turf/simulated/floor/airless,
-/area/lost_supply_base)
-"eS" = (
-/obj/machinery/atmospherics/portables_connector{
-	dir = 1
-	},
-/turf/simulated/floor/airless,
-/area/lost_supply_base)
 "eT" = (
 /obj/structure/cable{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/supply,
 /obj/machinery/atmospherics/pipe/manifold/hidden/scrubbers{
 	dir = 8
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "eU" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 4
 	},
-/turf/simulated/wall,
+/turf/wall,
 /area/lost_supply_base/common)
 "eV" = (
 /obj/machinery/door/airlock{
@@ -1736,173 +1506,148 @@
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 9
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/common)
-"eW" = (
-/turf/simulated/shuttle/wall{
-	dir = 5;
-	icon_state = "swall"
-	},
-/area/space)
-"eX" = (
-/turf/simulated/shuttle/wall{
-	icon_state = "swall_t";
-	dir = 2
-	},
-/area/space)
 "eY" = (
 /obj/machinery/portable_atmospherics/canister/nitrogen,
 /obj/machinery/portable_atmospherics/canister/nitrogen,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "eZ" = (
 /obj/machinery/portable_atmospherics/canister/nitrogen,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fa" = (
 /obj/effect/floor_decal/industrial/warning{
-	icon_state = "warning";
-	dir = 8
+	dir = 8;
+	icon_state = "warning"
 	},
 /obj/effect/floor_decal/industrial/hatch/yellow,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fb" = (
 /obj/effect/floor_decal/industrial/hatch/yellow,
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_broken0"
-	},
+/obj/abstract/landmark/proc_caller/floor_breaker,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "fc" = (
 /obj/machinery/light{
 	dir = 8;
-	icon_state = "tube1";
-	pixel_y = 0
+	icon_state = "tube1"
 	},
 /obj/random/obstruction,
 /obj/machinery/atmospherics/pipe/manifold/hidden/supply{
 	dir = 8
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "fd" = (
 /obj/structure/cable{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
 /obj/random/obstruction,
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
 	dir = 4
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "fe" = (
 /obj/machinery/door/airlock{
 	name = "Bunk room"
 	},
 /obj/structure/cable{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
 	dir = 4
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "ff" = (
 /obj/structure/cable{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
 /obj/machinery/atmospherics/unary/vent_pump/on{
 	dir = 8
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fg" = (
 /obj/structure/closet/emcloset,
 /obj/structure/cable{
-	d2 = 8;
 	icon_state = "0-8"
 	},
-/obj/machinery/power/apc{
+/obj/machinery/apc{
 	dir = 1;
 	name = "north bump";
-	pixel_x = 0;
 	pixel_y = 24
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fh" = (
 /obj/structure/bed,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fi" = (
 /obj/structure/closet,
 /obj/random/clothing,
 /obj/item/trash/liquidfood,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fj" = (
 /obj/structure/bed,
 /obj/random/plushie,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fk" = (
 /obj/structure/closet,
 /obj/random/clothing,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fl" = (
-/turf/simulated/wall/r_wall,
+/turf/wall/r_wall,
 /area/lost_supply_base/supply)
 "fm" = (
 /obj/machinery/portable_atmospherics/canister,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fn" = (
 /obj/effect/floor_decal/industrial/warning{
-	icon_state = "warning";
-	dir = 10
+	dir = 10;
+	icon_state = "warning"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fo" = (
 /obj/random/junk,
 /obj/structure/cable{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/supply,
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "fp" = (
-/turf/simulated/wall,
+/turf/wall,
 /area/lost_supply_base/supply)
 "fq" = (
 /obj/item/bedsheet,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fr" = (
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_burned0"
-	},
+/obj/abstract/landmark/proc_caller/floor_burner,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fs" = (
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "ft" = (
-/obj/structure/table/standard,
+/obj/structure/table,
 /obj/random/smokes,
 /obj/item/radio,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fu" = (
 /obj/effect/shuttle_landmark/nav_lost_supply_base/nav2,
@@ -1911,28 +1656,27 @@
 "fv" = (
 /obj/structure/window/reinforced,
 /obj/machinery/portable_atmospherics/canister/carbon_dioxide,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fw" = (
 /obj/structure/window/reinforced,
 /obj/machinery/portable_atmospherics/canister,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fx" = (
 /obj/machinery/atmospherics/unary/vent_scrubber{
-	icon_state = "map_scrubber_off";
 	dir = 1
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fz" = (
 /obj/random/junk,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fA" = (
-/obj/structure/table/standard,
-/obj/item/storage/briefcase,
-/turf/simulated/floor/tiled/airless,
+/obj/structure/table,
+/obj/item/briefcase,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fB" = (
 /obj/structure/sign/warning{
@@ -1940,30 +1684,30 @@
 	},
 /obj/machinery/portable_atmospherics/canister/air,
 /obj/machinery/atmospherics/portables_connector,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fC" = (
 /obj/random/energy,
-/obj/effect/landmark/corpse/syndicate,
-/turf/simulated/floor/airless,
+/obj/abstract/landmark/corpse/syndicate,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fD" = (
 /obj/effect/floor_decal/industrial/hatch/yellow,
-/obj/effect/landmark/corpse/engineer,
-/turf/simulated/floor/airless,
+/obj/abstract/landmark/corpse/engineer,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fE" = (
 /obj/machinery/atmospherics/unary/vent_scrubber,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fF" = (
 /obj/machinery/light,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fG" = (
 /obj/machinery/light,
 /obj/structure/bed,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fH" = (
 /obj/structure/largecrate,
@@ -1971,17 +1715,17 @@
 	dir = 8;
 	target_pressure = 200
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fI" = (
 /obj/effect/decal/cleanable/blood,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fJ" = (
-/obj/item/twohanded/fireaxe,
+/obj/item/bladed/axe/fire,
 /obj/effect/decal/cleanable/blood,
 /obj/effect/floor_decal/industrial/hatch/yellow,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fK" = (
 /obj/effect/floor_decal/industrial/hatch/yellow,
@@ -1990,41 +1734,39 @@
 	pixel_x = 5;
 	pixel_y = -3
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fL" = (
 /obj/effect/decal/cleanable/blood/writing{
 	dir = 4
 	},
 /obj/effect/floor_decal/industrial/hatch/yellow,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fM" = (
 /obj/structure/cable{
-	d1 = 1;
-	d2 = 2;
 	icon_state = "1-2"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/supply,
 /obj/machinery/atmospherics/pipe/manifold/hidden/scrubbers{
 	dir = 8
 	},
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_burned1"
-	},
+/obj/abstract/landmark/allowed_leak,
+/obj/abstract/landmark/proc_caller/floor_burner,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "fN" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 4
 	},
-/obj/item/stack/material/steel,
-/turf/simulated/floor/tiled/airless,
+/obj/item/stack/material/sheet/mapped/steel,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "fO" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 4
 	},
-/turf/simulated/wall,
+/turf/wall,
 /area/lost_supply_base/supply)
 "fP" = (
 /obj/machinery/door/airlock{
@@ -2033,23 +1775,21 @@
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 9
 	},
-/turf/space,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fQ" = (
 /obj/structure/door_assembly,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fR" = (
 /obj/effect/floor_decal/industrial/warning{
 	dir = 4
 	},
 /obj/effect/floor_decal/industrial/hatch/yellow,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "fS" = (
 /obj/structure/cable{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
@@ -2059,73 +1799,52 @@
 	pixel_x = 5;
 	pixel_y = -3
 	},
-/turf/simulated/floor/tiled/airless,
+/obj/abstract/landmark/allowed_leak,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "fT" = (
 /obj/structure/cable{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden/supply{
 	dir = 4
 	},
-/turf/simulated/wall,
+/turf/wall,
 /area/lost_supply_base/supply)
 "fU" = (
 /obj/structure/cable{
-	d1 = 4;
-	d2 = 8;
 	icon_state = "4-8"
 	},
 /obj/machinery/atmospherics/unary/vent_pump/on{
 	dir = 8
 	},
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_broken0"
-	},
-/area/lost_supply_base/supply)
-"fV" = (
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_burned1"
-	},
+/obj/abstract/landmark/proc_caller/floor_breaker,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fW" = (
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_broken0"
-	},
+/obj/abstract/landmark/proc_caller/floor_breaker,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "fX" = (
 /obj/item/gun/projectile/shotgun/pump,
-/obj/effect/landmark/corpse/syndicate,
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_broken4"
-	},
+/obj/abstract/landmark/corpse/syndicate,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
-"fY" = (
-/obj/machinery/atmospherics/portables_connector{
-	dir = 4
-	},
-/turf/simulated/floor/airless,
-/area/lost_supply_base)
 "fZ" = (
 /obj/machinery/atmospherics/pipe/simple/hidden{
-	dir = 4;
-	icon_state = "intact"
+	dir = 6
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "ga" = (
 /obj/machinery/atmospherics/pipe/simple/hidden{
-	dir = 4;
-	icon_state = "intact"
+	dir = 4
 	},
-/turf/simulated/wall/r_wall,
+/turf/wall/r_wall,
 /area/lost_supply_base)
 "gb" = (
 /obj/machinery/atmospherics/pipe/simple/hidden{
-	dir = 4;
-	icon_state = "intact"
+	dir = 4
 	},
 /obj/machinery/embedded_controller/radio/airlock/airlock_controller{
 	id_tag = "solar_starboard_airlock";
@@ -2134,14 +1853,17 @@
 	tag_airpump = "solar_starboard_pump";
 	tag_chamber_sensor = "solar_starboard_sensor";
 	tag_exterior_door = "solar_starboard_outer";
-	tag_interior_door = "solar_starboard_inner"
+	tag_interior_door = "solar_starboard_inner";
+	dir = 8;
+	pixel_y = -4
 	},
 /obj/machinery/airlock_sensor{
 	id_tag = "solar_starboard_sensor";
 	pixel_x = 24;
-	pixel_y = 12
+	pixel_y = 8;
+	dir = 8
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "gc" = (
 /obj/effect/floor_decal/industrial/warning,
@@ -2149,36 +1871,36 @@
 	dir = 8;
 	target_pressure = 200
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "gd" = (
 /obj/effect/floor_decal/industrial/warning{
-	icon_state = "warning";
-	dir = 6
+	dir = 6;
+	icon_state = "warning"
 	},
 /obj/machinery/atmospherics/pipe/simple/hidden{
-	dir = 4;
-	icon_state = "intact"
+	dir = 4
 	},
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "ge" = (
 /obj/machinery/atmospherics/portables_connector{
 	dir = 8
 	},
 /obj/effect/floor_decal/industrial/warning/full,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "gf" = (
 /obj/structure/closet/emcloset,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "gg" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/supply,
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 5
 	},
-/turf/simulated/floor/tiled/airless,
+/obj/abstract/landmark/allowed_leak,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "gh" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
@@ -2188,39 +1910,34 @@
 	pixel_x = 5;
 	pixel_y = -3
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "gi" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 4
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "gj" = (
 /obj/machinery/atmospherics/pipe/simple/hidden/scrubbers{
 	dir = 9
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "gk" = (
 /obj/machinery/door/airlock{
 	name = "Head"
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
-"gl" = (
-/obj/structure/lattice,
-/obj/structure/grille,
-/turf/space,
-/area/lost_supply_base)
 "gm" = (
 /obj/machinery/light,
-/turf/simulated/floor/airless,
+/turf/floor/plating/airless,
 /area/lost_supply_base)
 "gn" = (
 /obj/structure/closet/crate/trashcart,
 /obj/item/mop,
-/obj/item/storage/box/lights/bulbs,
+/obj/item/box/lights/bulbs,
 /obj/machinery/atmospherics/unary/vent_pump{
 	dir = 1;
 	external_pressure_bound = 0;
@@ -2229,32 +1946,31 @@
 	initialize_directions = 1;
 	internal_pressure_bound = 4000;
 	internal_pressure_bound_default = 4000;
-	use_power = 1;
 	pressure_checks = 2;
 	pressure_checks_default = 2;
-	pump_direction = 0
+	pump_direction = 0;
+	use_power = 1
 	},
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "go" = (
-/obj/item/stack/material/steel,
-/turf/simulated/floor/tiled/airless,
+/obj/item/stack/material/sheet/mapped/steel,
+/turf/floor/tiled/airless,
 /area/lost_supply_base)
 "gq" = (
 /obj/structure/hygiene/toilet{
 	dir = 1
 	},
 /obj/machinery/light/small,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "gr" = (
 /obj/structure/hygiene/shower{
-	icon_state = "shower";
 	dir = 8
 	},
 /obj/random/soap,
 /obj/machinery/light/small,
-/turf/simulated/floor/tiled/airless,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
 "gs" = (
 /obj/effect/shuttle_landmark/nav_lost_supply_base/navantag,
@@ -2264,29 +1980,51 @@
 /turf/unsimulated/mask,
 /area/mine/unexplored)
 "gu" = (
-/turf/simulated/floor/asteroid,
+/turf/floor/barren,
 /area/mine/explored)
 "ib" = (
 /obj/structure/hygiene/sink{
-	icon_state = "sink";
 	dir = 8;
 	pixel_x = -12;
 	pixel_y = 2
 	},
-/obj/item/storage/mirror{
+/obj/structure/mirror{
 	pixel_x = -32
 	},
 /obj/machinery/light/small,
-/turf/simulated/floor/tiled/airless{
-	icon_state = "steel_broken0"
-	},
+/obj/abstract/landmark/proc_caller/floor_breaker,
+/turf/floor/tiled/airless,
 /area/lost_supply_base/supply)
+"nL" = (
+/obj/machinery/atmospherics/pipe/simple/hidden,
+/obj/structure/cable{
+	icon_state = "1-2"
+	},
+/obj/abstract/landmark/allowed_leak,
+/turf/floor/plating/airless,
+/area/lost_supply_base)
 "Jd" = (
 /obj/machinery/computer/modular{
 	dir = 1
 	},
-/turf/simulated/floor/shuttle/blue,
+/turf/floor/shuttle/blue,
 /area/space)
+"OK" = (
+/obj/structure/grille,
+/obj/structure/lattice,
+/turf/space,
+/area/lost_supply_base)
+"PE" = (
+/obj/effect/shuttle_landmark/nav_lost_supply_base/docking{
+	dir = 4
+	},
+/turf/space,
+/area/space)
+"Xs" = (
+/obj/effect/wallframe_spawn/reinforced,
+/obj/machinery/atmospherics/pipe/simple/hidden,
+/turf/floor/plating/airless,
+/area/lost_supply_base)
 
 (1,1,1) = {"
 aa
@@ -6003,9 +5741,9 @@ aa
 aa
 aa
 aa
-eg
-eg
-eg
+aa
+aa
+aa
 aa
 aa
 aa
@@ -6103,13 +5841,13 @@ aa
 aa
 aa
 aa
-eB
-dR
-eh
-eh
-eh
-dR
-eW
+aa
+aa
+aa
+aa
+aa
+aa
+aa
 aa
 aa
 aa
@@ -6205,13 +5943,13 @@ aa
 aa
 aa
 aa
-dE
-dS
-dS
-ev
-dS
-eK
-dH
+aa
+aa
+aa
+aa
+aa
+aa
+aa
 aa
 aa
 aa
@@ -6307,13 +6045,13 @@ aa
 aa
 aa
 aa
-dF
-dS
-dS
-dS
-dS
-eL
-dH
+aa
+aa
+aa
+aa
+aa
+aa
+aa
 aa
 aa
 aa
@@ -6409,13 +6147,13 @@ aa
 aa
 aa
 aa
-dG
-dR
-ei
-ew
-eB
-dR
-eX
+aa
+aa
+aa
+aa
+aa
+aa
+aa
 aa
 aa
 aa
@@ -6511,13 +6249,13 @@ aa
 aa
 aa
 aa
-dH
-dT
-dS
-dS
-dS
-eM
-dH
+aa
+aa
+aa
+aa
+aa
+aa
+aa
 aa
 aa
 aa
@@ -6613,13 +6351,13 @@ aa
 aa
 aa
 aa
-dH
-dU
-dS
-dS
-dS
-eN
-dH
+aa
+aa
+aa
+aa
+aa
+aa
+aa
 aa
 aa
 aa
@@ -6715,13 +6453,13 @@ aa
 aa
 aa
 aa
-dH
-dV
-dS
-dS
-dS
-eM
-dH
+aa
+aa
+aa
+aa
+aa
+aa
+aa
 aa
 aa
 aa
@@ -6817,20 +6555,20 @@ aa
 aa
 aa
 aa
-dH
-dS
-dS
-dS
-dS
-dS
-dH
 aa
 aa
-aD
-aD
-aD
-fY
-gl
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
 aa
 aa
 aa
@@ -6919,20 +6657,20 @@ aa
 aa
 aa
 aa
-dI
-dW
-ej
-ex
-Jd
-eO
-eP
 aa
 aa
-aD
-aD
-aD
-fZ
-gl
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+aa
+PE
+aa
+aa
 aa
 aa
 aa
@@ -7009,9 +6747,9 @@ aa
 aa
 aa
 aa
-aD
-aD
-aE
+aa
+aa
+ac
 aA
 aA
 aa
@@ -7022,18 +6760,18 @@ aa
 aa
 aa
 aa
-dI
-ek
-ek
-ek
-eP
+aa
+aa
+aa
+aa
+aa
 aa
 aa
 aa
 aA
 aA
-br
-ga
+cb
+aA
 aA
 aa
 aa
@@ -7111,9 +6849,9 @@ aq
 av
 aa
 aa
-aE
-aD
-aD
+ac
+aa
+aa
 aG
 aA
 aa
@@ -7135,7 +6873,7 @@ aa
 aA
 di
 bq
-fZ
+aG
 aA
 aa
 aa
@@ -7213,7 +6951,7 @@ aa
 aa
 aq
 aa
-aE
+ac
 aX
 bq
 aG
@@ -7238,9 +6976,9 @@ bR
 aX
 bq
 fZ
-bR
-aa
-aa
+Xs
+ed
+OK
 aa
 aa
 aa
@@ -7341,8 +7079,8 @@ fH
 bq
 gb
 aA
-aa
-aa
+aG
+OK
 aa
 aa
 aa
@@ -7419,7 +7157,7 @@ ab
 aA
 aA
 aZ
-br
+cb
 aA
 aA
 aA
@@ -7444,7 +7182,7 @@ fQ
 ga
 aA
 aA
-aa
+OK
 aa
 aa
 aa
@@ -7521,13 +7259,13 @@ aa
 aA
 aF
 ba
-bs
+bG
 bK
 aG
 aG
 cl
 cC
-cN
+aH
 cO
 aG
 ds
@@ -7551,9 +7289,9 @@ aa
 aa
 aa
 aa
-aa
-aa
-aa
+eg
+eg
+eg
 aa
 aa
 aa
@@ -7623,7 +7361,7 @@ aa
 aA
 aG
 bb
-bt
+bW
 bL
 aG
 aG
@@ -7651,13 +7389,13 @@ aA
 aa
 aa
 aa
-aa
-aa
-aa
-aa
-aa
-aa
-aa
+dF
+dF
+eh
+eh
+eh
+dF
+dF
 aa
 aa
 aa
@@ -7740,7 +7478,7 @@ dY
 el
 aG
 aG
-eQ
+aG
 eZ
 aG
 fw
@@ -7748,18 +7486,18 @@ aG
 aG
 bq
 ge
-eQ
+aG
 aA
 aa
 aa
 aa
-aa
-aa
-aa
-aa
-aa
-aa
-aa
+dE
+dS
+dS
+ev
+dS
+eK
+dF
 aa
 aa
 aa
@@ -7855,13 +7593,13 @@ aA
 aa
 aa
 aa
-aa
-aa
-aa
-aa
-aa
-aa
-aa
+dF
+dS
+dS
+dS
+dS
+eL
+dF
 aa
 aa
 aa
@@ -7957,13 +7695,13 @@ aA
 aa
 aa
 aa
-aa
-aa
-aa
-aa
-aa
-aa
-aa
+dF
+dF
+dF
+ew
+dF
+dF
+dF
 aa
 aa
 aa
@@ -8059,13 +7797,13 @@ aA
 aa
 aa
 aa
-aa
-aa
-aa
-aa
-aa
-aa
-aa
+dF
+dT
+dS
+dS
+dS
+eM
+dF
 aa
 aa
 aa
@@ -8161,13 +7899,13 @@ aA
 aa
 aa
 aa
-aa
-aa
-aa
-aa
-aa
-aa
-aa
+dF
+dU
+dS
+dS
+dS
+eN
+dF
 aa
 aa
 aa
@@ -8263,13 +8001,13 @@ aA
 aa
 aa
 aa
-aa
-aa
-aa
-aa
-aa
-aa
-aa
+dF
+dV
+dS
+dS
+dS
+eM
+dF
 aa
 aa
 aa
@@ -8352,7 +8090,7 @@ dv
 em
 ez
 eD
-eS
+ed
 bq
 aG
 aG
@@ -8365,13 +8103,13 @@ aA
 aa
 aa
 aa
-aa
-aa
-aa
-aa
-aa
-aa
-aa
+dF
+dS
+dS
+dS
+dS
+dS
+dF
 aa
 aa
 aa
@@ -8467,13 +8205,13 @@ aA
 aa
 aa
 aa
-aa
-aa
-aa
-aa
-aa
-aa
-aa
+dF
+dF
+ej
+ex
+Jd
+dF
+dF
 aa
 aa
 aa
@@ -8557,7 +8295,7 @@ eo
 eo
 eD
 ed
-eQ
+aG
 bK
 aG
 bT
@@ -8570,11 +8308,11 @@ aa
 aa
 aa
 aa
-aa
-aa
-aa
-aa
-aa
+dF
+ek
+ek
+ek
+dF
 aa
 aa
 aa
@@ -8646,7 +8384,7 @@ bg
 bB
 bN
 bU
-bU
+nL
 cr
 aG
 cS
@@ -8750,7 +8488,7 @@ aK
 aG
 cf
 cs
-cI
+bW
 cT
 cY
 dn
@@ -8760,7 +8498,7 @@ ed
 ep
 aG
 eD
-eS
+ed
 aG
 bK
 dm
@@ -8955,10 +8693,10 @@ bi
 cg
 ct
 cJ
-cU
+cJ
 da
 do
-cU
+cJ
 dN
 cJ
 dN
@@ -9070,7 +8808,7 @@ ch
 fd
 bj
 bj
-bt
+bW
 fN
 fS
 gh
@@ -9367,8 +9105,8 @@ cK
 dc
 cK
 dy
-cL
-cL
+dP
+dP
 dy
 cK
 eG
@@ -9470,7 +9208,7 @@ dd
 cK
 dz
 dA
-cL
+dP
 er
 eA
 eH
@@ -9480,7 +9218,7 @@ fs
 fr
 fh
 fp
-fV
+fr
 fp
 fp
 fl
@@ -9562,11 +9300,11 @@ aC
 aU
 bl
 bn
-bG
+bH
 bn
 ck
 cz
-cL
+dP
 cV
 de
 cK
@@ -9663,9 +9401,9 @@ aa
 aC
 aV
 bm
-bG
+bH
 bQ
-bG
+bH
 ck
 cA
 cK
@@ -9767,7 +9505,7 @@ aW
 bn
 bH
 bQ
-cb
+bH
 ck
 cB
 cK
@@ -9873,7 +9611,7 @@ aC
 ck
 ck
 cM
-cW
+cM
 ck
 ck
 cM

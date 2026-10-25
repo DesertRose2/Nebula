@@ -4,7 +4,7 @@
 	icon = 'icons/obj/guns/railgun.dmi'
 	removable_components = TRUE // Can swap out the capacitor for more shots, or cell for longer usage before recharge
 	load_type = /obj/item/rcd_ammo
-	origin_tech = "{'combat':5,'materials':4,'magnets':4}"
+	origin_tech = @'{"combat":5,"materials":4,"magnets":4}'
 	projectile_type = /obj/item/projectile/bullet/magnetic/slug
 	one_hand_penalty = 6
 	power_cost = 300
@@ -14,37 +14,31 @@
 	loaded = /obj/item/rcd_ammo/large // ~30 shots
 	combustion = 1
 	bulk = GUN_BULK_RIFLE + 3
-
-	var/initial_cell_type = /obj/item/cell/hyper
-	var/initial_capacitor_type = /obj/item/stock_parts/capacitor/adv // 6-8 shots
+	capacitor = /obj/item/stock_parts/capacitor/adv // 6-8 shots
 	gun_unreliable = 0
 	var/slowdown_held = 3
 	var/slowdown_worn = 2
 
+/obj/item/gun/magnetic/railgun/setup_power_supply(loaded_cell_type, accepted_cell_type, power_supply_extension_type, charge_value)
+	return ..(/obj/item/cell/hyper, accepted_cell_type, power_supply_extension_type, charge_value)
+
 /obj/item/gun/magnetic/railgun/Initialize()
-
-	capacitor = new initial_capacitor_type(src)
-	capacitor.charge = capacitor.max_charge
-
-	cell = new initial_cell_type(src)
-	if (ispath(loaded))
-		loaded = new loaded (src, load_sheet_max)
-	slowdown_per_slot[slot_l_hand] =  slowdown_held
-	slowdown_per_slot[slot_r_hand] =  slowdown_held
-	slowdown_per_slot[slot_back] =    slowdown_worn
-	slowdown_per_slot[slot_belt] =    slowdown_worn
-	slowdown_per_slot[slot_s_store] = slowdown_worn
+	LAZYSET(slowdown_per_slot, BP_L_HAND,        slowdown_held)
+	LAZYSET(slowdown_per_slot, BP_R_HAND,        slowdown_held)
+	LAZYSET(slowdown_per_slot, slot_back_str,    slowdown_worn)
+	LAZYSET(slowdown_per_slot, slot_belt_str,    slowdown_worn)
+	LAZYSET(slowdown_per_slot, slot_s_store_str, slowdown_worn)
 
 	. = ..()
 
 // Not going to check type repeatedly, if you code or varedit
 // load_type and get runtime errors, don't come crying to me.
-/obj/item/gun/magnetic/railgun/show_ammo(var/mob/user)
+/obj/item/gun/magnetic/railgun/get_ammo_string(mob/user, distance)
 	var/obj/item/rcd_ammo/ammo = loaded
 	if (ammo)
-		to_chat(user, "<span class='notice'>There are [ammo.remaining] shot\s remaining in \the [loaded].</span>")
+		return SPAN_NOTICE("There [ammo.remaining == 1 ? "is" : "are"] [ammo.remaining] shot\s remaining in \the [loaded].")
 	else
-		to_chat(user, "<span class='notice'>There is nothing loaded.</span>")
+		return SPAN_NOTICE("There is nothing loaded.")
 
 /obj/item/gun/magnetic/railgun/check_ammo()
 	var/obj/item/rcd_ammo/ammo = loaded
@@ -70,8 +64,7 @@
 	one_hand_penalty = 2
 	fire_delay = 8
 	removable_components = FALSE
-	initial_cell_type = /obj/item/cell/hyper
-	initial_capacitor_type = /obj/item/stock_parts/capacitor/adv
+	capacitor = /obj/item/stock_parts/capacitor/adv
 	slot_flags = SLOT_BACK
 	power_cost = 100
 	load_type = /obj/item/magnetic_ammo

@@ -1,18 +1,35 @@
 /atom/movable
 	layer = OBJ_LAYER
-	appearance_flags = TILE_BOUND
-	glide_size = 4
+	appearance_flags = TILE_BOUND | DEFAULT_APPEARANCE_FLAGS | LONG_GLIDE
+	glide_size = 8
+	abstract_type = /atom/movable
+
+	var/max_buckled_mobs = 0 // Maximum amount of mobs that can be buckled to this atom.
+	var/buckle_movable = 0
+	var/buckle_allow_rotation = 0
+	var/buckle_layer_above = FALSE
+	var/buckle_dir = 0
+	var/buckle_lying = -1             // bed-like behavior, forces mob to lie or stand if buckle_lying != -1
+	/// A list or JSON-encoded list of pixel offsets to use on a mob buckled to this atom. TRUE to use this atom's pixel shifts, null for no pixel shift control.
+	var/buckle_require_restraints = 0 // require people to be cuffed before being able to buckle. eg: pipes
+	var/buckle_require_same_tile = FALSE
+	var/buckle_sound
+
+	VAR_PROTECTED/_buckle_pixel_shift            // ex. @'{"x":0,"y":0,"z":0}' - can be a list for atoms with multiple buckled mobs.
+	VAR_PROTECTED/list/mob/living/_buckled_mobs
+
 	var/movable_flags
 	var/last_move = null
-	var/anchored = 0
+	var/anchored = FALSE
 	// var/elevation = 2    - not used anywhere
 	var/move_speed = 10
 	var/l_move_time = 1
-	var/m_flag = 1
+	var/const/FIRST_DIAGONAL_STEP = 1
+	var/const/SECOND_DIAGONAL_STEP = 2
+	var/moving_diagonally = FALSE // Used so we don't break grabs mid-diagonal-move.
 	var/datum/thrownthing/throwing
 	var/throw_speed = 2
 	var/throw_range = 7
-	var/moved_recently = 0
 	var/item_state = null // Used to specify the item state for the on-mob overlays.
 	var/does_spin = TRUE // Does the atom spin when thrown (of course it does :P)
 	var/list/grabbed_by
@@ -24,9 +41,36 @@
 	var/inertia_move_delay = 5
 	var/atom/movable/inertia_ignore
 
+	// Marker for alpha mask update process. null == never update, TRUE == currently updating, FALSE == finished updating.
+	var/updating_turf_alpha_mask = null
+
+	// Damage type from using or throwing this atom.
+	var/atom_damage_type = BRUTE
+
+/atom/movable/proc/set_buckled_pixel_shift(new_offsets)
+	if(_buckle_pixel_shift == new_offsets)
+		return FALSE
+	_buckle_pixel_shift = new_offsets
+	for(var/mob/buckle_mob in get_buckled_mobs())
+		buckle_mob.reset_offsets()
+
+/atom/movable/proc/get_buckled_pixel_shift(index = 1)
+	if(islist(_buckle_pixel_shift) && length(_buckle_pixel_shift) && !(num2text(NORTH) in _buckle_pixel_shift)) // shit check for whether not this list is assoc
+		if(index < 1 || index > length(_buckle_pixel_shift))
+			index = 1
+		return _buckle_pixel_shift[index]
+	return _buckle_pixel_shift
+
+/atom/movable/proc/get_buckled_position(mob/buckled)
+	return islist(_buckled_mobs) ? clamp(_buckled_mobs.Find(buckled), 1, length(_buckled_mobs)) : 1
+
+// This proc determines if the instance is preserved when the process() despawn of crypods occurs.
+/atom/movable/proc/preserve_in_cryopod(var/obj/machinery/cryopod/pod)
+	return FALSE
+
 //call this proc to start space drifting
 /atom/movable/proc/space_drift(direction)//move this down
-	if(!loc || direction & (UP|DOWN) || Process_Spacemove(0))
+	if(!loc || direction & (UP|DOWN) || is_space_movement_permitted() != SPACE_MOVE_FORBIDDEN)
 		inertia_dir = 0
 		inertia_ignore = null
 		return 0
@@ -38,38 +82,43 @@
 	SSspacedrift.processing[src] = src
 	return 1
 
-//return 0 to space drift, 1 to stop, -1 for mobs to handle space slips
-/atom/movable/proc/Process_Spacemove(var/allow_movement)
+// return SPACE_MOVE_FORBIDDEN to space drift, SPACE_MOVE_PERMITTED to stop, SPACE_MOVE_SUPPORTED for mobs to handle space slips
+// Note that it may also return an instance of /atom/movable, which acts as SPACE_MOVE_SUPPORTED and results in pushing the movable backwards.
+/atom/movable/proc/is_space_movement_permitted(allow_movement = FALSE)
 	if(!simulated)
-		return 1
-
+		return SPACE_MOVE_PERMITTED
 	if(has_gravity())
-		return 1
-
-	if(length(grabbed_by))
-		return 1
-
+		return SPACE_MOVE_PERMITTED
 	if(throwing)
-		return 1
-
+		return SPACE_MOVE_PERMITTED
 	if(anchored)
-		return 1
-
+		return SPACE_MOVE_PERMITTED
 	if(!isturf(loc))
-		return 1
-
+		return SPACE_MOVE_PERMITTED
+	if(length(grabbed_by))
+		for(var/obj/item/grab/grab as anything in grabbed_by)
+			if(grab.assailant == src)
+				continue
+			return SPACE_MOVE_PERMITTED
 	if(locate(/obj/structure/lattice) in range(1, get_turf(src))) //Not realistic but makes pushing things in space easier
-		return -1
+		return SPACE_MOVE_SUPPORTED
+	return SPACE_MOVE_FORBIDDEN
 
-	return 0
+/atom/movable/attack_hand(mob/user)
+	// Unbuckle anything buckled to us.
+	if(!max_buckled_mobs || !has_buckled_mob() || !user.check_dexterity(DEXTERITY_SIMPLE_MACHINES, TRUE))
+		return ..()
+	user_unbuckle_mob(user, ((user in get_buckled_mobs()) ? user : null))
+	return TRUE
 
 /atom/movable/hitby(var/atom/movable/AM, var/datum/thrownthing/TT)
 	. = ..()
+	if(. && density && prob(50))
+		do_simple_ranged_interaction()
 	process_momentum(AM,TT)
 
 /atom/movable/proc/process_momentum(var/atom/movable/AM, var/datum/thrownthing/TT)//physic isn't an exact science
 	. = momentum_power(AM,TT)
-
 	if(.)
 		momentum_do(.,TT,AM)
 
@@ -111,30 +160,6 @@
 /atom/movable/proc/get_mass()
 	return 1.5
 
-/atom/movable/Destroy()
-	. = ..()
-#ifdef DISABLE_DEBUG_CRASH
-	// meh do nothing. we know what we're doing. pro engineers.
-#else
-	if(!(atom_flags & ATOM_FLAG_INITIALIZED))
-		crash_with("Was deleted before initialization")
-#endif
-
-	for(var/A in src)
-		qdel(A)
-
-	forceMove(null)
-
-	if(LAZYLEN(movement_handlers) && !ispath(movement_handlers[1]))
-		QDEL_NULL_LIST(movement_handlers)
-
-	if (bound_overlay)
-		QDEL_NULL(bound_overlay)
-
-	if(virtual_mob && !ispath(virtual_mob))
-		qdel(virtual_mob)
-		virtual_mob = null
-
 /atom/movable/Bump(var/atom/A, yes)
 	if(!QDELETED(throwing))
 		throwing.hit_atom(A)
@@ -144,14 +169,17 @@
 
 	if (A && yes)
 		A.last_bumped = world.time
-		INVOKE_ASYNC(A, /atom/proc/Bumped, src) // Avoids bad actors sleeping or unexpected side effects, as the legacy behavior was to spawn here
+		INVOKE_ASYNC(A, TYPE_PROC_REF(/atom, Bumped), src) // Avoids bad actors sleeping or unexpected side effects, as the legacy behavior was to spawn here
 	..()
 
 /atom/movable/proc/forceMove(atom/destination)
-	if(QDELETED(src) && !QDESTROYING(src) && !isnull(destination))
+
+	if(QDELETED(src) && !isnull(destination))
 		CRASH("Attempted to forceMove a QDELETED [src] out of nullspace!!!")
+
 	if(loc == destination)
-		return 0
+		return FALSE
+
 	var/is_origin_turf = isturf(loc)
 	var/is_destination_turf = isturf(destination)
 	// It is a new area if:
@@ -178,58 +206,122 @@
 					AM.Crossed(src)
 			if(is_new_area && is_destination_turf)
 				destination.loc.Entered(src, origin)
-	return 1
 
-/atom/movable/forceMove(atom/dest)
-	var/old_loc = loc
+	. = TRUE
+
+	// observ
+	if(!loc && event_listeners?[/decl/observ/moved])
+		raise_event_non_global(/decl/observ/moved, origin, null)
+
+	// freelook
+	if(simulated && opacity)
+		updateVisibility(src)
+
+	// lighting
+	if (light_source_solo)
+		light_source_solo.source_atom.update_light()
+	else if (light_source_multi)
+		var/datum/light_source/L
+		var/thing
+		for (thing in light_source_multi)
+			L = thing
+			L.source_atom.update_light()
+
+	// Z-Mimic.
+	if (bound_overlay)
+		move_mimic(origin)
+
+	else if (isturf(loc) && (!origin || !TURF_IS_MIMICKING(origin) || origin.z != loc.z) && MOVABLE_SHALL_MIMIC(src) && MOVABLE_IS_BELOW_ZTURF(src))
+		SSzcopy.discover_movable(src)
+
+	var/list/buckled_mobs = get_buckled_mobs()
+	if(length(buckled_mobs))
+		if(isturf(loc))
+			for(var/mob/buckle_mob in buckled_mobs)
+				buckle_mob.glide_size = glide_size // Setting loc apparently does animate with glide size.
+				buckle_mob.forceMove(loc)
+			refresh_buckled_mobs(0)
+		else
+			unbuckle_mobs()
+
+/atom/movable/set_dir(ndir)
 	. = ..()
-	if (.)
-		// observ
-		if(!loc)
-			GLOB.moved_event.raise_event(src, old_loc, null)
+	if(.)
+		refresh_buckled_mobs(0)
 
-		// freelook
-		if(opacity)
-			updateVisibility(src)
-
-		// lighting
-		if (light_sources)	// Yes, I know you can for-null safely, but this is slightly faster. Hell knows why.
-			for (var/datum/light_source/L in light_sources)
-				L.source_atom.update_light()
+/atom/movable/proc/refresh_buckled_mobs(var/delay_offset_anim = 4)
+	for(var/mob/buckle_mob in get_buckled_mobs())
+		buckle_mob.set_dir(buckle_dir || dir)
+		buckle_mob.reset_offsets(delay_offset_anim)
+		buckle_mob.reset_plane_and_layer()
 
 /atom/movable/Move(...)
-	var/old_loc = loc
+
+	var/atom/old_loc = loc
 	. = ..()
-	if (.)
-		if(!loc)
-			GLOB.moved_event.raise_event(src, old_loc, null)
+
+	if(.)
+
+		if(isturf(loc))
+			for(var/mob/buckle_mob in get_buckled_mobs())
+				buckle_mob.glide_size = glide_size // Setting loc apparently does animate with glide size.
+				buckle_mob.forceMove(loc)
+			refresh_buckled_mobs(0)
+		else
+			unbuckle_mobs()
+
+		if(!loc && event_listeners?[/decl/observ/moved])
+			raise_event_non_global(/decl/observ/moved, old_loc, null)
 
 		// freelook
-		if(opacity)
+		if(simulated && opacity)
 			updateVisibility(src)
 
 		// lighting
-		if (light_sources)	// Yes, I know you can for-null safely, this is slightly faster. Hell knows why.
-			for (var/datum/light_source/L in light_sources)
+		if (light_source_solo)
+			light_source_solo.source_atom.update_light()
+		else if (light_source_multi)
+			var/datum/light_source/L
+			var/thing
+			for (thing in light_source_multi)
+				L = thing
 				L.source_atom.update_light()
+
+		// Z-Mimic.
+		if (bound_overlay)
+			move_mimic(old_loc)
+
+		else if (isturf(loc) && (!old_loc || !TURF_IS_MIMICKING(old_loc) || old_loc.z != loc.z) && MOVABLE_SHALL_MIMIC(src) && MOVABLE_IS_BELOW_ZTURF(src))
+			SSzcopy.discover_movable(src)
+
+		if(isturf(loc))
+			var/turf/T = loc
+			if(REAGENT_TOTAL_VOLUME(T.reagents) && submerged())
+				fluid_act(T.reagents)
+
+		for(var/mob/viewer in storage?.storage_ui?.is_seeing)
+			if(!storage.can_view(viewer))
+				storage.close(viewer)
+
+/atom/movable/proc/move_mimic(atom/old_loc)
+	// Some types (like humantypes) change this per Move.
+	if (bound_overlay.glide_size != glide_size)
+		bound_overlay.glide_size = glide_size
+
+	if (bound_overlay.dir != dir)
+		bound_overlay.set_dir(dir)
+
+	// The overlay will handle cleaning itself up on non-openspace turfs. Moving to `get_step(UP)` is invalid here, since that might place us in an unrelated Z-group.
+	bound_overlay.forceMove(astype(loc, /turf)?.above || GetAbove(src))
 
 //called when src is thrown into hit_atom
 /atom/movable/proc/throw_impact(atom/hit_atom, var/datum/thrownthing/TT)
-	if(istype(hit_atom,/mob/living))
-		var/mob/living/M = hit_atom
-		M.hitby(src,TT)
-
-	else if(isobj(hit_atom))
-		var/obj/O = hit_atom
-		if(!O.anchored)
-			step(O, src.last_move)
-		O.hitby(src,TT)
-
-	else if(isturf(hit_atom))
-		var/turf/T = hit_atom
-		T.hitby(src,TT)
+	SHOULD_CALL_PARENT(TRUE)
+	if(istype(hit_atom) && !QDELETED(hit_atom))
+		hit_atom.hitby(src, TT)
 
 /atom/movable/proc/throw_at(atom/target, range, speed, mob/thrower, spin = TRUE, datum/callback/callback) //If this returns FALSE then callback will not be called.
+
 	. = TRUE
 	if (!target || speed <= 0 || QDELETED(src) || (target.z != src.z))
 		return FALSE
@@ -239,6 +331,8 @@
 	var/datum/thrownthing/TT = new(src, target, range, speed, thrower, callback)
 	throwing = TT
 
+	storage?.close_all()
+
 	pixel_z = 0
 	if(spin && does_spin)
 		SpinAnimation(4,1)
@@ -247,66 +341,25 @@
 	if (SSthrowing.state == SS_PAUSED && length(SSthrowing.currentrun))
 		SSthrowing.currentrun[src] = TT
 
-//Overlays
-/atom/movable/overlay
-	var/atom/master = null
-	var/follow_proc = /atom/movable/proc/move_to_loc_or_null
-	anchored = TRUE
-	simulated = FALSE
-
-/atom/movable/overlay/Initialize()
-	if(!loc)
-		crash_with("[type] created in nullspace.")
-		return INITIALIZE_HINT_QDEL
-	master = loc
-	SetName(master.name)
-	set_dir(master.dir)
-
-	if(istype(master, /atom/movable))
-		GLOB.moved_event.register(master, src, follow_proc)
-		SetInitLoc()
-
-	GLOB.destroyed_event.register(master, src, /datum/proc/qdel_self)
-	GLOB.dir_set_event.register(master, src, /atom/proc/recursive_dir_set)
-
-	. = ..()
-
-/atom/movable/overlay/proc/SetInitLoc()
-	forceMove(master.loc)
-
-/atom/movable/overlay/Destroy()
-	if(istype(master, /atom/movable))
-		GLOB.moved_event.unregister(master, src)
-	GLOB.destroyed_event.unregister(master, src)
-	GLOB.dir_set_event.unregister(master, src)
-	master = null
-	. = ..()
-
-/atom/movable/overlay/attackby(obj/item/I, mob/user)
-	if (master)
-		return master.attackby(I, user)
-
-/atom/movable/overlay/attack_hand(mob/user)
-	if (master)
-		return master.attack_hand(user)
-
-/atom/movable/proc/touch_map_edge()
+/atom/movable/proc/touch_map_edge(var/overmap_id)
 	if(!simulated)
 		return
 
-	if(!z || (z in GLOB.using_map.sealed_levels))
+	if(!z || isSealedLevel(z))
 		return
 
-	if(!GLOB.universe.OnTouchMapEdge(src))
+	if(!global.universe.OnTouchMapEdge(src))
 		return
 
-	if(GLOB.using_map.use_overmap)
-		overmap_spacetravel(get_turf(src), src)
-		return
+	if(overmap_id)
+		var/datum/overmap/overmap = global.overmaps_by_name[overmap_id]
+		if(overmap)
+			overmap.travel(get_turf(src), src)
+			return
 
 	var/new_x
 	var/new_y
-	var/new_z = GLOB.using_map.get_transit_zlevel(z)
+	var/new_z = global.using_map.get_transit_zlevel(z)
 	if(new_z)
 		if(x <= TRANSITIONEDGE)
 			new_x = world.maxx - TRANSITIONEDGE - 2
@@ -331,12 +384,306 @@
 /atom/movable/proc/get_bullet_impact_effect_type()
 	return BULLET_IMPACT_NONE
 
-/atom/movable/attack_hand(mob/living/user)
-	// Anchored check so we can operate switches etc on grab intent without getting grab failure msgs.
-	if(istype(user) && !user.lying && user.a_intent == I_GRAB && !anchored)
-		user.make_grab(src)
-		return 0
-	. = ..()
+/atom/movable/proc/pushed(var/pushdir)
+	set waitfor = FALSE
+	step(src, pushdir)
 
-/atom/movable/CanPass(atom/movable/mover, turf/target, height=1.5, air_group = 0)
-	. = ..() || (mover && !(mover.movable_flags & MOVABLE_FLAG_NONDENSE_COLLISION) && !mover.density)
+/**
+* A wrapper for setDir that should only be able to fail by living mobs.
+*
+* Called from [/atom/movable/proc/keyLoop], this exists to be overwritten by living mobs with a check to see if we're actually alive enough to change directions
+*/
+/atom/movable/proc/keybind_face_direction(direction)
+	return
+
+/atom/movable/proc/get_mob()
+	return get_buckled_mob()
+
+/atom/movable/proc/can_buckle_mob(var/mob/living/dropping)
+	. = (max_buckled_mobs && istype(dropping) && !dropping.buckled && !dropping.anchored && !dropping.has_buckled_mob() && length(get_buckled_mobs()) < max_buckled_mobs)
+
+/atom/movable/receive_mouse_drop(atom/dropping, mob/user, params)
+	. = ..()
+	if(!. && can_buckle_mob(dropping))
+		user_buckle_mob(dropping, user)
+		return TRUE
+
+/atom/movable/proc/buckle_mob(mob/living/buckling_mob)
+
+	var/list/buckle_mobs = get_buckled_mobs()
+	if(length(buckle_mobs) >= max_buckled_mobs || (buckling_mob in buckle_mobs))
+		return FALSE
+
+	if(!istype(buckling_mob) || (buckling_mob.loc != loc) || buckling_mob.buckled || LAZYLEN(buckling_mob.pinned) || (buckle_require_restraints && !buckling_mob.restrained()))
+		return FALSE
+
+	buckling_mob.buckled = src
+	buckling_mob.facing_dir = null
+	if(!buckle_allow_rotation)
+		buckling_mob.set_dir(buckle_dir ? buckle_dir : dir)
+	buckling_mob.update_posture()
+	buckling_mob.update_floating()
+	add_buckled_mob(buckling_mob)
+
+	if(buckle_sound)
+		playsound(src, buckle_sound, 20)
+
+	post_buckle_mob(buckling_mob)
+	return TRUE
+
+/atom/movable/proc/unbuckle_mobs()
+	while(has_buckled_mob())
+		unbuckle_mob()
+
+/atom/movable/proc/unbuckle_mob(mob/unbuckling)
+	unbuckling ||= pick(get_buckled_mobs())
+	if(!istype(unbuckling) || unbuckling.buckled != src || !(unbuckling in get_buckled_mobs()))
+		return
+	. = unbuckling
+	unbuckling.buckled = null
+	unbuckling.set_anchored(initial(unbuckling.anchored))
+	unbuckling.update_posture()
+	unbuckling.update_floating()
+	remove_buckled_mob(unbuckling)
+	post_buckle_mob(.)
+
+/atom/movable/proc/post_buckle_mob(mob/living/buckling_mob)
+	if(buckling_mob)
+		buckling_mob.reset_offsets(4)
+		buckling_mob.reset_plane_and_layer()
+	if(has_buckled_mob() && !(buckling_mob in get_buckled_mobs()))
+		refresh_buckled_mobs()
+
+/atom/movable/proc/user_buckle_mob(mob/living/buckling_mob, mob/user)
+	if(length(get_buckled_mobs()) >= max_buckled_mobs)
+		return FALSE
+	if(buckling_mob != user && user.incapacitated())
+		return FALSE
+	if(buckling_mob in get_buckled_mobs())
+		return FALSE
+	if(!buckling_mob.can_be_buckled(user))
+		return FALSE
+
+	add_fingerprint(user)
+	unbuckle_mob(buckling_mob)
+
+	//can't buckle unless you share locs so try to move buckling_mob to the obj if buckle_require_same_tile turned off.
+	if(buckling_mob.loc != src.loc)
+		if(buckle_require_same_tile)
+			return FALSE
+		buckling_mob.dropInto(loc)
+
+	. = buckle_mob(buckling_mob)
+	if(.)
+		show_buckle_message(buckling_mob, user)
+
+/atom/movable/proc/show_buckle_message(var/mob/buckled, var/mob/buckling)
+	if(buckled == buckling)
+		var/decl/pronouns/pronouns = buckled.get_pronouns()
+		visible_message(
+			SPAN_NOTICE("\The [buckled] buckles [pronouns.self] to \the [src]."),
+			SPAN_NOTICE("You buckle yourself to \the [src]."),
+			SPAN_NOTICE("You hear metal clanking.")
+		)
+	else
+		visible_message(
+			SPAN_NOTICE("\The [buckled] is buckled to \the [src] by \the [buckling]!"),
+			SPAN_NOTICE("You are buckled to \the [src] by \the [buckling]!"),
+			SPAN_NOTICE("You hear metal clanking.")
+		)
+
+/atom/movable/proc/user_unbuckle_mob(mob/user, mob/living/unbuckling_mob)
+	unbuckling_mob ||= unbuckle_mob()
+	if(unbuckling_mob)
+		show_unbuckle_message(unbuckling_mob, user)
+		for(var/obj/item/grab/grab as anything in (unbuckling_mob.grabbed_by|grabbed_by))
+			qdel(grab)
+		add_fingerprint(user)
+		unbuckle_mob(unbuckling_mob)
+	return unbuckling_mob
+
+/atom/movable/proc/show_unbuckle_message(var/mob/buckled, var/mob/buckling)
+	if(buckled == buckling)
+		var/decl/pronouns/pronouns = buckled.get_pronouns()
+		visible_message(
+			SPAN_NOTICE("\The [buckled] unbuckled [pronouns.self] from \the [src]!"),
+			SPAN_NOTICE("You unbuckle yourself from \the [src]."),
+			SPAN_NOTICE("You hear metal clanking.")
+		)
+	else
+		visible_message(
+			SPAN_NOTICE("\The [buckled] was unbuckled from \the [src] by \the [buckling]!"),
+			SPAN_NOTICE("You were unbuckled from \the [src] by \the [buckling]."),
+			SPAN_NOTICE("You hear metal clanking.")
+		)
+
+/atom/movable/proc/handle_buckled_relaymove(var/datum/movement_handler/mh, var/mob/mob, var/direction, var/mover)
+	return
+
+/atom/movable/proc/has_buckled_mob()
+	return length(get_buckled_mobs()) > 0
+
+/atom/movable/proc/get_buckled_mob(index = 1, mob/user)
+	// TODO: if user is a client mob, have them select a grabbed mob to remove.
+	// This will need refactoring as this proc is used a lot in attack_hand() etc.
+	var/list/buckle_mobs = get_buckled_mobs()
+	if(!islist(buckle_mobs) || index < 0 || index > length(buckle_mobs))
+		return null
+	return buckle_mobs[index]
+
+/atom/movable/proc/get_buckled_mobs()
+	return _buckled_mobs
+
+/atom/movable/proc/add_buckled_mob(mob/buckling_mob)
+	LAZYDISTINCTADD(_buckled_mobs, buckling_mob)
+
+/atom/movable/proc/remove_buckled_mob(mob/buckling_mob)
+	LAZYREMOVE(_buckled_mobs, buckling_mob)
+
+/atom/movable/singularity_act()
+	if(!simulated)
+		return 0
+	physically_destroyed()
+	if(!QDELETED(src))
+		qdel(src)
+	return 2
+
+/atom/movable/singularity_pull(S, current_size)
+	if(simulated && !anchored)
+		step_towards(src, S)
+
+/atom/movable/proc/crossed_mob(var/mob/living/victim)
+	return
+
+/atom/proc/get_object_size()
+	return ITEM_SIZE_NORMAL
+
+/atom/movable/get_manual_heat_source_coefficient()
+	return ..() * (get_object_size() / ITEM_SIZE_NORMAL)
+
+// TODO: account for reagents and matter.
+/atom/movable/get_thermal_mass()
+	if(!simulated)
+		return 0
+	return max(ITEM_SIZE_MIN, get_object_size()) * THERMAL_MASS_CONSTANT
+
+/atom/movable/get_thermal_mass_coefficient(delta)
+	if(!simulated)
+		return 0
+	return (max(ITEM_SIZE_MIN, MOB_SIZE_MIN) * THERMAL_MASS_CONSTANT) / get_thermal_mass()
+
+/atom/movable/proc/try_burn_wearer(var/mob/living/holder, var/held_slot, var/delay = 0)
+	set waitfor = FALSE
+
+	if(delay)
+		sleep(delay)
+
+	if(!held_slot || !istype(holder) || QDELETED(holder) || loc != holder)
+		return
+
+	// TODO: put these flags on the inventory slot or something.
+	var/check_slots
+	if(held_slot in global.all_hand_slots)
+		check_slots = SLOT_HANDS
+	else if(held_slot == BP_MOUTH || held_slot == BP_HEAD)
+		check_slots = SLOT_FACE
+
+	if(check_slots)
+		for(var/obj/item/covering in holder.get_covering_equipped_items(check_slots))
+			if(covering.max_heat_protection_temperature >= temperature)
+				return
+
+	// TODO: less simplistic messages and logic
+	var/datum/inventory_slot/slot = held_slot && holder.get_inventory_slot_datum(held_slot)
+	var/check_organ = slot?.requires_organ_tag
+	if(temperature >= holder.get_mob_temperature_threshold(HEAT_LEVEL_3, check_organ))
+		to_chat(holder, SPAN_DANGER("You are burned by \the [src]!"))
+	else if(temperature >= holder.get_mob_temperature_threshold(HEAT_LEVEL_2, check_organ))
+		if(prob(10))
+			to_chat(holder, SPAN_DANGER("\The [src] is uncomfortably hot..."))
+		return
+	else if(temperature <= holder.get_mob_temperature_threshold(COLD_LEVEL_3, check_organ))
+		to_chat(holder, SPAN_DANGER("You are frozen by \the [src]!"))
+	else if(temperature <= holder.get_mob_temperature_threshold(COLD_LEVEL_2, check_organ))
+		if(prob(10))
+			to_chat(holder, SPAN_DANGER("\The [src] is uncomfortably cold..."))
+		return
+	else
+		return
+
+	var/my_size = get_object_size()
+	var/burn_damage = rand(my_size, round(my_size * 1.5))
+	var/obj/item/organ/external/organ = check_organ && holder.get_organ(check_organ)
+	if(istype(organ))
+		organ.take_damage(burn_damage, BURN)
+	else
+		holder.take_damage(burn_damage, BURN)
+	if(held_slot in holder.get_held_item_slots())
+		holder.drop_from_inventory(src)
+	else
+		. = null // We might keep burning them next time.
+
+/atom/movable/proc/update_appearance_flags(add_flags, remove_flags)
+	var/old_appearance = appearance_flags
+	if(add_flags)
+		appearance_flags |= add_flags
+	if(remove_flags)
+		appearance_flags &= ~remove_flags
+	return old_appearance != appearance_flags
+
+/atom/movable/proc/end_throw(datum/thrownthing/TT)
+	throwing = null
+
+/atom/movable/proc/reset_movement_delay()
+	set_next_move_time(world.time)
+
+/atom/movable/proc/get_next_move_time()
+	var/datum/movement_handler/delay/delay = locate() in movement_handlers
+	return delay?.next_move
+
+/atom/movable/proc/set_next_move_time(new_time)
+	var/datum/movement_handler/delay/delay = locate() in movement_handlers
+	if(delay)
+		delay.next_move = new_time
+
+/atom/movable/get_affecting_weather()
+	var/turf/my_turf = get_turf(src)
+	if(!istype(my_turf))
+		return
+	var/turf/actual_loc = loc
+	// If we're standing in the rain, use the turf weather.
+	. = istype(actual_loc) && actual_loc.weather
+	if(!.) // If we're under or inside shelter, use the z-level rain (for ambience)
+		. = SSweather.weather_by_z[my_turf.z]
+
+/atom/movable/proc/handle_post_automoved(atom/old_loc)
+	return
+
+/atom/movable/take_vaporized_reagent(reagent, amount)
+	if(ATOM_IS_OPEN_CONTAINER(src))
+		return loc?.take_vaporized_reagent(reagent, amount)
+	return null
+
+/atom/movable/immune_to_floor_hazards()
+	return ..() || !!throwing
+
+/atom/movable/proc/set_anchored(new_anchored)
+	SHOULD_CALL_PARENT(TRUE)
+	if(anchored != new_anchored)
+		anchored = new_anchored
+		return TRUE
+	return FALSE
+
+// updates pixel offsets, triggers fluids, etc.
+/atom/movable/proc/on_turf_height_change(new_height)
+	if(simulated)
+		reset_offsets()
+		return TRUE
+	return FALSE
+
+/atom/movable/proc/get_cryogenic_power()
+	return 0
+
+// TODO reimplement this properly.
+/atom/movable/proc/is_incorporeal()
+	return !simulated

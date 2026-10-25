@@ -3,29 +3,32 @@
 
 	icon = 'icons/obj/atmos.dmi'
 	icon_state = "psiphon:0"
-	density = 1
+	density = TRUE
 	w_class = ITEM_SIZE_NORMAL
 	base_type = /obj/machinery/portable_atmospherics/powered/pump
+	atom_flags = ATOM_FLAG_CLIMBABLE
+	movable_flags = MOVABLE_FLAG_WHEELED
 
 	var/direction_out = 0 //0 = siphoning, 1 = releasing
 	var/target_pressure = ONE_ATMOSPHERE
 
 	var/pressuremin = 0
-	var/pressuremax = 10 * ONE_ATMOSPHERE
+	var/pressuremax = 10 ATM
 
-	volume = 1000
+	gas_volume = 1000
 
 	power_rating = 7500 //7500 W ~ 10 HP
 	power_losses = 150
 
 /obj/machinery/portable_atmospherics/powered/pump/filled
-	start_pressure = 90 * ONE_ATMOSPHERE
+	start_pressure = 90 ATM
 
 /obj/machinery/portable_atmospherics/powered/pump/Initialize()
 	. = ..()
 
 	var/list/air_mix = StandardAirMix()
-	src.air_contents.adjust_multi(/decl/material/gas/oxygen, air_mix[/decl/material/gas/oxygen], /decl/material/gas/nitrogen, air_mix[/decl/material/gas/nitrogen])
+	air_contents.adjust_gas(/decl/material/gas/oxygen, air_mix[/decl/material/gas/oxygen], FALSE)
+	air_contents.adjust_gas(/decl/material/gas/nitrogen, air_mix[/decl/material/gas/nitrogen])
 
 /obj/machinery/portable_atmospherics/powered/pump/on_update_icon()
 	overlays.Cut()
@@ -38,7 +41,7 @@
 	if(holding)
 		overlays += "siphon-open"
 
-	if(connected_port)
+	if(get_port())
 		overlays += "siphon-connector"
 
 /obj/machinery/portable_atmospherics/powered/pump/emp_act(severity)
@@ -73,11 +76,11 @@
 		var/air_temperature
 		if(direction_out)
 			pressure_delta = target_pressure - environment.return_pressure()
-			output_volume = environment.volume * environment.group_multiplier
+			output_volume = environment.total_volume * environment.group_multiplier
 			air_temperature = environment.temperature? environment.temperature : air_contents.temperature
 		else
 			pressure_delta = environment.return_pressure() - target_pressure
-			output_volume = air_contents.volume * air_contents.group_multiplier
+			output_volume = air_contents.total_volume * air_contents.group_multiplier
 			air_temperature = air_contents.temperature? air_contents.temperature : environment.temperature
 
 		var/transfer_moles = pressure_delta*output_volume/(air_temperature * R_IDEAL_GAS_EQUATION)
@@ -110,7 +113,7 @@
 /obj/machinery/portable_atmospherics/powered/pump/ui_interact(mob/user, ui_key = "rcon", datum/nanoui/ui=null, force_open=1)
 	var/list/data[0]
 	var/obj/item/cell/cell = get_cell()
-	data["portConnected"] = connected_port ? 1 : 0
+	data["portConnected"] = get_port() ? 1 : 0
 	data["tankPressure"] = round(air_contents.return_pressure() > 0 ? air_contents.return_pressure() : 0)
 	data["targetpressure"] = round(target_pressure)
 	data["pump_dir"] = direction_out
@@ -127,7 +130,7 @@
 
 	ui = SSnano.try_update_ui(user, src, ui_key, ui, data, force_open)
 	if (!ui)
-		ui = new(user, src, ui_key, "portpump.tmpl", "Portable Pump", 480, 410, state = GLOB.physical_state)
+		ui = new(user, src, ui_key, "portpump.tmpl", "Portable Pump", 480, 410, state = global.physical_topic_state)
 		ui.set_initial_data(data)
 		ui.open()
 		ui.set_auto_update(1)
@@ -146,7 +149,7 @@
 		. = TOPIC_REFRESH
 	if (href_list["pressure_adj"])
 		var/diff = text2num(href_list["pressure_adj"])
-		target_pressure = min(10*ONE_ATMOSPHERE, max(0, target_pressure+diff))
+		target_pressure = min(10 ATM, max(0, target_pressure+diff))
 		. = TOPIC_REFRESH
 
 	if(.)

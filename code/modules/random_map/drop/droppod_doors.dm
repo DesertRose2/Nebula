@@ -3,9 +3,9 @@
 	desc = "A drop pod door. Opens rapidly using explosive bolts."
 	icon = 'icons/obj/structures/droppod_door.dmi'
 	icon_state = "droppod_door_closed"
-	anchored = 1
-	density = 1
-	opacity = 1
+	anchored = TRUE
+	density = TRUE
+	opacity = TRUE
 	layer = ABOVE_DOOR_LAYER
 	var/deploying
 	var/deployed
@@ -13,40 +13,48 @@
 /obj/structure/droppod_door/Initialize(mapload, var/autoopen)
 	. = ..(mapload)
 	if(autoopen)
-		spawn(10 SECONDS)
-			deploy()
+		deploy(null, 10 SECONDS)
 
 /obj/structure/droppod_door/attack_ai(var/mob/user)
-	if(!user.Adjacent(src))
-		return
-	attack_hand(user)
+	return attack_hand_with_interaction_checks(user)
 
 /obj/structure/droppod_door/attack_hand(var/mob/user)
-	if(deploying) return
-	to_chat(user, "<span class='danger'>You prime the explosive bolts. Better get clear!</span>")
-	sleep(30)
-	deploy()
+	if(deploying)
+		return ..()
+	deploy(user, 3 SECONDS)
+	return TRUE
 
-/obj/structure/droppod_door/proc/deploy()
+/obj/structure/droppod_door/proc/deploy(var/mob/user, var/delay)
+	set waitfor = FALSE
+
 	if(deployed)
 		return
 
-	deployed = 1
-	visible_message("<span class='danger'>The explosive bolts on \the [src] detonate, throwing it open!</span>")
+	if(user)
+		to_chat(user, SPAN_DANGER("You prime the explosive bolts. Better get clear!"))
+	deployed = TRUE
+
+	if(delay)
+		sleep(delay)
+
+	if(QDELETED(src))
+		return
+
+	visible_message(SPAN_DANGER("The explosive bolts on \the [src] detonate, throwing it open!"))
 	playsound(src.loc, 'sound/effects/bang.ogg', 50, 1, 5)
 
 	// This is shit but it will do for the sake of testing.
 	for(var/obj/structure/droppod_door/D in orange(1,src))
 		if(D.deployed)
 			continue
-		D.deploy()
+		D.deploy(null, 0)
 
 	// Overwrite turfs.
 	var/turf/origin = get_turf(src)
-	origin.ChangeTurf(/turf/simulated/floor/reinforced)
+	origin.ChangeTurf(/turf/floor/reinforced)
 	origin.set_light(0) // Forcing updates
 	var/turf/T = get_step(origin, src.dir)
-	T.ChangeTurf(/turf/simulated/floor/reinforced)
+	T.ChangeTurf(/turf/floor/reinforced)
 	T.set_light(0) // Forcing updates
 
 	// Destroy turf contents.

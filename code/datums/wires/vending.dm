@@ -8,14 +8,14 @@
 		new /datum/wire_description(VENDING_WIRE_IDSCAN, "This wire is connected to the ID scanning panel.", SKILL_EXPERT)
 	)
 
-var/const/VENDING_WIRE_THROW = 1
-var/const/VENDING_WIRE_CONTRABAND = 2
-var/const/VENDING_WIRE_ELECTRIFY = 4
-var/const/VENDING_WIRE_IDSCAN = 8
+var/global/const/VENDING_WIRE_THROW = 1
+var/global/const/VENDING_WIRE_CONTRABAND = 2
+var/global/const/VENDING_WIRE_ELECTRIFY = 4
+var/global/const/VENDING_WIRE_IDSCAN = 8
 
 /datum/wires/vending/CanUse(var/mob/living/L)
 	var/obj/machinery/vending/V = holder
-	if(!istype(L, /mob/living/silicon))
+	if(!issilicon(L))
 		if(V.seconds_electrified)
 			if(V.shock(L, 100))
 				return 0

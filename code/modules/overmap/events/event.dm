@@ -1,33 +1,32 @@
-/var/decl/overmap_event_handler/overmap_event_handler = new()
-
 /decl/overmap_event_handler
 	var/list/hazard_by_turf
 	var/list/ship_events
 
-/decl/overmap_event_handler/New()
-	..()
+/decl/overmap_event_handler/Initialize()
+	. = ..()
 	hazard_by_turf = list()
 	ship_events = list()
 
-/decl/overmap_event_handler/proc/create_events(var/z_level, var/overmap_size, var/number_of_events)
-	// Acquire the list of not-yet utilized overmap turfs on this Z-level
-	var/list/candidate_turfs = block(locate(OVERMAP_EDGE, OVERMAP_EDGE, z_level),locate(overmap_size - OVERMAP_EDGE, overmap_size - OVERMAP_EDGE,z_level))
-	candidate_turfs = where(candidate_turfs, /proc/can_not_locate, /obj/effect/overmap/visitable)
+/decl/overmap_event_handler/proc/create_events(var/datum/overmap/overmap)
 
-	for(var/i = 1 to number_of_events)
+	if(!length(overmap.valid_event_types))
+		return
+
+	// Acquire the list of not-yet utilized overmap turfs on this Z-level
+	var/list/candidate_turfs = block(OVERMAP_EDGE, OVERMAP_EDGE, overmap.assigned_z, overmap.map_size_x - OVERMAP_EDGE, overmap.map_size_y - OVERMAP_EDGE, overmap.assigned_z)
+	candidate_turfs = where(candidate_turfs, /proc/can_not_locate, /obj/effect/overmap)
+
+	for(var/i = 1 to overmap.event_areas)
 		if(!candidate_turfs.len)
 			break
-		var/overmap_event_type = pick(subtypesof(/datum/overmap_event))
-		var/datum/overmap_event/datum_spawn = new overmap_event_type
+		var/decl/overmap_event/datum_spawn = GET_DECL(pick(overmap.valid_event_types))
 
 		var/list/event_turfs = acquire_event_turfs(datum_spawn.count, datum_spawn.radius, candidate_turfs, datum_spawn.continuous)
 		candidate_turfs -= event_turfs
 
 		for(var/event_turf in event_turfs)
-			var/type = pick(datum_spawn.hazards)
-			new type(event_turf)
-
-		qdel(datum_spawn)//idk help how do I do this better?
+			var/hazard_type = pick(datum_spawn.hazards)
+			new hazard_type(event_turf)
 
 /decl/overmap_event_handler/proc/acquire_event_turfs(var/number_of_turfs, var/distance_from_origin, var/list/candidate_turfs, var/continuous = TRUE)
 	number_of_turfs = min(number_of_turfs, candidate_turfs.len)
@@ -124,13 +123,13 @@
 
 	if(!active_hazards.len)
 		hazard_by_turf -= T
-		GLOB.entered_event.unregister(T, src, /decl/overmap_event_handler/proc/on_turf_entered)
-		GLOB.exited_event.unregister(T, src, /decl/overmap_event_handler/proc/on_turf_exited)
+		events_repository.unregister(/decl/observ/entered, T, src, PROC_REF(on_turf_entered))
+		events_repository.unregister(/decl/observ/exited,  T, src, PROC_REF(on_turf_exited))
 	else
 		hazard_by_turf |= T
 		hazard_by_turf[T] = active_hazards
-		GLOB.entered_event.register(T, src,/decl/overmap_event_handler/proc/on_turf_entered)
-		GLOB.exited_event.register(T, src, /decl/overmap_event_handler/proc/on_turf_exited)
+		events_repository.register(/decl/observ/entered, T, src, PROC_REF(on_turf_entered))
+		events_repository.register(/decl/observ/exited,  T, src, PROC_REF(on_turf_exited))
 
 	for(var/obj/effect/overmap/visitable/ship/ship in T)
 		for(var/datum/event/E in ship_events[ship])
@@ -144,7 +143,7 @@
 
 /decl/overmap_event_handler/proc/is_event_in_turf(var/datum/event/E, var/turf/T)
 	for(var/obj/effect/overmap/event/hazard in hazard_by_turf[T])
-		if(E in hazard.events && E.severity == hazard.difficulty)
+		if((E in hazard.events) && E.severity == hazard.difficulty)
 			return TRUE
 
 /decl/overmap_event_handler/proc/is_event_included(var/list/hazards, var/obj/effect/overmap/event/E, var/equal_or_better)//this proc is only used so it can break out of 2 loops cleanly
@@ -166,7 +165,6 @@
 	name = "event"
 	icon = 'icons/obj/overmap.dmi'
 	icon_state = "blank"
-	opacity = 1
 	color = "#880000"
 
 	// Events must be detected by sensors, but are otherwise instantly visible.
@@ -177,13 +175,12 @@
 	var/list/event_icon_states
 	var/difficulty = EVENT_LEVEL_MODERATE
 	var/weaknesses //if the BSA can destroy them and with what
-	var/list/victims //basically cached events on which Z level
 	var/list/colors = list() //Pick a color from this list on init
 
 /obj/effect/overmap/event/Initialize()
 	. = ..()
 	icon_state = pick(event_icon_states)
-	overmap_event_handler.update_hazards(loc)
+	SSmapping.overmap_event_handler.update_hazards(loc)
 	if(LAZYLEN(colors))
 		color = pick(colors)
 
@@ -191,20 +188,20 @@
 	var/turf/old_loc = loc
 	. = ..()
 	if(.)
-		overmap_event_handler.update_hazards(old_loc)
-		overmap_event_handler.update_hazards(loc)
+		SSmapping.overmap_event_handler.update_hazards(old_loc)
+		SSmapping.overmap_event_handler.update_hazards(loc)
 
 /obj/effect/overmap/event/forceMove(atom/destination)
 	var/old_loc = loc
 	. = ..()
 	if(.)
-		overmap_event_handler.update_hazards(old_loc)
-		overmap_event_handler.update_hazards(loc)
+		SSmapping.overmap_event_handler.update_hazards(old_loc)
+		SSmapping.overmap_event_handler.update_hazards(loc)
 
 /obj/effect/overmap/event/Destroy()//takes a look at this one as well, make sure everything is A-OK
 	var/turf/T = loc
 	. = ..()
-	overmap_event_handler.update_hazards(T)
+	SSmapping.overmap_event_handler.update_hazards(T)
 
 /obj/effect/overmap/event/meteor
 	name = "asteroid field"
@@ -217,7 +214,7 @@
 /obj/effect/overmap/event/electric
 	name = "electrical storm"
 	events = list(/datum/event/electrical_storm)
-	opacity = 0
+	opacity = FALSE
 	event_icon_states = list("electrical1", "electrical2", "electrical3", "electrical4")
 	difficulty = EVENT_LEVEL_MAJOR
 	weaknesses = OVERMAP_WEAKNESS_EMP
@@ -233,7 +230,7 @@
 /obj/effect/overmap/event/ion
 	name = "ion cloud"
 	events = list(/datum/event/ionstorm, /datum/event/computer_damage)
-	opacity = 0
+	opacity = FALSE
 	event_icon_states = list("ion1", "ion2", "ion3", "ion4")
 	difficulty = EVENT_LEVEL_MAJOR
 	weaknesses = OVERMAP_WEAKNESS_EMP
@@ -242,7 +239,7 @@
 /obj/effect/overmap/event/carp
 	name = "carp shoal"
 	events = list(/datum/event/carp_migration/overmap)
-	opacity = 0
+	opacity = FALSE
 	difficulty = EVENT_LEVEL_MODERATE
 	event_icon_states = list("carp1", "carp2")
 	weaknesses = OVERMAP_WEAKNESS_EXPLOSIVE | OVERMAP_WEAKNESS_FIRE
@@ -255,50 +252,48 @@
 	colors = list("#a709db", "#c228c7", "#c444e4")
 
 //These now are basically only used to spawn hazards. Will be useful when we need to spawn group of moving hazards
-/datum/overmap_event
+/decl/overmap_event
+	abstract_type = /decl/overmap_event
 	var/name = "map event"
 	var/radius = 2
 	var/count = 6
 	var/hazards
-	var/opacity = 1
 	var/continuous = TRUE //if it should form continous blob, or can have gaps
+	var/overmap_id = OVERMAP_ID_SPACE
 
-/datum/overmap_event/meteor
+/decl/overmap_event/meteor
 	name = "asteroid field"
 	count = 15
 	radius = 4
 	continuous = FALSE
 	hazards = /obj/effect/overmap/event/meteor
 
-/datum/overmap_event/electric
+/decl/overmap_event/electric
 	name = "electrical storm"
 	count = 11
 	radius = 3
-	opacity = 0
 	hazards = /obj/effect/overmap/event/electric
 
-/datum/overmap_event/dust
+/decl/overmap_event/dust
 	name = "dust cloud"
 	count = 16
 	radius = 4
 	hazards = /obj/effect/overmap/event/dust
 
-/datum/overmap_event/ion
+/decl/overmap_event/ion
 	name = "ion cloud"
 	count = 8
 	radius = 3
-	opacity = 0
 	hazards = /obj/effect/overmap/event/ion
 
-/datum/overmap_event/carp
+/decl/overmap_event/carp
 	name = "carp shoal"
 	count = 8
 	radius = 3
-	opacity = 0
 	continuous = FALSE
 	hazards = /obj/effect/overmap/event/carp
 
-/datum/overmap_event/carp/major
+/decl/overmap_event/carp/major
 	name = "carp school"
 	count = 5
 	radius = 4

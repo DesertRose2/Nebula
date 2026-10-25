@@ -1,4 +1,4 @@
-var/image/contamination_overlay = image('icons/effects/contamination.dmi')
+var/global/image/contamination_overlay = image('icons/effects/contamination.dmi')
 
 /contaminant_control
 	var/CONTAMINANT_DMG = 3
@@ -37,29 +37,19 @@ var/image/contamination_overlay = image('icons/effects/contamination.dmi')
 	var/N2O_HALLUCINATION_NAME = "N2O Hallucination"
 	var/N2O_HALLUCINATION_DESC = "Does being in sleeping gas cause you to hallucinate?"
 
-
-obj/var/contaminated = 0
-
-
-/obj/item/proc/can_contaminate()
-	//Clothing and backpacks can be contaminated.
-	if(obj_flags & ITEM_FLAG_NO_CONTAMINATION) return 0
-	else if(istype(src,/obj/item/storage/backpack)) return 0 //Cannot be washed :(
-	else if(istype(src,/obj/item/clothing)) return 1
-
 /obj/item/proc/contaminate()
 	//Do a contamination overlay? Temporary measure to keep contamination less deadly than it was.
 	if(!contaminated)
-		contaminated = 1
-		overlays += contamination_overlay
+		contaminated = TRUE
+		queue_icon_update()
 
 /obj/item/proc/decontaminate()
-	contaminated = 0
-	overlays -= contamination_overlay
+	contaminated = FALSE
+	queue_icon_update()
 
 /mob/proc/contaminate()
 
-/mob/living/carbon/human/contaminate()
+/mob/living/human/contaminate()
 	//See if anything can be contaminated.
 
 	if(!contaminant_suit_protected())
@@ -69,104 +59,88 @@ obj/var/contaminated = 0
 		if(prob(1)) suit_contamination() // Contaminants can sometimes get through such an open suit.
 
 //Cannot wash backpacks currently.
-//	if(istype(back,/obj/item/storage/backpack))
+//	if(istype(back,/obj/item/backpack))
 //		back.contaminate()
 
 /mob/proc/handle_contaminants()
 	return
 
-/mob/living/carbon/human/handle_contaminants()
+/mob/living/human/handle_contaminants()
 	//Handles all the bad things contaminants can do.
 
 	//Contamination
 	if(vsc.contaminant_control.CLOTH_CONTAMINATION) contaminate()
 
 	//Anything else requires them to not be dead.
-	if(stat >= 2)
+	if((stat >= DEAD) || (status_flags & GODMODE))
 		return
 
 	//Burn skin if exposed.
 	if(vsc.contaminant_control.SKIN_BURNS)
 		if(!contaminant_head_protected() || !contaminant_suit_protected())
-			burn_skin(0.75)
-			if(prob(20)) to_chat(src, "<span class='danger'>Your skin burns!</span>")
-			updatehealth()
+			if(prob(20))
+				to_chat(src, "<span class='danger'>Your skin burns!</span>")
+			take_overall_damage(0, 0.75)
 
 	//Burn eyes if exposed.
 	if(vsc.contaminant_control.EYE_BURNS)
-		if(!head)
-			if(!wear_mask)
-				burn_eyes()
-			else
-				if(!(wear_mask.body_parts_covered & EYES))
-					burn_eyes()
-		else
-			if(!(head.body_parts_covered & EYES))
-				if(!wear_mask)
-					burn_eyes()
-				else
-					if(!(wear_mask.body_parts_covered & EYES))
-						burn_eyes()
+		var/found_eyeguard = FALSE
+		for(var/slot in global.standard_headgear_slots)
+			var/obj/item/clothing/thing = get_equipped_item(slot)
+			if(istype(thing) && (thing.body_parts_covered & SLOT_EYES))
+				found_eyeguard = TRUE
+				break
+		if(!found_eyeguard)
+			burn_eyes()
 
 	//Genetic Corruption
 	if(vsc.contaminant_control.GENETIC_CORRUPTION)
 		if(rand(1,10000) < vsc.contaminant_control.GENETIC_CORRUPTION)
-			randmutb(src)
+			add_genetic_condition(pick(decls_repository.get_decls_of_type(/decl/genetic_condition/disability)))
 			to_chat(src, "<span class='danger'>High levels of toxins cause you to spontaneously mutate!</span>")
-			domutcheck(src,null)
 
-
-/mob/living/carbon/human/proc/burn_eyes()
-	var/obj/item/organ/internal/eyes/E = internal_organs_by_name[BP_EYES]
-	if(E && !E.contaminant_guard)
+/mob/living/human/proc/burn_eyes()
+	var/obj/item/organ/internal/eyes/eyes = get_organ(BP_EYES, /obj/item/organ/internal/eyes)
+	if(eyes && !eyes.bodytype.eye_contaminant_guard)
 		if(prob(20)) to_chat(src, "<span class='danger'>Your eyes burn!</span>")
-		E.damage += 2.5
-		eye_blurry = min(eye_blurry+1.5,50)
-		if (prob(max(0,E.damage - 15) + 1) &&!eye_blind)
+		eyes.adjust_organ_damage(2.5)
+		SET_STATUS_MAX(src, STAT_BLURRY, 50)
+		if (prob(max(0,eyes.get_organ_damage() - 15) + 1) && !GET_STATUS(src, STAT_BLIND))
 			to_chat(src, "<span class='danger'>You are blinded!</span>")
-			eye_blind += 20
+			SET_STATUS_MAX(src, STAT_BLIND, 20)
 
-/mob/living/carbon/human/proc/contaminant_head_protected()
+/mob/living/human/proc/contaminant_head_protected()
 	//Checks if the head is adequately sealed.
-	if(head)
-		if(vsc.contaminant_control.STRICT_PROTECTION_ONLY)
-			if(head.item_flags & ITEM_FLAG_NO_CONTAMINATION)
-				return 1
-		else if(head.body_parts_covered & EYES)
-			return 1
-	return 0
+	var/obj/item/head = get_equipped_item(slot_head_str)
+	if(!head)
+		return FALSE
+	// If strict protection is on, you must have a head item with ITEM_FLAG_NO_CONTAMINATION.
+	if(vsc.contaminant_control.STRICT_PROTECTION_ONLY)
+		if(!(head.item_flags & ITEM_FLAG_NO_CONTAMINATION))
+			return FALSE
+	// Regardless, the head item must cover the face and head. Eyes are checked seperately above.
+	return BIT_TEST_ALL(head.body_parts_covered, SLOT_HEAD|SLOT_FACE)
 
-/mob/living/carbon/human/proc/contaminant_suit_protected()
+/mob/living/human/proc/contaminant_suit_protected()
 	//Checks if the suit is adequately sealed.
 	var/coverage = 0
-	for(var/obj/item/protection in list(wear_suit, gloves, shoes))
-		if(!protection)
+	for(var/slot in list(slot_wear_suit_str, slot_gloves_str, slot_shoes_str))
+		var/obj/item/protection = get_equipped_item(slot)
+		if(!istype(protection))
 			continue
 		if(vsc.contaminant_control.STRICT_PROTECTION_ONLY && !(protection.item_flags & ITEM_FLAG_NO_CONTAMINATION))
-			return 0
+			return FALSE
 		coverage |= protection.body_parts_covered
 
 	if(vsc.contaminant_control.STRICT_PROTECTION_ONLY)
-		return 1
+		return TRUE
 
-	return BIT_TEST_ALL(coverage, UPPER_TORSO|LOWER_TORSO|LEGS|FEET|ARMS|HANDS)
+	return BIT_TEST_ALL(coverage, SLOT_UPPER_BODY|SLOT_LOWER_BODY|SLOT_LEGS|SLOT_FEET|SLOT_ARMS|SLOT_HANDS)
 
-/mob/living/carbon/human/proc/suit_contamination()
+/mob/living/human/proc/suit_contamination()
 	//Runs over the things that can be contaminated and does so.
-	if(w_uniform) w_uniform.contaminate()
-	if(shoes) shoes.contaminate()
-	if(gloves) gloves.contaminate()
+	for(var/slot in list(slot_w_uniform_str, slot_shoes_str, slot_gloves_str))
+		var/obj/item/gear = get_equipped_item(slot)
+		if(istype(gear))
+			gear.contaminate()
 
-
-turf/Entered(obj/item/I)
-	. = ..()
-	//Items that are in contaminants, but not on a mob, can still be contaminated.
-	if(istype(I) && vsc && vsc.contaminant_control.CLOTH_CONTAMINATION && I.can_contaminate())
-		var/datum/gas_mixture/env = return_air(1)
-		if(!env)
-			return
-		for(var/g in env.gas)
-			var/decl/material/mat = decls_repository.get_decl(g)
-			if((mat.gas_flags & XGM_GAS_CONTAMINANT) && env.gas[g] > mat.gas_overlay_limit + 1)
-				I.contaminate()
-				break

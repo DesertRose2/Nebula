@@ -1,12 +1,12 @@
+var/global/list/pai_cards = list()
 /obj/item/paicard
 	name = "personal AI device"
 	icon = 'icons/obj/items/device/pai.dmi'
-	icon_state = "pai"
-	item_state = "electronic"
+	icon_state = ICON_STATE_WORLD
 	w_class = ITEM_SIZE_SMALL
-	slot_flags = SLOT_BELT
-	origin_tech = "{'programming':2}"
-	material = /decl/material/solid/glass
+	slot_flags = SLOT_LOWER_BODY
+	origin_tech = @'{"programming":2}'
+	material = /decl/material/solid/fiberglass
 	matter = list(/decl/material/solid/metal/steel = MATTER_AMOUNT_REINFORCEMENT)
 
 	var/current_emotion = 1
@@ -15,20 +15,24 @@
 	var/mob/living/silicon/pai/pai
 
 /obj/item/paicard/relaymove(var/mob/user, var/direction)
-	if(user.stat || user.stunned)
+	if(user.incapacitated(INCAPACITATION_KNOCKOUT))
 		return
-	var/obj/item/rig/rig = src.get_rig()
-	if(istype(rig))
+	var/obj/item/rig/rig = get_rig()
+	if(rig)
 		rig.forced_move(direction, user)
 
 /obj/item/paicard/Initialize()
 	. = ..()
-	overlays += "pai-off"
+	global.pai_cards += src
+
+/obj/item/paicard/preserve_in_cryopod(var/obj/machinery/cryopod/pod)
+	return TRUE
 
 /obj/item/paicard/Destroy()
+	global.pai_cards -= src
 	//Will stop people throwing friend pAIs into the singularity so they can respawn
 	if(!isnull(pai))
-		pai.death(0)
+		pai.death()
 	QDEL_NULL(radio)
 	return ..()
 
@@ -47,7 +51,7 @@
 					    color:white;
 					    font-size:13px;
 					    background-image:url('uiBackground.png');
-					    background-repeat:repeat-x;
+					    background-repeat:repeat;
 					    background-color:#272727;
 						background-position:center top;
 					}
@@ -241,14 +245,14 @@
 	if(href_list["setdna"])
 		if(pai.master_dna)
 			return
-		var/mob/M = usr
-		if(!istype(M, /mob/living/carbon))
-			to_chat(usr, "<span class='notice'>You don't have any DNA, or your DNA is incompatible with this device.</span>")
+		var/unique_enzymes = usr.get_unique_enzymes()
+		if(unique_enzymes)
+			pai.master     = usr.real_name
+			pai.master_dna = unique_enzymes
+			to_chat(pai, SPAN_NOTICE("You have been bound to a new master."))
 		else
-			var/datum/dna/dna = usr.dna
-			pai.master = M.real_name
-			pai.master_dna = dna.unique_enzymes
-			to_chat(pai, "<span class='warning'>You have been bound to a new master.</span>")
+			to_chat(usr, SPAN_WARNING("You don't have any DNA, or your DNA is incompatible with this device."))
+
 	if(href_list["request"])
 		src.looking_for_personality = 1
 		paiController.findPAI(src, usr)
@@ -256,19 +260,19 @@
 		var/confirm = input("Are you CERTAIN you wish to delete the current personality? This action cannot be undone.", "Personality Wipe") in list("Yes", "No")
 		if(confirm == "Yes")
 			for(var/mob/M in src)
-				to_chat(M, "<font color = #ff0000><h2>You feel yourself slipping away from reality.</h2></font>")
-				to_chat(M, "<font color = #ff4d4d><h3>Byte by byte you lose your sense of self.</h3></font>")
-				to_chat(M, "<font color = #ff8787><h4>Your mental faculties leave you.</h4></font>")
-				to_chat(M, "<font color = #ffc4c4><h5>oblivion... </h5></font>")
-				M.death(0)
+				to_chat(M, SPAN_RED("<h2>You feel yourself slipping away from reality.</h2>"))
+				to_chat(M, SPAN_ORANGE("<h3>Byte by byte you lose your sense of self.</h3>"))
+				to_chat(M, SPAN_PINK("<h4>Your mental faculties leave you.</h4>"))
+				to_chat(M, SPAN_PALEPINK("<h5>oblivion... </h5>"))
+				M.death()
 			removePersonality()
 	if(href_list["wires"])
 		var/t1 = text2num(href_list["wires"])
 		switch(t1)
 			if(4)
-				radio.ToggleBroadcast()
+				radio.toggle_broadcast()
 			if(2)
-				radio.ToggleReception()
+				radio.toggle_reception()
 	if(href_list["setlaws"])
 		var/newlaws = sanitize(input("Enter any additional directives you would like your pAI personality to follow. Note that these directives will not override the personality's allegiance to its imprinted master. Conflicting directives will be ignored.", "pAI Directive Configuration", pai.pai_laws) as message)
 		if(newlaws)
@@ -284,38 +288,41 @@
 
 /obj/item/paicard/proc/setPersonality(mob/living/silicon/pai/personality)
 	src.pai = personality
-	src.overlays += "pai-happy"
+	src.add_overlay("pai-happy")
 
 /obj/item/paicard/proc/removePersonality()
 	src.pai = null
-	src.overlays.Cut()
-	src.overlays += "pai-off"
+	src.add_overlay("pai-off")
 
 /obj/item/paicard/proc/setEmotion(var/emotion)
 	if(pai)
-		src.overlays.Cut()
-		switch(emotion)
-			if(1) src.overlays += "pai-happy"
-			if(2) src.overlays += "pai-cat"
-			if(3) src.overlays += "pai-extremely-happy"
-			if(4) src.overlays += "pai-face"
-			if(5) src.overlays += "pai-laugh"
-			if(6) src.overlays += "pai-off"
-			if(7) src.overlays += "pai-sad"
-			if(8) src.overlays += "pai-angry"
-			if(9) src.overlays += "pai-what"
-			if(10) src.overlays += "pai-neutral"
-			if(11) src.overlays += "pai-silly"
-			if(12) src.overlays += "pai-nose"
-			if(13) src.overlays += "pai-smirk"
-			if(14) src.overlays += "pai-exclamation"
-			if(15) src.overlays += "pai-question"
 		current_emotion = emotion
+		update_icon()
+
+/obj/item/paicard/on_update_icon()
+	. = ..()
+	if(pai)
+		switch(current_emotion)
+			if(1)  add_overlay("pai-happy")
+			if(2)  add_overlay("pai-cat")
+			if(3)  add_overlay("pai-extremely-happy")
+			if(4)  add_overlay("pai-face")
+			if(5)  add_overlay("pai-laugh")
+			if(6)  add_overlay("pai-off")
+			if(7)  add_overlay("pai-sad")
+			if(8)  add_overlay("pai-angry")
+			if(9)  add_overlay("pai-what")
+			if(10) add_overlay("pai-neutral")
+			if(11) add_overlay("pai-silly")
+			if(12) add_overlay("pai-nose")
+			if(13) add_overlay("pai-smirk")
+			if(14) add_overlay("pai-exclamation")
+			if(15) add_overlay("pai-question")
 
 /obj/item/paicard/proc/alertUpdate()
-	var/turf/T = get_turf_or_move(src.loc)
-	for (var/mob/M in viewers(T))
-		M.show_message("<span class='notice'>\The [src] flashes a message across its screen, \"Additional personalities available for download.\"</span>", 3, "<span class='notice'>\The [src] bleeps electronically.</span>", 2)
+	visible_message( \
+		message = SPAN_NOTICE("\The [src] flashes a message across its screen, \"Additional personalities available for download.\""), \
+		blind_message = SPAN_NOTICE("\The [src] bleeps electronically."))
 
 /obj/item/paicard/emp_act(severity)
 	for(var/mob/M in src)
@@ -329,13 +336,7 @@
 		else
 			qdel(src)
 
-/obj/item/paicard/see_emote(mob/living/M, text)
-	if(pai && pai.client && pai.stat == CONSCIOUS)
-		var/rendered = "<span class='message'>[text]</span>"
-		pai.show_message(rendered, 2)
-	..()
-
-/obj/item/paicard/show_message(msg, type, alt, alt_type)
+/obj/item/paicard/show_message(msg, type, alt, alt_type, atom/source)
 	if(pai && pai.client)
 		var/rendered = "<span class='message'>[msg]</span>"
 		pai.show_message(rendered, type)

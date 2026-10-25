@@ -1,47 +1,40 @@
 /mob/living/simple_animal/hostile/tree
 	name = "pine tree"
 	desc = "A pissed off tree-like alien. It seems annoyed with the festivities..."
-	icon = 'icons/obj/flora/pinetrees.dmi'
-	icon_state = "pine_1"
-	icon_living = "pine_1"
-	icon_dead = "pine_1"
-	icon_gib = "pine_1"
-	speak_chance = 0
-	turns_per_move = 5
-	meat_type = /obj/item/chems/food/snacks/fish
-	response_help = "brushes"
-	response_disarm = "pushes"
-	response_harm = "hits"
-	speed = -1
-	maxHealth = 250
-	health = 250
-
+	icon = 'icons/mob/simple_animal/pinetree.dmi'
+	butchery_data = null
+	max_health = 250
 	pixel_x = -16
-
 	harm_intent_damage = 5
 	natural_weapon = /obj/item/natural_weapon/bite
+	ai = /datum/mob_controller/aggressive/tree
+	base_movement_delay = -1
 
+	// For 12 years, this comment has implied trees are a kind of space carp.
 	//Space carp aren't affected by atmos.
 	min_gas = null
 	max_gas = null
 	minbodytemp = 0
-
 	faction = "carp"
 
-/mob/living/simple_animal/hostile/tree/FindTarget()
+/datum/mob_controller/aggressive/tree
+	speak_chance = 0
+	turns_per_wander = 10
+
+/datum/mob_controller/aggressive/tree/find_target()
 	. = ..()
 	if(.)
-		audible_emote("growls at [.]")
+		body.custom_emote(AUDIBLE_MESSAGE, "growls at [.]")
 
-/mob/living/simple_animal/hostile/tree/AttackingTarget()
-	. =..()
-	var/mob/living/L = .
-	if(istype(L))
-		if(prob(15))
-			L.Weaken(3)
-			L.visible_message("<span class='danger'>\the [src] knocks down \the [L]!</span>")
+/mob/living/simple_animal/hostile/tree/check_has_mouth()
+	return FALSE
 
-/mob/living/simple_animal/hostile/tree/death(gibbed, deathmessage, show_dead_message)
-	..(null,"is hacked into pieces!", show_dead_message)
-	new /obj/item/stack/material/wood(loc)
-	qdel(src)
+/mob/living/simple_animal/hostile/tree/get_death_message(gibbed)
+	return "is hacked into pieces!"
+
+/mob/living/simple_animal/hostile/tree/death(gibbed)
+	. = ..()
+	if(. && !gibbed)
+		var/decl/material/mat = GET_DECL(/decl/material/solid/organic/wood/oak)
+		mat.place_shards(loc)
+		qdel(src)

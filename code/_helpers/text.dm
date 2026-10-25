@@ -14,67 +14,103 @@
  */
 
 // Run all strings to be used in an SQL query through this proc first to properly escape out injection attempts.
-/proc/sanitizeSQL(var/t as text)
-	var/sqltext = dbcon.Quote(t);
-	return copytext(sqltext, 2, length(sqltext));//Quote() adds quotes around input, we already do that
+/proc/sanitize_sql(t)
+	var/sqltext = dbcon.Quote("[t]") // http://www.byond.com/forum/post/2218538
+	return copytext(sqltext, 2, -1)
 
 /*
  * Text sanitization
  */
 
+/**
+ * Strip out the special beyond characters for \proper and \improper
+ * from text that will be sent to the browser.
+ */
+#define strip_improper(input_text) replacetext(replacetext(input_text, "\proper", ""), "\improper", "")
+var/global/regex/starts_uppercase_regex = regex(@"^[A-Z]")
+var/global/regex/starts_lowercase_regex = regex(@"^[a-z]")
+#define is_proper(input_text) ((findtext(input_text, "\proper") == 1) || findtext(input_text, starts_uppercase_regex))
+#define is_improper(input_text) ((findtext(input_text, "\improper") == 1 || findtext(input_text, starts_lowercase_regex)))
+
 //Used for preprocessing entered text
 //Added in an additional check to alert players if input is too long
-/proc/sanitize(var/input, var/max_length = MAX_MESSAGE_LEN, var/encode = 1, var/trim = 1, var/extra = 1)
+/proc/sanitize(input, max_length = MAX_MESSAGE_LEN, encode = TRUE, trim = TRUE, extra = TRUE, ascii_only = FALSE)
 	if(!input)
 		return
 
 	if(max_length)
-		//testing shows that just looking for > max_length alone will actually cut off the final character if message is precisely max_length, so >= instead
-		if(length(input) >= max_length)
-			var/overflow = ((length(input)+1) - max_length)
-			to_chat(usr, "<span class='warning'>Your message is too long by [overflow] character\s.</span>")
+		var/input_length = length_char(input)
+		if(input_length > max_length)
+			to_chat(usr, SPAN_WARNING("Your message is too long by [input_length - max_length] character\s."))
 			return
-		input = copytext(input,1,max_length)
+		input = copytext_char(input, 1, max_length + 1)
+
+	input = strip_improper(input)
 
 	if(extra)
 		input = replace_characters(input, list("\n"=" ","\t"=" "))
 
+	if(ascii_only)
+		// Some procs work differently depending on unicode/ascii string
+		// You should always consider this with any text processing work
+		// More: http://www.byond.com/docs/ref/info.html#/{notes}/Unicode
+		//       http://www.byond.com/forum/post/2520672
+		input = strip_non_ascii(input)
+	else
+		// Strip Unicode control/space-like chars here exept for line endings (\n,\r) and normal space (0x20)
+		// codes from https://www.compart.com/en/unicode/category/
+		//            https://en.wikipedia.org/wiki/Whitespace_character#Unicode
+		var/static/regex/unicode_control_chars = regex(@"[\u0001-\u0009\u000B\u000C\u000E-\u001F\u007F\u0080-\u009F\u00A0\u1680\u180E\u2000-\u200D\u2028\u2029\u202F\u205F\u2060\u3000\uFEFF]", "g")
+		input = unicode_control_chars.Replace(input, "")
+		// Allows at most one Unicode combining diacritical mark in a row
+		// Codes acquired from https://en.wikipedia.org/wiki/Combining_Diacritical_Marks
+		//                     https://en.wikipedia.org/wiki/Combining_Diacritical_Marks_Extended
+		//                     https://en.wikipedia.org/wiki/Combining_Diacritical_Marks_Supplement
+		//                     https://en.wikipedia.org/wiki/Combining_Diacritical_Marks_for_Symbols
+		//                     https://en.wikipedia.org/wiki/Combining_Half_Marks
+		var/static/regex/unicode_diacritical_marks = regex(@"([\u0300-\u036F\u1AB0-\u1ACE\u1DC0-\u1DFF\u20D0-\u20F0\uFE20-\uFE2F]){2,}", "g")
+		input = unicode_diacritical_marks.Replace(input, "$1")
+
 	if(encode)
-		// The below \ escapes have a space inserted to attempt to enable Travis auto-checking of span class usage. Please do not remove the space.
-		//In addition to processing html, html_encode removes byond formatting codes like "\ red", "\ i" and other.
-		//It is important to avoid double-encode text, it can "break" quotes and some other characters.
-		//Also, keep in mind that escaped characters don't work in the interface (window titles, lower left corner of the main window, etc.)
+		// In addition to processing html, html_encode removes byond formatting codes like "\red", "\i" and other.
+		// It is important to avoid double-encode text, it can "break" quotes and some other characters.
+		// Also, keep in mind that escaped characters don't work in the interface (window titles, lower left corner of the main window, etc.)
 		input = html_encode(input)
 	else
-		//If not need encode text, simply remove < and >
-		//note: we can also remove here byond formatting codes: 0xFF + next byte
+		// If not need encode text, simply remove < and >
+		// note: we can also remove here byond formatting codes: 0xFF + next byte
 		input = replace_characters(input, list("<"=" ", ">"=" "))
 
 	if(trim)
-		//Maybe, we need trim text twice? Here and before copytext?
 		input = trim(input)
 
 	return input
 
-//Run sanitize(), but remove <, >, " first to prevent displaying them as &gt; &lt; &34; in some places, after html_encode().
+//Run sanitize(), but remove <, >, " first to prevent displaying them as &gt; &lt; &34; in some places after html_encode().
 //Best used for sanitize object names, window titles.
-//If you have a problem with sanitize() in chat, when quotes and >, < are displayed as html entites -
-//this is a problem of double-encode(when & becomes &amp;), use sanitize() with encode=0, but not the sanitizeSafe()!
-/proc/sanitizeSafe(var/input, var/max_length = MAX_MESSAGE_LEN, var/encode = 1, var/trim = 1, var/extra = 1)
-	return sanitize(replace_characters(input, list(">"=" ","<"=" ", "\""="'")), max_length, encode, trim, extra)
+//If you have a problem with sanitize() in chat, when quotes and >, < are displayed as html entities -
+//this is a problem of double-encode(when & becomes &amp;), use sanitize() with encode=0, but not the sanitize_safe()!
+/proc/sanitize_safe(input, max_length = MAX_MESSAGE_LEN, encode = TRUE, trim = TRUE, extra = TRUE, ascii_only = FALSE)
+	return sanitize(replace_characters(input, list(">"=" ","<"=" ", "\""="'")), max_length, encode, trim, extra, ascii_only)
 
 //Filters out undesirable characters from names
-/proc/sanitizeName(var/input, var/max_length = MAX_NAME_LEN, var/allow_numbers = 0, var/force_first_letter_uppercase = TRUE)
-	if(!input || length(input) > max_length)
+/proc/sanitize_name(input, max_length = MAX_NAME_LEN, allow_numbers = 0, force_first_letter_uppercase = TRUE)
+	if(!input || length_char(input) > max_length)
 		return //Rejects the input if it is null or if it is longer then the max length allowed
 
 	var/number_of_alphanumeric	= 0
 	var/last_char_group			= 0
 	var/output = ""
 
-	for(var/i=1, i<=length(input), i++)
-		var/ascii_char = text2ascii(input,i)
-		switch(ascii_char)
+	var/char = ""
+	var/bytes_length = length(input)
+	var/ascii_char
+	for(var/i = 1, i <= bytes_length, i += length(char))
+		char = input[i]
+
+		ascii_char = text2ascii(char)
+
+		switch(ascii_char) //todo: unicode names?
 			// A  .. Z
 			if(65 to 90)			//Uppercase Letters
 				output += ascii2text(ascii_char)
@@ -122,38 +158,106 @@
 	if(number_of_alphanumeric < 2)	return		//protects against tiny names like "A" and also names like "' ' ' ' ' ' ' '"
 
 	if(last_char_group == 1)
-		output = copytext(output,1,length(output))	//removes the last character (in this case a space)
-
-	for(var/bad_name in list("space","floor","wall","r-wall","monkey","unknown","inactive ai","plating"))	//prevents these common metagamey names
-		if(cmptext(output,bad_name))	return	//(not case sensitive)
+		output = copytext(output, 1, -1)	//removes the last character (in this case a space)
 
 	return output
 
+// UNICODE: Convert to regex?
+
 //Used to strip text of everything but letters and numbers, make letters lowercase, and turn spaces into .'s.
 //Make sure the text hasn't been encoded if using this.
-/proc/sanitize_for_email(text)
+/proc/sanitize_for_account(text)
 	if(!text) return ""
 	var/list/dat = list()
-	var/last_was_space = 1
+	var/last_was_fullstop = 1
 	for(var/i=1, i<=length(text), i++)
 		var/ascii_char = text2ascii(text,i)
 		switch(ascii_char)
 			if(65 to 90)	//A-Z, make them lowercase
 				dat += ascii2text(ascii_char + 32)
+				last_was_fullstop = 0
 			if(97 to 122)	//a-z
 				dat += ascii2text(ascii_char)
-				last_was_space = 0
+				last_was_fullstop = 0
 			if(48 to 57)	//0-9
 				dat += ascii2text(ascii_char)
-				last_was_space = 0
+				last_was_fullstop = 0
 			if(32)			//space
-				if(last_was_space)
+				if(last_was_fullstop)
 					continue
 				dat += "."		//We turn these into ., but avoid repeats or . at start.
-				last_was_space = 1
+				last_was_fullstop = 1
+			if(46)			//.
+				if(last_was_fullstop)
+					continue
+				dat += "."
+				last_was_fullstop = 1
 	if(dat[length(dat)] == ".")	//kill trailing .
 		dat.Cut(length(dat))
 	return jointext(dat, null)
+
+// Strips text of everything alphanumeric characters, '_' and '-'. Converts spaces to '_'
+/proc/sanitize_for_group(text)
+	if(!text) return ""
+	var/list/dat = list()
+	for(var/i=1, i<=length(text), i++)
+		var/ascii_char = text2ascii(text,i)
+		switch(ascii_char)
+			if(65 to 90)	//A-Z
+				dat += ascii2text(ascii_char)
+			if(97 to 122)	//a-z
+				dat += ascii2text(ascii_char)
+			if(48 to 57)	//0-9
+				dat += ascii2text(ascii_char)
+			if(45, 95)			//-, _
+				dat += ascii2text(ascii_char)
+			if(32)			//space
+				dat += "_"
+	return jointext(dat, null)
+
+//Used to strip text of everything but letters and numbers, and select special symbols.
+//Requires that the filename has an alphanumeric character.
+/proc/sanitize_for_file(text)
+	if(!text) return ""
+	var/list/dat = list()
+	var/has_alphanumeric = FALSE
+	var/last_was_fullstop = FALSE
+	for(var/i=1, i<=length(text), i++)
+		var/ascii_char = text2ascii(text,i)
+		switch(ascii_char)
+			if(65 to 90)	//A-Z
+				dat += ascii2text(ascii_char)
+				has_alphanumeric = TRUE
+				last_was_fullstop = FALSE
+			if(97 to 122)	//a-z
+				dat += ascii2text(ascii_char)
+				has_alphanumeric = TRUE
+				last_was_fullstop = FALSE
+			if(48 to 57)	//0-9
+				dat += ascii2text(ascii_char)
+				has_alphanumeric = TRUE
+				last_was_fullstop = FALSE
+			if(32)			//space
+				dat += ascii2text(ascii_char)
+				last_was_fullstop = FALSE
+			if(33, 36, 40, 41, 42, 45, 95) //!, $, (, ), *, -, _
+				dat += ascii2text(ascii_char)
+				last_was_fullstop = FALSE
+			if(46)			//.
+				if(last_was_fullstop) // No repeats of . to avoid confusion with ..
+					continue
+				dat += ascii2text(ascii_char)
+				last_was_fullstop = TRUE
+
+	if(!has_alphanumeric)
+		return ""
+
+	if(dat[length(dat)] == ".")	//kill trailing .
+		dat.Cut(length(dat))
+	return jointext(dat, null)
+
+
+// UNICODE: Convert to regex?
 
 //Returns null if there is any bad text in the string
 /proc/reject_bad_text(var/text, var/max_length=512)
@@ -210,7 +314,7 @@
  * Text modification
  */
 
-/proc/replace_characters(var/t,var/list/repl_chars)
+/proc/replace_characters(t, list/repl_chars)
 	for(var/char in repl_chars)
 		t = replacetext(t, char, repl_chars[char])
 	return t
@@ -219,24 +323,16 @@
 /proc/add_zero(t, u)
 	return pad_left(t, u, "0")
 
-//Adds 'u' number of spaces ahead of the text 't'
-/proc/add_lspace(t, u)
-	return pad_left(t, u, " ")
-
-//Adds 'u' number of spaces behind the text 't'
-/proc/add_tspace(t, u)
-	return pad_right(t, u, " ")
-
 // Adds the required amount of 'character' in front of 'text' to extend the lengh to 'desired_length', if it is shorter
 // No consideration are made for a multi-character 'character' input
 /proc/pad_left(text, desired_length, character)
-	var/padding = generate_padding(length(text), desired_length, character)
+	var/padding = generate_padding(length_char(text), desired_length, character)
 	return length(padding) ? "[padding][text]" : text
 
 // Adds the required amount of 'character' after 'text' to extend the lengh to 'desired_length', if it is shorter
 // No consideration are made for a multi-character 'character' input
 /proc/pad_right(text, desired_length, character)
-	var/padding = generate_padding(length(text), desired_length, character)
+	var/padding = generate_padding(length_char(text), desired_length, character)
 	return length(padding) ? "[text][padding]" : text
 
 /proc/generate_padding(current_length, desired_length, character)
@@ -247,32 +343,69 @@
 		characters += character
 	return JOINTEXT(characters)
 
-
-//Returns a string with reserved characters and spaces before the first letter removed
+// Returns a string with reserved characters and spaces before the first letter removed
+// not work for unicode spaces - you should cleanup them first with sanitize()
 /proc/trim_left(text)
 	for (var/i = 1 to length(text))
 		if (text2ascii(text, i) > 32)
 			return copytext(text, i)
 	return ""
 
-//Returns a string with reserved characters and spaces after the last letter removed
+// Returns a string with reserved characters and spaces after the last letter removed
+// not work for unicode spaces - you should cleanup them first with sanitize()
 /proc/trim_right(text)
 	for (var/i = length(text), i > 0, i--)
 		if (text2ascii(text, i) > 32)
 			return copytext(text, 1, i + 1)
+
 	return ""
 
-//Returns a string with reserved characters and spaces before the first word and after the last word removed.
+// Returns a string with reserved characters and spaces before the first word and after the last word removed.
+// not work for unicode spaces - you should cleanup them first with sanitize()
 /proc/trim(text)
 	return trim_left(trim_right(text))
 
+/// Adds punctuation to an emote or speech message automatically.
+/proc/handle_autopunctuation(message)
+	if(!message)
+		return
+	var/end_char = copytext_char(trim_right(strip_html_properly(message)), -1)
+	if(!(end_char in list(".", "?", "!", "-", "~")))
+		message += "."
+	return message
+
 //Returns a string with the first element of the string capitalized.
-/proc/capitalize(var/t as text)
-	return uppertext(copytext(t, 1, 2)) + copytext(t, 2)
+// NOTE: This will not work if there are any HTML tags.
+/proc/capitalize(text)
+	if(text)
+		text = uppertext(text[1]) + copytext(text, 1 + length(text[1]))
+	return text
+
+// Returns a string with the first alphabetical element of the string capitalized, skipping HTML tags.
+/proc/capitalize_proper_html(text)
+	var/static/regex/split_html_regex = regex(@"(^<[^>]*>)([A-Za-z])(.+)$")
+	if(!text)
+		return text
+	if(!split_html_regex.Find(text))
+		return capitalize(text)
+	split_html_regex.group[2] = uppertext(split_html_regex.group[2])
+	return JOINTEXT(split_html_regex.group)
+
+//Returns a string with the first element of the every word of the string capitalized.
+/proc/capitalize_words(text)
+	var/list/S = splittext(text, " ")
+	var/list/M = list()
+	for (var/w in S)
+		M += capitalize(w)
+	return jointext(M, " ")
+
+/proc/strip_non_ascii(text)
+	var/static/regex/non_ascii_regex = regex(@"[^\x00-\x7F]+", "g")
+	return non_ascii_regex.Replace(text, "")
 
 //This proc strips html properly, remove < > and all text between
 //for complete text sanitizing should be used sanitize()
-/proc/strip_html_properly(var/input)
+/proc/strip_html_properly(input)
 	if(!input)
 		return
 	var/opentag = 1 //These store the position of < and > respectively.
@@ -295,48 +428,9 @@
 
 	return input
 
-//This proc fills in all spaces with the "replace" var (* by default) with whatever
-//is in the other string at the same spot (assuming it is not a replace char).
-//This is used for fingerprints
-/proc/stringmerge(var/text,var/compare,replace = "*")
-	var/newtext = text
-	if(length(text) != length(compare))
-		return 0
-	for(var/i = 1, i < length(text), i++)
-		var/a = copytext(text,i,i+1)
-		var/b = copytext(compare,i,i+1)
-		//if it isn't both the same letter, or if they are both the replacement character
-		//(no way to know what it was supposed to be)
-		if(a != b)
-			if(a == replace) //if A is the replacement char
-				newtext = copytext(newtext,1,i) + b + copytext(newtext, i+1)
-			else if(b == replace) //if B is the replacement char
-				newtext = copytext(newtext,1,i) + a + copytext(newtext, i+1)
-			else //The lists disagree, Uh-oh!
-				return 0
-	return newtext
-
-//This proc returns the number of chars of the string that is the character
-//This is used for detective work to determine fingerprint completion.
-/proc/stringpercent(var/text,character = "*")
-	if(!text || !character)
-		return 0
-	var/count = 0
-	for(var/i = 1, i <= length(text), i++)
-		var/a = copytext(text,i,i+1)
-		if(a == character)
-			count++
-	return count
-
-/proc/reverse_text(var/text = "")
-	var/new_text = ""
-	for(var/i = length(text); i > 0; i--)
-		new_text += copytext(text, i, i+1)
-	return new_text
-
 //Used in preferences' SetFlavorText and human's set_flavor verb
 //Previews a string of len or less length
-proc/TextPreview(var/string,var/len=40)
+/proc/TextPreview(var/string,var/len=40)
 	if(length(string) <= len)
 		if(!length(string))
 			return "\[...\]"
@@ -350,7 +444,7 @@ proc/TextPreview(var/string,var/len=40)
 	return html_encode(copytext(html_decode(text), first, last))
 
 /proc/create_text_tag(var/tagname, var/tagdesc = tagname, var/client/C = null)
-	if(!(C && C.get_preference_value(/datum/client_preference/chat_tags) == GLOB.PREF_SHOW))
+	if(!(C && C.get_preference_value(/datum/client_preference/chat_tags) == PREF_SHOW))
 		return tagdesc
 	return "<IMG src='\ref['./icons/chattags.dmi']' class='text_tag' iconstate='[tagname]'" + (tagdesc ? " alt='[tagdesc]'" : "") + ">"
 
@@ -378,14 +472,6 @@ proc/TextPreview(var/string,var/len=40)
 	. = jointext(.,null)
 
 #define starts_with(string, substring) (copytext(string,1,1+length(substring)) == substring)
-
-#define gender2text(gender) capitalize(gender)
-
-/**
- * Strip out the special beyond characters for \proper and \improper
- * from text that will be sent to the browser.
- */
-#define strip_improper(input_text) replacetext(replacetext(input_text, "\proper", ""), "\improper", "")
 
 /proc/pencode2html(t)
 	t = replacetext(t, "\n", "<BR>")
@@ -429,8 +515,8 @@ proc/TextPreview(var/string,var/len=40)
 /proc/digitalPencode2html(var/text)
 	text = replacetext(text, "\[pre\]", "<pre>")
 	text = replacetext(text, "\[/pre\]", "</pre>")
-	text = replacetext(text, "\[fontred\]", "<font color=\"red\">") //</font> to pass travis html tag integrity check
-	text = replacetext(text, "\[fontblue\]", "<font color=\"blue\">")//</font> to pass travis html tag integrity check
+	text = replacetext(text, "\[fontred\]", "<font color=\"red\">") //</font> to pass html tag unit test
+	text = replacetext(text, "\[fontblue\]", "<font color=\"blue\">")//</font> to pass html tag unit test
 	text = replacetext(text, "\[fontgreen\]", "<font color=\"green\">")
 	text = replacetext(text, "\[/font\]", "</font>")
 	text = replacetext(text, "\[redacted\]", "<span class=\"redacted\">R E D A C T E D</span>")
@@ -440,8 +526,8 @@ proc/TextPreview(var/string,var/len=40)
 /proc/html2pencode(t)
 	t = replacetext(t, "<pre>", "\[pre\]")
 	t = replacetext(t, "</pre>", "\[/pre\]")
-	t = replacetext(t, "<font color=\"red\">", "\[fontred\]")//</font> to pass travis html tag integrity check
-	t = replacetext(t, "<font color=\"blue\">", "\[fontblue\]")//</font> to pass travis html tag integrity check
+	t = replacetext(t, "<font color=\"red\">", "\[fontred\]")//</font> to pass html tag unit test
+	t = replacetext(t, "<font color=\"blue\">", "\[fontblue\]")//</font> to pass html tag unit test
 	t = replacetext(t, "<font color=\"green\">", "\[fontgreen\]")
 	t = replacetext(t, "</font>", "\[/font\]")
 	t = replacetext(t, "<BR>", "\[br\]")
@@ -548,9 +634,9 @@ proc/TextPreview(var/string,var/len=40)
 
 // If char isn't part of the text the entire text is returned
 /proc/copytext_after_last(var/text, var/char)
-	var/regex/R = regex("(\[^[char]\]*)$")
-	R.Find(text)
-	return R.group[1]
+	var/regex/copytext_regex = regex("(\[^[char]\]*)$")
+	copytext_regex.Find(text)
+	return copytext_regex.group[1]
 
 /proc/sql_sanitize_text(var/text)
 	text = replacetext(text, "'", "''")
@@ -558,6 +644,216 @@ proc/TextPreview(var/string,var/len=40)
 	text = replacetext(text, "&", "")
 	return text
 
-// Switch to use copytext_char() when 513 is in
-var/list/fullstop_alternatives = list(".", "!", "?")
-#define APPEND_FULLSTOP_IF_NEEDED(TXT) ((copytext(TXT, -1, 0) in global.fullstop_alternatives) ? TXT : "[TXT].")
+var/global/list/fullstop_alternatives = list(".", "!", "?")
+#define APPEND_FULLSTOP_IF_NEEDED(TXT) ((copytext_char(TXT, -1, 0) in global.fullstop_alternatives) ? TXT : "[TXT].")
+
+/proc/make_rainbow(var/msg)
+	var/static/list/rainbow_classes = list(
+		"font_red",
+		"font_orange",
+		"font_yellow",
+		"font_green",
+		"font_blue",
+		"font_violet",
+		"font_purple"
+	)
+	for(var/i = 1 to length(msg))
+		. += "<span class='[pick(rainbow_classes)]'>[copytext(msg, i, i+1)]</span>"
+
+// Returns direction-string, rounded to multiples of 22.5, from the first parameter to the second
+// N, NNE, NE, ENE, E, ESE, SE, SSE, S, SSW, SW, WSW, W, WNW, NW, NNW
+/proc/get_compass_direction_string(var/turf/A, var/turf/B)
+	var/degree = Get_Angle(A, B)
+	switch(round(degree, 22.5) % 360) // % appears to round down floats, hence below values all being integers
+		if(0)
+			return "North"
+		if(22)
+			return "North-Northeast"
+		if(45)
+			return "Northeast"
+		if(67)
+			return "East-Northeast"
+		if(90)
+			return "East"
+		if(112)
+			return "East-Southeast"
+		if(135)
+			return "Southeast"
+		if(157)
+			return "South-Southeast"
+		if(180)
+			return "South"
+		if(202)
+			return "South-Southwest"
+		if(225)
+			return "Southwest"
+		if(247)
+			return "West-Southwest"
+		if(270)
+			return "West"
+		if(292)
+			return "West-Northwest"
+		if(315)
+			return "Northwest"
+		if(337)
+			return "North-Northwest"
+
+///Returns true if the text starts with the given sequence of characters.
+/proc/text_starts_with(var/text, var/start)
+	return copytext(text, 1, length(start) + 1) == start
+
+///Returns true if the text ends with the given sequence of characters.
+/proc/text_ends_with(var/text, var/end)
+	var/tlen = length(text)
+	return copytext(text, ((tlen - length(end)) + 1), tlen + 1) == end
+
+///Returns true if the text ends with ANY of the given sequences of characters.
+/proc/text_ends_with_any_of(var/text, var/list/endings)
+	for(var/ending in endings)
+		if(text_ends_with(text, ending))
+			return ending
+	return
+
+///Siblants that should end with es
+var/global/list/plural_siblants = list("ss", "x", "sh", "ch")
+///Vocalized y sounds that needs to end in -ies when made plural
+var/global/list/plural_vocalized_y = list("quy", "by", "dy", "fy", "gy", "hy", "jy", "ky", "ly", "my", "ny", "py", "ry", "sy", "ty", "vy", "xy", "zy")
+///Plurals endings in -ves
+var/global/list/plural_endings_in_ves = list("fe", "af")
+///Plurals endings in -sses or -zzes
+var/global/list/plural_endings_with_doubled_letter = list("as", "ez")
+///Words that have a different plural form, and their plural form
+var/global/list/apophonic_plurals = list(
+	"foot"     = "feet",
+	"goose"    = "geese",
+	"louse"    = "lice",
+	"man"      = "men",
+	"woman"    = "women",
+	"mouse"    = "mice",
+	"tooth"    = "teeth",
+	"ox"       = "oxen",
+	//#TODO: Add more of those
+)
+///Used to tell how to make it a plural word and etc.
+var/global/list/english_loanwords = list(
+	"fungus",
+	"cactus",
+	//#TODO: Add more of those
+)
+///Words that stay the same in plural
+var/global/list/plural_words_unchanged = list(
+	"series",
+	"means",
+	"species"
+	//#TODO: Add more of those
+)
+
+///Properly changes the given word (or the last word of the string) into a plural word. Applies a bunch of exceptions from the english language.
+/proc/text_make_plural(var/word)
+	if(!length(word))
+		return
+	var/initial_word = word
+	//If someone passed us several words, just keep the last one.
+	var/list/splited = splittext_char(word, " ", 1, length(word)+1, FALSE)
+	//log_debug("splitted '[initial_word]' to [log_info_line(splited)].")
+	if(length(splited) > 1)
+		word = splited[splited.len]
+	else
+		splited = null
+
+	//Words that don't change when pluralized
+	if(global.plural_words_unchanged[word])
+		return initial_word
+
+	//Apophonic plurals
+	if(global.apophonic_plurals[word])
+		word = global.apophonic_plurals[word]
+
+	//Siblants + plurals of nouns in -o preceded by a consonant. Loanwords ending in o just ends with an s
+	else if(text_ends_with_any_of(word, global.plural_siblants) || (text_ends_with(word, "o") && !(word in global.english_loanwords)))
+		word = "[word]es"
+
+	//Plurals of nouns in -y
+	else if(text_ends_with_any_of(word, global.plural_vocalized_y))
+		word = "[copytext(word, 1, length(word))]ies"
+
+	// -f and -fe endings
+	else if(text_ends_with_any_of(word, global.plural_endings_in_ves))
+		word = "[copytext(word, 1, length(word) - 1)]ves" //EX: calf -> calves, leaf -> leaves, knife -> knives
+
+	//some ‘-s’ and ‘-z’ endings
+	else if(text_ends_with_any_of(word, global.plural_endings_with_doubled_letter))
+		word = "[word][copytext(word, length(word), length(word) + 1)]es" //Ex: gas -> gas'ses', fez -> fez'zes'
+
+	//Plurals of nouns in -us
+	else if(text_ends_with(word, "us"))
+		if(!(word in global.english_loanwords))
+			word = "[word]es"
+		else
+			word = "[copytext(word, 1, length(word) - 1)]i" //EX: Cactus -> Cacti, Fungus -> Fungi
+
+	//Finally just go with the basic rules
+	else
+		if(text_ends_with(word, "s"))
+			word = "[word]es"
+		else
+			word = "[word]s"
+
+	//Put the sentence back together, if applicable
+	if(splited)
+		word = "[jointext(splited, " ", 1, length(splited))] [word]"
+	return word
+
+var/global/list/copula_verbs = list("is" = TRUE, "am" = TRUE, "are" = TRUE)
+var/global/list/has_verbs = list("has" = TRUE, "have" = TRUE)
+var/global/list/does_verbs = list("does" = TRUE, "do" = TRUE)
+var/global/list/agreement_exception_verbs = list("can" = TRUE, "cannot" = TRUE, "can't" = TRUE, "will" = TRUE, "won't" = TRUE, "shall" = TRUE, "shan't" = TRUE, "may" = TRUE, "must" = TRUE, "ought" = TRUE, "could" = TRUE, "would" = TRUE, "should" = TRUE)
+/proc/verb_agree_with_pronouns(var/use_verb, var/decl/pronouns/use_pronouns, is_after_pronoun = TRUE)
+	// deal with compound verb phrases here!
+	// basically, skip all our adverbs, inflect only the first non-adverb word we find (which is hopefully a verb) and then keep everything after unchanged
+	// this will properly handle "successfully finish doing" and "properly manage to do"
+	// but not "somehow finish doing" which will get turned into "somehows finish doing" :(
+	// todo: fix that
+	var/list/words = splittext(use_verb, " ")
+	if(length(words) > 1)
+		var/last_adverb = 1
+		for(var/word_index in 1 to length(words))
+			if(text_ends_with(words[word_index], "ly"))
+				last_adverb = max(word_index, last_adverb)
+		use_verb = words[last_adverb]
+		// This overengineered nonsense ensures that we shouldn't end up with any doubled or missing spaces.
+		return jointext_no_nulls(list(jointext(words.Copy(1, last_adverb), " "), verb_agree_with_pronouns(use_verb, use_pronouns, is_after_pronoun = is_after_pronoun), jointext(words.Copy(last_adverb + 1, length(words) + 1), " ")), " ")
+	if(!is_after_pronoun && use_pronouns.pluralize_verb == /decl/pronouns::PLURALIZE_PSEUDO)
+		return use_verb // do not inflect pseudoplural unless after a pronoun
+	if(global.copula_verbs[use_verb])
+		return use_pronouns.is
+	else if(global.has_verbs[use_verb])
+		return use_pronouns.has
+	else if(global.does_verbs[use_verb])
+		return use_pronouns.does
+	else if(global.agreement_exception_verbs[use_verb])
+		return use_verb
+	// text_make_plural is intended for nouns, but should hopefully work for "fly" -> "flies" and similar.
+	switch(use_pronouns.pluralize_verb)
+		if(/decl/pronouns::PLURALIZE_NONE)
+			return use_verb
+		if(/decl/pronouns::PLURALIZE_PSEUDO)
+			// technically only the plural side can get hit here
+			// but better safe than sorry
+			return is_after_pronoun ? text_make_plural(use_verb) : use_verb
+		if(/decl/pronouns::PLURALIZE_ALL)
+			return text_make_plural(use_verb)
+		else
+			CRASH("Invalid value [use_pronouns.pluralize_verb] for [use_pronouns]!")
+
+// Surely we have this defined somewhere already??
+/proc/repeatstring(str, num)
+	. = list()
+	for(var/i = 1 to num)
+		. += str
+	. = JOINTEXT(.)
+
+/proc/jointext_no_nulls(list/L, Glue, Start = 1, End = 0)
+	var/list/temp = L.Copy()
+	LIST_CLEAR_NULLS(temp)
+	return jointext(temp, Glue, Start, End)

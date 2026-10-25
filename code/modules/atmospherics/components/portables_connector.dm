@@ -2,26 +2,22 @@
 	icon = 'icons/atmos/connector.dmi'
 	icon_state = "map_connector"
 
-	name = "Connector Port"
-	desc = "For connecting portable devices related to atmospherics control."
+	name = "connector port"
+	desc = "A connector port with a flexible tube that can be attached to portable atmospherics devices using a wrench."
 
 	dir = SOUTH
 	initialize_directions = SOUTH
 
-	var/obj/machinery/portable_atmospherics/connected_device
-
-	var/obj/machinery/atmospherics/node
-
-	var/datum/pipe_network/network
-
+	var/atom/movable/connected_device
 	var/on = 0
 	use_power = POWER_USE_OFF
+	interact_offline = TRUE
 
 	uncreated_component_parts = null
 	frame_type = /obj/item/pipe
 	construct_state = /decl/machine_construction/pipe
 
-	level = 1
+	level = LEVEL_BELOW_PLATING
 
 	connect_types = CONNECT_TYPE_REGULAR|CONNECT_TYPE_FUEL
 	build_icon_state = "connector"
@@ -30,17 +26,10 @@
 
 /obj/machinery/atmospherics/portables_connector/on_update_icon()
 	icon_state = "connector"
-
-/obj/machinery/atmospherics/portables_connector/update_underlays()
-	if(..())
-		underlays.Cut()
-		var/turf/T = get_turf(src)
-		if(!istype(T))
-			return
-		add_underlay(T, node, dir)
+	build_device_underlays(FALSE)
 
 /obj/machinery/atmospherics/portables_connector/hide(var/i)
-	update_underlays()
+	update_icon()
 
 /obj/machinery/atmospherics/portables_connector/Process()
 	..()
@@ -49,97 +38,34 @@
 	if(!connected_device)
 		on = 0
 		return
-	if(network)
-		network.update = 1
+	update_networks()
 	return 1
-
-// Housekeeping and pipe network stuff below
-/obj/machinery/atmospherics/portables_connector/network_expand(datum/pipe_network/new_network, obj/machinery/atmospherics/pipe/reference)
-	if((reference == node) && (network != new_network))
-		qdel(network)
-		network = new_network
-
-	new_network.normal_members |= src
 
 /obj/machinery/atmospherics/portables_connector/Destroy()
 	if(connected_device)
-		connected_device.disconnect()
-
-	if(node)
-		node.disconnect(src)
-		qdel(network)
-
-	node = null
-
+		var/datum/extension/atmospherics_connection/connection = get_extension(connected_device, /datum/extension/atmospherics_connection)
+		connection?.disconnect()
 	. = ..()
 
-/obj/machinery/atmospherics/portables_connector/atmos_init()
-	..()
-	if(node) return
-
-	var/node_connect = dir
-
-	for(var/obj/machinery/atmospherics/target in get_step(src,node_connect))
-		if(target.initialize_directions & get_dir(target,src))
-			if (check_connect_types(target,src))
-				node = target
-				break
-
-	update_icon()
-	update_underlays()
-
-/obj/machinery/atmospherics/portables_connector/build_network()
-	if(!network && node)
-		network = new /datum/pipe_network()
-		network.normal_members += src
-		network.build_network(node, src)
-
-
 /obj/machinery/atmospherics/portables_connector/return_network(obj/machinery/atmospherics/reference)
-	build_network()
-
-	if(reference==node)
-		return network
-
-	if(reference==connected_device)
-		return network
-
-	return null
-
-/obj/machinery/atmospherics/portables_connector/reassign_network(datum/pipe_network/old_network, datum/pipe_network/new_network)
-	if(network == old_network)
-		network = new_network
-
-	return 1
+	. = ..()
+	if(reference == connected_device) // Legacy carryover; unsure why this is supported, though.
+		if(LAZYLEN(nodes_to_networks))
+			return nodes_to_networks[nodes_to_networks[1]]
 
 /obj/machinery/atmospherics/portables_connector/return_network_air(datum/pipe_network/reference)
-	var/list/results = list()
-
 	if(connected_device)
-		results += connected_device.air_contents
-
-	return results
-
-/obj/machinery/atmospherics/portables_connector/disconnect(obj/machinery/atmospherics/reference)
-	if(reference==node)
-		qdel(network)
-		node = null
-
-	update_underlays()
-
-	return null
+		var/datum/extension/atmospherics_connection/connection = get_extension(connected_device, /datum/extension/atmospherics_connection)
+		if(connection)
+			return list(connection.merged_mixture)
 
 /obj/machinery/atmospherics/portables_connector/deconstruction_pressure_check()
-	var/datum/gas_mixture/int_air = return_air()
-	var/datum/gas_mixture/env_air = loc.return_air()
-	if ((int_air.return_pressure()-env_air.return_pressure()) > 2*ONE_ATMOSPHERE)
-		return FALSE
-	return TRUE
+	return !check_internal_pressure_difference_over(2 ATM)
 
 /obj/machinery/atmospherics/portables_connector/cannot_transition_to(state_path, mob/user)
 	if(state_path == /decl/machine_construction/default/deconstructed)
 		if (connected_device)
-			return SPAN_WARNING("You cannot unwrench \the [src], dettach \the [connected_device] first.")
+			return SPAN_WARNING("You cannot unwrench \the [src], detach \the [connected_device] first.")
 		if (locate(/obj/machinery/portable_atmospherics, src.loc))
 			return MCS_BLOCK
 	return ..()

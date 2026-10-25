@@ -1,158 +1,272 @@
-/obj/item/tape_roll
-	name = "duct tape"
-	desc = "A roll of sticky tape. Possibly for taping ducks... or was that ducts?"
-	icon = 'icons/obj/bureaucracy.dmi'
+///////////////////////////////////////////////
+// Tape Roll
+///////////////////////////////////////////////
+/**Base class for all things tape, with a limit amount of uses. */
+/obj/item/stack/tape_roll
+	name              = "roll of tape"
+	gender            = NEUTER
+	singular_name     = "length of tape"
+	plural_name       = "lengths of tape"
+	amount            = 32
+	max_amount        = 32
+	w_class           = ITEM_SIZE_SMALL
+	material          = /decl/material/solid/organic/plastic
+	max_health        = 10
+	matter_multiplier = 0.25
+
+/obj/item/stack/tape_roll/can_split()
+	return FALSE
+/obj/item/stack/tape_roll/can_merge_stacks(var/obj/item/stack/other)
+	return FALSE
+
+///////////////////////////////////////////////
+// Duct Tape
+///////////////////////////////////////////////
+/obj/item/stack/tape_roll/duct_tape
+	name       = "duct tape roll"
+	desc       = "A roll of durable, one-sided sticky tape. Possibly for taping ducks... or was that ducts?"
+	icon       = 'icons/obj/bureaucracy.dmi'
 	icon_state = "taperoll"
-	w_class = ITEM_SIZE_SMALL
+	item_flags = ITEM_FLAG_NO_BLUDGEON
 
-/obj/item/tape_roll/attack(var/mob/living/carbon/human/H, var/mob/user)
-	if(istype(H))
-		if(user.zone_sel.selecting == BP_EYES)
+/obj/item/stack/tape_roll/duct_tape/Initialize(mapload, amount, material)
+	. = ..()
+	set_extension(src, /datum/extension/tool/variable/simple, list(
+		TOOL_BONE_GEL = TOOL_QUALITY_MEDIOCRE,
+		TOOL_SUTURES =  TOOL_QUALITY_BAD
+	))
 
-			if(!H.organs_by_name[BP_HEAD])
-				to_chat(user, "<span class='warning'>\The [H] doesn't have a head.</span>")
-				return
-			if(!H.check_has_eyes())
-				to_chat(user, "<span class='warning'>\The [H] doesn't have any eyes.</span>")
-				return
-			if(H.glasses)
-				to_chat(user, "<span class='warning'>\The [H] is already wearing somethign on their eyes.</span>")
-				return
-			if(H.head && (H.head.body_parts_covered & FACE))
-				to_chat(user, "<span class='warning'>Remove their [H.head] first.</span>")
-				return
-			user.visible_message("<span class='danger'>\The [user] begins taping over \the [H]'s eyes!</span>")
+/obj/item/stack/tape_roll/duct_tape/use_on_mob(mob/living/target, mob/living/user, animate = TRUE)
 
-			if(!do_mob(user, H, 30))
-				return
+	if(user.get_target_zone() == BP_R_HAND || user.get_target_zone() == BP_L_HAND)
+		if(!can_use(4))
+			to_chat(user, SPAN_WARNING("There's not enough [plural_name] in your [src] to tape \the [target]'s hands! You need at least 4 [plural_name]."))
+			return TRUE
+		use(4)
+		playsound(src, 'sound/effects/tape.ogg',25)
+		var/obj/item/handcuffs/cable/tape/T = new(user)
+		if(!T.place_handcuffs(target, user))
+			qdel(T)
+		return TRUE
 
-			// Repeat failure checks.
-			if(!H || !src || !H.organs_by_name[BP_HEAD] || !H.check_has_eyes() || H.glasses || (H.head && (H.head.body_parts_covered & FACE)))
-				return
-
-			playsound(src, 'sound/effects/tape.ogg',25)
-			user.visible_message("<span class='danger'>\The [user] has taped up \the [H]'s eyes!</span>")
-			H.equip_to_slot_or_del(new /obj/item/clothing/glasses/blindfold/tape(H), slot_glasses)
-
-		else if(user.zone_sel.selecting == BP_MOUTH || user.zone_sel.selecting == BP_HEAD)
-			if(!H.organs_by_name[BP_HEAD])
-				to_chat(user, "<span class='warning'>\The [H] doesn't have a head.</span>")
-				return
-			if(!H.check_has_mouth())
-				to_chat(user, "<span class='warning'>\The [H] doesn't have a mouth.</span>")
-				return
-			if(H.wear_mask)
-				to_chat(user, "<span class='warning'>\The [H] is already wearing a mask.</span>")
-				return
-			if(H.head && (H.head.body_parts_covered & FACE))
-				to_chat(user, "<span class='warning'>Remove their [H.head] first.</span>")
-				return
-			playsound(src, 'sound/effects/tape.ogg',25)
-			user.visible_message("<span class='danger'>\The [user] begins taping up \the [H]'s mouth!</span>")
-
-			if(!do_mob(user, H, 30))
-				return
-
-			// Repeat failure checks.
-			if(!H || !src || !H.organs_by_name[BP_HEAD] || !H.check_has_mouth() || H.wear_mask || (H.head && (H.head.body_parts_covered & FACE)))
-				return
-			playsound(src, 'sound/effects/tape.ogg',25)
-			user.visible_message("<span class='danger'>\The [user] has taped up \the [H]'s mouth!</span>")
-			H.equip_to_slot_or_del(new /obj/item/clothing/mask/muzzle/tape(H), slot_wear_mask)
-
-		else if(user.zone_sel.selecting == BP_R_HAND || user.zone_sel.selecting == BP_L_HAND)
-			playsound(src, 'sound/effects/tape.ogg',25)
-			var/obj/item/handcuffs/cable/tape/T = new(user)
-			if(!T.place_handcuffs(H, user))
-				qdel(T)
-
-		else if(user.zone_sel.selecting == BP_CHEST)
-			if(H.wear_suit && istype(H.wear_suit, /obj/item/clothing/suit/space))
-				H.wear_suit.attackby(src, user)//everything is handled by attackby
-			else
-				to_chat(user, "<span class='warning'>\The [H] isn't wearing a spacesuit for you to reseal.</span>")
-
+	if(user.get_target_zone() == BP_CHEST)
+		var/obj/item/clothing/suit/space/suit = target.get_equipped_item(slot_wear_suit_str)
+		if(istype(suit))
+			suit.attackby(src, user)//everything is handled by attackby
 		else
-			return ..()
-		return 1
+			to_chat(user, SPAN_WARNING("\The [target] isn't wearing a spacesuit for you to reseal."))
+		return TRUE
 
-/obj/item/tape_roll/proc/stick(var/obj/item/W, mob/user)
-	if(!istype(W, /obj/item/paper) || istype(W, /obj/item/paper/sticky) || !user.unEquip(W))
-		return
-	var/obj/item/ducttape/tape = new(get_turf(src))
-	tape.attach(W)
-	user.put_in_hands(tape)
+	if(!target?.should_have_limb(BP_HEAD))
+		return ..()
 
-/obj/item/ducttape
-	name = "piece of tape"
-	desc = "A piece of sticky tape."
-	icon = 'icons/obj/bureaucracy.dmi'
-	icon_state = "tape"
-	w_class = ITEM_SIZE_TINY
-	layer = ABOVE_OBJ_LAYER
+	if(user.get_target_zone() == BP_EYES)
 
-	var/obj/item/stuck = null
+		if(!GET_EXTERNAL_ORGAN(target, BP_HEAD))
+			to_chat(user, SPAN_WARNING("\The [target] doesn't have a head."))
+			return TRUE
 
-/obj/item/ducttape/attack_hand(var/mob/user)
-	anchored = FALSE // Unattach it from whereever it's on, if anything.
+		if(!target.check_has_eyes())
+			to_chat(user, SPAN_WARNING("\The [target] doesn't have any eyes."))
+			return TRUE
+
+		if(target.get_equipped_item(slot_glasses_str))
+			to_chat(user, SPAN_WARNING("\The [target] is already wearing something on their eyes."))
+			return TRUE
+
+		var/obj/item/head = target.get_equipped_item(slot_head_str)
+		if(head && (head.body_parts_covered & SLOT_FACE))
+			to_chat(user, SPAN_WARNING("Remove their [head] first."))
+			return TRUE
+
+		if(!can_use(2))
+			to_chat(user, SPAN_WARNING("There's not enough [plural_name] in your [src] to tape \the [target]'s eyes! You need at least 2 [plural_name]."))
+			return TRUE
+
+		user.visible_message(SPAN_WARNING("\The [user] begins taping over \the [target]'s eyes!"))
+		if(!do_mob(user, target, 30))
+			return TRUE
+
+		// Repeat failure checks.
+		if(!target || !src || !GET_EXTERNAL_ORGAN(target, BP_HEAD) || !target.check_has_eyes() || target.get_equipped_item(slot_glasses_str))
+			return TRUE
+
+		head = target.get_equipped_item(slot_head_str)
+		if(head && (head.body_parts_covered & SLOT_FACE))
+			return TRUE
+
+		use(2)
+		playsound(src, 'sound/effects/tape.ogg',25)
+		user.visible_message(SPAN_WARNING("\The [user] has taped up \the [target]'s eyes!"))
+		target.equip_to_slot_or_del(new /obj/item/clothing/glasses/blindfold/tape(target), slot_glasses_str)
+		return TRUE
+
+	if(user.get_target_zone() == BP_MOUTH || user.get_target_zone() == BP_HEAD)
+
+		if(!GET_EXTERNAL_ORGAN(target, BP_HEAD))
+			to_chat(user, SPAN_WARNING("\The [target] doesn't have a head."))
+			return TRUE
+
+		if(!target.check_has_mouth())
+			to_chat(user, SPAN_WARNING("\The [target] doesn't have a mouth."))
+			return TRUE
+
+		if(target.get_equipped_item(slot_wear_mask_str))
+			to_chat(user, SPAN_WARNING("\The [target] is already wearing a mask."))
+			return TRUE
+
+		var/obj/item/head = target.get_equipped_item(slot_head_str)
+		if(head && (head.body_parts_covered & SLOT_FACE))
+			to_chat(user, SPAN_WARNING("Remove their [head] first."))
+			return TRUE
+
+		if(!can_use(2))
+			to_chat(user, SPAN_WARNING("There's not enough [plural_name] in your [src] to tape \the [target]'s mouth! You need at least 2 [plural_name]."))
+			return TRUE
+
+		playsound(src, 'sound/effects/tape.ogg',25)
+		user.visible_message(SPAN_WARNING("\The [user] begins taping up \the [target]'s mouth!"))
+
+		if(!do_mob(user, target, 30))
+			return TRUE
+
+		// Repeat failure checks.
+		if(!target || !src || !GET_EXTERNAL_ORGAN(target, BP_HEAD) || !target.check_has_mouth() || target.get_equipped_item(slot_wear_mask_str))
+			return TRUE
+
+		head = target.get_equipped_item(slot_head_str)
+		if(head && (head.body_parts_covered & SLOT_FACE))
+			return TRUE
+
+		use(2)
+		playsound(src, 'sound/effects/tape.ogg',25)
+		user.visible_message(SPAN_WARNING("\The [user] has taped up \the [target]'s mouth!"))
+		target.equip_to_slot_or_del(new /obj/item/clothing/mask/muzzle/tape(target), slot_wear_mask_str)
+		return TRUE
+
 	return ..()
 
-/obj/item/ducttape/Initialize()
+/obj/item/stack/tape_roll/duct_tape/proc/stick(var/obj/item/used_item, mob/user)
+	if(!(used_item.item_flags & ITEM_FLAG_CAN_TAPE) || !user.try_unequip(used_item))
+		return FALSE
+	if(!can_use(1))
+		return FALSE
+	use(1)
+	var/obj/item/duct_tape/tape = new(get_turf(src))
+	tape.attach(used_item)
+	user.put_in_hands(tape)
+	return TRUE
+
+///////////////////////////////////////////////////////////
+// Piece of Duct Tape
+///////////////////////////////////////////////////////////
+/obj/item/duct_tape
+	name               = "piece of tape"
+	desc               = "A piece of sticky tape."
+	icon               = 'icons/obj/bureaucracy.dmi'
+	icon_state         = "tape"
+	w_class            = ITEM_SIZE_TINY
+	layer              = ABOVE_OBJ_LAYER
+	material           = /decl/material/solid/organic/plastic
+	var/obj/item/stuck = null
+	var/crumpled       = FALSE   //If crumpled we become useless trash
+
+/obj/item/duct_tape/Initialize(ml, material_key)
 	. = ..()
 	item_flags |= ITEM_FLAG_NO_BLUDGEON
 
-/obj/item/ducttape/examine()
-	return stuck ? stuck.examine(arglist(args)) : ..()
+/obj/item/duct_tape/get_matter_amount_modifier()
+	return 0.2
 
-/obj/item/ducttape/proc/attach(var/obj/item/W)
-	stuck = W
-	anchored = TRUE
-	W.forceMove(src)
-	icon_state = W.icon_state + "_taped"
-	name = W.name + " (taped)"
-	overlays = W.overlays
+/obj/item/duct_tape/attack_hand(var/mob/user)
+	if(user.check_dexterity(DEXTERITY_HOLD_ITEM, fail_message = "You lack the dexterity to dislodge the tape."))
+		anchored = FALSE // Unattach it from whereever it's on, if anything.
+	return ..()
 
-/obj/item/ducttape/attack_self(mob/user)
+/obj/item/duct_tape/attackby(obj/item/used_item, mob/user)
+	return stuck? stuck.attackby(used_item, user) : ..()
+
+/obj/item/duct_tape/examined_by(mob/user, distance, infix, suffix)
+	return stuck ? stuck.examined_by(user, distance, infix, suffix) : ..()
+
+/obj/item/duct_tape/proc/attach(var/obj/item/used_item)
+	stuck      = used_item
+	anchored   = TRUE
+	SetName("[used_item.name] (taped)")
+	used_item.forceMove(src)
+	playsound(src, 'sound/effects/tape.ogg', 25)
+	update_icon()
+
+/obj/item/duct_tape/on_update_icon()
+	. = ..()
+	underlays.Cut()
+	if(stuck)
+		icon_state = "tape_short"
+		var/mutable_appearance/MA = new(stuck)
+		switch(dir)
+			if(NORTH)
+				MA.pixel_x = 0
+				MA.pixel_y = 8
+			if(SOUTH)
+				MA.pixel_x = 0
+				MA.pixel_y = -8
+			if(EAST)
+				MA.pixel_x = 8
+				MA.pixel_y = 0
+			if(WEST)
+				MA.pixel_x = -8
+				MA.pixel_y = 0
+		underlays += MA
+
+	else if(crumpled)
+		icon_state = "tape_crumpled"
+	else
+		icon_state = "tape"
+
+/obj/item/duct_tape/attack_self(mob/user)
 	if(!stuck)
 		return
-
-	to_chat(user, "You remove \the [initial(name)] from [stuck].")
+	SetName(initial(name))
+	to_chat(user, "You remove \the [name] from [stuck].")
 	user.put_in_hands(stuck)
 	stuck = null
-	qdel(src)
+	crumpled = TRUE
+	user.try_unequip(src, get_turf(user))
 
-/obj/item/ducttape/afterattack(var/A, mob/user, flag, params)
+/obj/item/duct_tape/afterattack(atom/target, mob/user, proximity_flag, click_parameters)
 
-	if(!in_range(user, A) || istype(A, /obj/machinery/door) || !stuck)
+	if(!CanPhysicallyInteractWith(user, target) || istype(target, /obj/machinery/door) || !stuck || crumpled)
 		return
 
-	var/turf/target_turf = get_turf(A)
+	var/turf/target_turf = get_turf(target)
 	var/turf/source_turf = get_turf(user)
 
 	var/dir_offset = 0
 	if(target_turf != source_turf)
 		dir_offset = get_dir(source_turf, target_turf)
-		if(!(dir_offset in GLOB.cardinal))
+		if(!(dir_offset in global.cardinal))
 			to_chat(user, "You cannot reach that from here.")// can only place stuck papers in cardinal directions, to
 			return											// reduce papers around corners issue.
 
-	if(!user.unEquip(src, source_turf))
+	if(!user.try_unequip(src, source_turf))
 		return
 	playsound(src, 'sound/effects/tape.ogg',25)
 
+	set_dir(dir_offset)
 	layer = ABOVE_WINDOW_LAYER
-	
-	if(params)
-		var/list/mouse_control = params2list(params)
+
+	if(click_parameters)
+		var/list/mouse_control = params2list(click_parameters)
 		if(mouse_control["icon-x"])
-			pixel_x = text2num(mouse_control["icon-x"]) - 16
+			default_pixel_x = text2num(mouse_control["icon-x"]) - 16
 			if(dir_offset & EAST)
-				pixel_x += 32
+				default_pixel_x += 32
 			else if(dir_offset & WEST)
-				pixel_x -= 32
+				default_pixel_x -= 32
 		if(mouse_control["icon-y"])
-			pixel_y = text2num(mouse_control["icon-y"]) - 16
+			default_pixel_y = text2num(mouse_control["icon-y"]) - 16
 			if(dir_offset & NORTH)
-				pixel_y += 32
+				default_pixel_y += 32
 			else if(dir_offset & SOUTH)
-				pixel_y -= 32
+				default_pixel_y -= 32
+		reset_offsets(0)

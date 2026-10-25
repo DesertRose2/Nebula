@@ -1,23 +1,22 @@
 /obj/structure/shuttle
 	name = "shuttle"
-	icon = 'icons/turf/shuttle.dmi'
+	abstract_type = /obj/structure/shuttle
+	atmos_canpass = CANPASS_NEVER
 
 /obj/structure/shuttle/window
 	name = "shuttle window"
 	icon = 'icons/obj/structures/podwindows.dmi'
 	icon_state = "1"
-	density = 1
-	opacity = 0
-	anchored = 1
-
-/obj/structure/shuttle/window/CanPass(atom/movable/mover, turf/target, height, air_group)
-		if(!height || air_group) return 0
-		else return ..()
+	density = TRUE
+	opacity = FALSE
+	anchored = TRUE
 
 /obj/structure/shuttle/engine
 	name = "engine"
-	density = 1
-	anchored = 1.0
+	density = TRUE
+	anchored = TRUE
+	icon = 'icons/obj/structures/shuttle_engine.dmi'
+	abstract_type = /obj/structure/shuttle/engine
 
 /obj/structure/shuttle/engine/heater
 	name = "heater"
@@ -31,7 +30,13 @@
 /obj/structure/shuttle/engine/propulsion
 	name = "propulsion"
 	icon_state = "propulsion"
-	opacity = 1
+	opacity = TRUE
+
+/obj/structure/shuttle/engine/propulsion/left
+	icon_state = "propulsion_l"
+
+/obj/structure/shuttle/engine/propulsion/right
+	icon_state = "propulsion_r"
 
 /obj/structure/shuttle/engine/propulsion/burst
 	name = "burst"

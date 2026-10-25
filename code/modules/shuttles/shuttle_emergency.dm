@@ -1,13 +1,15 @@
 /datum/shuttle/autodock/ferry/emergency
-	category = /datum/shuttle/autodock/ferry/emergency
+	abstract_type = /datum/shuttle/autodock/ferry/emergency
 	move_time = 10 MINUTES
+	flags = SHUTTLE_FLAGS_PROCESS | SHUTTLE_FLAGS_ZERO_G | SHUTTLE_FLAGS_NO_CODE
 	var/datum/evacuation_controller/shuttle/emergency_controller
+	var/departed
 
-/datum/shuttle/autodock/ferry/emergency/New()
+/datum/shuttle/autodock/ferry/emergency/New(map_hash)
 	. = ..()
 	emergency_controller = SSevac.evacuation_controller
 	if(!istype(emergency_controller))
-		CRASH("Escape shuttle created without the appropriate controller type.")
+		CRASH("Escape shuttle created without the appropriate controller type: '[emergency_controller]'.")
 	if(emergency_controller.shuttle)
 		CRASH("An emergency shuttle has already been created.")
 	emergency_controller.shuttle = src
@@ -25,13 +27,20 @@
 /datum/shuttle/autodock/ferry/emergency/long_jump(var/destination, var/interim, var/travel_time, var/direction)
 	..(destination, interim, emergency_controller.get_long_jump_time(), direction)
 
-/datum/shuttle/autodock/ferry/emergency/shuttle_moved()
+/datum/shuttle/autodock/ferry/emergency/shuttle_moved(obj/effect/shuttle_landmark/destination, list/turf_translation, angle = 0)
 	if(next_location != waypoint_station)
-		emergency_controller.shuttle_leaving() // This is a hell of a line. v
-		priority_announcement.Announce(replacetext(replacetext((emergency_controller.emergency_evacuation ? GLOB.using_map.emergency_shuttle_leaving_dock : GLOB.using_map.shuttle_leaving_dock), "%dock_name%", "[GLOB.using_map.dock_name]"),  "%ETA%", "[round(emergency_controller.get_eta()/60,1)] minute\s"))
-	else if(next_location == waypoint_offsite && emergency_controller.has_evacuated())
-		emergency_controller.shuttle_evacuated()
+		var/msg
+		if(departed)
+			msg = emergency_controller.emergency_evacuation ? global.using_map.emergency_shuttle_arriving_at_dock_message : global.using_map.shuttle_arriving_at_dock_message
+		else
+			msg = emergency_controller.emergency_evacuation ? global.using_map.emergency_shuttle_leaving_dock : global.using_map.shuttle_leaving_dock
+			emergency_controller.shuttle_leaving()
+			departed = TRUE
+		if(msg)
+			priority_announcement.Announce(replacetext(replacetext(msg, "%dock_name%", "[global.using_map.dock_name]"),  "%ETA%", "[round(emergency_controller.get_eta()/60,1)] minute\s"))
 	..()
+	if(current_location == waypoint_offsite && emergency_controller.has_evacuated())
+		emergency_controller.shuttle_evacuated()
 
 /datum/shuttle/autodock/ferry/emergency/can_launch(var/user)
 	if (istype(user, /obj/machinery/computer/shuttle_control/emergency))
@@ -106,13 +115,18 @@
 	var/debug = 0
 	var/req_authorizations = 2
 	var/list/authorized = list()
+	var/list/original_authorization
+
+/obj/machinery/computer/shuttle_control/emergency/Initialize()
+	. = ..()
+	original_authorization = authorized?.Copy()
 
 /obj/machinery/computer/shuttle_control/emergency/proc/has_authorization()
 	return (authorized.len >= req_authorizations || emagged)
 
 /obj/machinery/computer/shuttle_control/emergency/proc/reset_authorization()
 	//no need to reset emagged status. If they really want to go back to the station they can.
-	authorized = initial(authorized)
+	authorized = original_authorization?.Copy()
 
 //returns 1 if the ID was accepted and a new authorization was added, 0 otherwise
 /obj/machinery/computer/shuttle_control/emergency/proc/read_authorization(var/obj/item/ident)
@@ -121,8 +135,8 @@
 	if (authorized.len >= req_authorizations)
 		return 0 //don't need any more
 
-	var/decl/security_state/security_state = decls_repository.get_decl(GLOB.using_map.security_state)
-	if (!SSevac.evacuation_controller.emergency_evacuation && security_state.current_security_level_is_lower_than(security_state.high_security_level))
+	var/decl/security_state/security_state = GET_DECL(global.using_map.security_state)
+	if((!SSevac.evacuation_controller || !SSevac.evacuation_controller.emergency_evacuation) && security_state.current_security_level_is_lower_than(security_state.high_security_level))
 		src.visible_message("\The [src] buzzes. It does not appear to be accepting any commands.")
 		return 0
 
@@ -166,9 +180,10 @@
 		emagged = 1
 		return 1
 
-/obj/machinery/computer/shuttle_control/emergency/attackby(obj/item/W, mob/user)
-	read_authorization(W)
-	..()
+/obj/machinery/computer/shuttle_control/emergency/attackby(obj/item/used_item, mob/user)
+	if(read_authorization(used_item))
+		return TRUE
+	return ..()
 
 /obj/machinery/computer/shuttle_control/emergency/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1)
 	var/data[0]
@@ -188,11 +203,11 @@
 			if (shuttle.in_use)
 				shuttle_status = "Busy."
 			else if (!shuttle.location)
-				shuttle_status = "Standing-by at [GLOB.using_map.station_name]."
+				shuttle_status = "Standing-by at [global.using_map.station_name]."
 			else
-				shuttle_status = "Standing-by at [GLOB.using_map.dock_name]."
+				shuttle_status = "Standing-by at [global.using_map.dock_name]."
 		if(WAIT_LAUNCH, FORCE_LAUNCH)
-			shuttle_status = "Shuttle has recieved command and will depart shortly."
+			shuttle_status = "Shuttle has received command and will depart shortly."
 		if(WAIT_ARRIVE)
 			shuttle_status = "Proceeding to destination."
 		if(WAIT_FINISH)
@@ -244,8 +259,8 @@
 
 	else if(!emagged && href_list["scanid"])
 		//They selected an empty entry. Try to scan their id.
-		var/mob/living/carbon/human/H = user
+		var/mob/living/human/H = user
 		if (istype(H))
-			if (!read_authorization(H.get_active_hand()))	//try to read what's in their hand first
-				read_authorization(H.wear_id)
+			if (!read_authorization(H.get_active_held_item()))	//try to read what's in their hand first
+				read_authorization(H.get_equipped_item(slot_wear_id_str))
 				. = TOPIC_REFRESH

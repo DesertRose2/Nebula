@@ -18,9 +18,11 @@
 	category = PROG_UTIL
 
 /datum/nano_module/program/computer_configurator
-	name = "NTOS Computer Configuration Tool"
+	name = "Computer Configuration Tool"
 
-/datum/nano_module/program/computer_configurator/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = GLOB.default_state)
+/datum/nano_module/program/computer_configurator/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = global.default_topic_state)
+	name = "[program.computer.os_name] [initial(name)]" // i.e. GOOSE Computer Configuration Tool
+
 	var/list/data = list()
 
 	data = program.get_header_data()
@@ -31,8 +33,9 @@
 	var/obj/item/stock_parts/computer/battery_module/battery_module = program.computer.get_component(PART_BATTERY)
 	data["battery_exists"] = !!battery_module
 	if(battery_module)
-		data["battery_rating"] = battery_module.battery.maxcharge
-		data["battery_percent"] = round(battery_module.battery.percent())
+		var/obj/item/cell/battery = battery_module.get_cell()
+		data["battery_rating"] = battery?.maxcharge || 0
+		data["battery_percent"] = battery ? round(battery.percent()) : 0
 
 	var/obj/item/stock_parts/computer/network_card/network_card = program.computer.get_component(PART_NETWORK)
 	data["nic_exists"] = !!network_card
@@ -62,9 +65,11 @@
 
 	data["receives_updates"] = program.computer.receives_updates
 
+	data["os_full_name"] = program.computer.os_full_name
+
 	ui = SSnano.try_update_ui(user, src, ui_key, ui, data, force_open)
 	if (!ui)
-		ui = new(user, src, ui_key, "laptop_configuration.tmpl", "NTOS Configuration Utility", 575, 700, state = state)
+		ui = new(user, src, ui_key, "laptop_configuration.tmpl", "[program.computer.os_name] Configuration Utility", 575, 700, state = state)
 		ui.auto_update_layout = 1
 		ui.set_initial_data(data)
 		ui.open()

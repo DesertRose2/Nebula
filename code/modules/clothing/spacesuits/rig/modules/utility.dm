@@ -37,12 +37,12 @@
 	engage_string = "Display Readout"
 	usable = 1
 	use_power_cost = 200
-	origin_tech = "{'magnets':3,'biotech':3,'engineering':5}"
+	origin_tech = @'{"magnets":3,"biotech":3,"engineering":5}'
 	device = /obj/item/scanner/health
-	material = /decl/material/solid/plastic
+	material = /decl/material/solid/organic/plastic
 	matter = list(
 		/decl/material/solid/metal/steel = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/glass = MATTER_AMOUNT_TRACE
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_TRACE
 	)
 
 /obj/item/rig_module/device/defib
@@ -66,13 +66,13 @@
 	suit_overlay_inactive = null
 	use_power_cost = 3600 //2 Wh per use
 	module_cooldown = 0
-	origin_tech = "{'materials':6,'powerstorage':4,'engineering':6}"
-	device = /obj/item/pickaxe/diamonddrill
+	origin_tech = @'{"materials":6,"powerstorage":4,"engineering":6}'
+	device = /obj/item/tool/drill/diamond
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/gemstone/diamond = MATTER_AMOUNT_TRACE,
-		/decl/material/solid/plastic = MATTER_AMOUNT_TRACE
+		/decl/material/solid/organic/plastic = MATTER_AMOUNT_TRACE
 	)
 
 /obj/item/rig_module/device/anomaly_scanner
@@ -86,11 +86,11 @@
 	usable = 1
 	selectable = 0
 	device = /obj/item/ano_scanner
-	origin_tech = "{'wormholes':4,'magnets':4,'engineering':6}"
-	material = /decl/material/solid/plastic
+	origin_tech = @'{"wormholes":4,"magnets":4,"engineering":6}'
+	material = /decl/material/solid/organic/plastic
 	matter = list(
 		/decl/material/solid/metal/steel = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/glass = MATTER_AMOUNT_TRACE
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_TRACE
 	)
 
 /obj/item/rig_module/device/orescanner
@@ -105,11 +105,11 @@
 	toggleable = 1
 	use_power_cost = 200
 	device = /obj/item/scanner/mining
-	origin_tech = "{'materials':4,'magnets':4,'engineering':6}"
-	material = /decl/material/solid/plastic
+	origin_tech = @'{"materials":4,"magnets":4,"engineering":6}'
+	material = /decl/material/solid/organic/plastic
 	matter = list(
 		/decl/material/solid/metal/steel = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/glass = MATTER_AMOUNT_TRACE
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_TRACE
 	)
 
 /obj/item/rig_module/device/orescanner/activate()
@@ -128,16 +128,16 @@
 	usable = 1
 	engage_string = "Configure RCD"
 	use_power_cost = 300
-	origin_tech = "{'materials':6,'magnets':5,'engineering':7}"
+	origin_tech = @'{"materials":6,"magnets":5,"engineering":7}'
 	device = /obj/item/rcd/mounted
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/plastic = MATTER_AMOUNT_TRACE,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/organic/plastic = MATTER_AMOUNT_TRACE,
 		/decl/material/solid/metal/gold = MATTER_AMOUNT_TRACE,
 		/decl/material/solid/metal/silver = MATTER_AMOUNT_TRACE
 	)
-	
+
 /obj/item/rig_module/device/Initialize()
 	. = ..()
 	if(ispath(device))
@@ -187,48 +187,33 @@
 
 	var/max_reagent_volume = 80 //Used when refilling.
 
-/obj/item/rig_module/chem_dispenser/ninja
-	interface_desc = "Dispenses loaded chemicals directly into the wearer's bloodstream. This variant is made to be extremely light and flexible."
-
-	//just over a syringe worth of each. Want more? Go refill. Gives the ninja another reason to have to show their face.
-	charges = list(
-		list("oxygen",       "oxygel",       /decl/material/liquid/oxy_meds,          20),
-		list("stabilizer",   "stabilizer",   /decl/material/liquid/stabilizer,        20),
-		list("antitoxins",   "antitoxins",   /decl/material/liquid/antitoxins,        20),
-		list("glucose",      "glucose",      /decl/material/liquid/nutriment/glucose, 80),
-		list("antirads",    "antirads",      /decl/material/liquid/antirads,          20),
-		list("regenerative", "regenerative", /decl/material/liquid/burn_meds,         20),
-		list("antibiotics",  "antibiotics",  /decl/material/liquid/antibiotics,       20),
-		list("painkillers",  "painkillers",  /decl/material/liquid/painkillers,       20)
-		)
-
 /obj/item/rig_module/chem_dispenser/accepts_item(var/obj/item/input_item, var/mob/living/user)
 
 	if(!ATOM_IS_OPEN_CONTAINER(input_item))
 		return 0
 
-	if(!input_item.reagents || !input_item.reagents.total_volume)
+	if(!input_item.reagents || !REAGENT_TOTAL_VOLUME(input_item.reagents))
 		to_chat(user, "\The [input_item] is empty.")
 		return 0
 
 	// Magical chemical filtration system, do not question it.
 	var/total_transferred = 0
-	for(var/rtype in input_item.reagents.reagent_volumes)
+	for(var/decl/material/reagent as anything in REAGENT_VOLUMES(input_item.reagents))
 		for(var/chargetype in charges)
 			var/datum/rig_charge/charge = charges[chargetype]
-			if(charge.product_type == rtype)
-				var/chems_to_transfer = REAGENT_VOLUME(input_item.reagents, rtype)
+			if(charge.product_type == reagent.type)
+				var/chems_to_transfer = REAGENT_VOLUME(input_item.reagents, reagent)
 				if((charge.charges + chems_to_transfer) > max_reagent_volume)
 					chems_to_transfer = max_reagent_volume - charge.charges
 				charge.charges += chems_to_transfer
-				input_item.reagents.remove_reagent(rtype, chems_to_transfer)
+				input_item.remove_from_reagents(reagent, chems_to_transfer)
 				total_transferred += chems_to_transfer
 				break
 
 	if(total_transferred)
-		to_chat(user, "<font color='blue'>You transfer [total_transferred] units into the suit reservoir.</font>")
+		to_chat(user, SPAN_NOTICE("You transfer [total_transferred] units into the suit reservoir."))
 	else
-		to_chat(user, "<span class='danger'>None of the reagents seem suitable.</span>")
+		to_chat(user, SPAN_WARNING("None of the reagents seem suitable."))
 	return 1
 
 /obj/item/rig_module/chem_dispenser/engage(atom/target)
@@ -236,10 +221,10 @@
 	if(!..())
 		return 0
 
-	var/mob/living/carbon/human/H = holder.wearer
+	var/mob/living/human/H = holder.wearer
 
 	if(!charge_selected)
-		to_chat(H, "<span class='danger'>You have not selected a chemical type.</span>")
+		to_chat(H, SPAN_WARNING("You have not selected a chemical type."))
 		return 0
 
 	var/datum/rig_charge/charge = charges[charge_selected]
@@ -254,24 +239,25 @@
 	else if(charge.charges < chems_to_use)
 		chems_to_use = charge.charges
 
-	var/mob/living/carbon/target_mob
+	var/mob/living/target_mob
 	if(target)
-		if(istype(target,/mob/living/carbon))
-			target_mob = target
-		else
-			return 0
+		if(!isliving(target))
+			return FALSE
+		target_mob = target
 	else
 		target_mob = H
+	var/datum/reagents/bloodstream = target_mob.get_injected_reagents()
+	if(!bloodstream)
+		return FALSE
 
 	if(target_mob != H)
-		to_chat(H, "<span class='danger'>You inject [target_mob] with [chems_to_use] unit\s of [charge.display_name].</span>")
-	to_chat(target_mob, "<span class='danger'>You feel a rushing in your veins as [chems_to_use] unit\s of [charge.display_name] [chems_to_use == 1 ? "is" : "are"] injected.</span>")
-	target_mob.reagents.add_reagent(charge.product_type, chems_to_use)
-
+		to_chat(H, SPAN_DANGER("You inject [target_mob] with [chems_to_use] unit\s of [charge.display_name]."))
+	to_chat(target_mob, SPAN_DANGER("You feel a rushing in your veins as [chems_to_use] unit\s of [charge.display_name] [chems_to_use == 1 ? "is" : "are"] injected."))
+	target_mob.add_to_reagents(charge.product_type, chems_to_use)
 	charge.charges -= chems_to_use
-	if(charge.charges < 0) charge.charges = 0
-
-	return 1
+	if(charge.charges < 0)
+		charge.charges = 0
+	return TRUE
 
 /obj/item/rig_module/chem_dispenser/combat
 
@@ -279,11 +265,11 @@
 	desc = "A complex web of tubing and needles suitable for hardsuit use."
 
 	charges = list(
-		list("antidepressants", "antidepressants",  /decl/material/liquid/antidepressants,   30),
-		list("stimulants",      "stimulants",       /decl/material/liquid/stimulants,        30),
-		list("amphetamines",    "amphetamines",     /decl/material/liquid/amphetamines,      30),
-		list("painkillers",     "painkillers",      /decl/material/liquid/painkillers,       30),
-		list("glucose",         "glucose",          /decl/material/liquid/nutriment/glucose, 80)
+		list("antidepressants", "antidepressants",  /decl/material/liquid/accumulated/antidepressants,    30),
+		list("stimulants",      "stimulants",       /decl/material/liquid/accumulated/stimulants,         30),
+		list("amphetamines",    "amphetamines",     /decl/material/liquid/amphetamines,                   30),
+		list("painkillers",     "painkillers",      /decl/material/liquid/painkillers/strong,             30),
+		list("glucose",         "glucose",          /decl/material/liquid/nutriment/glucose,              80)
 		)
 
 	interface_name = "combat chem dispenser"
@@ -327,14 +313,16 @@
 	voice_holder.active = 0
 
 /obj/item/rig_module/voice/installed()
-	..()
-	holder.speech = src
-	holder.verbs |= /obj/item/rig/proc/alter_voice
+	. = ..()
+	if(holder)
+		holder.speech = src
+		holder.verbs |= /obj/item/rig/proc/alter_voice
 
 /obj/item/rig_module/voice/removed()
-	..()
-	holder.speech = null
-	holder.verbs -= /obj/item/rig/proc/alter_voice
+	if(holder)
+		holder.speech = null
+		holder.verbs -= /obj/item/rig/proc/alter_voice
+	. = ..()
 
 /obj/item/rig_module/voice/engage()
 
@@ -350,17 +338,17 @@
 		if("Enable")
 			active = 1
 			voice_holder.active = 1
-			to_chat(usr, "<font color='blue'>You enable the speech synthesiser.</font>")
+			to_chat(usr, SPAN_NOTICE("You enable the speech synthesiser."))
 		if("Disable")
 			active = 0
 			voice_holder.active = 0
-			to_chat(usr, "<font color='blue'>You disable the speech synthesiser.</font>")
+			to_chat(usr, SPAN_NOTICE("You disable the speech synthesiser."))
 		if("Set Name")
 			var/raw_choice = sanitize(input(usr, "Please enter a new name.")  as text|null, MAX_NAME_LEN)
 			if(!raw_choice)
 				return 0
 			voice_holder.voice = raw_choice
-			to_chat(usr, "<font color='blue'>You are now mimicking <B>[voice_holder.voice]</B>.</font>")
+			to_chat(usr, SPAN_NOTICE("You are now mimicking <B>[voice_holder.voice]</B>."))
 	return 1
 
 /obj/item/rig_module/maneuvering_jets
@@ -382,14 +370,32 @@
 	deactivate_string = "Deactivate Thrusters"
 
 	interface_name = "maneuvering jets"
-	interface_desc = "An inbuilt EVA maneuvering system that runs off the rig air supply."
-	origin_tech = "{'materials':6,'engineering':7}"
+	interface_desc = "An inbuilt EVA maneuvering system that runs off a separate gas supply."
+	origin_tech = @'{"materials":6,"engineering":7}'
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/plastic = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/glass = MATTER_AMOUNT_TRACE
+		/decl/material/solid/organic/plastic = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_TRACE
 	)
 	var/obj/item/tank/jetpack/rig/jets
+
+/obj/item/rig_module/maneuvering_jets/attackby(obj/item/used_item, mob/user)
+	if(used_item.do_tool_interaction(TOOL_WRENCH, user, src, 1, "removing the propellant tank", "removing the propellant tank"))
+		jets.forceMove(get_turf(user))
+		user.put_in_hands(jets)
+		jets = null
+		return TRUE
+
+	if(istype(used_item, /obj/item/tank/jetpack/rig))
+		if(jets)
+			to_chat(user, SPAN_WARNING("There's already a propellant tank inside of \the [src]!"))
+			return TRUE
+		if(user.try_unequip(used_item))
+			to_chat(user, SPAN_NOTICE("You insert \the [used_item] into [src]."))
+			used_item.forceMove(src)
+			jets = used_item
+			return TRUE
+	. = ..()
 
 /obj/item/rig_module/maneuvering_jets/engage()
 	if(!..())
@@ -436,6 +442,10 @@
 	jets.holder = null
 	jets.ion_trail.set_up(jets)
 
+/obj/item/rig_module/maneuvering_jets/Destroy()
+	. = ..()
+	QDEL_NULL(jets)
+
 /obj/item/rig_module/device/paperdispenser
 	name = "hardsuit paper dispenser"
 	desc = "Crisp sheets."
@@ -446,16 +456,7 @@
 	use_power_cost = 200
 	usable = 1
 	selectable = 0
-	device = /obj/item/paper_bin
-
-/obj/item/rig_module/device/paperdispenser/engage(atom/target)
-
-	if(!..() || !device)
-		return 0
-
-	if(!target)
-		device.attack_hand(holder.wearer)
-		return 1
+	device = /obj/item/form_printer
 
 /obj/item/rig_module/device/pen
 	name = "mounted pen"
@@ -503,25 +504,25 @@
 	icon_state = "ewar"
 	interface_name = "mounted matter decompiler"
 	interface_desc = "Eats trash like no one's business."
-	origin_tech = "{'materials':5,'engineering':5}"
+	origin_tech = @'{"materials":5,"engineering":5}'
 	device = /obj/item/matter_decompiler
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/plastic = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/glass = MATTER_AMOUNT_TRACE
+		/decl/material/solid/organic/plastic = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_TRACE
 	)
 
 /obj/item/rig_module/cooling_unit
 	name = "mounted cooling unit"
 	toggleable = 1
-	origin_tech = "{'magnets':2,'materials':2,'engineering':5}"
+	origin_tech = @'{"magnets":2,"materials":2,"engineering":5}'
 	interface_name = "mounted cooling unit"
 	interface_desc = "A heat sink with a liquid cooled radiator."
 	module_cooldown = 0 SECONDS //no cd because its critical for a life-support module
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/plastic = MATTER_AMOUNT_TRACE
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/organic/plastic = MATTER_AMOUNT_TRACE
 	)
 	var/charge_consumption = 0.5 KILOWATTS
 	var/max_cooling = 12
@@ -531,7 +532,7 @@
 	if(!active)
 		return passive_power_cost
 
-	var/mob/living/carbon/human/H = holder.wearer
+	var/mob/living/human/H = holder.wearer
 
 	var/temp_adj = min(H.bodytemperature - thermostat, max_cooling) //Actually copies the original CU code
 

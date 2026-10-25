@@ -9,15 +9,15 @@
 #define PRESSURE_TANK_VOLUME 150	//L
 #define PUMP_MAX_FLOW_RATE 90		//L/s - 4 m/s using a 15 cm by 15 cm inlet
 
-GLOBAL_LIST_EMPTY(diversion_junctions)
+var/global/list/diversion_junctions = list()
 
 /obj/machinery/disposal
 	name = "disposal unit"
 	desc = "A pneumatic waste disposal unit."
-	icon = 'icons/obj/pipes/disposal.dmi'
+	icon = 'icons/obj/pipes/disposal_bin.dmi'
 	icon_state = "disposal"
-	anchored = 1
-	density = 1
+	anchored = TRUE
+	density = TRUE
 	var/datum/gas_mixture/air_contents	// internal reservoir
 	var/mode = 1	// item mode 0=off 1=charging 2=charged
 	var/flush = 0	// true if flush handle is pulled
@@ -68,119 +68,121 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 	return FALSE
 
 /obj/machinery/disposal/cannot_transition_to(state_path, mob/user)
-	if(mode > 0)
-		return SPAN_NOTICE("Turn off the pump first.")
 	if(contents.len > LAZYLEN(component_parts))
 		return SPAN_NOTICE("Eject the items first!")
 	return ..()
 
+/obj/machinery/disposal/grab_attack(obj/item/grab/grab, mob/user)
+	var/mob/living/victim = grab.get_affecting_mob()
+	if(istype(victim))
+		user.visible_message(SPAN_DANGER("\The [user] starts putting \the [victim] into the disposal."))
+		if(do_after(user, 2 SECONDS, src))
+			if (victim.client)
+				victim.client.perspective = EYE_PERSPECTIVE
+				victim.client.eye = src
+			victim.forceMove(src)
+			user.visible_message(SPAN_DANGER("\The [victim] has been placed in \the [src] by \the [user]."))
+			qdel(grab)
+			admin_attack_log(user, victim, "Placed the victim into \the [src].", "Was placed into \the [src] by the attacker.", "stuffed \the [src] with")
+		return TRUE
+	return ..()
+
 // attack by item places it in to disposal
-/obj/machinery/disposal/attackby(var/obj/item/I, var/mob/user)
+/obj/machinery/disposal/attackby(var/obj/item/used_item, var/mob/user)
 	if((. = ..()))
 		return
-	if(stat & BROKEN || !I || !user)
+	if(stat & BROKEN || !used_item || !user)
 		return
 
-	if(istype(I, /obj/item/energy_blade/blade))
-		to_chat(user, "You can't place that item inside the disposal unit.")
-		return
-
-	if(istype(I, /obj/item/storage/bag/trash))
-		var/obj/item/storage/bag/trash/T = I
-		to_chat(user, "<span class='notice'>You empty the bag.</span>")
-		for(var/obj/item/O in T.contents)
-			T.remove_from_storage(O,src, 1)
-		T.finish_bulk_removal()
-		update_icon()
-		return
-
-	var/obj/item/grab/G = I
-	if(istype(G))	// handle grabbed mob
-		var/mob/GM = G.get_affecting_mob()
-		if(GM)
-			usr.visible_message(SPAN_DANGER("\The [usr] starts putting [GM.name] into the disposal."))
-			if(do_after(usr, 20, src))
-				if (GM.client)
-					GM.client.perspective = EYE_PERSPECTIVE
-					GM.client.eye = src
-				GM.forceMove(src)
-				usr.visible_message(SPAN_DANGER("\The [GM] has been placed in the [src] by \the [user]."))
-				qdel(G)
-				admin_attack_log(usr, GM, "Placed the victim into \the [src].", "Was placed into \the [src] by the attacker.", "stuffed \the [src] with")
-		return
-
-	if(!user.unEquip(I, src))
-		return
-
-	user.visible_message("\The [user] places \the [I] into \the [src].", "You place \the [I] into \the [src].")
-
-	update_icon()
-
-/obj/machinery/disposal/MouseDrop_T(atom/movable/AM, mob/user)
-	if(!istype(AM)) // Could be dragging in a turf.
-		return
-	var/incapacitation_flags = INCAPACITATION_DEFAULT
-	if(AM == user)
-		incapacitation_flags &= ~INCAPACITATION_RESTRAINED
-
-	if(stat & BROKEN || !CanMouseDrop(AM, user, incapacitation_flags) || AM.anchored || !isturf(user.loc))
-		return
-
-	// Animals can only put themself in
-	if(isanimal(user) && AM != user)
-		return
-
-	// Determine object type and run necessary checks
-	var/mob/M = AM
-	var/is_dangerous // To determine css style in messages
-	if(istype(M))
-		is_dangerous = TRUE
-		if(M.buckled)
+	if(istype(used_item, /obj/item/bag/trash))
+		if(used_item.storage)
+			to_chat(user, "<span class='notice'>You empty the bag.</span>")
+			for(var/obj/item/O in used_item.storage.get_contents())
+				used_item.storage.remove_from_storage(user, O, src, TRUE)
+			used_item.storage.finish_bulk_removal()
+			update_icon()
 			return
-	else if(istype(AM, /obj/item))
-		attackby(AM, user)
-		return
-	else if(!is_type_in_list(AM, allowed_objects))
+
+	if(!user.try_unequip(used_item, src) || QDELETED(used_item))
 		return
 
-	// Checks completed, start inserting
-	src.add_fingerprint(user)
-	var/old_loc = AM.loc
-	if(AM == user)
-		user.visible_message("<span class='warning'>[user] starts climbing into [src].</span>", \
-							 "<span class='notice'>You start climbing into [src].</span>")
-	else
-		user.visible_message("<span class='[is_dangerous ? "warning" : "notice"]'>[user] starts stuffing [AM] into [src].</span>", \
-							 "<span class='notice'>You start stuffing [AM] into [src].</span>")
+	user.visible_message("\The [user] places \the [used_item] into \the [src].", "You place \the [used_item] into \the [src].")
 
-	if(!do_after(user, 2 SECONDS, src))
-		return
-
-	// Repeat checks
-	if(stat & BROKEN || user.incapacitated(incapacitation_flags))
-		return
-	if(!AM || old_loc != AM.loc || AM.anchored)
-		return
-	if(istype(M) && M.buckled)
-		return
-
-	// Messages and logging
-	if(AM == user)
-		user.visible_message("<span class='danger'>[user] climbs into [src].</span>", \
-							 "<span class='notice'>You climb into [src].</span>")
-		log_and_message_admins("has stuffed themselves into [src].", AM)		 
-	else
-		user.visible_message("<span class='[is_dangerous ? "danger" : "notice"]'>[user] stuffs [AM] into [src][is_dangerous ? "!" : "."]</span>", \
-							 "<span class='notice'>You stuff [AM] into [src].</span>")
-		if(ismob(M))
-			admin_attack_log(user, M, "Placed the victim into \the [src].", "Was placed into \the [src] by the attacker.", "stuffed \the [src] with")
-			if (M.client)
-				M.client.perspective = EYE_PERSPECTIVE
-				M.client.eye = src
-
-	AM.forceMove(src)
 	update_icon()
-	return
+
+/obj/machinery/disposal/receive_mouse_drop(atom/dropping, mob/user, params)
+
+	. = (!user?.check_intent(I_FLAG_HARM) && ..())
+
+	if(!. && !(stat & BROKEN))
+
+		if(isanimal(user) && dropping != user)
+			return TRUE
+
+		var/incapacitation_flags = INCAPACITATION_DEFAULT
+		if(dropping == user)
+			incapacitation_flags &= ~INCAPACITATION_RESTRAINED
+		if(!dropping.can_mouse_drop(src, user, incapacitation_flags, params))
+			return FALSE
+
+		// Todo rewrite all of this.
+		var/atom/movable/AM = dropping
+		if(!istype(AM) || AM.anchored)
+			return FALSE
+
+		// Determine object type and run necessary checks
+		var/mob/M = AM
+		var/is_dangerous // To determine css style in messages
+		if(istype(M))
+			is_dangerous = TRUE
+			if(M.buckled)
+				return FALSE
+		else if(istype(AM, /obj/item))
+			attackby(AM, user)
+			return FALSE
+		else if(!is_type_in_list(AM, allowed_objects))
+			return FALSE
+
+		// Checks completed, start inserting
+		src.add_fingerprint(user)
+		var/old_loc = AM.loc
+		if(AM == user)
+			user.visible_message("<span class='warning'>[user] starts climbing into [src].</span>", \
+								"<span class='notice'>You start climbing into [src].</span>")
+		else
+			if(istype(M) && isliving(user))
+				M.last_handled_by_mob = weakref(user)
+			user.visible_message("<span class='[is_dangerous ? "warning" : "notice"]'>[user] starts stuffing [AM] into [src].</span>", \
+								"<span class='notice'>You start stuffing [AM] into [src].</span>")
+
+		if(!do_after(user, 2 SECONDS, src))
+			return FALSE
+
+		// Repeat checks
+		if((stat & BROKEN) || user.incapacitated())
+			return FALSE
+		if(!AM || old_loc != AM.loc || AM.anchored)
+			return FALSE
+		if(istype(M) && M.buckled)
+			return FALSE
+
+		// Messages and logging
+		if(AM == user)
+			user.visible_message("<span class='danger'>[user] climbs into [src].</span>", \
+								"<span class='notice'>You climb into [src].</span>")
+			admin_attack_log(user, null, "Stuffed themselves into \the [src].", null, "stuffed themselves into \the [src].")
+		else
+			user.visible_message("<span class='[is_dangerous ? "danger" : "notice"]'>[user] stuffs [AM] into [src][is_dangerous ? "!" : "."]</span>", \
+								"<span class='notice'>You stuff [AM] into [src].</span>")
+			if(ismob(M))
+				admin_attack_log(user, M, "Placed the victim into \the [src].", "Was placed into \the [src] by the attacker.", "stuffed \the [src] with")
+				if (M.client)
+					M.client.perspective = EYE_PERSPECTIVE
+					M.client.eye = src
+
+		AM.forceMove(src)
+		update_icon()
+		return FALSE
 
 // attempt to move while inside
 /obj/machinery/disposal/relaymove(mob/user)
@@ -201,14 +203,15 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 	return
 
 /obj/machinery/disposal/DefaultTopicState()
-	return GLOB.outside_state	
+	return global.outside_topic_state
 
 // human interact with machine
 /obj/machinery/disposal/physical_attack_hand(mob/user)
-	if(!user.check_dexterity(DEXTERITY_KEYBOARDS))
+	if(!user.check_dexterity(DEXTERITY_KEYBOARDS, fail_message = "You lack the dexterity to interact with \the [src]."))
 		flush = !flush
 		update_icon()
 		return TRUE
+	return FALSE
 
 /obj/machinery/disposal/interface_interact(mob/user)
 	interact(user)
@@ -227,18 +230,18 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 
 	if(!ai)  // AI can't pull flush handle
 		if(flush)
-			dat += "Disposal handle: <A href='?src=\ref[src];handle=0'>Disengage</A> <B>Engaged</B>"
+			dat += "Disposal handle: <A href='byond://?src=\ref[src];handle=0'>Disengage</A> <B>Engaged</B>"
 		else
-			dat += "Disposal handle: <B>Disengaged</B> <A href='?src=\ref[src];handle=1'>Engage</A>"
+			dat += "Disposal handle: <B>Disengaged</B> <A href='byond://?src=\ref[src];handle=1'>Engage</A>"
 
-		dat += "<BR><HR><A href='?src=\ref[src];eject=1'>Eject contents</A><HR>"
+		dat += "<BR><HR><A href='byond://?src=\ref[src];eject=1'>Eject contents</A><HR>"
 
 	if(mode <= 0)
-		dat += "Pump: <B>Off</B> <A href='?src=\ref[src];pump=1'>On</A><BR>"
+		dat += "Pump: <B>Off</B> <A href='byond://?src=\ref[src];pump=1'>On</A><BR>"
 	else if(mode == 1)
-		dat += "Pump: <A href='?src=\ref[src];pump=0'>Off</A> <B>On</B> (pressurizing)<BR>"
+		dat += "Pump: <A href='byond://?src=\ref[src];pump=0'>Off</A> <B>On</B> (pressurizing)<BR>"
 	else
-		dat += "Pump: <A href='?src=\ref[src];pump=0'>Off</A> <B>On</B> (idle)<BR>"
+		dat += "Pump: <A href='byond://?src=\ref[src];pump=0'>Off</A> <B>On</B> (idle)<BR>"
 
 	var/per = 100* air_contents.return_pressure() / (SEND_PRESSURE)
 
@@ -258,7 +261,7 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 	if(isAI(user) && (href_list["handle"] || href_list["eject"]))
 		return min(STATUS_UPDATE, ..())
 	if(mode==-1 && !href_list["eject"]) // only allow ejecting if mode is -1
-		to_chat(user, "<span class='warning'>The disposal units power is disabled.</span>")
+		to_chat(user, "<span class='warning'>The disposal unit's power is disabled.</span>")
 		return min(STATUS_UPDATE, ..())
 	if(flushing)
 		return min(STATUS_UPDATE, ..())
@@ -270,10 +273,7 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 		return TOPIC_HANDLED
 
 	if(href_list["pump"])
-		if(text2num(href_list["pump"]))
-			mode = 1
-		else
-			mode = 0
+		mode = !!text2num(href_list["pump"])
 		update_icon()
 		. = TOPIC_REFRESH
 
@@ -291,14 +291,14 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 
 // eject the contents of the disposal unit
 /obj/machinery/disposal/proc/eject()
-	for(var/atom/movable/AM in (contents - component_parts))
+	for(var/atom/movable/AM in get_contained_external_atoms())
 		AM.forceMove(src.loc)
 		AM.pipe_eject(0)
 	update_icon()
 
 // update the icon & overlays to reflect mode & status
 /obj/machinery/disposal/on_update_icon()
-	overlays.Cut()
+	cut_overlays()
 	if(stat & BROKEN)
 		mode = 0
 		flush = 0
@@ -306,7 +306,7 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 
 	// flush handle
 	if(flush)
-		overlays += image('icons/obj/pipes/disposal.dmi', "dispover-handle")
+		add_overlay("[icon_state]-handle")
 
 	// only handle is shown if no power
 	if(stat & NOPOWER || mode == -1)
@@ -314,13 +314,13 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 
 	// 	check for items in disposal - occupied light
 	if(contents.len > LAZYLEN(component_parts))
-		overlays += image('icons/obj/pipes/disposal.dmi', "dispover-full")
+		add_overlay("[icon_state]-full")
 
 	// charging and ready light
 	if(mode == 1)
-		overlays += image('icons/obj/pipes/disposal.dmi', "dispover-charge")
+		add_overlay("[icon_state]-charge")
 	else if(mode == 2)
-		overlays += image('icons/obj/pipes/disposal.dmi', "dispover-ready")
+		add_overlay("[icon_state]-ready")
 
 // timed process
 // charge the gas reservoir and perform flush if ready
@@ -361,7 +361,7 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 
 	var/power_draw = -1
 	if(env && env.temperature > 0)
-		var/transfer_moles = (PUMP_MAX_FLOW_RATE/env.volume)*env.total_moles	//group_multiplier is divided out here
+		var/transfer_moles = (PUMP_MAX_FLOW_RATE/env.total_volume)*env.total_moles	//group_multiplier is divided out here
 		power_draw = pump_gas(src, env, air_contents, transfer_moles, active_power_usage)
 
 	if (power_draw > 0)
@@ -370,26 +370,24 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 // perform a flush
 /obj/machinery/disposal/proc/flush()
 
+	set waitfor = FALSE
+
 	flushing = 1
 	flick("[icon_state]-flush", src)
 
 	var/wrapcheck = 0
 	var/obj/structure/disposalholder/H = new()	// virtual holder object which actually
 												// travels through the pipes.
-	var/list/stuff = contents - component_parts
+	var/list/stuff = get_contained_external_atoms()
 	//Hacky test to get drones to mail themselves through disposals.
 	for(var/mob/living/silicon/robot/drone/D in stuff)
 		wrapcheck = 1
 
-	for(var/obj/item/smallDelivery/O in stuff)
+	for(var/obj/item/parcel/O in stuff)
 		wrapcheck = 1
 
 	if(wrapcheck == 1)
 		H.tomail = 1
-
-	for(var/mob/living/L in stuff)
-		if (L.ckey)
-			log_and_message_admins("has been flushed down [src].", L)
 
 	sleep(10)
 	if(last_sound < world.time + 1)
@@ -400,6 +398,10 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 
 	H.init(src, air_contents)	// copy the contents of disposer to holder
 	air_contents = new(PRESSURE_TANK_VOLUME)	// new empty gas resv.
+
+	for(var/mob/M in H.check_mob(stuff))
+		if(M.ckey)
+			admin_attack_log(null, M, null, "Was flushed down [src].", "has been flushed down [src].")
 
 	H.start(src) // start the holder processing movement
 	flushing = 0
@@ -423,7 +425,7 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 			AM.forceMove(src.loc)
 			AM.pipe_eject(0)
 			// Poor drones kept smashing windows and taking system damage being fired out of disposals.
-			if(!istype(AM,/mob/living/silicon/robot/drone))
+			if(!isdrone(AM))
 				spawn(1)
 					if(AM)
 						AM.throw_at(target, 5, 1)
@@ -433,14 +435,14 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 
 /obj/machinery/disposal/CanPass(atom/movable/mover, turf/target, height=0, air_group=0)
 	if (istype(mover,/obj/item) && mover.throwing)
-		var/obj/item/I = mover
-		if(istype(I, /obj/item/projectile))
+		var/obj/item/thing = mover
+		if(istype(thing, /obj/item/projectile))
 			return
 		if(prob(75))
-			I.forceMove(src)
-			visible_message("\The [I] lands in \the [src].")
+			thing.forceMove(src)
+			visible_message("\The [thing] lands in \the [src].")
 		else
-			visible_message("\The [I] bounces off of \the [src]'s rim!")
+			visible_message("\The [thing] bounces off of \the [src]'s rim!")
 		return 0
 	else
 		return ..(mover, target, height, air_group)
@@ -458,7 +460,7 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 	. = ..(mapload)
 	if(!id_tag)
 		id_tag = newid
-	for(var/obj/structure/disposalpipe/diversion_junction/D in GLOB.diversion_junctions)
+	for(var/obj/structure/disposalpipe/diversion_junction/D in global.diversion_junctions)
 		if(D.id_tag && !D.linked && D.id_tag == src.id_tag)
 			junctions += D
 			D.linked = src
@@ -467,8 +469,8 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 	junctions.Cut()
 	return ..()
 
-/obj/machinery/disposal_switch/attackby(obj/item/I, mob/user, params)
-	if(isCrowbar(I))
+/obj/machinery/disposal_switch/attackby(obj/item/used_item, mob/user, params)
+	if(IS_CROWBAR(used_item))
 		var/obj/item/disposal_switch_construct/C = new/obj/item/disposal_switch_construct(src.loc, id_tag)
 		transfer_fingerprints_to(C)
 		user.visible_message("<span class='notice'>\The [user] deattaches \the [src]</span>")
@@ -496,6 +498,7 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 	icon = 'icons/obj/recycling.dmi'
 	icon_state = "switch-off"
 	w_class = ITEM_SIZE_LARGE
+	material = /decl/material/solid/metal/steel
 	var/id_tag
 
 /obj/item/disposal_switch_construct/Initialize(var/id)
@@ -505,15 +508,18 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 		id_tag = "ds[sequential_id(/obj/item/disposal_switch_construct)]"
 
 /obj/item/disposal_switch_construct/afterattack(atom/A, mob/user, proximity)
-	if(!proximity || !istype(A, /turf/simulated/floor) || istype(A, /area/shuttle) || user.incapacitated() || !id_tag)
+	if(!proximity || !istype(A, /turf/floor) || user.incapacitated() || !id_tag)
 		return
+	var/area/area = get_area(A)
+	if(!istype(area) || (area.area_flags & AREA_FLAG_SHUTTLE))
+		return FALSE
 	var/found = 0
-	for(var/obj/structure/disposalpipe/diversion_junction/D in GLOB.diversion_junctions)
+	for(var/obj/structure/disposalpipe/diversion_junction/D in global.diversion_junctions)
 		if(D.id_tag == src.id_tag)
 			found = 1
 			break
 	if(!found)
-		to_chat(user, "\icon[src]<span class=notice>\The [src] is not linked to any junctions!</span>")
+		to_chat(user, "[html_icon(src)]<span class=notice>\The [src] is not linked to any junctions!</span>")
 		return
 	var/obj/machinery/disposal_switch/NC = new/obj/machinery/disposal_switch(A, id_tag)
 	transfer_fingerprints_to(NC)
@@ -524,14 +530,13 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 /obj/structure/disposaloutlet
 	name = "disposal outlet"
 	desc = "An outlet for the pneumatic disposal system."
-	icon = 'icons/obj/pipes/disposal.dmi'
+	icon = 'icons/obj/pipes/disposal_outlet.dmi'
 	icon_state = "outlet"
-	density = 1
-	anchored = 1
-	var/active = 0
+	density = TRUE
+	anchored = TRUE
 	var/turf/target	// this will be where the output objects are 'thrown' to.
 	var/mode = 0
-	atom_flags = ATOM_FLAG_NO_TEMP_CHANGE | ATOM_FLAG_CLIMBABLE
+	atom_flags = ATOM_FLAG_CLIMBABLE
 
 /obj/structure/disposaloutlet/Initialize()
 	. = ..()
@@ -550,7 +555,7 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 			AM.forceMove(src.loc)
 			AM.pipe_eject(dir)
 			// Drones keep smashing windows from being fired out of chutes.
-			if(!istype(AM,/mob/living/silicon/robot/drone))
+			if(!isdrone(AM))
 				spawn(5)
 					AM.throw_at(target, 3, 1)
 		H.vent_gas(src.loc)
@@ -558,44 +563,50 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 
 /obj/structure/disposaloutlet/proc/animate_expel()
 	set waitfor = FALSE
-	flick("outlet-open", src)
+	flick("[icon_state]-open", src)
 	playsound(src, 'sound/machines/warning-buzzer.ogg', 50, 0, 0)
 	sleep(20)	//wait until correct animation frame
 	playsound(src, 'sound/machines/hiss.ogg', 50, 0, 0)
 
-/obj/structure/disposaloutlet/attackby(var/obj/item/I, var/mob/user)
-	if(!I || !user)
-		return
-	src.add_fingerprint(user, 0, I)
-	if(isScrewdriver(I))
-		if(mode==0)
-			mode=1
-			playsound(src.loc, 'sound/items/Screwdriver.ogg', 50, 1)
-			to_chat(user, "You remove the screws around the power connection.")
-			return
-		else if(mode==1)
-			mode=0
-			playsound(src.loc, 'sound/items/Screwdriver.ogg', 50, 1)
-			to_chat(user, "You attach the screws around the power connection.")
-			return
-	else if(istype(I,/obj/item/weldingtool) && mode==1)
-		var/obj/item/weldingtool/W = I
-		if(W.remove_fuel(0,user))
+/obj/structure/disposaloutlet/attackby(var/obj/item/used_item, var/mob/user)
+	src.add_fingerprint(user, 0, used_item)
+	if(IS_SCREWDRIVER(used_item))
+		switch(mode)
+			if(0)
+				mode=1
+				playsound(src.loc, 'sound/items/Screwdriver.ogg', 50, 1)
+				to_chat(user, "You remove the screws around the power connection.")
+				return TRUE
+			if(1)
+				mode=0
+				playsound(src.loc, 'sound/items/Screwdriver.ogg', 50, 1)
+				to_chat(user, "You attach the screws around the power connection.")
+				return TRUE
+			else // This should be invalid?
+				return FALSE
+	else if(istype(used_item,/obj/item/fuelled_tool/welding) && mode==1)
+		var/obj/item/fuelled_tool/welding/welder = used_item
+		if(welder.weld(0,user))
 			playsound(src.loc, 'sound/items/Welder2.ogg', 100, 1)
 			to_chat(user, "You start slicing the floorweld off the disposal outlet.")
-			if(do_after(user,20, src))
-				if(!src || !W.isOn()) return
-				to_chat(user, "You sliced the floorweld off the disposal outlet.")
-				var/obj/structure/disposalconstruct/machine/outlet/C = new (loc, src)
-				src.transfer_fingerprints_to(C)								
-				C.anchored = 1
-				C.set_density(1)
-				C.update()
-				qdel(src)
-				return
+			if(!do_after(user, 2 SECONDS, src))
+				to_chat(user, "You must remain still to deconstruct \the [src].")
+				return TRUE
+			if(QDELETED(src) || !welder.tool_is_running())
+				return TRUE
+			to_chat(user, "You sliced the floorweld off the disposal outlet.")
+			var/obj/structure/disposalconstruct/machine/outlet/C = new (loc, src)
+			src.transfer_fingerprints_to(C)
+			C.set_anchored(TRUE)
+			C.set_density(1)
+			C.update()
+			qdel(src)
+			return TRUE
 		else
-			to_chat(user, "You need more welding fuel to complete this task.")
-			return
+			to_chat(user, "You need more fuel to complete this task.")
+			return TRUE
+	else
+		return ..()
 
 /obj/structure/disposaloutlet/forceMove()//updates this when shuttle moves. So you can YEET things out the airlock
 	. = ..()
@@ -621,7 +632,7 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 	if(direction)
 		dirs = list( direction, turn(direction, -45), turn(direction, 45))
 	else
-		dirs = GLOB.alldirs.Copy()
+		dirs = global.alldirs.Copy()
 
 	src.streak(dirs)
 
@@ -630,6 +641,6 @@ GLOBAL_LIST_EMPTY(diversion_junctions)
 	if(direction)
 		dirs = list( direction, turn(direction, -45), turn(direction, 45))
 	else
-		dirs = GLOB.alldirs.Copy()
+		dirs = global.alldirs.Copy()
 
 	src.streak(dirs)

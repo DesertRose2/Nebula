@@ -1,11 +1,12 @@
-var/const/GHOST_IMAGE_NONE = 0
-var/const/GHOST_IMAGE_DARKNESS = 1
-var/const/GHOST_IMAGE_SIGHTLESS = 2
-var/const/GHOST_IMAGE_ALL = ~GHOST_IMAGE_NONE
+var/global/const/GHOST_IMAGE_NONE = 0
+var/global/const/GHOST_IMAGE_DARKNESS = 1
+var/global/const/GHOST_IMAGE_SIGHTLESS = 2
+var/global/const/GHOST_IMAGE_ALL = ~GHOST_IMAGE_NONE
 
 /mob/observer
-	density = 0
+	density = FALSE
 	alpha = 127
+	layer = OBSERVER_LAYER
 	plane = OBSERVER_PLANE
 	invisibility = INVISIBILITY_OBSERVER
 	see_invisible = SEE_INVISIBLE_OBSERVER
@@ -13,11 +14,14 @@ var/const/GHOST_IMAGE_ALL = ~GHOST_IMAGE_NONE
 	simulated = FALSE
 	stat = DEAD
 	status_flags = GODMODE
+	shift_to_open_context_menu = FALSE
+	skillset = /datum/skillset // moved here from /mob to avoid giving dview a skillset
 	var/ghost_image_flag = GHOST_IMAGE_DARKNESS
 	var/image/ghost_image = null //this mobs ghost image, for deleting and stuff
 
 /mob/observer/Initialize()
 	. = ..()
+	glide_size = 0 // Set in Initialize() because the compiler doesn't like it set in the definition.
 	ghost_image = image(src.icon,src)
 	ghost_image.plane = plane
 	ghost_image.layer = layer
@@ -38,17 +42,34 @@ var/const/GHOST_IMAGE_ALL = ~GHOST_IMAGE_NONE
 		SSghost_images.queue_global_image_update()
 	. = ..()
 
-mob/observer/check_airflow_movable()
+/mob/observer/can_slip(magboots_only = FALSE)
+	return FALSE
+
+/mob/observer/get_movement_delay(travel_dir)
+	SHOULD_CALL_PARENT(FALSE)
+	return 1
+
+/mob/observer/check_airflow_movable()
 	return FALSE
 
 /mob/observer/CanPass()
 	return TRUE
 
+/mob/observer/physically_destroyed()
+	SHOULD_CALL_PARENT(FALSE)
+	return FALSE
+
+/mob/observer/handle_existence_failure(dusted)
+	SHOULD_CALL_PARENT(FALSE)
+	return FALSE
+
 /mob/observer/dust()	//observers can't be vaporised.
-	return
+	SHOULD_CALL_PARENT(FALSE)
+	return FALSE
 
 /mob/observer/gib()		//observers can't be gibbed.
-	return
+	SHOULD_CALL_PARENT(FALSE)
+	return FALSE
 
 /mob/observer/is_blind()	//Not blind either.
 	return
@@ -59,8 +80,8 @@ mob/observer/check_airflow_movable()
 /mob/observer/set_stat()
 	stat = DEAD // They are also always dead
 
-/mob/observer/touch_map_edge()
-	if(z in GLOB.using_map.sealed_levels)
+/mob/observer/touch_map_edge(var/overmap_id = OVERMAP_ID_SPACE)
+	if(isSealedLevel(z))
 		return
 
 	var/new_x = x
@@ -78,11 +99,24 @@ mob/observer/check_airflow_movable()
 	var/turf/T = locate(new_x, new_y, z)
 	if(T)
 		forceMove(T)
-		throwing = null
+		end_throw()
 		to_chat(src, "<span class='notice'>You cannot move further in this direction.</span>")
 
-/mob/observer/handle_reading_literacy(var/mob/user, var/text_content, var/skip_delays)
+/mob/observer/handle_reading_literacy(var/mob/user, var/text_content, var/skip_delays, var/digital = FALSE)
 	. = text_content
 
 /mob/observer/handle_writing_literacy(var/mob/user, var/text_content, var/skip_delays)
 	. = text_content
+
+/mob/observer/get_admin_job_string()
+	return "Ghost"
+
+/mob/observer/set_glide_size(var/delay)
+	glide_size = 0
+
+/mob/observer/get_speech_bubble_state_modifier()
+	return "ghost"
+
+/mob/observer/refresh_lighting_master()
+	..()
+	lighting_master.alpha = 255 // don't bother animating it

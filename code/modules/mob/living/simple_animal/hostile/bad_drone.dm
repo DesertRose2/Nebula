@@ -1,42 +1,50 @@
 /mob/living/simple_animal/hostile/rogue_drone
 	name = "maintenance drone"
 	desc = "A small robot. It looks angry."
-	icon_state = "dron"
-	icon_dead = "dron_dead"
-	speak = list("Removing organic waste.","Pest control in progress.","Seize the means of maintenance!", "You have nothing to lose but your laws!")
-	speak_emote = list("blares","buzzes","beeps")
-	speak_chance = 1
-	health = 50
-	maxHealth = 50
+	icon = 'icons/mob/simple_animal/drones/drone.dmi'
+	speak_emote  = list("blares","buzzes","beeps")
+	max_health = 50
 	natural_weapon = /obj/item/natural_weapon/drone_slicer
 	faction = "silicon"
 	min_gas = null
 	max_gas = null
 	minbodytemp = 0
-	speed = 4
 	mob_size = MOB_SIZE_TINY
+	gene_damage = -1
+	attack_delay = DEFAULT_QUICK_COOLDOWN
+	butchery_data = /decl/butchery_data/synthetic
+	ai = /datum/mob_controller/aggressive/rogue_drone
 	var/corpse = /obj/effect/decal/cleanable/blood/gibs/robot
+
+/datum/mob_controller/aggressive/rogue_drone
+	emote_speech = list("Removing organic waste.","Pest control in progress.","Seize the means of maintenance!", "You have nothing to lose but your laws!")
+	speak_chance = 0.25
+
+/datum/mob_controller/aggressive/rogue_drone/valid_target(var/atom/A)
+	. = ..()
+	if(.)
+		if(issilicon(A))
+			return FALSE
+		if(ishuman(A))
+			var/mob/living/human/H = A
+			if(H.isSynthetic())
+				return FALSE
+			var/obj/item/head = H.get_equipped_item(slot_head_str)
+			if(istype(head, /obj/item/holder/drone))
+				return FALSE
+			if(istype(H.get_equipped_item(slot_wear_suit_str), /obj/item/clothing/suit/cardborg) && istype(head, /obj/item/clothing/head/cardborg))
+				return FALSE
 
 /mob/living/simple_animal/hostile/rogue_drone/Initialize()
 	. = ..()
 	name = "[initial(name)] ([random_id(type,100,999)])"
 
-/mob/living/simple_animal/hostile/rogue_drone/ValidTarget(var/atom/A)
+/mob/living/simple_animal/hostile/rogue_drone/death(gibbed)
 	. = ..()
-	if(.)
-		if(istype(A,/mob/living/silicon/))
-			return FALSE
-		if(ishuman(A))
-			var/mob/living/carbon/human/H = A
-			if(H.isSynthetic())
-				return FALSE
-			if(istype(H.head, /obj/item/holder/drone))
-				return FALSE
-			if(istype(H.wear_suit, /obj/item/clothing/suit/cardborg) && istype(H.head, /obj/item/clothing/head/cardborg))
-				return FALSE
+	if(. && !gibbed)
+		if(corpse)
+			new corpse (loc)
+		qdel(src)
 
-/mob/living/simple_animal/hostile/rogue_drone/death(gibbed, deathmessage, show_dead_message)
-	.=..()
-	if(corpse)
-		new corpse (loc)
-	qdel(src)
+/mob/living/simple_animal/hostile/rogue_drone/isSynthetic()
+	return TRUE

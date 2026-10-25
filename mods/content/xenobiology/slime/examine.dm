@@ -1,0 +1,18 @@
+/mob/living/slime/get_other_examine_strings(mob/user, distance, infix, suffix, hideflags, decl/pronouns/pronouns)
+	. = ..()
+	if(stat == DEAD)
+		. += "<span class='deadsay'>It is limp and unresponsive.</span>"
+	else
+		if(src.get_damage(BRUTE) >= 40)
+			. += SPAN_DANGER("It has severe punctures and tears in its flesh!")
+		else if(src.get_damage(BRUTE))
+			. += SPAN_WARNING("It has some punctures in its flesh!")
+		switch(powerlevel)
+			if(2 to 3)
+				. += SPAN_WARNING("It is flickering gently with a little electrical activity.")
+			if(4 to 5)
+				. += SPAN_WARNING("It is glowing gently with moderate levels of electrical activity.")
+			if(6 to 9)
+				. += SPAN_DANGER("It is glowing brightly with high levels of electrical activity.")
+			if(10)
+				. += SPAN_DANGER("It is radiating with massive levels of electrical activity!")

@@ -7,31 +7,70 @@
 		return FALSE
 	return check_access_list(M.GetAccess())
 
-/atom/movable/proc/GetAccess()
+/atom/movable/proc/GetAccess(var/union = FALSE)
 	. = list()
-	var/obj/item/card/id/id = GetIdCard()
+	if(union)
+		for(var/atom/movable/id in GetIdCards())
+			. |= id.GetAccess()
+		return .
+	var/atom/movable/id = GetIdCard()
 	if(id)
-		. += id.GetAccess()
+		. = id.GetAccess()
 
-/atom/movable/proc/GetIdCard()
-	return null
+/atom/movable/proc/GetIdCard(list/exceptions, prefer_held = TRUE)
+	RETURN_TYPE(/obj/item/card/id)
+	. = GetIdCards(exceptions)
+	return LAZYACCESS(., LAZYLEN(.))
+
+// Duplicated logic, because it's short enough to not bother splitting out.
+// Quite gross logic sorry, did not want to work out a proper sorting method :(
+// The logic behind this sorting is that we should prefer ID cards as such:
+// - held cards, because they are very easily shifted dropped etc
+// - equipped cards, because they can also be removed, albeit slower
+// - any remaining cards, because at time of writing they are implanted and
+//   can't be removed easily at all.
+/mob/GetIdCard(list/exceptions, prefer_held = TRUE)
+	RETURN_TYPE(/obj/item/card/id)
+	// Get candidate cards, return similar to parent if we don't care
+	. = GetIdCards(exceptions)
+	var/card_count = length(.)
+	if(card_count <= 0)
+		return null
+	if(!prefer_held || card_count == 1)
+		return .[card_count]
+	// Move ID to the end of the list.
+	var/obj/item/id = get_equipped_item(slot_wear_id_str)
+	if(id)
+		. -= id
+		. += id
+	// Move held items to the end of the list (prefer them over equipped ID)
+	for(var/obj/item/card in get_held_items())
+		if(card in .)
+			. -= card
+			. += card
+	return .[length(.)]
+
+/atom/movable/proc/GetIdCards(list/exceptions)
+	var/datum/extension/access_provider/our_provider = get_extension(src, /datum/extension/access_provider)
+	if(our_provider)
+		LAZYDISTINCTADD(., our_provider.GetIdCards(exceptions))
 
 /atom/movable/proc/check_access(atom/movable/A)
 	return check_access_list(A ? A.GetAccess() : list())
 
-/atom/movable/proc/check_access_list(list/L)
-	var/list/R = get_req_access()
+/atom/movable/proc/check_access_list(list/supplied_access)
+	var/list/required_access = get_req_access()
 
-	if(!R)
-		R = list()
-	if(!istype(L, /list))
+	if(!required_access)
+		required_access = list()
+	if(!istype(supplied_access, /list))
 		return FALSE
 
-	if(maint_all_access)
-		L = L.Copy()
-		L |= access_maint_tunnels
+	if(global.using_map.maint_all_access) // todo: movable -> loc -> area -> map datum, to allow separate maps?
+		supplied_access = supplied_access.Copy()
+		supplied_access |= access_maint_tunnels
 
-	return has_access(R, L)
+	return has_access(required_access, supplied_access)
 
 /proc/has_access(list/req_access, list/accesses)
 	for(var/req in req_access)
@@ -47,20 +86,12 @@
 			return FALSE
 	return TRUE
 
-//Checks if the access (constant or list) is contained in one of the entries of access_patterns, a list of lists.
-/proc/has_access_pattern(list/access_patterns, access)
-	if(!islist(access))
-		access = list(access)
-	for(var/access_pattern in access_patterns)
-		if(has_access(access_pattern, access))
-			return 1
-
 // Used for retrieving required access information, if available
 /atom/movable/proc/get_req_access()
 	return null
 
 /obj/get_req_access()
-	return req_access
+	return req_access?.Copy()
 
 /proc/get_centcom_access(job)
 	switch(job)
@@ -83,7 +114,7 @@
 		if("Supreme Commander")
 			return get_all_centcom_access()
 
-/var/list/datum/access/priv_all_access_datums
+var/global/list/datum/access/priv_all_access_datums
 /proc/get_all_access_datums()
 	if(!priv_all_access_datums)
 		priv_all_access_datums = init_subtypes(/datum/access)
@@ -91,7 +122,7 @@
 
 	return priv_all_access_datums.Copy()
 
-/var/list/datum/access/priv_all_access_datums_id
+var/global/list/datum/access/priv_all_access_datums_id
 /proc/get_all_access_datums_by_id()
 	if(!priv_all_access_datums_id)
 		priv_all_access_datums_id = list()
@@ -100,7 +131,7 @@
 
 	return priv_all_access_datums_id.Copy()
 
-/var/list/datum/access/priv_all_access_datums_region
+var/global/list/datum/access/priv_all_access_datums_region
 /proc/get_all_access_datums_by_region()
 	if(!priv_all_access_datums_region)
 		priv_all_access_datums_region = list()
@@ -112,41 +143,40 @@
 	return priv_all_access_datums_region.Copy()
 
 /proc/get_access_ids(var/access_types = ACCESS_TYPE_ALL)
-	var/list/L = new()
+	. = list()
 	for(var/datum/access/A in get_all_access_datums())
 		if(A.access_type & access_types)
-			L += A.id
-	return L
+			. += A.id
 
-/var/list/priv_all_access
+var/global/list/priv_all_access
 /proc/get_all_accesses()
 	if(!priv_all_access)
 		priv_all_access = get_access_ids()
 
 	return priv_all_access?.Copy()
 
-/var/list/priv_station_access
+var/global/list/priv_station_access
 /proc/get_all_station_access()
 	if(!priv_station_access)
 		priv_station_access = get_access_ids(ACCESS_TYPE_STATION)
 
 	return priv_station_access.Copy()
 
-/var/list/priv_centcom_access
+var/global/list/priv_centcom_access
 /proc/get_all_centcom_access()
 	if(!priv_centcom_access)
 		priv_centcom_access = get_access_ids(ACCESS_TYPE_CENTCOM)
 
 	return priv_centcom_access.Copy()
 
-/var/list/priv_syndicate_access
-/proc/get_all_syndicate_access()
-	if(!priv_syndicate_access)
-		priv_syndicate_access = get_access_ids(ACCESS_TYPE_SYNDICATE)
+var/global/list/priv_antagonist_access
+/proc/get_all_antagonist_access()
+	if(!priv_antagonist_access)
+		priv_antagonist_access = get_access_ids(ACCESS_TYPE_ANTAG)
 
-	return priv_syndicate_access.Copy()
+	return priv_antagonist_access.Copy()
 
-/var/list/priv_region_access
+var/global/list/priv_region_access
 /proc/get_region_accesses(var/code)
 	if(code == ACCESS_REGION_ALL)
 		return get_all_station_access()
@@ -208,47 +238,6 @@
 		"Emergency Response Team",
 		"Emergency Response Team Leader")
 
-/mob/observer/ghost
-	var/static/obj/item/card/id/all_access/ghost_all_access
-
-/mob/observer/ghost/GetIdCard()
-	if(!is_admin(src))
-		return
-
-	if(!ghost_all_access)
-		ghost_all_access = new()
-	return ghost_all_access
-
-/mob/living/bot/GetIdCard()
-	return botcard
-
-#define HUMAN_ID_CARDS list(get_active_hand(), wear_id, get_inactive_hand())
-/mob/living/carbon/human/GetIdCard()
-	for(var/item_slot in HUMAN_ID_CARDS)
-		var/obj/item/I = item_slot
-		var/obj/item/card/id = I ? I.GetIdCard() : null
-		if(id)
-			return id
-
-/mob/living/carbon/human/GetAccess()
-	. = list()
-	for(var/item_slot in HUMAN_ID_CARDS)
-		var/obj/item/I = item_slot
-		if(I)
-			. |= I.GetAccess()
-#undef HUMAN_ID_CARDS
-
-/mob/living/silicon/GetIdCard()
-	if(stat || (ckey && !client))
-		return // Unconscious, dead or once possessed but now client-less silicons are not considered to have id access.
-	return idcard
-
-/proc/FindNameFromID(var/mob/M, var/missing_id_name = "Unknown")
-	var/obj/item/card/id/C = M.GetIdCard()
-	if(C)
-		return C.registered_name
-	return missing_id_name
-
 /proc/get_all_job_icons() //For all existing HUD icons
 	return SSjobs.titles_to_datums + list("Prisoner")
 
@@ -259,13 +248,13 @@
 		var/job_icons = get_all_job_icons()
 		if(I.assignment	in job_icons) //Check if the job has a hud icon
 			return I.assignment
-		if(I.rank in job_icons)
-			return I.rank
+		if(I.position in job_icons)
+			return I.position
 
 		var/centcom = get_all_centcom_jobs()
 		if(I.assignment	in centcom)
 			return "Centcom"
-		if(I.rank in centcom)
+		if(I.position in centcom)
 			return "Centcom"
 	else
 		return

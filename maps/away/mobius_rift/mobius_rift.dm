@@ -4,11 +4,9 @@
 	name = "unusual asteroid"
 	desc = "Sensors error: ERROR #E0x003141592: recursive stack overflow for CALCULATE_APPROXIMATE_SIZE()."
 	icon_state = "object"
-	known = 0
 
 /datum/map_template/ruin/away_site/mobius_rift
 	name = "Mobius rift"
-	id = "awaysite_mobius_rift"
 	description = "Non-euclidian mess."
 	suffixes = list("mobius_rift/mobius_rift.dmm")
 	cost = 1
@@ -18,10 +16,8 @@
 	)
 
 /obj/effect/step_trigger/mobius_rift/seamless_portal
+	is_spawnable_type = FALSE
 	var/obj/effect/step_trigger/mobius_rift/seamless_portal/dest
-	//NORTH or EAST cases
-	//var/obj/effect/step_trigger/mobius_rift/seamless_portal/dest2//SOUTH or WEST cases
-	var/directed//NS or WE
 	var/x_shift = 0
 	var/y_shift = 0
 
@@ -36,7 +32,7 @@
 	if (towards == WEST)
 		x_shift = -1
 
-/obj/effect/step_trigger/mobius_rift/seamless_portal/proc/set_destination(var/D)
+/obj/effect/step_trigger/mobius_rift/seamless_portal/proc/set_destination(var/obj/effect/step_trigger/mobius_rift/seamless_portal/D)
 	dest = D
 
 /obj/effect/step_trigger/mobius_rift/seamless_portal/Trigger(var/atom/movable/AM)
@@ -48,6 +44,7 @@
 
 //spawns and presets portals to their destinations, must be in left lower chamber center
 /obj/effect/mobius_rift/portals_setup
+	is_spawnable_type = FALSE // Should only be mapped in, spawning it in has unpredictable results.
 	var/grid_number = 4//amount of rooms in a square pattern grid
 	var/grid_size = 31//lenfth from center of one room to another, or size of a chamber(room length, 12?) + corridor length. Corridor length is (view-range * 2) (16?)
 
@@ -86,23 +83,24 @@
 	return INITIALIZE_HINT_QDEL
 
 /obj/effect/mobius_rift/chamber
+	is_spawnable_type = FALSE
 	var/list/portals = list()
 
 /obj/effect/mobius_rift/chamber/Initialize(var/mapload, var/grid_size)//NORTH, SOUTH, EAST, WEST
 	. = ..()
-	var/turf/T
-	T = locate(src.x, src.y + round(grid_size/2), src.z)
-	var/N = new /obj/effect/step_trigger/mobius_rift/seamless_portal(T, NORTH)
-	portals["NORTH"] = N
-	T = locate(src.x, src.y - round(grid_size/2), src.z)
-	var/S = new /obj/effect/step_trigger/mobius_rift/seamless_portal(T, SOUTH)
-	portals["SOUTH"] = S
-	T = locate(src.x + round(grid_size/2), src.y, src.z)
-	var/E = new /obj/effect/step_trigger/mobius_rift/seamless_portal(T, EAST)
-	portals["EAST"] = E
-	T = locate(src.x - round(grid_size/2), src.y, src.z)
-	var/W = new /obj/effect/step_trigger/mobius_rift/seamless_portal(T, WEST)
-	portals["WEST"] = W
+	var/turf/rift_turf
+	rift_turf = locate(src.x, src.y + round(grid_size/2), src.z)
+	var/north_portal = new /obj/effect/step_trigger/mobius_rift/seamless_portal(rift_turf, NORTH)
+	portals["NORTH"] = north_portal
+	rift_turf = locate(src.x, src.y - round(grid_size/2), src.z)
+	var/south_portal = new /obj/effect/step_trigger/mobius_rift/seamless_portal(rift_turf, SOUTH)
+	portals["SOUTH"] = south_portal
+	rift_turf = locate(src.x + round(grid_size/2), src.y, src.z)
+	var/east_portal = new /obj/effect/step_trigger/mobius_rift/seamless_portal(rift_turf, EAST)
+	portals["EAST"] = east_portal
+	rift_turf = locate(src.x - round(grid_size/2), src.y, src.z)
+	var/west_portal = new /obj/effect/step_trigger/mobius_rift/seamless_portal(rift_turf, WEST)
+	portals["WEST"] = west_portal
 
 /obj/effect/mobius_rift/chamber/proc/set_portals(var/list/destinations)
 	for (var/iter = 1 to portals.len)

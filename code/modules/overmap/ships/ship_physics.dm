@@ -5,7 +5,7 @@
 // partial power is used with burn() in order to only do partial burns.
 /obj/effect/overmap/visitable/ship/get_delta_v(var/real_burn = FALSE, var/partial_power = 1)
 	var/total_exhaust_velocity = 0
-	partial_power = Clamp(partial_power, 0, 1)
+	partial_power = clamp(partial_power, 0, 1)
 	for(var/datum/extension/ship_engine/E in engines)
 		total_exhaust_velocity += real_burn ? E.burn(partial_power) : E.get_exhaust_velocity()
 	var/vessel_mass = get_vessel_mass()
@@ -36,23 +36,43 @@
 
 /obj/effect/overmap/visitable/ship/proc/recalculate_vessel_mass()
 	var/list/zones = list()
+	// for(var/turf/tile in area) is an implied in-world loop
+	// an in-world loop per area is very bad, so instead
+	// we do one in-world loop and check area
+	var/list/areas = list()
+	// create an associative list of area -> TRUE so that lookup is faster
 	for(var/area/A in get_areas())
-		for(var/turf/simulated/T in A)
-			if(istype(T, /turf/simulated/open))
+		if(istype(A, world.area)) // exclude the base area
+			continue
+		areas[A] = TRUE
+	var/start_z = min(map_z)
+	var/end_z = max(map_z)
+	if(!start_z || !end_z)
+		return initial(vessel_mass) // This shouldn't happen ideally so just go with the initial vessel mass
+	for(var/z_level in start_z to end_z)
+		var/datum/level_data/z_data = SSmapping.levels_by_z[z_level]
+		for(var/turf/tile in block(z_data.level_inner_min_x, z_data.level_inner_min_y, z_level, z_data.level_inner_max_x, z_data.level_inner_max_y))
+			var/area/tile_area = tile.loc
+			if(!tile_area || !areas[tile_area])
+				continue
+
+			if(!tile.simulated || tile.is_open())
 				continue
 
 			. += DEFAULT_TURF_MASS
-			if(istype(T, /turf/simulated/wall))
-				var/turf/simulated/wall/W = T
-				if(W.material)
-					. += W.material.weight * 5
-				if(W.reinf_material)
-					. += W.reinf_material.weight * 5
-				if(W.girder_material)
-					. += W.girder_material.weight * 5
+			if(istype(tile, /turf/wall))
+				var/turf/wall/wall_tile = tile
+				if(wall_tile.material)
+					. += wall_tile.material.weight * 5
+				if(wall_tile.reinf_material)
+					. += wall_tile.reinf_material.weight * 5
+				if(wall_tile.girder_material)
+					. += wall_tile.girder_material.weight * 5
 
-			zones |= T.zone
-			for(var/atom/movable/C in T)
+			if(tile.zone)
+				zones[tile.zone] = TRUE // assoc list for fast deduplication
+
+			for(var/atom/movable/C as anything in tile) // as anything is safe here since only movables can be in turf contents
 				if(!C.simulated)
 					continue
 				. += C.get_mass()
@@ -61,8 +81,9 @@
 						continue
 					. += C2.get_mass()
 
-	for(var/zone/Z in zones)
-		. += Z.air.get_mass()
+	// loop over keys of all zones in the list
+	for(var/zone/zone as anything in zones)
+		. += zone.air.get_mass()
 
 	// Convert kilograms to metric tonnes.
 	. = . / 1000

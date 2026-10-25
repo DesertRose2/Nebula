@@ -1,3 +1,15 @@
+var/global/list/ai_icon_subtypes
+/proc/get_ai_icon(var/ai_icon)
+	get_ai_icon_subtypes()
+	return global.ai_icon_subtypes[ai_icon]
+
+/proc/get_ai_icon_subtypes()
+	if(!length(global.ai_icon_subtypes))
+		global.ai_icon_subtypes = list()
+		for(var/ai_icon_type in subtypesof(/datum/ai_icon))
+			ai_icon_subtypes[ai_icon_type] = new ai_icon_type
+	return global.ai_icon_subtypes
+
 /datum/ai_icon
 	var/name
 	var/icon = 'icons/mob/AI.dmi'
@@ -28,7 +40,7 @@
 	name = "[name] (Malf)"
 
 /datum/ai_icon/malf/may_used_by_ai(var/mob/living/silicon/ai/AI)
-	return istype(AI) && AI.is_traitor()
+	return istype(AI) && AI.is_malfunctioning()
 
 /datum/ai_icon/red
 	name = "Red"

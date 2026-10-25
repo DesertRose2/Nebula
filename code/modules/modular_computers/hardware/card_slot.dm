@@ -1,16 +1,16 @@
 /obj/item/stock_parts/computer/card_slot
 	name = "RFID card slot"
 	desc = "Slot that allows this computer to write data on RFID cards. Necessary for some programs to run properly."
-	power_usage = 10 //W
+	power_usage = 10 // W
 	critical = 0
 	icon_state = "cardreader"
 	hardware_size = 1
-	origin_tech = "{'programming':2}"
+	origin_tech = @'{"programming":2}'
 	usage_flags = PROGRAM_ALL & ~PROGRAM_PDA
 	external_slot = TRUE
 	material = /decl/material/solid/metal/steel
 
-	var/can_write = TRUE
+	// TODO: reimplment RFID card write access and can_write
 	var/can_broadcast = FALSE
 	var/obj/item/card/id/stored_card = null
 
@@ -29,7 +29,7 @@
 				read_string_stability = 80
 			. += "Registered Name: [stars(stored_card.registered_name, read_string_stability)]\n"
 			. += "Registered Assignment: [stars(stored_card.assignment, read_string_stability)]\n"
-			. += "Registered Rank: [stars(stored_card.rank, read_string_stability)]\n"
+			. += "Registered Position: [stars(stored_card.position, read_string_stability)]\n"
 			. += "Access Addresses Enabled: \n"
 			var/list/access_list = stored_card.GetAccess()
 			if(!access_list) // "NONE" for empty list
@@ -40,7 +40,7 @@
 					if(check_functionality()) // Read the access, or show "RD_ERR"
 						var/datum/access/access_information = get_access_by_id(access_id)
 						var/access_type = access_information.access_type
-						if(access_type == ACCESS_TYPE_NONE || access_type == ACCESS_TYPE_SYNDICATE || access_type == ACCESS_TYPE_CENTCOM) // Don't elaborate on these access types.
+						if(access_type == ACCESS_TYPE_NONE || access_type == ACCESS_TYPE_ANTAG || access_type == ACCESS_TYPE_CENTCOM) // Don't elaborate on these access types.
 							list_of_accesses += "UNKNOWN" // "UNKNOWN"
 						else
 							list_of_accesses += uppertext(access_information.desc)
@@ -63,7 +63,7 @@
 
 	if(!device.stored_card)
 		if(usr)
-			to_chat(usr, "There is no card in \the [src]")
+			to_chat(usr, "There is no card in \the [src].")
 		return
 
 	device.eject_id(usr)
@@ -79,7 +79,7 @@
 		dropInto(loc)
 	stored_card = null
 
-	var/datum/extension/interactive/ntos/os = get_extension(loc, /datum/extension/interactive/ntos)
+	var/datum/extension/interactive/os/os = get_extension(loc, /datum/extension/interactive/os)
 	if(os)
 		os.event_idremoved()
 	loc.verbs -= /obj/item/stock_parts/computer/card_slot/proc/verb_eject_id
@@ -93,7 +93,7 @@
 		to_chat(user, "You try to insert [I] into [src], but its ID card slot is occupied.")
 		return FALSE
 
-	if(user && !user.unEquip(I, src))
+	if(user && !user.try_unequip(I, src))
 		return FALSE
 
 	stored_card = I
@@ -102,16 +102,15 @@
 		loc.verbs |= /obj/item/stock_parts/computer/card_slot/proc/verb_eject_id
 	return TRUE
 
-/obj/item/stock_parts/computer/card_slot/attackby(obj/item/card/id/I, mob/living/user)
-	if(!istype(I))
-		return
-	insert_id(I, user)
+/obj/item/stock_parts/computer/card_slot/attackby(obj/item/used_item, mob/user)
+	if(!istype(used_item, /obj/item/card/id))
+		return ..()
+	insert_id(used_item, user)
 	return TRUE
 
 /obj/item/stock_parts/computer/card_slot/broadcaster // read only
 	name = "RFID card broadcaster"
 	desc = "Reads and broadcasts the RFID signal of an inserted card."
-	can_write = FALSE
 	can_broadcast = TRUE
 
 	usage_flags = PROGRAM_PDA

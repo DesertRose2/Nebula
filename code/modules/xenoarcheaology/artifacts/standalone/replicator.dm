@@ -3,7 +3,7 @@
 	desc = "It's some kind of pod with strange wires and gadgets all over it."
 	icon = 'icons/obj/xenoarchaeology.dmi'
 	icon_state = "borgcharger0(old)"
-	density = 1
+	density = TRUE
 
 	uncreated_component_parts = null
 	construct_state = /decl/machine_construction/noninteractive
@@ -34,6 +34,7 @@
 	/obj/item/flash,
 	/obj/item/flashlight,
 	/obj/item/scanner/health,
+	/obj/item/scanner/breath,
 	/obj/item/multitool,
 	/obj/item/paicard,
 	/obj/item/radio,
@@ -49,16 +50,16 @@
 	/obj/item/clipboard,
 	/obj/item/cell,
 	/obj/item/circular_saw,
-	/obj/item/hatchet,
+	/obj/item/tool/axe/hatchet,
 	/obj/item/handcuffs,
 	/obj/item/hemostat,
 	/obj/item/knife/kitchen,
-	/obj/item/flame/lighter,
+	/obj/item/flame/fuelled/lighter,
 	/obj/item/light/bulb,
 	/obj/item/light/tube,
-	/obj/item/pickaxe,
-	/obj/item/shovel,
-	/obj/item/weldingtool,
+	/obj/item/tool/pickaxe,
+	/obj/item/tool/shovel,
+	/obj/item/fuelled_tool/welding,
 	/obj/item/wirecutters,
 	/obj/item/wrench,
 	/obj/item/screwdriver,
@@ -74,7 +75,7 @@
 		viables.Remove(type)
 		construction[button_desc] = type
 
-	fail_message = "<span class='notice'>\icon[src] a [pick("loud","soft","sinister","eery","triumphant","depressing","cheerful","angry")] \
+	fail_message = "<span class='notice'>[html_icon(src)] a [pick("loud","soft","sinister","eery","triumphant","depressing","cheerful","angry")] \
 		[pick("horn","beep","bing","bleep","blat","honk","hrumph","ding")] sounds and a \
 		[pick("yellow","purple","green","blue","red","orange","white")] \
 		[pick("light","dial","meter","window","protrusion","knob","antenna","swirly thing")] \
@@ -86,7 +87,7 @@
 	if(spawning_types.len)
 		spawn_progress_time += world.time - last_process_time
 		if(spawn_progress_time > max_spawn_time)
-			src.visible_message("<span class='notice'>\icon[src] [src] pings!</span>")
+			src.visible_message("<span class='notice'>[html_icon(src)] [src] pings!</span>")
 
 			var/obj/source_material = pop(stored_materials)
 			var/spawn_type = pop(spawning_types)
@@ -108,7 +109,7 @@
 				icon_state = "borgcharger0(old)"
 
 		else if(prob(5))
-			src.visible_message("<span class='notice'>\icon[src] [src] [pick("clicks","whizzes","whirrs","whooshes","clanks","clongs","clonks","bangs")].</span>")
+			src.visible_message("<span class='notice'>[html_icon(src)] [src] [pick("clicks","whizzes","whirrs","whooshes","clanks","clongs","clonks","bangs")].</span>")
 
 	last_process_time = world.time
 
@@ -120,15 +121,16 @@
 	var/dat = "The control panel displays an incomprehensible selection of controls, many with unusual markings or text around them.<br>"
 	dat += "<br>"
 	for(var/index=1, index<=construction.len, index++)
-		dat += "<A href='?src=\ref[src];activate=[index]'>\[[construction[index]]\]</a><br>"
+		dat += "<A href='byond://?src=\ref[src];activate=[index]'>\[[construction[index]]\]</a><br>"
 
 	show_browser(user, dat, "window=alien_replicator")
 
-/obj/machinery/replicator/attackby(obj/item/W, mob/living/user)
-	if(!user.unEquip(W, src))
-		return
-	stored_materials.Add(W)
-	src.visible_message("<span class='notice'>\The [user] inserts \the [W] into \the [src].</span>")
+/obj/machinery/replicator/attackby(obj/item/used_item, mob/user)
+	if(!user.try_unequip(used_item, src))
+		return FALSE
+	stored_materials.Add(used_item)
+	user.visible_message(SPAN_NOTICE("\The [user] inserts \the [used_item] into \the [src]."), SPAN_NOTICE("You insert \the [used_item] into \the [src]."))
+	return TRUE
 
 /obj/machinery/replicator/OnTopic(user, href_list)
 	if(href_list["activate"])
@@ -136,9 +138,9 @@
 		if(index > 0 && index <= construction.len)
 			if(stored_materials.len > spawning_types.len)
 				if(spawning_types.len)
-					src.visible_message("<span class='notice'>\icon[src] a [pick("light","dial","display","meter","pad")] on [src]'s front [pick("blinks","flashes")] [pick("red","yellow","blue","orange","purple","green","white")].</span>")
+					src.visible_message("<span class='notice'>[html_icon(src)] a [pick("light","dial","display","meter","pad")] on [src]'s front [pick("blinks","flashes")] [pick("red","yellow","blue","orange","purple","green","white")].</span>")
 				else
-					src.visible_message("<span class='notice'>\icon[src] [src]'s front compartment slides shut.</span>")
+					src.visible_message("<span class='notice'>[html_icon(src)] [src]'s front compartment slides shut.</span>")
 
 				spawning_types.Add(construction[construction[index]])
 				spawn_progress_time = 0

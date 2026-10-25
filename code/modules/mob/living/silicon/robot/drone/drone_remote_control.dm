@@ -5,19 +5,19 @@
 	var/mob/living/silicon/ai/controlling_ai
 	var/obj/item/radio/drone_silicon_radio
 
-/mob/living/silicon/robot/drone/attack_ai(var/mob/living/silicon/ai/user)
+/mob/living/silicon/robot/drone/attack_ai(mob/living/silicon/ai/user)
 
-	if(!istype(user) || controlling_ai || !config.allow_drone_spawn)
+	if(!istype(user) || controlling_ai || !get_config_value(/decl/config/toggle/on/allow_drone_spawn))
 		return
 
-	if(stat != 2 || client || key)
-		to_chat(user, "<span class='warning'>You cannot take control of an autonomous, active drone.</span>")
+	if(stat != DEAD || client || key)
+		to_chat(user, SPAN_WARNING("You cannot take control of an autonomous, active drone."))
 		return
 
-	if(health < -35 || emagged)
-		to_chat(user, "<span class='notice'><b>WARNING:</b> connection timed out.</span>")
+	if(current_health < -(get_max_health()) || emagged)
+		to_chat(user, SPAN_WARNING("<b>WARNING:</b> connection timed out."))
 		return
-	
+
 	assume_control(user)
 
 /mob/living/silicon/robot/drone/proc/assume_control(var/mob/living/silicon/ai/user)
@@ -30,13 +30,13 @@
 	//give controlled drone access to AI radio
 	drone_silicon_radio = silicon_radio
 	silicon_radio = new /obj/item/radio/headset/heads/ai_integrated(src)
-	//silicon_radio.recalculateChannels()
 
 	add_language(/decl/language/binary/drone, 1)
 	add_language(/decl/language/binary, 1)
+	add_language(/decl/language/machine, 1)
 	default_language = controlling_ai.default_language
 
-	stat = CONSCIOUS
+	set_stat(CONSCIOUS)
 	if(user.mind)
 		user.mind.transfer_to(src)
 	else
@@ -44,9 +44,9 @@
 	updatename()
 	to_chat(src, "<span class='notice'><b>You have shunted your primary control loop into \a [initial(name)].</b> Use the <b>Release Control</b> verb to return to your core.</span>")
 
-/obj/machinery/drone_fabricator/attack_ai(var/mob/living/silicon/ai/user)
+/obj/machinery/drone_fabricator/attack_ai(mob/living/silicon/ai/user)
 
-	if(!istype(user) || user.controlling_drone || !config.allow_drone_spawn)
+	if(!istype(user) || user.controlling_drone || !get_config_value(/decl/config/toggle/on/allow_drone_spawn))
 		return
 
 	if(stat & NOPOWER)
@@ -61,7 +61,7 @@
 		to_chat(user, "<span class='warning'>\The [src] is not ready to produce a new drone.</span>")
 		return
 
-	if(count_drones() >= config.max_maint_drones)
+	if(count_drones() >= get_config_value(/decl/config/num/max_maint_drones))
 		to_chat(user, "<span class='warning'>The drone control subsystems are tasked to capacity; they cannot support any more drones.</span>")
 		return
 
@@ -70,19 +70,15 @@
 
 
 /mob/living/silicon/robot/drone/death(gibbed)
-	if(controlling_ai)
-		release_ai_control("<b>WARNING: remote system failure.</b> Connection timed out.")
-	drone_silicon_radio = null
-	. = ..(gibbed)
+	. = ..()
+	if(.)
+		if(controlling_ai)
+			release_ai_control("<b>WARNING: remote system failure.</b> Connection timed out.")
+		drone_silicon_radio = null
 
 /mob/living/silicon/ai/death(gibbed)
-	if(controlling_drone)
-		controlling_drone.release_ai_control("<b>WARNING: Primary control loop failure.</b> Session terminated.")
-	. = ..(gibbed)
-
-/mob/living/silicon/ai/Life()
 	. = ..()
-	if(controlling_drone && stat != CONSCIOUS)
+	if(. && controlling_drone)
 		controlling_drone.release_ai_control("<b>WARNING: Primary control loop failure.</b> Session terminated.")
 
 /mob/living/silicon/robot/drone/proc/release_ai_control_verb()

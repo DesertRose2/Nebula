@@ -24,7 +24,7 @@ nanoui is used to open and update nano browser uis
 	// whether to use extra logic when window closes
 	var/on_close_logic = 1
 	// an extra ref to use when the window is closed, usually null
-	var/atom/ref = null
+	var/datum/ref = null
 	// options for modifying window behaviour
 	var/window_options = "focus=0;can_close=1;can_minimize=1;can_maximize=0;can_resize=1;titlebar=1;" // window option is set using window_id
 	// the list of stylesheets to apply to this ui
@@ -73,7 +73,7 @@ nanoui is used to open and update nano browser uis
   *
   * @return /nanoui new nanoui object
   */
-/datum/nanoui/New(nuser, nsrc_object, nui_key, ntemplate_filename, ntitle = 0, nwidth = 0, nheight = 0, var/atom/nref = null, var/datum/nanoui/master_ui = null, var/datum/topic_state/state = GLOB.default_state)
+/datum/nanoui/New(nuser, nsrc_object, nui_key, ntemplate_filename, ntitle = 0, nwidth = 0, nheight = 0, var/datum/nref = null, var/datum/nanoui/master_ui = null, var/datum/topic_state/state = global.default_topic_state)
 	user = nuser
 	src_object = nsrc_object
 	ui_key = nui_key
@@ -124,6 +124,7 @@ nanoui is used to open and update nano browser uis
 	add_stylesheet("shared.css") // this CSS sheet is common to all UIs
 	add_stylesheet("tgui.css") // this CSS sheet is common to all UIs
 	add_stylesheet("icons.css") // this CSS sheet is common to all UIs
+	add_stylesheet("fonts.css") //Common Fonts
 
  /**
   * Set the current status (also known as visibility) of this ui.
@@ -133,7 +134,7 @@ nanoui is used to open and update nano browser uis
   *
   * @return nothing
   */
-/datum/nanoui/proc/set_status(state, push_update)
+/datum/nanoui/proc/set_nano_status(state, push_update)
 	if (state != status) // Only update if it is different
 		if (status == STATUS_DISABLED)
 			status = state
@@ -163,7 +164,7 @@ nanoui is used to open and update nano browser uis
 	if(new_status == STATUS_CLOSE)
 		close()
 		return 1
-	set_status(new_status, push_update)
+	set_nano_status(new_status, push_update)
 
  /**
   * Set the ui to auto update (every master_controller tick)
@@ -193,7 +194,7 @@ nanoui is used to open and update nano browser uis
 /datum/nanoui/proc/get_config_data()
 	var/name = "[src_object]"
 	name = sanitize(name)
-	var/decl/currency/cur = decls_repository.get_decl(GLOB.using_map.default_currency)
+	var/decl/currency/cur = GET_DECL(global.using_map.default_currency)
 	var/list/config_data = list(
 			"title" = title,
 			"srcObject" = list("name" = name),
@@ -202,11 +203,12 @@ nanoui is used to open and update nano browser uis
 			"autoUpdateLayout" = auto_update_layout,
 			"autoUpdateContent" = auto_update_content,
 			"showMap" = show_map,
-			"mapName" = GLOB.using_map.path,
+			"mapName" = global.using_map.path,
 			"mapZLevel" = map_z_level,
-			"mapZLevels" = GLOB.using_map.map_levels,
+			"mapZLevels" = SSmapping.map_levels,
 			"user" = list("name" = user.name),
 			"currency" = cur.name,
+			"templateFileName" = global.template_file_name
 		)
 	return config_data
 
@@ -249,7 +251,7 @@ nanoui is used to open and update nano browser uis
 	stylesheets.Add(file)
 
  /**
-  * Add a JavsScript script to this UI
+  * Add a JavaScript script to this UI
   * These must be added before the UI has been opened, adding after that will have no effect
   *
   * @param file string The name of the JavaScript file from /nano/js (e.g. "my_script.js")
@@ -380,13 +382,13 @@ nanoui is used to open and update nano browser uis
 	return {"
 <!DOCTYPE html>
 <html>
-	<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+	<meta http-equiv="Content-Type" content="text/html; charset=\"utf-8\">
 	<head>
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 		<script type='text/javascript'>
 			function receiveUpdateData(jsonString)
 			{
-				// We need both jQuery and NanoStateManager to be able to recieve data
+				// We need both jQuery and NanoStateManager to be able to receive data
 				// At the moment any data received before those libraries are loaded will be lost
 				if (typeof NanoStateManager != 'undefined' && typeof jQuery != 'undefined')
 				{
@@ -394,7 +396,7 @@ nanoui is used to open and update nano browser uis
 				}
 				//else
 				//{
-				//	alert('browser.recieveUpdateData failed due to jQuery or NanoStateManager being unavailiable.');
+				//	alert('browser.receiveUpdateData failed due to jQuery or NanoStateManager being unavailiable.');
 				//}
 			}
 		</script>
@@ -492,12 +494,7 @@ nanoui is used to open and update nano browser uis
 		return // Closed
 	if (status == STATUS_DISABLED && !force_push)
 		return // Cannot update UI, no visibility
-
-	var/list/send_data = get_send_data(data)
-
-//	to_chat(user, list2json_usecache(send_data))// used for debugging //NANO DEBUG HOOK
-
-	user << output(list2params(list(strip_improper(json_encode(send_data)))),"[window_id].browser:receiveUpdateData")
+	to_output(user, list2params(list(strip_improper(json_encode(get_send_data(data))))),"[window_id].browser:receiveUpdateData")
 
  /**
   * This Topic() proc is called whenever a user clicks on a link within a Nano UI
@@ -517,13 +514,14 @@ nanoui is used to open and update nano browser uis
 		set_show_map(text2num(href_list["showMap"]))
 		map_update = 1
 
-	if(href_list["mapZLevel"])
-		var/map_z = text2num(href_list["mapZLevel"])
-		if(map_z in GLOB.using_map.map_levels)
+	if(href_list["switchMapZLevel"])
+		var/map_z = text2num(href_list["switchMapZLevel"])
+		if(isMapLevel(map_z))
 			set_map_z_level(map_z)
 			map_update = 1
 
-	if ((src_object && src_object.Topic(href, href_list, state)) || map_update)
+	// src_object.Topic() might null out src_object by deleting us.
+	if (src_object && (src_object.Topic(href, href_list, state) || (!QDELETED(src) && src_object && map_update)))
 		SSnano.update_uis(src_object) // update all UIs attached to src_object
 
  /**
@@ -533,13 +531,13 @@ nanoui is used to open and update nano browser uis
   *
   * @return nothing
   */
-/datum/nanoui/proc/try_update(update = 0)
+/datum/nanoui/proc/try_update(update = 0, force_open = FALSE)
 	if (!src_object || !user)
 		close()
 		return
 
 	if (status && (update || is_auto_updating))
-		update() // Update the UI (update_status() is called whenever a UI is updated)
+		update(force_open) // Update the UI (update_status() is called whenever a UI is updated)
 	else
 		update_status(1) // Not updating UI, so lets check here if status has changed
 

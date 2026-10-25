@@ -16,8 +16,9 @@ SUBSYSTEM_DEF(radiation)
 	if (!resumed)
 		current_sources = sources.Copy()
 		current_res_cache = resistance_cache.Copy()
-		listeners = GLOB.living_mob_list_.Copy()		
+		listeners = global.living_mob_list_.Copy()
 
+	var/rad_decay_rate = get_config_value(/decl/config/num/radiation_decay_rate)
 	while(current_sources.len)
 		var/datum/radiation_source/S = current_sources[current_sources.len]
 		current_sources.len--
@@ -25,10 +26,10 @@ SUBSYSTEM_DEF(radiation)
 		if(QDELETED(S))
 			sources -= S
 		else if(S.decay)
-			S.update_rad_power(S.rad_power - config.radiation_decay_rate)
+			S.update_rad_power(S.rad_power - rad_decay_rate)
 		if (MC_TICK_CHECK)
 			return
-	
+
 	while(current_res_cache.len)
 		var/turf/T = current_res_cache[current_res_cache.len]
 		current_res_cache.len--
@@ -36,7 +37,7 @@ SUBSYSTEM_DEF(radiation)
 		if(QDELETED(T))
 			resistance_cache -= T
 		else if((length(T.contents) + 1) != resistance_cache[T])
-			resistance_cache -= T // If its stale REMOVE it! It will get added if its needed.
+			resistance_cache -= T // If it's stale REMOVE it! It will get added if it's needed.
 		if (MC_TICK_CHECK)
 			return
 
@@ -73,8 +74,8 @@ SUBSYSTEM_DEF(radiation)
 		if(source.source_turf.z != T.z)
 			continue // Radiation is not multi-z
 		if(source.respect_maint)
-			var/area/A = T.loc
-			if(A.area_flags & AREA_FLAG_RAD_SHIELDED)
+			var/area/A = get_area(T)
+			if(A && (A.area_flags & AREA_FLAG_RAD_SHIELDED))
 				continue // In shielded area
 
 		var/dist = get_dist(source.source_turf, T)
@@ -87,12 +88,13 @@ SUBSYSTEM_DEF(radiation)
 		// Okay, now ray trace to find resistence!
 		var/turf/origin = source.source_turf
 		var/working = source.rad_power
+		var/rad_mult = get_config_value(/decl/config/num/radiation_resistance_multiplier)
 		while(origin != T)
 			origin = get_step_towards(origin, T) //Raytracing
 			if(!resistance_cache[origin]) //Only get the resistance if we don't already know it.
 				origin.calc_rad_resistance()
 			if(origin.cached_rad_resistance)
-				working = round((working / (origin.cached_rad_resistance * config.radiation_resistance_multiplier)), 0.1)
+				working = round((working / (origin.cached_rad_resistance * rad_mult)), 0.1)
 			if((working <= .) || (working <= RADIATION_THRESHOLD_CUTOFF))
 				break // Already affected by a stronger source (or its zero...)
 		. = max((working / (dist ** 2)), .) //Butchered version of the inverse square law. Works for this purpose
@@ -106,7 +108,7 @@ SUBSYSTEM_DEF(radiation)
 	var/datum/radiation_source/existing = sources_assoc[S.source_turf]
 	if(existing)
 		qdel(existing)
-	sources += S
+	sources |= S
 	sources_assoc[S.source_turf] = S
 
 // Creates a temporary radiation source that will decay
@@ -134,5 +136,5 @@ SUBSYSTEM_DEF(radiation)
 /datum/controller/subsystem/radiation/proc/z_radiate(var/atom/source, power, var/respect_maint = FALSE)
 	if(!(power && source))
 		return
-	var/turf/epicentre = locate(round(world.maxx / 2), round(world.maxy / 2), source.z)
+	var/turf/epicentre = WORLD_CENTER_TURF(source.z)
 	flat_radiate(epicentre, power, world.maxx, respect_maint)

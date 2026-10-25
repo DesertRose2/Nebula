@@ -1,47 +1,39 @@
-GLOBAL_DATUM_INIT(using_map, /datum/map, new USING_MAP_DATUM)
-GLOBAL_LIST_EMPTY(all_maps)
+var/global/datum/map/using_map  = new USING_MAP_DATUM
+var/global/list/all_maps        = list()
+var/global/list/votable_maps    = list()
 
-var/const/MAP_HAS_BRANCH = 1	//Branch system for occupations, togglable
-var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
+var/global/const/MAP_HAS_BRANCH = 1	//Branch system for occupations, toggleable
+var/global/const/MAP_HAS_RANK   = 2		//Rank system, also toggleable
 
-/hook/startup/proc/initialise_map_list()
-	for(var/type in subtypesof(/datum/map))
-		var/datum/map/M
-		if(type == GLOB.using_map.type)
-			M = GLOB.using_map
-			M.setup_map()
+/proc/initialise_map_list()
+	for(var/map_type in subtypesof(/datum/map))
+
+		var/datum/map/map_instance = map_type
+		if(TYPE_IS_ABSTRACT(map_instance))
+			continue
+
+		if(map_type == global.using_map.type)
+			map_instance = global.using_map
+			map_instance.setup_map()
+		else if(map_instance::path)
+			map_instance = new map_instance
 		else
-			M = new type
-		if(!M.path)
-			log_error("Map '[M]' ([type]) does not have a defined path, not adding to map list!")
-		else
-			GLOB.all_maps[M.path] = M
+			log_error("Map '[map_type]' does not have a defined path, not adding to map list!")
+			continue
+
+		global.all_maps[map_instance.path] = map_instance
+		if(map_instance.votable)
+			global.votable_maps[map_instance.full_name] = map_instance
+
 	return 1
-
 
 /datum/map
 	var/name = "Unnamed Map"
 	var/full_name = "Unnamed Map"
 	var/path
 
-	var/list/station_levels = list() // Z-levels the station exists on
-	var/list/admin_levels = list()   // Z-levels for admin functionality (Centcom, shuttle transit, etc)
-	var/list/contact_levels = list() // Z-levels that can be contacted from the station, for eg announcements
-	var/list/player_levels = list()  // Z-levels a character can typically reach
-	var/list/sealed_levels = list()  // Z-levels that don't allow random transit at edge
-	var/list/empty_levels = null     // Empty Z-levels that may be used for various things (currently used by FTL jump)
-
-	var/list/map_levels              // Z-levels available to various consoles, such as the crew monitor. Defaults to station_levels if unset.
-
-	var/list/base_turf_by_z = list() // Custom base turf by Z-level. Defaults to world.turf for unlisted Z-levels
-	var/list/usable_email_tlds = list("freemail.net")
-
-	var/base_floor_type = /turf/simulated/floor/airless // The turf type used when generating floors between Z-levels at startup.
-	var/base_floor_area                                 // Replacement area, if a base_floor_type is generated. Leave blank to skip.
-
-	//This list contains the z-level numbers which can be accessed via space travel and the percentile chances to get there.
-	var/list/accessible_z_levels = list()
-
+	// TODO: move all the lobby stuff onto this handler.
+	var/lobby_handler = /decl/lobby_handler
 	var/list/allowed_jobs	       //Job datums to use.
 	                               //Works a lot better so if we get to a point where three-ish maps are used
 	                               //We don't have to C&P ones that are only common between two of them
@@ -59,106 +51,183 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 	var/system_name = "Uncharted System"
 	var/ground_noun = "ground"
 
-	var/map_admin_faxes = list()
+	var/default_announcement_frequency = "Common"
+
+	// Current game year. Uses current system year + game_year num.
+	var/game_year = 288
+
+	/**
+	 * Associative list of network URIs to a list with their display name, color, and "req_access formated" needed access list.
+	 * EX: list("BIG_BOSS.COM" = list("name" = "Big boss", "color" = "#00ff00", "access" = list(list(access_heads, access_clown))))
+	 */
+	var/list/map_admin_faxes
+
+	var/map_tech_level = MAP_TECH_LEVEL_SPACE
 
 	var/shuttle_docked_message
 	var/shuttle_leaving_dock
 	var/shuttle_called_message
 	var/shuttle_recall_message
+	var/shuttle_arriving_at_dock_message
 	var/emergency_shuttle_docked_message
 	var/emergency_shuttle_leaving_dock
 	var/emergency_shuttle_recall_message
+	var/emergency_shuttle_arriving_at_dock_message
 
-	var/list/station_networks = list() 		// Camera networks that will show up on the console.
+	var/allowed_latejoin_spawns = list(
+		/decl/spawnpoint/arrivals
+	)
+	var/default_spawn = /decl/spawnpoint/arrivals
 
-	var/list/holodeck_programs = list() // map of string ids to /datum/holodeck_program instances
-	var/list/holodeck_supported_programs = list() // map of maps - first level maps from list-of-programs string id (e.g. "BarPrograms") to another map
-												  // this is in order to support multiple holodeck program listings for different holodecks
-	                                              // second level maps from program friendly display names ("Picnic Area") to program string ids ("picnicarea")
-	                                              // as defined in holodeck_programs
-	var/list/holodeck_restricted_programs = list() // as above... but EVIL!
-
-	var/allowed_spawns = list("Arrivals Shuttle","Gateway", "Cryogenic Storage", "Robot Storage")
-	var/default_spawn = "Arrivals Shuttle"
 	var/flags = 0
 	var/evac_controller_type = /datum/evacuation_controller
-	var/use_overmap = 0		//If overmap should be used (including overmap space travel override)
-	var/overmap_size = 20		//Dimensions of overmap zlevel if overmap is used.
-	var/overmap_z = 0		//If 0 will generate overmap zlevel on init. Otherwise will populate the zlevel provided.
-	var/overmap_event_areas = 0 //How many event "clouds" will be generated
-	var/pray_reward_type = /obj/item/chems/food/snacks/cookie // What reward should be given by admin when a prayer is received?
+	var/list/overmap_ids // Assoc list of overmap ID to overmap type, leave empty to disable overmap.
 
-	var/list/lobby_screens = list('icons/default_lobby.png')    // The list of lobby screen images to pick() from.
+	var/pray_reward_type = /obj/item/food/cookie // What reward should be given by admin when a prayer is received?
+
+	// The list of lobby screen images to pick() from.
+	var/list/lobby_screens = list('icons/default_lobby.png')
 	var/current_lobby_screen
-	var/music_track/lobby_track                     // The track that will play in the lobby screen.
-	var/list/lobby_tracks = list()                  // The list of lobby tracks to pick() from. If left unset will randomly select among all available /music_track subtypes.
-	var/welcome_sound = 'sound/AI/welcome.ogg'		// Sound played on roundstart
+	// The track that will play in the lobby screen.
+	var/decl/music_track/lobby_track
+	// The list of lobby tracks to pick() from. If left unset will randomly select among all available /music_track subtypes.
+	var/list/lobby_tracks = list()
+
+	// A server logo displayed on the taskbar and top-left part of the window. Leave null for the default DM icon.
+	var/window_icon
+
+	// Sounds played on roundstart
+	var/list/welcome_sound = 'sound/AI/welcome.ogg'
+	// Sounds played with end titles (credits)
+	var/list/credit_sound = list('sound/music/THUNDERDOME.ogg', 'sound/music/europa/Chronox_-_03_-_In_Orbit.ogg', 'sound/music/europa/asfarasitgets.ogg')
+	// Sounds played on server reboot
+	var/list/reboot_sound = list('sound/AI/newroundsexy.ogg','sound/misc/apcdestroyed.ogg','sound/misc/bangindonk.ogg')
 
 	var/default_law_type = /datum/ai_laws/asimov  // The default lawset use by synth units, if not overriden by their laws var.
 	var/security_state = /decl/security_state/default // The default security state system to use.
 
-	var/id_hud_icons = 'icons/mob/hud.dmi' // Used by the ID HUD (primarily sechud) overlay.
+	var/hud_icons         = 'icons/screen/hud.dmi' // Used by the ID HUD (primarily sechud) overlay.
+	var/implant_hud_icons = 'icons/screen/hud_implants.dmi'
+	var/med_hud_icons     = 'icons/screen/hud_med.dmi'
 
 	var/num_exoplanets = 0
-	//dimensions of planet zlevels, defaults to world size if smaller, INCREASES world size if larger. 
+	var/force_exoplanet_type // Used to override exoplanet weighting and always pick the same exoplanet.
+	//dimensions of planet zlevels, defaults to world size if smaller, INCREASES world size if larger.
 	//Due to how maps are generated, must be (2^n+1) e.g. 17,33,65,129 etc. Map will just round up to those if set to anything other.
 	var/list/planet_size = list()
+	///The amount of z-levels generated for exoplanets. Default is 1. Be careful with this, since exoplanets are already pretty expensive.
+	var/planet_depth = 1
 	var/away_site_budget = 0
 
 	var/list/loadout_blacklist	//list of types of loadout items that will not be pickable
 
 	//Economy stuff
-	var/starting_money = 75000		//Money in station account
-	var/department_money = 5000		//Money in department accounts
-	var/salary_modifier	= 1			//Multiplier to starting character money
+	var/starting_money = 75000		       // Money in station account
+	var/department_money = 5000		       // Money in department accounts
+	var/salary_modifier	= 1			       // Multiplier to starting character money
+	var/passport_type = /obj/item/passport // Item type to grant people on join.
+
 	var/list/station_departments = list()//Gets filled automatically depending on jobs allowed
 
-	var/default_species = SPECIES_HUMAN
+	var/default_species = /decl/species/human::uid
 
-	var/list/available_cultural_info = list(
-		TAG_HOMEWORLD = list(
-			HOME_SYSTEM_OTHER
-		),
-		TAG_FACTION = list(
-			FACTION_OTHER
-		),
-		TAG_CULTURE = list(
-			CULTURE_OTHER
-		),
-		TAG_RELIGION = list(
-			RELIGION_OTHER
-		)
+	// Can this map be voted for by players?
+	var/votable = TRUE
+
+	var/list/available_background_info = list(
+		/decl/background_category/citizenship = list(/decl/background_detail/citizenship/other),
+		/decl/background_category/homeworld   = list(/decl/background_detail/location/other),
+		/decl/background_category/faction     = list(/decl/background_detail/faction/other),
+		/decl/background_category/heritage    = list(/decl/background_detail/heritage/other),
+		/decl/background_category/religion    = list(/decl/background_detail/religion/other)
 	)
 
-	var/list/default_cultural_info = list(
-		TAG_HOMEWORLD = HOME_SYSTEM_OTHER,
-		TAG_FACTION =   FACTION_OTHER,
-		TAG_CULTURE =   CULTURE_OTHER,
-		TAG_RELIGION =  RELIGION_OTHER
+	var/list/default_background_info = list(
+		/decl/background_category/citizenship = /decl/background_detail/citizenship/other,
+		/decl/background_category/homeworld   = /decl/background_detail/location/other,
+		/decl/background_category/faction     = /decl/background_detail/faction/other,
+		/decl/background_category/heritage    = /decl/background_detail/heritage/other,
+		/decl/background_category/religion    = /decl/background_detail/religion/other
 	)
 
+	// Order must conform to ACCESS_REGION_FOO defines.
 	var/access_modify_region = list(
-		ACCESS_REGION_SECURITY = list(access_hos, access_change_ids),
-		ACCESS_REGION_MEDBAY = list(access_cmo, access_change_ids),
-		ACCESS_REGION_RESEARCH = list(access_rd, access_change_ids),
-		ACCESS_REGION_ENGINEERING = list(access_ce, access_change_ids),
-		ACCESS_REGION_COMMAND = list(access_change_ids),
-		ACCESS_REGION_GENERAL = list(access_change_ids),
-		ACCESS_REGION_SUPPLY = list(access_change_ids)
+		list(access_hos, access_change_ids),
+		list(access_cmo, access_change_ids),
+		list(access_rd, access_change_ids),
+		list(access_ce, access_change_ids),
+		list(access_change_ids),
+		list(access_change_ids),
+		list(access_change_ids)
 	)
+	var/secrets_directory
+
+	/// A list of /decl/loadout_category types which will be available for characters made on this map. Uses all categories if null.
+	var/list/decl/loadout_category/loadout_categories
+
+	/// A list of survival box types selectable for this map. If null, defaults to all defined decls. At runtime, this is an associative list of decl type -> decl.
+	var/list/decl/survival_box_option/survival_box_choices
+
+	// A list of cash spawn options, similar to above.
+	var/list/decl/starting_cash_choice/starting_cash_choices
+
+	/// A reagent used to prefill lanterns.
+	var/default_liquid_fuel_type = /decl/material/liquid/fuel
+
+	/// Decl list of backpacks available to outfits and in character generation.
+	var/list/_available_backpacks
+	var/backpacks_setup = FALSE
+
+	var/list/char_preview_bgstate_options = list(
+		"000",
+		"midgrey",
+		"FFF",
+		"white",
+		"steel",
+		"techmaint",
+		"dark",
+		"plating",
+		"reinforced"
+	)
+	var/background_categories_generated = FALSE
+
+	// Hard defining this to avoid pulling in unimplemented citizenship decls for the time being.
+	var/list/_background_categories = list(
+		/decl/background_category/heritage,
+		/decl/background_category/homeworld,
+		/decl/background_category/faction,
+		/decl/background_category/religion
+	)
+
+	var/default_ui_style
+
+	/// Is maint currently all-access?
+	var/maint_all_access = FALSE
 
 /datum/map/New()
-	if(!map_levels)
-		map_levels = station_levels.Copy()
-	if(!allowed_jobs)
-		allowed_jobs = list()
-		for(var/jtype in subtypesof(/datum/job))
-			var/datum/job/job = jtype
-			if(initial(job.available_by_default))
-				allowed_jobs += jtype
-	if(!LAZYLEN(planet_size))
-		planet_size = list(world.maxx, world.maxy)
-	current_lobby_screen = pick(lobby_screens)
+	..()
+	default_ui_style ||= DEFAULT_UI_STYLE
+
+/datum/map/proc/get_background_categories()
+	if(!background_categories_generated)
+		if(isnull(_background_categories))
+			_background_categories = decls_repository.get_decls_of_type(/decl/background_category)
+			_background_categories = _background_categories?.Copy() || list() // Avoid mutating the cache.
+		else
+			for(var/cat_type in _background_categories)
+				_background_categories[cat_type] = GET_DECL(cat_type)
+		background_categories_generated = TRUE
+	return _background_categories
+
+/datum/map/proc/get_random_location()
+	var/list/options = list()
+	for(var/cat_type in available_background_info)
+		var/decl/background_category/background_cat = GET_DECL(cat_type)
+		if(istype(background_cat) && (background_cat.background_flags & BACKGROUND_FLAG_LOCATION))
+			options |= available_background_info[cat_type]
+	if(length(options))
+		return GET_DECL(pick(options))
+	return GET_DECL(/decl/background_detail/location/other)
 
 /datum/map/proc/get_lobby_track(var/exclude)
 	var/lobby_track_type
@@ -167,20 +236,112 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 	else if(LAZYLEN(lobby_tracks))
 		lobby_track_type = pickweight(lobby_tracks - exclude)
 	else
-		lobby_track_type = pick(subtypesof(/music_track) - exclude)
-	return decls_repository.get_decl(lobby_track_type)
+		lobby_track_type = pick(decls_repository.get_decl_paths_of_subtype(/decl/music_track) - exclude)
+	return GET_DECL(lobby_track_type)
+
+/datum/map/proc/get_available_backpacks()
+	if(!backpacks_setup)
+		backpacks_setup = TRUE
+		if(length(_available_backpacks))
+			for(var/backpack_type in _available_backpacks)
+				_available_backpacks[backpack_type] = GET_DECL(backpack_type)
+			_available_backpacks[/decl/backpack_outfit/nothing] = GET_DECL(/decl/backpack_outfit/nothing)
+		else
+			_available_backpacks = decls_repository.get_decls_of_subtype(/decl/backpack_outfit)
+	return _available_backpacks
 
 /datum/map/proc/setup_map()
+
+	populate_branches()
+
+	if(!length(loadout_categories))
+		loadout_categories = list()
+		for(var/decl_type in decls_repository.get_decls_of_type(/decl/loadout_category))
+			loadout_categories += decl_type
+
+	for(var/loadout_category in loadout_categories)
+		loadout_categories -= loadout_category
+		loadout_categories += GET_DECL(loadout_category)
+
+	if(isnull(survival_box_choices)) // an empty list is a valid option here, a null one is not
+		survival_box_choices = decls_repository.get_decls_of_subtype(/decl/survival_box_option)
+	else if(length(survival_box_choices))
+		survival_box_choices = decls_repository.get_decls(survival_box_choices)
+
+	if(isnull(starting_cash_choices))
+		starting_cash_choices = decls_repository.get_decls_of_subtype(/decl/starting_cash_choice)
+	else if(length(starting_cash_choices))
+		starting_cash_choices = decls_repository.get_decls(starting_cash_choices)
+
+	if(secrets_directory)
+		secrets_directory = trim(lowertext(secrets_directory))
+		if(!length(secrets_directory))
+			log_warning("[type] secrets_directory is zero length after trim.")
+		if(copytext(secrets_directory, -1) != "/")
+			secrets_directory = "[secrets_directory]/"
+		if(!fexists(secrets_directory))
+			log_warning("[type] secrets_directory does not exist.")
+		SSsecrets.load_directories |= secrets_directory
+
+	if(!allowed_jobs)
+		allowed_jobs = list()
+		for(var/datum/job/job as anything in subtypesof(/datum/job))
+			if(!TYPE_IS_ABSTRACT(job) && job::available_by_default)
+				allowed_jobs += job
+
+	if(ispath(default_job_type, /datum/job))
+		var/datum/job/J = default_job_type
+		default_job_title = initial(J.title)
+
+	if(default_spawn && !(default_spawn in allowed_latejoin_spawns))
+		PRINT_STACK_TRACE("Map datum [type] has default spawn point [default_spawn] not in the allowed spawn list.")
+
+	for(var/spawn_type in allowed_latejoin_spawns)
+		allowed_latejoin_spawns -= spawn_type
+		allowed_latejoin_spawns += GET_DECL(spawn_type)
+
+	if(!SSmapping.map_levels)
+		SSmapping.map_levels = SSmapping.station_levels.Copy()
+
+	if(!LAZYLEN(planet_size))
+		planet_size = list(world.maxx, world.maxy)
+	if(planet_depth <= 0)
+		planet_depth = 1
+
+	game_year = (text2num(time2text(world.realtime, "YYYY")) + game_year)
+
+	setup_admin_faxes()
+
 	lobby_track = get_lobby_track()
+	update_titlescreen()
 	world.update_status()
 
+///Generates the default admin faxes addresses
+/datum/map/proc/setup_admin_faxes()
+	LAZYSET(map_admin_faxes, uppertext(replacetext("[boss_name].COM",          " ", "_")), list("name" = "[boss_name]",           "color" = "#006100", "access" = list(access_heads)))
+	LAZYSET(map_admin_faxes, uppertext(replacetext("[boss_short]_SUPPLY.COM",  " ", "_")), list("name" = "[boss_short] Supply",   "color" = "#5f4519", "access" = list(access_heads)))
+	LAZYSET(map_admin_faxes, uppertext(replacetext("[system_name]_POLICE.GOV", " ", "_")), list("name" = "[system_name] Police",  "color" = "#1f66a0", "access" = list(access_heads)))
+
 /datum/map/proc/setup_job_lists()
-	return
+
+	// Populate blacklists for any default-blacklisted species.
+	for(var/decl/species/species as anything in decls_repository.get_decls_of_subtype_unassociated(/decl/species))
+		if(!species.job_blacklist_by_default)
+			continue
+		var/found_whitelisted_job = FALSE
+		for(var/datum/job/job as anything in SSjobs.primary_job_datums)
+			if((species.type in job_to_species_whitelist[job.type]) || (job.type in species_to_job_whitelist[species.type]))
+				found_whitelisted_job = TRUE
+			else
+				LAZYDISTINCTADD(species_to_job_blacklist[species.type], job.type)
+				LAZYDISTINCTADD(job_to_species_blacklist[job.type], species.type)
+
+		// If no jobs are available for the main map, mark the species as unavailable to avoid player confusion.
+		if(!found_whitelisted_job && src == global.using_map)
+			species.spawn_flags &= ~SPECIES_CAN_JOIN
+			species.spawn_flags |=  SPECIES_IS_RESTRICTED
 
 /datum/map/proc/send_welcome()
-	return
-
-/datum/map/proc/perform_map_generation()
 	return
 
 /datum/map/proc/build_away_sites()
@@ -190,71 +351,91 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 #else
 	report_progress("Loading away sites...")
 	var/list/sites_by_spawn_weight = list()
-	for (var/site_name in SSmapping.away_sites_templates)
-		var/datum/map_template/ruin/away_site/site = SSmapping.away_sites_templates[site_name]
+	var/list/away_sites_templates = SSmapping.get_templates_by_category(MAP_TEMPLATE_CATEGORY_AWAYSITE)
+	for (var/site_name in away_sites_templates)
+		var/datum/map_template/site = away_sites_templates[site_name]
 
 		if((site.template_flags & TEMPLATE_FLAG_SPAWN_GUARANTEED) && site.load_new_z()) // no check for budget, but guaranteed means guaranteed
 			report_progress("Loaded guaranteed away site [site]!")
-			away_site_budget -= site.cost
+			away_site_budget -= site.get_template_cost()
 			continue
 
-		sites_by_spawn_weight[site] = site.spawn_weight
+		sites_by_spawn_weight[site] = site.get_spawn_weight()
 	while (away_site_budget > 0 && sites_by_spawn_weight.len)
-		var/datum/map_template/ruin/away_site/selected_site = pickweight(sites_by_spawn_weight)
+		var/datum/map_template/selected_site = pickweight(sites_by_spawn_weight)
 		if (!selected_site)
 			break
 		sites_by_spawn_weight -= selected_site
-		if(selected_site.cost > away_site_budget)
+		var/site_cost = selected_site.get_template_cost()
+		if(site_cost > away_site_budget)
 			continue
 		if (selected_site.load_new_z())
 			report_progress("Loaded away site [selected_site]!")
-			away_site_budget -= selected_site.cost
+			away_site_budget -= site_cost
+
 	report_progress("Finished loading away sites, remaining budget [away_site_budget], remaining sites [sites_by_spawn_weight.len]")
 #endif
 
-/datum/map/proc/build_exoplanets()
-	if(!use_overmap)
-		return
-	if(LAZYLEN(planet_size))
-		if(world.maxx < planet_size[1])
-			world.maxx = planet_size[1]
-		if(world.maxy < planet_size[2])
-			world.maxy = planet_size[2]
-	for(var/i = 0, i < num_exoplanets, i++)
-		var/exoplanet_type = pick(subtypesof(/obj/effect/overmap/visitable/sector/exoplanet))
-		INCREMENT_WORLD_Z_SIZE
-		var/obj/effect/overmap/visitable/sector/exoplanet/new_planet = new exoplanet_type(null, world.maxz)
-		new_planet.build_level(planet_size[1], planet_size[2])
+/datum/map/proc/build_planets()
+#ifdef UNIT_TEST
+	report_progress("Unit testing, so not loading planets.")
+	return
+#else
+	report_progress("Instantiating planets...")
+	var/list/planets_spawn_weight = list()
+	var/list/planets_to_spawn     = list()
 
-// Used to apply various post-compile procedural effects to the map.
-/datum/map/proc/refresh_mining_turfs(var/zlevel)
+	//Fill up our lists of planets to spawn
+	generate_planet_spawn_lists(get_all_planet_templates(), planets_spawn_weight, planets_to_spawn)
 
-	set background = 1
-	set waitfor = 0
+	//Pick the random planets we want to spawn
+	var/datum/map_template/planetoid/forced_planet = ispath(force_exoplanet_type)? SSmapping.get_template_by_type(force_exoplanet_type) : null
+	var/random_planets_to_pick                     = max(num_exoplanets - length(planets_to_spawn), 0) //subtract guaranteed planets
+	for(var/i = 0, i < random_planets_to_pick, i++)
+		planets_to_spawn += forced_planet || pickweight(planets_spawn_weight)
 
-	for(var/thing in mining_floors["[zlevel]"])
-		var/turf/simulated/floor/asteroid/M = thing
-		if(istype(M))
-			M.updateMineralOverlays()
+	//Actually spawn the templates
+	spawn_planet_templates(planets_to_spawn)
 
-/datum/map/proc/get_network_access(var/network)
-	return 0
+	report_progress("Finished instantiating planets.")
+#endif
 
-// By default transition randomly to another zlevel
+///Returns an associative list of all the planet templates we get to pick from. The key is the template name, and the value is the template instance.
+/datum/map/proc/get_all_planet_templates()
+	. = list()
+	var/list/exoplanet_templates = SSmapping.get_templates_by_category(MAP_TEMPLATE_CATEGORY_EXOPLANET)
+	if(islist(exoplanet_templates))
+		. |= exoplanet_templates
+
+	var/list/planets_templates = SSmapping.get_templates_by_category(MAP_TEMPLATE_CATEGORY_PLANET)
+	if(islist(planets_templates))
+		. |= planets_templates
+
+///Fill up the list of planet_spawn_weight and guaranteed_planets
+/datum/map/proc/generate_planet_spawn_lists(var/list/planets_templates, var/list/planets_spawn_weight, var/list/guaranteed_planets)
+	for(var/template_name in planets_templates)
+		var/datum/map_template/planetoid/E = planets_templates[template_name]
+		if((E.template_flags & TEMPLATE_FLAG_SPAWN_GUARANTEED))
+			guaranteed_planets += E
+		else
+			planets_spawn_weight[E] = E.get_spawn_weight()
+
+///Spawns all the templates in the given list, one after the other
+/datum/map/proc/spawn_planet_templates(var/list/templates_to_spawn)
+	for(var/datum/map_template/planetoid/PT in templates_to_spawn)
+		PT.load_new_z()
+#ifdef UNIT_TEST
+		log_unit_test("Loaded template '[PT]' ([PT.type]) at Z-level [world.maxz] with a tallness of [PT.tallness]")
+#endif
+
+// By default return a random accessible z-level, or the current level if one is unavailable
 /datum/map/proc/get_transit_zlevel(var/current_z_level)
-	var/list/candidates = GLOB.using_map.accessible_z_levels.Copy()
+	var/list/candidates = SSmapping.accessible_z_levels.Copy()
 	candidates.Remove(num2text(current_z_level))
 
 	if(!candidates.len)
 		return current_z_level
 	return text2num(pickweight(candidates))
-
-/datum/map/proc/get_empty_zlevel()
-	if(empty_levels == null)
-		INCREMENT_WORLD_Z_SIZE
-		empty_levels = list(world.maxz)
-	return pick(empty_levels)
-
 
 /datum/map/proc/setup_economy()
 	news_network.CreateFeedChannel("News Daily", "Minister of Information", 1, 1)
@@ -265,14 +446,14 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 
 	for(var/job in allowed_jobs)
 		var/datum/job/J = SSjobs.get_by_path(job)
-		var/list/dept = J.department_refs
+		var/list/dept = J.department_types
 		if(LAZYLEN(dept))
 			station_departments |= dept
 
 	for(var/department in station_departments)
-		var/datum/department/dept = SSdepartments.departments[department]
+		var/decl/department/dept = SSjobs.get_department_by_type(department)
 		if(istype(dept))
-			department_accounts[department] = create_account("[dept.title] Account", "[dept.title]", department_money, ACCOUNT_TYPE_DEPARTMENT)
+			department_accounts[department] = create_account("[dept.name] Account", "[dept.name]", department_money, ACCOUNT_TYPE_DEPARTMENT)
 
 	department_accounts["Vendor"] = create_account("Vendor Account", "Vendor", 0, ACCOUNT_TYPE_DEPARTMENT)
 	vendor_account = department_accounts["Vendor"]
@@ -291,39 +472,112 @@ var/const/MAP_HAS_RANK = 2		//Rank system, also togglable
 	return
 
 /datum/map/proc/make_maint_all_access(var/radstorm = 0)
-	maint_all_access = 1
+	maint_all_access = TRUE
 	priority_announcement.Announce("The maintenance access requirement has been revoked on all maintenance airlocks.", "Attention!")
 
 /datum/map/proc/revoke_maint_all_access(var/radstorm = 0)
-	maint_all_access = 0
+	maint_all_access = FALSE
 	priority_announcement.Announce("The maintenance access requirement has been readded on all maintenance airlocks.", "Attention!")
 
-// Access check is of the type requires one. These have been carefully selected to avoid allowing the janitor to see channels he shouldn't
-// This list needs to be purged but people insist on adding more cruft to the radio.
-/datum/map/proc/default_internal_channels()
-	return list(
-		num2text(PUB_FREQ)   = list(),
-		num2text(AI_FREQ)    = list(access_synth),
-		num2text(ENT_FREQ)   = list(),
-		num2text(ERT_FREQ)   = list(access_cent_specops),
-		num2text(COMM_FREQ)  = list(access_bridge),
-		num2text(ENG_FREQ)   = list(access_engine_equip, access_atmospherics),
-		num2text(MED_FREQ)   = list(access_medical_equip),
-		num2text(MED_I_FREQ) = list(access_medical_equip),
-		num2text(SEC_FREQ)   = list(access_security),
-		num2text(SEC_I_FREQ) = list(access_security),
-		num2text(SCI_FREQ)   = list(access_tox,access_robotics,access_xenobiology),
-		num2text(SUP_FREQ)   = list(access_cargo),
-		num2text(SRV_FREQ)   = list(access_janitor, access_hydroponics),
-	)
-
 /datum/map/proc/show_titlescreen(client/C)
+	set waitfor = FALSE
+
 	winset(C, "lobbybrowser", "is-disabled=false;is-visible=true")
-	
-	show_browser(C, current_lobby_screen, "file=titlescreen.png;display=0")
-	show_browser(C, file('html/lobby_titlescreen.html'), "window=lobbybrowser")
+
+	show_browser(C, current_lobby_screen, "file=titlescreen.gif;display=0")
+
+	if(isnewplayer(C.mob))
+		var/mob/new_player/player = C.mob
+		show_browser(C, player.get_lobby_browser_html(), "window=lobbybrowser")
 
 /datum/map/proc/hide_titlescreen(client/C)
 	if(C.mob) // Check if the client is still connected to something
 		// Hide title screen, allowing player to see the map
 		winset(C, "lobbybrowser", "is-disabled=true;is-visible=false")
+
+/datum/map/proc/update_titlescreen(new_screen)
+	current_lobby_screen = new_screen || pick(lobby_screens)
+	refresh_lobby_browsers()
+
+/datum/map/proc/refresh_lobby_browsers()
+	for(var/mob/new_player/player in global.player_list)
+		show_titlescreen(player.client)
+		player.show_lobby_menu()
+
+/datum/map/proc/get_radio_chatter_types()
+	return
+
+/datum/map/proc/get_universe_end_evac_areas()
+	. = list(/area/space)
+
+/datum/map/proc/get_specops_area()
+	return
+
+/datum/map/proc/summarize_roundend_for(var/mob/player)
+	if(!player)
+		return
+	if(player.stat != DEAD)
+		var/turf/playerTurf = get_turf(player)
+		if(SSevac.evacuation_controller && SSevac.evacuation_controller.round_over() && SSevac.evacuation_controller.emergency_evacuation)
+			if(isNotAdminLevel(playerTurf.z))
+				to_chat(player, SPAN_NEUTRAL("<b>You managed to survive, but were marooned on [station_name()] as [player.real_name]...</b>"))
+			else
+				to_chat(player, SPAN_GOOD("<b>You managed to survive the events on [station_name()] as [player.real_name].</b>"))
+		else if(isAdminLevel(playerTurf.z))
+			to_chat(player, SPAN_GOOD("<b>You successfully underwent crew transfer after events on [station_name()] as [player.real_name].</b>"))
+		else if(issilicon(player))
+			to_chat(player, SPAN_GOOD("<b>You remain operational after the events on [station_name()] as [player.real_name].</b>"))
+		else
+			to_chat(player, SPAN_NEUTRAL("<b>You got through just another workday on [station_name()] as [player.real_name].</b>"))
+	else
+		if(isghost(player))
+			var/mob/observer/ghost/O = player
+			if(!O.started_as_observer)
+				to_chat(player, SPAN_BAD("<b>You did not survive the events on [station_name()]...</b>"))
+		else
+			to_chat(player, SPAN_BAD("<b>You did not survive the events on [station_name()]...</b>"))
+
+/datum/map/proc/create_passport(var/mob/living/human/H)
+	if(!passport_type)
+		return
+	var/obj/item/passport/pass = new passport_type(get_turf(H))
+	if(istype(pass))
+		pass.set_info(H)
+	if(!H.equip_to_slot_if_possible(pass, slot_in_wallet_str, del_on_fail=FALSE, disable_warning=TRUE) && !H.equip_to_slot_if_possible(pass, slot_in_backpack_str, del_on_fail=FALSE, disable_warning=TRUE))
+		H.put_in_hands(pass)
+
+/datum/map/proc/populate_overmap_events()
+	for(var/overmap_id in global.overmaps_by_name)
+		SSmapping.overmap_event_handler.create_events(global.overmaps_by_name[overmap_id])
+
+/datum/map/proc/finalize_map_generation()
+	return
+
+/datum/map/proc/validate()
+	. = TRUE
+	if(!length(SSmapping.player_levels))
+		log_error("[name] has no player levels!")
+		. = FALSE
+	if(!length(SSmapping.station_levels))
+		log_error("[name] has no station levels!")
+		. = FALSE
+	// TODO: add an admin level loaded from template for maps like tradeship (generic admin level modpack?)
+	/*
+	if(!length(SSmapping.admin_levels))
+		log_error("[name] has no admin levels!")
+		. = FALSE
+	*/
+	if(!length(SSmapping.contact_levels))
+		log_error("[name] has no contact levels!")
+		. = FALSE
+	var/decl/species/default_species_decl = decls_repository.get_decl_by_id(default_species)
+	if(default_species_decl.species_flags & SPECIES_IS_RESTRICTED)
+		log_error("[name]'s default species [default_species_decl.type] is set to restricted!")
+	if(default_species_decl.species_flags & SPECIES_IS_WHITELISTED)
+		log_error("[name]'s default species [default_species_decl.type] is set to whitelisted!")
+	if(default_species_decl.species_flags & SPECIES_CAN_JOIN)
+		log_error("[name]'s default species [default_species_decl.type] is not allowed to join the game!")
+
+/datum/map/proc/get_available_submap_archetypes()
+	return decls_repository.get_decls_of_subtype_unassociated(/decl/submap_archetype)
+

@@ -29,7 +29,8 @@
 	var/lifesign_spawn_sound = 'sound/AI/aliens.ogg'
 
 /datum/map/proc/emergency_shuttle_called_announcement()
-	SSevac.evacuation_controller.evac_called.Announce(replacetext(emergency_shuttle_called_message, "%ETA%", "[round(SSevac.evacuation_controller.get_eta()/60)] minute\s."), new_sound = emergency_shuttle_called_sound)
+	if(SSevac.evacuation_controller && emergency_shuttle_called_message)
+		SSevac.evacuation_controller.evac_called.Announce(replacetext(emergency_shuttle_called_message, "%ETA%", "[round(SSevac.evacuation_controller.get_eta()/60)] minute\s"), new_sound = emergency_shuttle_called_sound)
 
 /datum/map/proc/grid_check_announcement()
 	command_announcement.Announce(replacetext(grid_check_message, "%STATION_NAME%", station_name()), "Automated Grid Check", new_sound = grid_check_sound)
@@ -48,14 +49,11 @@
 /datum/map/proc/level_x_biohazard_sound(var/bio_level)
 	return
 
-/datum/map/proc/radiation_detected_announcement()
-	command_announcement.Announce(replacetext(radiation_detected_message, "%STATION_NAME%", station_name()), "Anomaly Alert", new_sound = radiation_detected_sound)
+/datum/map/proc/radiation_detected_announcement(list/affecting_z)
+	command_announcement.Announce(replacetext(radiation_detected_message, "%STATION_NAME%", station_name()), "Anomaly Alert", new_sound = radiation_detected_sound, zlevels = affecting_z)
 
-/datum/map/proc/space_time_anomaly_detected_annoncement()
-	command_announcement.Announce("Space-time anomalies have been detected on the [station_name()].", "Anomaly Alert", new_sound = space_time_anomaly_sound)
+/datum/map/proc/space_time_anomaly_detected_annoncement(list/affecting_z)
+	command_announcement.Announce("Space-time anomalies have been detected on the [station_name()].", "Anomaly Alert", new_sound = space_time_anomaly_sound, zlevels = affecting_z)
 
-/datum/map/proc/unidentified_lifesigns_announcement()
-	command_announcement.Announce(replacetext(unidentified_lifesigns_message, "%STATION_NAME%", station_name()), "Lifesign Alert", new_sound = unidentified_lifesigns_sound)
-
-/datum/map/proc/unknown_biological_entities_announcement()
-	command_announcement.Announce(replacetext(unknown_biological_entities_message, "%STATION_NAME%", station_name()), "Lifesign Alert", new_sound = command_report_sound)
+/datum/map/proc/unidentified_lifesigns_announcement(list/affecting_z)
+	command_announcement.Announce(replacetext(unidentified_lifesigns_message, "%STATION_NAME%", station_name()), "Lifesign Alert", new_sound = unidentified_lifesigns_sound, zlevels = affecting_z)

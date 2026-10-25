@@ -1,45 +1,63 @@
 /obj/item/organ/external/head
 	organ_tag = BP_HEAD
-	icon_name = "head"
 	name = "head"
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
 	max_damage = 75
 	min_broken_damage = 35
 	w_class = ITEM_SIZE_NORMAL
 	cavity_max_w_class = ITEM_SIZE_SMALL
-	body_part = HEAD
+	body_part = SLOT_HEAD
 	parent_organ = BP_CHEST
 	joint = "jaw"
 	amputation_point = "neck"
 	encased = "skull"
-	artery_name = "cartoid artery"
-	cavity_name = "cranial"
+	artery_name = "carotid artery"
+	cavity_name = "cranial cavity"
+	limb_flags = ORGAN_FLAG_CAN_AMPUTATE | ORGAN_FLAG_HEALS_OVERKILL | ORGAN_FLAG_CAN_BREAK | ORGAN_FLAG_CAN_DISLOCATE
 
-	limb_flags = ORGAN_FLAG_CAN_AMPUTATE | ORGAN_FLAG_GENDERED_ICON | ORGAN_FLAG_HEALS_OVERKILL | ORGAN_FLAG_CAN_BREAK
-
-	var/draw_eyes = TRUE
 	var/glowing_eyes = FALSE
-	var/can_intake_reagents = 1
-	var/has_lips = 1
+	var/can_intake_reagents = TRUE
 	var/forehead_graffiti
 	var/graffiti_style
 
-/obj/item/organ/external/head/proc/get_eye_overlay()
-	if(glowing_eyes || (owner && owner.chem_effects[CE_GLOWINGEYES]))
-		var/obj/item/organ/internal/eyes/eyes = owner.internal_organs_by_name[owner.species.vision_organ ? owner.species.vision_organ : BP_EYES]
-		if(eyes)
-			return eyes.get_special_overlay()
+/obj/item/organ/external/head/get_natural_attacks()
+	if(!can_intake_reagents)
+		return null
+	var/static/unarmed_attack = GET_DECL(/decl/natural_attack/bite)
+	return unarmed_attack
 
-/obj/item/organ/external/head/proc/get_eyes()
-	var/obj/item/organ/internal/eyes/eyes = owner.internal_organs_by_name[owner.species.vision_organ ? owner.species.vision_organ : BP_EYES]
-	if(eyes)
-		return eyes.get_onhead_icon()
+/obj/item/organ/external/head/sharp_bite/get_natural_attacks()
+	if(!can_intake_reagents)
+		return null
+	var/static/unarmed_attack = GET_DECL(/decl/natural_attack/bite/sharp)
+	return unarmed_attack
 
-/obj/item/organ/external/head/examine(mob/user)
+/obj/item/organ/external/head/strong_bite/get_natural_attacks()
+	if(!can_intake_reagents)
+		return null
+	var/static/unarmed_attack = GET_DECL(/decl/natural_attack/bite/strong)
+	return unarmed_attack
+
+/obj/item/organ/external/head/proc/get_organ_eyes_overlay()
+	if(!glowing_eyes && !owner?.has_chemical_effect(CE_GLOWINGEYES, 1))
+		return
+	var/obj/item/organ/internal/eyes/eyes = get_eyes_organ()
+	var/icon/eyes_icon = eyes?.get_onhead_icon() // refreshes cache key
+	if(!eyes_icon)
+		return
+	var/cache_key = "[eyes.last_eye_cache_key]-glow"
+	if(!global.eye_icon_cache[cache_key])
+		global.eye_icon_cache[cache_key] = emissive_overlay(eyes_icon, "")
+	return global.eye_icon_cache[cache_key]
+
+// Let people with mouth slots pick things up.
+/obj/item/organ/external/head/get_manual_dexterity()
+	. = DEXTERITY_SIMPLE_MACHINES | DEXTERITY_HOLD_ITEM | DEXTERITY_EQUIP_ITEM | DEXTERITY_KEYBOARDS | DEXTERITY_TOUCHSCREENS
+
+/obj/item/organ/external/head/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
-
 	if(forehead_graffiti && graffiti_style)
-		to_chat(user, "<span class='notice'>It has \"[forehead_graffiti]\" written on it in [graffiti_style]!</span>")
+		. += SPAN_NOTICE("It has \"[forehead_graffiti]\" written on it in [graffiti_style]!")
 
 /obj/item/organ/external/head/proc/write_on(var/mob/penman, var/style)
 	var/head_name = name
@@ -52,7 +70,7 @@
 		to_chat(penman, "<span class='notice'>There is no room left to write on [head_name]!</span>")
 		return
 
-	var/graffiti = sanitizeSafe(input(penman, "Enter a message to write on [head_name]:") as text|null, MAX_NAME_LEN)
+	var/graffiti = sanitize_safe(input(penman, "Enter a message to write on [head_name]:") as text|null, MAX_NAME_LEN)
 	if(graffiti)
 		if(!target.Adjacent(penman))
 			to_chat(penman, "<span class='notice'>[head_name] is too far away.</span>")
@@ -76,92 +94,48 @@
 /obj/item/organ/external/head/get_agony_multiplier()
 	return (owner && owner.headcheck(organ_tag)) ? 1.50 : 1
 
-/obj/item/organ/external/head/robotize(var/company, var/skip_prosthetics, var/keep_organs)
-	if(company)
-		var/datum/robolimb/R = all_robolimbs[company]
-		if(R)
-			can_intake_reagents = R.can_eat
-			draw_eyes = R.has_eyes
-	. = ..(company, skip_prosthetics, 1)
-	has_lips = null
+/obj/item/organ/external/head/set_bodytype(decl/bodytype/new_bodytype, override_material = null, apply_to_internal_organs = TRUE)
+	. = ..()
+	can_intake_reagents = !(bodytype.body_flags & BODY_FLAG_NO_EAT)
 
-/obj/item/organ/external/head/take_external_damage(brute, burn, damage_flags, used_weapon = null)
+/obj/item/organ/external/head/take_damage(damage, damage_type, damage_flags, inflicter, armor_pen, silent, do_update_health, override_droplimb)
 	. = ..()
 	if (!(status & ORGAN_DISFIGURED))
 		if (brute_dam > 40)
 			if (prob(50))
-				disfigure("brute")
+				disfigure(BRUTE)
 		if (burn_dam > 40)
-			disfigure("burn")
+			disfigure(BURN)
 
-/obj/item/organ/external/head/on_update_icon()
-
-	..()
-
+/obj/item/organ/external/head/proc/get_eyes_organ()
+	RETURN_TYPE(/obj/item/organ/internal/eyes)
 	if(owner)
-		// Base eye icon.
-		if(draw_eyes)
-			var/icon/I = get_eyes()
-			if(I)
-				overlays |= I
-				mob_icon.Blend(I, ICON_OVERLAY)
+		return owner.get_organ((owner.get_vision_organ_tag() || BP_EYES), /obj/item/organ/internal/eyes)
+	return locate(/obj/item/organ/internal/eyes) in contents
 
-			// Floating eyes or other effects.
-			var/image/eye_glow = get_eye_overlay()
-			if(eye_glow) overlays |= eye_glow
+/obj/item/organ/external/head/get_icon_cache_key_components()
+	. = ..()
+	. += "_eyes_[bodytype.eye_icon || "none"]_[get_eyes_organ()?.eye_colour || "none"]"
 
-		if(owner.lip_style && !BP_IS_PROSTHETIC(src) && (species && (species.appearance_flags & HAS_LIPS)))
-			var/icon/lip_icon = new/icon(species?.lip_icon || 'icons/mob/human_races/species/lips.dmi', "lipstick_s")	
-			lip_icon.Blend(owner.lip_style, ICON_MULTIPLY)
-			overlays |= lip_icon
-			mob_icon.Blend(lip_icon, ICON_OVERLAY)
+/obj/item/organ/external/head/generate_mob_icon()
+	var/icon/ret = ..()
+	if(ret)
+		var/icon/eyes_icon = get_eyes_organ()?.get_onhead_icon()
+		if(eyes_icon)
+			ret.Blend(eyes_icon, ICON_OVERLAY)
+	return ret
 
-		overlays |= get_hair_icon()
+/obj/item/organ/external/head/get_limb_mob_overlays()
+	. = ..()
+	var/image/eye_glow = get_organ_eyes_overlay()
+	if(eye_glow)
+		LAZYADD(., eye_glow)
 
-	return mob_icon
+/obj/item/organ/external/head/gripper/do_install(mob/living/human/target, affected, in_place, update_icon, detached)
+	. = ..()
+	if(. && owner)
+		owner.add_held_item_slot(new /datum/inventory_slot/gripper/mouth)
 
-/obj/item/organ/external/head/proc/get_hair_icon()
-	var/image/res = image(species.icon_template,"")
-	if(owner.f_style)
-		var/datum/sprite_accessory/facial_hair_style = GLOB.facial_hair_styles_list[owner.f_style]
-		if(facial_hair_style)
-			if(!facial_hair_style.species_allowed || (species.get_root_species_name(owner) in facial_hair_style.species_allowed))
-				if(!facial_hair_style.subspecies_allowed || (species.name in facial_hair_style.subspecies_allowed))
-					var/icon/facial_s = new/icon("icon" = facial_hair_style.icon, "icon_state" = "[facial_hair_style.icon_state]_s")
-					if(owner.facial_hair_colour && facial_hair_style.do_colouration)
-						facial_s.Blend(owner.facial_hair_colour, facial_hair_style.blend)
-					res.overlays |= facial_s
-
-	if(owner.h_style)
-		var/style = owner.h_style
-		var/datum/sprite_accessory/hair/hair_style = GLOB.hair_styles_list[style]
-		if(owner.head && (owner.head.flags_inv & BLOCKHEADHAIR))
-			if(!(hair_style.flags & VERY_SHORT))
-				hair_style = GLOB.hair_styles_list["Short Hair"]
-		if(hair_style)
-			if(!hair_style.species_allowed || (species.get_root_species_name(owner) in hair_style.species_allowed))
-				if(!hair_style.subspecies_allowed || (species.name in hair_style.subspecies_allowed))
-					var/icon/hair_s = new/icon("icon" = hair_style.icon, "icon_state" = "[hair_style.icon_state]_s")
-					if(hair_style.do_colouration && hair_colour)
-						hair_s.Blend(hair_colour, hair_style.blend)
-					res.overlays |= hair_s
-
-	for (var/M in markings)
-		var/datum/sprite_accessory/marking/mark_style = markings[M]["datum"]
-		if (mark_style.draw_target == MARKING_TARGET_HAIR)
-			var/icon/mark_icon = new/icon("icon" = mark_style.icon, "icon_state" = "[mark_style.icon_state]")
-			if (!mark_style.do_colouration && owner.h_style)
-				var/datum/sprite_accessory/hair/hair_style = GLOB.hair_styles_list[owner.h_style]
-				if ((~hair_style.flags & HAIR_BALD) && hair_colour)
-					mark_icon.Blend(hair_colour, ICON_ADD)
-				else //only baseline human skin tones; others will need species vars for coloration
-					mark_icon.Blend(rgb(200 + skin_tone, 150 + skin_tone, 123 + skin_tone), ICON_ADD)
-			else
-				mark_icon.Blend(markings[M]["color"], ICON_ADD)
-			res.overlays |= mark_icon
-			icon_cache_key += "[M][markings[M]["color"]]"
-
-	return res
-
-/obj/item/organ/external/head/no_eyes
-	draw_eyes = FALSE
+/obj/item/organ/external/head/gripper/do_uninstall(in_place, detach, ignore_children, update_icon)
+	owner?.remove_held_item_slot(BP_MOUTH)
+	. = ..()

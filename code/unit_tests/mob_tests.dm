@@ -1,4 +1,3 @@
-
 /*
  *
  *  Mob Unit Tests.
@@ -8,9 +7,6 @@
  *  Species sprite options
  *
  */
-
-#define SUCCESS 1
-#define FAILURE 0
 
 //
 // Tests Life() and mob breathing in space.
@@ -24,34 +20,42 @@
 /datum/unit_test/human_breath/start_test()
 	var/turf/T = get_space_turf()
 
-	if(!istype(T, /turf/space))	//If the above isn't a space turf then we force it to find one will most likely pick 1,1,1
+	if(!isspaceturf(T))	//If the above isn't a space turf then we force it to find one will most likely pick 1,1,1
 		T = locate(/turf/space)
-	for(var/species_name in get_all_species())
-		var/datum/species/S = get_species_by_key(species_name)
-		var/mob/living/carbon/human/H = new(T, S.name)
-		if(H.need_breathe())
-			var/species_organ = H.species.breathing_organ
-			var/obj/item/organ/internal/lungs/L
-			H.apply_effect(20, STUN, 0)
-			L = H.internal_organs_by_name[species_organ]
-			L.last_successful_breath = -INFINITY
-			test_subjects[S.name] = list(H, damage_check(H, OXY))
+	var/datum/mob_snapshot/dummy_appearance = new
+	for(var/decl/bodytype/bodytype in decls_repository.get_decls_of_subtype_unassociated(/decl/bodytype))
+		if(bodytype.skip_organ_validation)
+			continue
+		var/decl/species/species = bodytype.get_user_species_for_validation()
+		if(!species)
+			continue
+		dummy_appearance.root_species  = species
+		dummy_appearance.root_bodytype = bodytype
+		var/mob/living/human/test_subject = new(T, species.uid, dummy_appearance)
+		if(test_subject.need_breathe())
+			test_subject.apply_effect(20, STUN, 0)
+			var/obj/item/organ/internal/lungs/L = test_subject.get_organ(test_subject.get_bodytype().breathing_organ, /obj/item/organ/internal/lungs)
+			if(L)
+				L.last_successful_breath = -INFINITY
+			test_subjects["[bodytype.type]"] = list(test_subject, damage_check(test_subject, OXY))
+	QDEL_NULL(dummy_appearance)
+
 	return 1
 
 /datum/unit_test/human_breath/check_result()
 	for(var/i in test_subjects)
-		var/mob/living/carbon/human/H = test_subjects[i][1]
-		if(H.life_tick < 10) 	// Finish Condition
+		var/mob/living/human/test_subject = test_subjects[i][1]
+		if(test_subject.life_tick < 10) 	// Finish Condition
 			return 0	// Return 0 to try again later.
 
 	var/failcount = 0
 	for(var/i in test_subjects)
-		var/mob/living/carbon/human/H = test_subjects[i][1]
-		var/ending_oxyloss = damage_check(H, OXY)
+		var/mob/living/human/test_subject = test_subjects[i][1]
+		var/ending_oxyloss = damage_check(test_subject, OXY)
 		var/starting_oxyloss = test_subjects[i][2]
 		if(starting_oxyloss >= ending_oxyloss)
 			failcount++
-			log_debug("[H.species.name] is not taking oxygen damage, started with [starting_oxyloss] and ended with [ending_oxyloss] at place [log_info_line(H.loc)].")
+			log_debug("[test_subject.get_bodytype().type] is not taking oxygen damage, started with [starting_oxyloss] and ended with [ending_oxyloss] at place [log_info_line(test_subject.loc)].")
 
 	if(failcount)
 		fail("[failcount] breathing species mobs didn't suffocate in space.")
@@ -62,26 +66,14 @@
 
 // ============================================================================
 
-/var/default_mobloc = null
-
-proc/create_test_mob_with_mind(var/turf/mobloc = null, var/mobtype = /mob/living/carbon/human)
+/datum/unit_test/mob_damage/proc/create_test_mob_with_mind(var/turf/mobloc, var/mobtype = /mob/living/human)
 	var/list/test_result = list("result" = FAILURE, "msg"    = "", "mobref" = null)
 
-	if(isnull(mobloc))
-		if(!default_mobloc)
-			for(var/turf/simulated/floor/tiled/T in world)
-				if(!T.zone || !T.zone.air)
-					continue
-				var/pressure = T.zone.air.return_pressure()
-				if(90 < pressure && pressure < 120) // Find a turf between 90 and 120
-					default_mobloc = T
-					break
-		mobloc = default_mobloc
 	if(!mobloc)
 		test_result["msg"] = "Unable to find a location to create test mob"
 		return test_result
 
-	var/mob/living/carbon/human/H = new mobtype(mobloc)
+	var/mob/living/human/H = new mobtype(mobloc, global.using_map.default_species) // force default species for testing
 
 	H.mind_initialize("TestKey[rand(0,10000)]")
 
@@ -94,32 +86,27 @@ proc/create_test_mob_with_mind(var/turf/mobloc = null, var/mobtype = /mob/living
 //Generic Check
 // TODO: Need to make sure I didn't just recreate the wheel here.
 
-proc/damage_check(var/mob/living/M, var/damage_type)
+/proc/damage_check(var/mob/living/M, var/damage_type)
 	var/loss = null
 
 	switch(damage_type)
 		if(BRUTE)
-			loss = M.getBruteLoss()
+			loss = M.get_damage(BRUTE)
 		if(BURN)
-			loss = M.getFireLoss()
+			loss = M.get_damage(BURN)
 		if(TOX)
-			loss = M.getToxLoss()
+			loss = M.get_damage(TOX)
 		if(OXY)
-			loss = M.getOxyLoss()
-			if(istype(M,/mob/living/carbon/human))
-				var/mob/living/carbon/human/H = M
-				var/obj/item/organ/internal/lungs/L = H.internal_organs_by_name["lungs"]
-				if(L)
-					loss = L.oxygen_deprivation
+			loss = M.get_damage(OXY)
 		if(CLONE)
-			loss = M.getCloneLoss()
+			loss = M.get_damage(CLONE)
 		if(PAIN)
-			loss = M.getHalLoss()
+			loss = M.get_damage(PAIN)
 
-	if(!loss && istype(M, /mob/living/carbon/human))
-		var/mob/living/carbon/human/H = M            // Synthetics have robot limbs which don't report damage to getXXXLoss()
+	if(!loss && ishuman(M))
+		var/mob/living/human/H = M            // Synthetics have robot limbs which don't report damage to get_damage(XXX)
 		if(H.isSynthetic())                          // So we have to hard code this check or create a different one for them.
-			return H.species.total_health - H.health
+			return H.species.total_health - H.current_health
 	return loss
 
 // ==============================================================================================================
@@ -138,27 +125,25 @@ proc/damage_check(var/mob/living/M, var/damage_type)
 
 /datum/unit_test/mob_damage
 	name = "MOB: Template for mob damage"
-	template = /datum/unit_test/mob_damage
-	var/mob/living/carbon/human/testmob = null
+	abstract_type = /datum/unit_test/mob_damage
 	var/damagetype = BRUTE
-	var/mob_type = /mob/living/carbon/human
+	var/mob_type = /mob/living/human
 	var/expected_vulnerability = STANDARD
-	var/check_health = 0
 	var/damage_location = BP_CHEST
 
 /datum/unit_test/mob_damage/start_test()
 	var/list/test = create_test_mob_with_mind(get_safe_turf(), mob_type)
-	var/damage_amount = 4	// Do not raise, if damage >= 5 there is a % chance to reduce damage by half in /obj/item/organ/external/take_damage()
+	var/damage_amount = 4	// Do not raise, if damage >= 5 there is a % chance to reduce damage by half in /obj/item/organ/external/take_organ_damage()
 							// Which makes checks impossible.
 
 	if(isnull(test))
-		fail("Check Runtimed in Mob creation")
+		fail("Runtimed in mob creation")
 
 	if(test["result"] == FAILURE)
 		fail(test["msg"])
 		return 0
 
-	var/mob/living/carbon/human/H = locate(test["mobref"])
+	var/mob/living/human/H = locate(test["mobref"])
 
 	if(isnull(H))
 		fail("Test unable to set test mob from reference")
@@ -169,19 +154,16 @@ proc/damage_check(var/mob/living/M, var/damage_type)
 		fail("Test needs to be re-written, mob has a stat = [H.stat]")
 		return 0
 
-	if(H.sleeping)
+	if(HAS_STATUS(H, STAT_ASLEEP))
 		fail("Test needs to be re-written, mob is sleeping for some unknown reason")
 		return 0
 
 	// Damage the mob
 
-	var/initial_health = H.health
+	var/initial_health = H.current_health
 
 	if(damagetype == OXY && H.need_breathe())
-		var/species_organ = H.species.breathing_organ
-		var/obj/item/organ/internal/lungs/L
-		if(species_organ)
-			L = H.internal_organs_by_name[species_organ]
+		var/obj/item/organ/internal/lungs/L = H.get_organ(H.get_bodytype().breathing_organ, /obj/item/organ/internal/lungs)
 		if(L)
 			L.last_successful_breath = -INFINITY
 
@@ -189,7 +171,8 @@ proc/damage_check(var/mob/living/M, var/damage_type)
 
 	var/ending_damage = damage_check(H, damagetype)
 
-	var/ending_health = H.health
+	var/ending_health = H.current_health
+	qdel(H)
 
 	// Now test this stuff.
 
@@ -215,7 +198,7 @@ proc/damage_check(var/mob/living/M, var/damage_type)
 
 	switch(expected_vulnerability)
 		if(STANDARD)
-			expected_msg = "to take standard damage"
+			expected_msg = "To take standard damage"
 		if(ARMORED)
 			expected_msg = "To take less damage"
 		if(EXTRA_VULNERABLE)
@@ -227,6 +210,7 @@ proc/damage_check(var/mob/living/M, var/damage_type)
 	var/msg = "Damage taken: [ending_damage] out of [damage_amount] || expected: [expected_msg] \[Overall Health:[ending_health] (Initial: [initial_health]\]"
 
 	if(failure)
+		msg += " || species: [H.get_species()?.type || "NULL"] || bodytype: [H.get_bodytype()?.type || "NULL"]"
 		fail(msg)
 	else
 		pass(msg)
@@ -237,35 +221,35 @@ proc/damage_check(var/mob/living/M, var/damage_type)
 // Human damage check.
 // =================================================================
 
-datum/unit_test/mob_damage/brute
+/datum/unit_test/mob_damage/brute
 	name = "MOB: Human Brute damage check"
 	damagetype = BRUTE
 
-datum/unit_test/mob_damage/fire
+/datum/unit_test/mob_damage/fire
 	name = "MOB: Human Fire damage check"
 	damagetype = BURN
 
-datum/unit_test/mob_damage/tox
+/datum/unit_test/mob_damage/tox
 	name = "MOB: Human Toxin damage check"
 	damagetype = TOX
 
-datum/unit_test/mob_damage/oxy
+/datum/unit_test/mob_damage/oxy
 	name = "MOB: Human Oxygen damage check"
 	damagetype = OXY
 
-datum/unit_test/mob_damage/clone
+/datum/unit_test/mob_damage/clone
 	name = "MOB: Human Clone damage check"
 	damagetype = CLONE
 
-datum/unit_test/mob_damage/halloss
+/datum/unit_test/mob_damage/halloss
 	name = "MOB: Human Halloss damage check"
 	damagetype = PAIN
 
 // ==============================================================================
 
 /datum/unit_test/robot_module_icons
-	name = "MOB: Robot module icon check"
-	var/icon_file = 'icons/mob/screen1_robot.dmi'
+	name = "MOB: Robot Modules Shall Have UI Icons"
+	var/icon_file = 'icons/mob/screen/styles/robot/module.dmi'
 
 /datum/unit_test/robot_module_icons/start_test()
 	var/failed = 0
@@ -273,15 +257,15 @@ datum/unit_test/mob_damage/halloss
 		fail("[icon_file] is not a valid icon file.")
 		return 1
 
-	var/list/valid_states = icon_states(icon_file)
+	var/list/valid_states = get_states_in_icon_cached(icon_file)
 
-	if(!valid_states.len)
+	if(!length(valid_states))
 		return 1
 
 	for(var/i=1, i<=SSrobots.all_module_names.len, i++)
 		var/modname = lowertext(SSrobots.all_module_names[i])
 		var/bad_msg = "[ascii_red]--------------- [modname]"
-		if(!(modname in valid_states))
+		if(!valid_states[modname])
 			log_unit_test("[bad_msg] does not contain a valid icon state in [icon_file][ascii_reset]")
 			failed=1
 
@@ -293,57 +277,6 @@ datum/unit_test/mob_damage/halloss
 	return 1
 
 #undef IMMUNE
-#undef SUCCESS
-#undef FAILURE
-
-/datum/unit_test/species_base_skin
-	name = "MOB: Species base skin presence"
-//	async = 1
-	var/failcount = 0
-
-/datum/unit_test/species_base_skin/start_test()
-	for(var/species_name in get_all_species())
-		var/datum/species/S = get_species_by_key(species_name)
-		if(S.base_skin_colours)
-			if(!(S.appearance_flags & HAS_BASE_SKIN_COLOURS))
-				log_unit_test("[S.name] has a skin colour list but no HAS_BASE_SKIN_COLOURS flag.")
-				failcount++
-				continue
-			if(!(S.base_skin_colours.len >= 2))
-				log_unit_test("[S.name] needs at least two items in the base_skin_colour list.")
-				failcount++
-				continue
-			var/to_fail = FALSE
-			for(var/tag in S.has_limbs)
-				var/list/paths = S.has_limbs[tag]
-				var/obj/item/organ/external/E = paths["path"]
-				var/list/gender_test = list("")
-				if(initial(E.limb_flags) & ORGAN_FLAG_GENDERED_ICON)
-					gender_test = list("_m", "_f")
-				var/icon_name = initial(E.icon_name)
-
-				for(var/base in S.base_skin_colours)
-					for(var/gen in gender_test)
-						if(!("[icon_name][gen][S.base_skin_colours[base]]" in icon_states(S.icobase)))
-							to_fail = TRUE
-							log_debug("[S.name] has missing icon: [icon_name][gen][S.base_skin_colours[base]] for base [base] and limb tag [tag].")
-			if(to_fail)
-				log_unit_test("[S.name] is missing one or more base icons.")
-				failcount++
-				continue
-
-		else if(S.appearance_flags & HAS_BASE_SKIN_COLOURS)
-			log_unit_test("[S.name] has a HAS_BASE_SKIN_COLOURS flag but no skin colour list.")
-			failcount++
-			continue
-
-	if(failcount)
-		fail("[failcount] species had bad base skin colour.")
-	else
-		pass("All species had correct skin colour setups.")
-
-	return 1	// return 1 to show we're done and don't want to recheck the result.
-
 
 /datum/unit_test/mob_nullspace
 	name = "MOB: Mob in nullspace shall not cause runtimes"
@@ -352,14 +285,14 @@ datum/unit_test/mob_damage/halloss
 
 /datum/unit_test/mob_nullspace/start_test()
 	// Simply create one of each species type in nullspace
-	for(var/species_name in get_all_species())
-		var/test_subject = new/mob/living/carbon/human(null, species_name)
+	for(var/decl/species/species as anything in decls_repository.get_decls_of_subtype_unassociated(/decl/species))
+		var/test_subject = new/mob/living/human(null, species.uid)
 		test_subjects += test_subject
 	return TRUE
 
 /datum/unit_test/mob_nullspace/check_result()
 	for(var/ts in test_subjects)
-		var/mob/living/carbon/human/H = ts
+		var/mob/living/human/H = ts
 		if(H.life_tick < 10)
 			return FALSE
 
@@ -373,13 +306,26 @@ datum/unit_test/mob_damage/halloss
 
 /datum/unit_test/mob_organ_size/start_test()
 	var/failed = FALSE
-	for(var/species_name in get_all_species())
-		var/mob/living/carbon/human/H = new(null, species_name)
-		for(var/obj/item/organ/external/E in H.organs)
-			for(var/obj/item/organ/internal/I in E.internal_organs)
-				if(I.w_class > E.cavity_max_w_class)
-					failed = TRUE
-					log_bad("Internal organ [I] inside external organ [E] on species [species_name] was too large to fit.")
+	var/datum/mob_snapshot/dummy_appearance = new
+	for(var/decl/bodytype/bodytype in decls_repository.get_decls_of_subtype_unassociated(/decl/bodytype))
+		if(bodytype.skip_organ_validation)
+			continue
+		var/decl/species/species = bodytype.get_user_species_for_validation()
+		if(!species)
+			continue
+		dummy_appearance.root_species  = species
+		dummy_appearance.root_bodytype = bodytype
+		var/mob/living/human/test_subject = new(null, species.uid, dummy_appearance)
+		for(var/obj/item/organ/internal/organ in test_subject.get_internal_organs())
+			var/obj/item/organ/external/parent = GET_EXTERNAL_ORGAN(test_subject, organ.parent_organ)
+			if(!parent)
+				failed = TRUE
+				log_bad("Internal organ [organ] inside mob of species [species.type] lacked a parent organ (expected [organ.parent_organ])!")
+				continue
+			if(organ.w_class > parent.cavity_max_w_class)
+				failed = TRUE
+				log_bad("Internal organ [organ] inside external organ [parent] on species [species.type] was too large to fit.")
+	QDEL_NULL(dummy_appearance)
 	if(failed)
 		fail("A mob had an internal organ too large for its external organ.")
 	else
@@ -388,87 +334,47 @@ datum/unit_test/mob_damage/halloss
 
 // ============================================================================
 
-//
-// Tests butchery products.
-//
+/datum/unit_test/robot_modules_shall_have_appropriate_states
+	name = "MOB ICONS: Robot Module Icons Shall Have Appropriate States"
 
-/datum/unit_test/mob_butchery
-	name = "MOB: All Living Mobs Shall Have Valid Products When Butchery Values Are Set"
-	async = 1
-	var/list/failed =      list()
-	var/list/check_meat =  list()
-	var/list/check_skin =  list()
-	var/list/check_bones = list()
+/datum/unit_test/robot_modules_shall_have_appropriate_states/start_test()
 
-/datum/unit_test/mob_butchery/start_test()
+	var/list/failures = list()
+	for(var/moduletype in typesof(/obj/item/robot_module))
+		var/obj/item/robot_module/mod = new moduletype(reference_only = TRUE) // Reference copy only; have to do this to access lists.
+		for(var/sprite in mod.module_sprites)
+			var/check_icon = mod.module_sprites[sprite]
+			if(!check_state_in_icon("world", check_icon))
+				failures += "[moduletype] ([sprite]): [check_icon] missing world sprite"
+			if(!check_state_in_icon("world-eyes", check_icon))
+				failures += "[moduletype] ([sprite]): [check_icon] missing eyes sprite"
+		qdel(mod)
 
-	for(var/mobtype in subtypesof(/mob/living))
-
-		// Humans use species for their products and are 
-		// difficult to properly unit test because of this.
-		if(ispath(mobtype, /mob/living/carbon/human))
-			continue
-
-		var/mob/living/animal = mobtype
-
-		var/mtype = ispath(initial(animal.meat_type))
-		var/mcount = initial(animal.meat_amount) > 0
-		if(mtype && mcount)
-			check_meat += mobtype
-		else if(mtype && !mcount)
-			failed[mobtype] = "valid meat_type but meat_amount ([mcount]) is below or equal to zero"
-		else if(!mtype && mcount)
-			failed[mobtype] = "invalid meat_type ([mtype]) but meat_amount above zero"
-
-		var/smat =   initial(animal.skin_material)
-		var/stype =  (smat && istype(decls_repository.get_decl(smat), /decl/material))
-		var/scount = initial(animal.skin_amount) > 0
-		if(stype && scount)
-			check_skin += mobtype
-		else if(stype && !scount)
-			failed[mobtype] = "valid skin_material but skin_amount is below or equal to zero"
-		else if(!stype && scount)
-			failed[mobtype] = "invalid skin_material ([smat]) but skin_amount above zero"
-
-		var/bmat =   initial(animal.bone_material)
-		var/btype =  (bmat && istype(decls_repository.get_decl(bmat), /decl/material))
-		var/bcount = initial(animal.bone_amount) > 0
-		if(btype && bcount)
-			check_bones += mobtype
-		else if(btype && !bcount)
-			failed += "[mobtype] - valid bone_material but bone_amount is below or equal to zero"
-		else if(!btype && bcount)
-			failed += "[mobtype] - invalid bone_material ([bmat]) but bone_amount above zero"
-
-	var/list/spawned_mobs = list()
-	for(var/mobtype in check_skin)
-		var/mob/living/M = spawned_mobs[mobtype] || new mobtype
-		spawned_mobs[mobtype] = M
-		if(!length(M.harvest_skin()))
-			failed += "[mobtype] - invalid skin products"
-	for(var/mobtype in check_bones)
-		var/mob/living/M = spawned_mobs[mobtype] || new mobtype
-		spawned_mobs[mobtype] = M
-		if(!length(M.harvest_bones()))
-			failed += "[mobtype] - invalid bone products"
-	for(var/mobtype in check_meat)
-		var/mob/living/M = spawned_mobs[mobtype] || new mobtype
-		spawned_mobs[mobtype] = M
-		if(!length(M.harvest_meat()))
-			failed += "[mobtype] - invalid meat products"
-	for(var/thing in spawned_mobs)
-		var/mob/living/M = spawned_mobs[thing]
-		if(!QDELETED(M))
-			qdel(M)
-	spawned_mobs.Cut()
-
-	return TRUE
-
-/datum/unit_test/mob_butchery/check_result()
-	if(length(failed))
-		fail("Some living mobs with butchery values have invalid values or do not produce valid products:\n[jointext(failed, "\n")]")
+	if(length(failures))
+		fail("Some robot modules had invalid or missing icon_states:\n[jointext(failures, "\n")]")
 	else
-		pass("All living mobs with butchery values produce valid products.")
-	return TRUE
+		pass("All robot modules had appropriate icon_states.")
+	return 1
+
+// ============================================================================
+
+/datum/unit_test/pai_icons_shall_have_appropriate_states
+	name = "MOB ICONS: PAI Icons Shall Have Appropriate States"
+
+/datum/unit_test/pai_icons_shall_have_appropriate_states/start_test()
+	var/list/failures = list()
+	for(var/chassis in global.possible_chassis)
+		var/check_icon = global.possible_chassis[chassis]
+		if(!check_state_in_icon("world", check_icon))
+			failures += "[chassis]: [check_icon] missing world state"
+		if(!check_state_in_icon("world-rest", check_icon))
+			failures += "[chassis]: [check_icon] missing world-rest sprite"
+		if(!check_state_in_icon("world-dead", check_icon))
+			failures += "[chassis]: [check_icon] missing world-dead state"
+	if(length(failures))
+		fail("Some pAI icons had invalid or missing icon_states:\n[jointext(failures, "\n")]")
+	else
+		pass("All pAI icons had appropriate icon_states.")
+	return 1
 
 // ============================================================================

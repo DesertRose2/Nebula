@@ -5,13 +5,13 @@
 /obj/machinery/atmospherics/binary/passive_gate
 	icon = 'icons/atmos/passive_gate.dmi'
 	icon_state = "map_off"
-	level = 1
+	level = LEVEL_BELOW_PLATING
 
 	name = "pressure regulator"
 	desc = "A one-way air valve that can be used to regulate input or output pressure, and flow rate. Does not require power."
 
 	use_power = POWER_USE_OFF
-	interact_offline = 1
+	interact_offline = TRUE
 	var/unlocked = 0	//If 0, then the valve is locked closed, otherwise it is open(-able, it's a one-way valve so it closes if gas would flow backwards).
 	var/target_pressure = ONE_ATMOSPHERE
 	var/max_pressure_setting = MAX_PUMP_PRESSURE
@@ -35,7 +35,7 @@
 	)
 	public_methods = list(
 		/decl/public_access/public_method/toggle_unlocked,
-		/decl/public_access/public_method/toggle_input_toggle	
+		/decl/public_access/public_method/toggle_input_toggle
 	) // Does come with suggested stock configurations, though.
 	stock_part_presets = list(
 		/decl/stock_part_preset/radio/receiver/passive_gate = 1,
@@ -52,23 +52,16 @@
 
 /obj/machinery/atmospherics/binary/passive_gate/Initialize()
 	. = ..()
-	air1.volume = ATMOS_DEFAULT_VOLUME_PUMP * 2.5
-	air2.volume = ATMOS_DEFAULT_VOLUME_PUMP * 2.5
+	air1.total_volume = ATMOS_DEFAULT_VOLUME_PUMP * 2.5
+	air2.total_volume = ATMOS_DEFAULT_VOLUME_PUMP * 2.5
 
 /obj/machinery/atmospherics/binary/passive_gate/on_update_icon()
 	icon_state = (unlocked && flowing)? "on" : "off"
 
-/obj/machinery/atmospherics/binary/passive_gate/update_underlays()
-	if(..())
-		underlays.Cut()
-		var/turf/T = get_turf(src)
-		if(!istype(T))
-			return
-		add_underlay(T, node1, turn(dir, 180))
-		add_underlay(T, node2, dir)
+	build_device_underlays(FALSE)
 
 /obj/machinery/atmospherics/binary/passive_gate/hide(var/i)
-	update_underlays()
+	update_icon()
 
 /obj/machinery/atmospherics/binary/passive_gate/Process()
 	..()
@@ -94,24 +87,21 @@
 		flowing = 1
 
 		//flow rate limit
-		var/transfer_moles = (set_flow_rate/air1.volume)*air1.total_moles
+		var/transfer_moles = (set_flow_rate/air1.total_volume)*air1.total_moles
 
 		//Figure out how much gas to transfer to meet the target pressure.
 		switch (regulate_mode)
 			if (REGULATE_INPUT)
-				transfer_moles = min(transfer_moles, calculate_transfer_moles(air2, air1, pressure_delta, (network1)? network1.volume : 0))
+				transfer_moles = min(transfer_moles, air1.total_moles*(pressure_delta/input_starting_pressure))
 			if (REGULATE_OUTPUT)
-				transfer_moles = min(transfer_moles, calculate_transfer_moles(air1, air2, pressure_delta, (network2)? network2.volume : 0))
+				var/datum/pipe_network/output = network_in_dir(dir)
+				transfer_moles = min(transfer_moles, calculate_transfer_moles(air1, air2, pressure_delta, output?.total_volume))
 
 		//pump_gas() will return a negative number if no flow occurred
 		returnval = pump_gas_passive(src, air1, air2, transfer_moles)
 
 	if (returnval >= 0)
-		if(network1)
-			network1.update = 1
-
-		if(network2)
-			network2.update = 1
+		update_networks()
 
 	if (last_flow_rate)
 		flowing = 1
@@ -148,40 +138,48 @@
 		ui.set_auto_update(1)		// auto update every Master Controller tick
 
 
-/obj/machinery/atmospherics/binary/passive_gate/Topic(href,href_list)
-	if(..()) return 1
+/obj/machinery/atmospherics/binary/passive_gate/OnTopic(mob/user, href_list)
+	if((. = ..()))
+		return
 
 	if(href_list["toggle_valve"])
 		unlocked = !unlocked
+		. = TOPIC_REFRESH
 
-	if(href_list["regulate_mode"])
-		switch(href_list["regulate_mode"])
-			if ("off") regulate_mode = REGULATE_NONE
-			if ("input") regulate_mode = REGULATE_INPUT
-			if ("output") regulate_mode = REGULATE_OUTPUT
+	switch(href_list["regulate_mode"])
+		if ("off")
+			regulate_mode = REGULATE_NONE
+			. = TOPIC_REFRESH
+		if ("input")
+			regulate_mode = REGULATE_INPUT
+			. = TOPIC_REFRESH
+		if ("output")
+			regulate_mode = REGULATE_OUTPUT
+			. = TOPIC_REFRESH
 
 	switch(href_list["set_press"])
 		if ("min")
 			target_pressure = 0
+			. = TOPIC_REFRESH
 		if ("max")
 			target_pressure = max_pressure_setting
+			. = TOPIC_REFRESH
 		if ("set")
-			var/new_pressure = input(usr,"Enter new output pressure (0-[max_pressure_setting]kPa)","Pressure Control",src.target_pressure) as num
-			src.target_pressure = between(0, new_pressure, max_pressure_setting)
+			var/new_pressure = input(user, "Enter new output pressure (0-[max_pressure_setting]kPa)","Pressure Control",target_pressure) as num
+			target_pressure = clamp(new_pressure, 0, max_pressure_setting)
+			. = TOPIC_REFRESH
 
 	switch(href_list["set_flow_rate"])
 		if ("min")
 			set_flow_rate = 0
+			. = TOPIC_REFRESH
 		if ("max")
-			set_flow_rate = air1.volume
+			set_flow_rate = air1.total_volume
+			. = TOPIC_REFRESH
 		if ("set")
-			var/new_flow_rate = input(usr,"Enter new flow rate limit (0-[air1.volume]kPa)","Flow Rate Control",src.set_flow_rate) as num
-			src.set_flow_rate = between(0, new_flow_rate, air1.volume)
-
-	usr.set_machine(src)	//Is this even needed with NanoUI?
-	src.update_icon()
-	src.add_fingerprint(usr)
-	return
+			var/new_flow_rate = input(user, "Enter new flow rate limit (0-[air1.total_volume]kPa)","Flow Rate Control",set_flow_rate) as num
+			set_flow_rate = clamp(new_flow_rate, 0, air1.total_volume)
+			. = TOPIC_REFRESH
 
 /obj/machinery/atmospherics/binary/passive_gate/proc/toggle_unlocked()
 	unlocked = !unlocked
@@ -198,7 +196,7 @@
 	desc = "Whether or not the valve is open, allowing gas to pass in one direction."
 	can_write = TRUE
 	has_updates = FALSE
-	var_type = IC_FORMAT_BOOLEAN
+	var_type = VAR_FORMAT_BOOLEAN
 
 /decl/public_access/public_variable/passive_gate_unlocked/access_var(obj/machinery/atmospherics/binary/passive_gate/machine)
 	return machine.unlocked
@@ -215,13 +213,13 @@
 	desc = "A cap on the volume flow rate of the gate."
 	can_write = TRUE
 	has_updates = FALSE
-	var_type = IC_FORMAT_NUMBER
+	var_type = VAR_FORMAT_NUMBER
 
 /decl/public_access/public_variable/passive_gate_flow_rate/access_var(obj/machinery/atmospherics/binary/passive_gate/machine)
 	return machine.set_flow_rate
 
 /decl/public_access/public_variable/passive_gate_flow_rate/write_var(obj/machinery/atmospherics/binary/passive_gate/machine, new_value)
-	new_value = Clamp(new_value, 0, machine.air1?.volume)
+	new_value = clamp(new_value, 0, machine.air1?.total_volume)
 	. = ..()
 	if(.)
 		machine.set_flow_rate = new_value
@@ -232,7 +230,7 @@
 	desc = "A number describing the form of regulation the gate is attempting. The possible values are 0 (no air passed), 1 (regulates input pressure), or 2 (regulates output pressure)."
 	can_write = TRUE
 	has_updates = FALSE
-	var_type = IC_FORMAT_NUMBER
+	var_type = VAR_FORMAT_NUMBER
 
 /decl/public_access/public_variable/passive_gate_mode/access_var(obj/machinery/atmospherics/binary/passive_gate/machine)
 	return machine.regulate_mode
@@ -249,13 +247,13 @@
 	desc = "The input or output pressure the gate aims to stay below."
 	can_write = TRUE
 	has_updates = FALSE
-	var_type = IC_FORMAT_NUMBER
+	var_type = VAR_FORMAT_NUMBER
 
 /decl/public_access/public_variable/passive_gate_target_pressure/access_var(obj/machinery/atmospherics/binary/passive_gate/machine)
 	return machine.target_pressure
 
 /decl/public_access/public_variable/passive_gate_target_pressure/write_var(obj/machinery/atmospherics/binary/passive_gate/machine, new_value)
-	new_value = Clamp(new_value, 0, machine.max_pressure_setting)
+	new_value = clamp(new_value, 0, machine.max_pressure_setting)
 	. = ..()
 	if(.)
 		machine.target_pressure = new_value
@@ -263,7 +261,7 @@
 /decl/public_access/public_method/toggle_unlocked
 	name = "toggle valve"
 	desc = "Open or close the valve."
-	call_proc = /obj/machinery/atmospherics/binary/passive_gate/proc/toggle_unlocked
+	call_proc = TYPE_PROC_REF(/obj/machinery/atmospherics/binary/passive_gate, toggle_unlocked)
 
 /decl/stock_part_preset/radio/event_transmitter/passive_gate
 	frequency = PUMP_FREQ

@@ -1,3 +1,3 @@
 /mob/living/silicon/Login()
-	sleeping = 0
 	..()
+	set_status_condition(STAT_ASLEEP, 0)

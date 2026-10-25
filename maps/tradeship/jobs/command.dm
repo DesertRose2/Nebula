@@ -1,82 +1,66 @@
-/datum/job/tradeship_captain
+/datum/job/standard/captain/tradeship
 	title = "Captain"
 	supervisors = "your profit margin, your conscience, and the Trademaster"
-	outfit_type = /decl/hierarchy/outfit/job/tradeship/captain
+	outfit_type = /decl/outfit/job/tradeship/captain
 	min_skill = list(
 		SKILL_LITERACY = SKILL_ADEPT,
 		SKILL_WEAPONS  = SKILL_ADEPT,
 		SKILL_SCIENCE  = SKILL_ADEPT,
 		SKILL_PILOT    = SKILL_ADEPT
 	)
-	max_skill = list(
-		SKILL_PILOT   = SKILL_MAX,
-		SKILL_WEAPONS = SKILL_MAX
-	)
-	skill_points = 30
-	head_position = 1
-	department_refs = list(DEPT_COMMAND)
-	total_positions = 1
-	spawn_positions = 1
-	selection_color = "#1d1d4f"
-	req_admin_notify = 1
-	access = list()
-	minimal_access = list()
-	minimal_player_age = 14
-	economic_power = 20
 	ideal_character_age = 70
-	guestbanned = 1
-	must_fill = 1
-	not_random_selectable = 1
-	forced_spawnpoint = "Captain Compartment"
+	forced_spawnpoint = /decl/spawnpoint/cryo/captain
 
-/datum/job/tradeship_captain/equip(var/mob/living/carbon/human/H)
+/datum/job/standard/captain/tradeship/equip_job(var/mob/living/human/H, var/alt_title, var/datum/mil_branch/branch, var/datum/mil_rank/grade)
 	. = ..()
-	if(H.client)
-		H.client.verbs += /client/proc/tradehouse_rename_ship
-		H.client.verbs += /client/proc/tradehouse_rename_company
+	if(H)
+		H.verbs |= /mob/proc/tradehouse_rename_ship
+		H.verbs |= /mob/proc/tradehouse_rename_company
 
-/datum/job/tradeship_captain/get_access()
-	return get_all_station_access()
-
-/client/proc/tradehouse_rename_ship()
+/mob/proc/tradehouse_rename_ship()
 	set name = "Rename Tradeship"
 	set category = "Captain's Powers"
 
-	var/ship = sanitize(input(src, "What is your ship called? Don't add the vessel prefix, 'Tradeship' will be attached automatically.", "Ship Name", GLOB.using_map.station_short), MAX_NAME_LEN)
+	var/ship = sanitize(input(src, "What is your ship called? Don't add the vessel prefix, 'Tradeship' will be attached automatically.", "Ship Name", global.using_map.station_short), MAX_NAME_LEN)
 	if(!ship)
 		return
-	GLOB.using_map.station_short = ship
-	GLOB.using_map.station_name = "Tradeship [ship]"
-	var/obj/effect/overmap/visitable/ship/tradeship/B = locate() in world
-	if(B)
-		B.SetName(GLOB.using_map.station_name)
-	command_announcement.Announce("Attention all hands on [GLOB.using_map.station_name]! Thank you for your attention.", "Ship re-Christened")
-	verbs -= /client/proc/tradehouse_rename_ship
+	global.using_map.station_short = ship
+	global.using_map.station_name = "Tradeship [ship]"
 
-/client/proc/tradehouse_rename_company()
+	for(var/sz, sec in global.overmap_sectors)
+		var/obj/effect/overmap/visitable/ship/tradeship/B = sec
+		if(istype(B))
+			B.SetName(global.using_map.station_name)
+			command_announcement.Announce("Attention all hands on [global.using_map.station_name]! Thank you for your attention.", "Ship Re-Christened")
+			verbs -= /mob/proc/tradehouse_rename_ship
+			return
+
+	to_chat(src, SPAN_WARNING("Could not find an appropriate overmap object for this verb to rename, sorry."))
+
+/mob/proc/tradehouse_rename_company()
 	set name = "Rename Tradehouse"
 	set category = "Captain's Powers"
-	var/company = sanitize(input(src, "What should your enterprise be called?", "Company name", GLOB.using_map.company_name), MAX_NAME_LEN)
+	var/company = sanitize(input(src, "What should your enterprise be called?", "Company name", global.using_map.company_name), MAX_NAME_LEN)
 	if(!company)
 		return
-	var/company_s = sanitize(input(src, "What's the short name for it?", "Company name", GLOB.using_map.company_short), MAX_NAME_LEN)
-	if(company != GLOB.using_map.company_name)
+	var/company_s = sanitize(input(src, "What's the short name for it?", "Company name", global.using_map.company_short), MAX_NAME_LEN)
+	if(company != global.using_map.company_name)
 		if (company)
-			GLOB.using_map.company_name = company
+			global.using_map.company_name = company
 		if(company_s)
-			GLOB.using_map.company_short = company_s
-		command_announcement.Announce("Congratulations to all members of [capitalize(GLOB.using_map.company_name)] on the new name. Their rebranding has changed the [GLOB.using_map.company_short] market value by [0.01*rand(-10,10)]%.", "Tradehouse Name Change")
-	verbs -= /client/proc/tradehouse_rename_company
+			global.using_map.company_short = company_s
+		command_announcement.Announce("Congratulations to all members of [capitalize(global.using_map.company_name)] on the new name. Their rebranding has changed the [global.using_map.company_short] market value by [0.01*rand(-10,10)]%.", "Tradehouse Name Change")
+	verbs -= /mob/proc/tradehouse_rename_company
 
 /datum/job/tradeship_first_mate
 	title = "First Mate"
 	supervisors = "the Captain"
-	outfit_type = /decl/hierarchy/outfit/job/tradeship/mate
-	hud_icon = "hudheadofpersonnel"
+	hud_icon = 'maps/tradeship/hud.dmi'
+	outfit_type = /decl/outfit/job/tradeship/mate
 	head_position = 1
-	department_refs = list(
-		DEPT_COMMAND,
-		DEPT_CIVILIAN
+	department_types = list(
+		/decl/department/command,
+		/decl/department/civilian
 	)
 	total_positions = 1
 	spawn_positions = 1

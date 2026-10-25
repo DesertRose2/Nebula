@@ -1,34 +1,26 @@
 #define NEIGHBOR_REFRESH_TIME 100
 
 /obj/effect/vine/proc/get_cardinal_neighbors()
-	var/list/cardinal_neighbors = list()
-	for(var/check_dir in GLOB.cardinal)
-		var/turf/simulated/T = get_step(get_turf(src), check_dir)
-		if(istype(T))
-			cardinal_neighbors |= T
-	return cardinal_neighbors
+	. = list()
+	for(var/check_dir in global.cardinal)
+		var/turf/T = get_step(get_turf(src), check_dir)
+		if(istype(T) && T.simulated)
+			. |= T
 
 /obj/effect/vine/proc/get_zlevel_neighbors()
-	var/list/zlevel_neighbors = list()
-
+	. = list()
 	var/turf/start = loc
-	var/turf/up = GetAbove(loc)
-	var/turf/down = GetBelow(loc)
-
-	if(start && start.CanZPass(src, DOWN))
-		zlevel_neighbors += down
-	if(up && up.CanZPass(src, UP))
-		zlevel_neighbors += up
-
-	return zlevel_neighbors
+	if(isturf(start))
+		if(start.CanZPass(src, DOWN))
+			. += GetBelow(loc)
+		if(start.CanZPass(src, UP))
+			. += GetAbove(loc)
 
 /obj/effect/vine/proc/get_neighbors()
-	var/list/neighbors = list()
-
-	for(var/turf/simulated/floor in get_cardinal_neighbors())
+	. = list()
+	for(var/turf/floor in get_cardinal_neighbors())
 		if(get_dist(parent, floor) > spread_distance)
 			continue
-
 		var/blocked = 0
 		for(var/obj/effect/vine/other in floor.contents)
 			if(other.seed == src.seed)
@@ -36,60 +28,55 @@
 				break
 		if(blocked)
 			continue
-
 		if(floor.density)
-			if(!isnull(seed.chems[/decl/material/liquid/acid/polyacid]))
+			if(seed.get_chemical_amount(/decl/material/liquid/acid/polyacid))
 				spawn(rand(5,25)) floor.explosion_act(3)
 			continue
-
 		if(!Adjacent(floor) || !floor.Enter(src))
 			continue
-
-		neighbors |= floor
-
-	neighbors |= get_zlevel_neighbors()
-	return neighbors
+		. |= floor
+	. |= get_zlevel_neighbors()
 
 /obj/effect/vine/Process()
-	var/turf/simulated/T = get_turf(src)
-	if(!istype(T))
+	var/turf/T = get_turf(src)
+	if(!istype(T) || !T.simulated)
 		return
 
 	//Take damage from bad environment if any
-	adjust_health(-seed.handle_environment(T,T.return_air(),null,1))
-	if(health <= 0)
+	adjust_health(-seed.handle_plant_environment(T,T.return_air(),null,1))
+	if(current_health <= 0)
 		return
-	
+
 	//Vine fight!
 	for(var/obj/effect/vine/other in T)
 		if(other.seed != seed)
 			other.vine_overrun(seed, src)
 
 	//Growing up
-	if(health < max_health)
+	if(current_health < get_max_health())
 		adjust_health(1)
-		if(growth_threshold && !(health % growth_threshold))
+		if(growth_threshold && !(current_health % growth_threshold))
 			update_icon()
 
 	if(is_mature())
 		//Find a victim
-		if(!buckled_mob)
+		if(!has_buckled_mob())
 			var/list/mob/living/targets = targets_in_range()
-			if(targets && targets.len && prob(round(seed.get_trait(TRAIT_POTENCY)/4)))
+			if(LAZYLEN(targets) && prob(round(seed.get_trait(TRAIT_POTENCY)/4)))
 				entangle(pick(targets))
 
 		//Handle the victim
-		if(buckled_mob)
-			seed.do_sting(buckled_mob,src)
+		for(var/mob/buckle_mob in get_buckled_mobs())
+			seed.do_sting(buckle_mob,src)
 			if(seed.get_trait(TRAIT_CARNIVOROUS))
-				seed.do_thorns(buckled_mob,src)
+				seed.do_thorns(buckle_mob,src)
 
 		//Try to spread
 		if(parent && parent.possible_children && prob(spread_chance))
 			var/list/neighbors = get_neighbors()
 			if(neighbors.len)
 				spread_to(pick(neighbors))
-			
+
 		//Try to settle down
 		if(can_spawn_plant())
 			plant = new(T,seed)
@@ -106,15 +93,15 @@
 		STOP_PROCESSING(SSvines, src)
 
 /obj/effect/vine/proc/can_spawn_plant()
-	var/turf/simulated/T = get_turf(src)
-	return parent == src && health == max_health && !plant && istype(T) && !T.CanZPass(src, DOWN)
+	var/turf/T = get_turf(src)
+	return parent == src && current_health == get_max_health() && !plant && istype(T) && T.simulated && !T.CanZPass(src, DOWN)
 
 /obj/effect/vine/proc/should_sleep()
-	if(buckled_mob) //got a victim to fondle
+	if(has_buckled_mob()) //got a victim to fondle
 		return FALSE
 	if(length(get_neighbors())) //got places to spread to
 		return FALSE
-	if(health < max_health) //got some growth to do
+	if(current_health < get_max_health()) //got some growth to do
 		return FALSE
 	if(targets_in_range()) //got someone to grab
 		return FALSE
@@ -132,25 +119,29 @@
 		child.set_dir(child.calc_dir())
 		child.update_icon()
 		// Some plants eat through plating.
-		if(islist(seed.chems) && !isnull(seed.chems[/decl/material/liquid/acid/polyacid]))
+		if(seed.get_chemical_amount(/decl/material/liquid/acid/polyacid))
 			target_turf.explosion_act(prob(80) ? 3 : 2)
 	else
 		qdel(child)
 
 /obj/effect/vine/proc/wake_neighbors()
 	// This turf is clear now, let our buddies know.
-	for(var/turf/simulated/check_turf in (get_cardinal_neighbors() | get_zlevel_neighbors()))
-		if(!istype(check_turf))
+	for(var/turf/check_turf in (get_cardinal_neighbors() | get_zlevel_neighbors()))
+		if(!istype(check_turf) || !check_turf.simulated)
 			continue
 		for(var/obj/effect/vine/neighbor in check_turf.contents)
+			if(QDELETED(neighbor))
+				continue
 			START_PROCESSING(SSvines, neighbor)
 
 /obj/effect/vine/proc/targets_in_range()
 	var/list/mob/targets = list()
-	for(var/turf/simulated/check_turf in (get_cardinal_neighbors() | get_zlevel_neighbors() | list(loc)))
-		if(!istype(check_turf))
+	for(var/turf/check_turf in (get_cardinal_neighbors() | get_zlevel_neighbors() | list(loc)))
+		if(!istype(check_turf) || !check_turf.simulated)
 			continue
 		for(var/mob/living/M in check_turf.contents)
+			if(QDELETED(M))
+				continue
 			if(prob(5) || !M.skill_check(SKILL_BOTANY, SKILL_PROF))
 				targets |= M
 	if(targets.len)

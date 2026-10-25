@@ -1,4 +1,4 @@
-/var/repository/follow/follow_repository = new()
+var/global/repository/follow/follow_repository = new()
 
 /repository/follow
 	var/datum/cache_entry/valid_until/cache
@@ -6,10 +6,11 @@
 	var/list/followed_objects
 	var/list/followed_objects_assoc
 	var/list/followed_subtypes
+	var/list/followed_subtypes_tcache = list()
 
 	var/list/excluded_subtypes = list(
 		/obj/machinery/atmospherics, // Atmos stuff calls initialize time and time again..,
-		/mob/living/carbon/human/dummy/mannequin
+		/mob/living/human/dummy/mannequin
 	)
 
 /repository/follow/New()
@@ -21,6 +22,10 @@
 	for(var/fht in subtypesof(/datum/follow_holder))
 		var/datum/follow_holder/fh = fht
 		followed_subtypes[initial(fh.followed_type)] = fht
+		followed_subtypes_tcache += initial(fh.followed_type)
+
+	followed_subtypes_tcache = typecacheof(followed_subtypes_tcache)
+	excluded_subtypes = typecacheof(excluded_subtypes)
 
 /repository/follow/proc/add_subject(var/atom/movable/AM)
 	cache = null
@@ -31,7 +36,7 @@
 	followed_objects_assoc[AM] = follow_holder
 	followed_objects.Add(follow_holder)
 
-	GLOB.destroyed_event.register(AM, src, /repository/follow/proc/remove_subject)
+	events_repository.register(/decl/observ/destroyed, AM, src, TYPE_PROC_REF(/repository/follow, remove_subject))
 
 /repository/follow/proc/remove_subject(var/atom/movable/AM)
 	cache = null
@@ -41,7 +46,7 @@
 	followed_objects_assoc -= AM
 	followed_objects.Remove(follow_holder)
 
-	GLOB.destroyed_event.unregister(AM, src, /repository/follow/proc/remove_subject)
+	events_repository.unregister(/decl/observ/destroyed, AM, src, TYPE_PROC_REF(/repository/follow, remove_subject))
 
 	qdel(follow_holder)
 
@@ -78,11 +83,6 @@
 
 	cache.data = L
 	return L
-
-/atom/movable/Initialize()
-	. = ..()
-	if(!is_type_in_list(src, follow_repository.excluded_subtypes) && is_type_in_list(src, follow_repository.followed_subtypes))
-		follow_repository.add_subject(src)
 
 /******************
 * Follow Metadata *
@@ -158,29 +158,29 @@
 	followed_type = /mob/living/silicon/robot
 
 /datum/follow_holder/robot/show_entry()
-	var/mob/living/silicon/robot/R = followed_instance
-	return ..() && R.braintype
+	var/mob/living/silicon/robot/robot = followed_instance
+	return ..() && robot.braintype
 
-/datum/follow_holder/robot/get_suffix(var/mob/living/silicon/robot/R)
-	suffix = "\[[R.braintype]\][R.module ? " \[[R.module.name]\]" : ""]"
+/datum/follow_holder/robot/get_suffix(var/mob/living/silicon/robot/robot)
+	suffix = "\[[robot.braintype]\][robot.module ? " \[[robot.module.name]\]" : ""]"
 	return ..()
 
 /datum/follow_holder/human
 	sort_order = 2
-	followed_type = /mob/living/carbon/human
+	followed_type = /mob/living/human
 
-/datum/follow_holder/human/get_suffix(var/mob/living/carbon/human/H)
+/datum/follow_holder/human/get_suffix(var/mob/living/human/H)
 	suffix = "\[[H.species.name]\]"
 	return ..()
 
 /datum/follow_holder/brain
 	sort_order = 3
-	followed_type = /mob/living/carbon/brain
+	followed_type = /mob/living/brain
 	suffix = "Brain"
 
 /datum/follow_holder/alien
 	sort_order = 4
-	followed_type = /mob/living/carbon/alien
+	followed_type = /mob/living/simple_animal/alien
 	suffix = "Alien"
 
 /datum/follow_holder/ghost
@@ -193,19 +193,6 @@
 	followed_type = /mob/living/simple_animal
 	suffix = "Animal"
 
-/datum/follow_holder/slime
-	sort_order = 6
-	followed_type = /mob/living/carbon/slime
-	suffix = "Slime"
-
-/datum/follow_holder/spiderling
-	sort_order = 6
-	followed_type = /obj/effect/spider/spiderling
-
-/datum/follow_holder/spiderling/show_entry()
-	var/obj/effect/spider/spiderling/S = followed_instance
-	return ..() && S.amount_grown > 0
-
 /datum/follow_holder/bot
 	sort_order = 7
 	followed_type = /mob/living/bot
@@ -216,18 +203,9 @@
 	followed_type = /mob/living // List all other (living) mobs we haven't given a special suffix
 	suffix = "Mob"
 
-/datum/follow_holder/blob
-	sort_order = 9
-	followed_type = /obj/effect/blob/core
-	suffix = "Blob"
-
-/datum/follow_holder/supermatter
-	sort_order = 10
-	followed_type = /obj/machinery/power/supermatter
-
 /datum/follow_holder/singularity
 	sort_order = 10
-	followed_type = /obj/singularity
+	followed_type = /obj/effect/singularity
 
 /datum/follow_holder/nuke_disc
 	sort_order = 11

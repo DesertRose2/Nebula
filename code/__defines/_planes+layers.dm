@@ -71,48 +71,55 @@ What is the naming convention for planes or layers?
 	#define DEBRIS_LAYER                 1
 	#define DUST_LAYER                   2
 
-// Openspace uses planes -80 through -70.
+// Z-Mimic needs OPENTURF_PLANES_PER_DEPTH * OPENTURF_MAX_DEPTH planes. ZM will emit a compile-time warning if an invalid range is specified here.
+#define ZMIMIC_MINIMUM_PLANE -80
+#define ZMIMIC_MAXIMUM_PLANE -50
 
 #define OVER_OPENSPACE_PLANE        -3
 
 #define DEFAULT_PLANE                   0
-	#define PLATING_LAYER               1
+//BELOW PLATING
+	#define UNDER_TURF_LAYER            1
+	//PLATING
+	#define PLATING_LAYER               1.5
 	//ABOVE PLATING
-	#define HOLOMAP_LAYER               1.01
-	#define DECAL_PLATING_LAYER         1.02
-	#define DISPOSALS_PIPE_LAYER        1.03
-	#define LATTICE_LAYER               1.04
-	#define PIPE_LAYER                  1.05
-	#define WIRE_LAYER                  1.06
-	#define WIRE_TERMINAL_LAYER         1.07
-	#define ABOVE_WIRE_LAYER            1.08
+	#define HOLOMAP_LAYER               1.51
+	#define DECAL_PLATING_LAYER         1.52
+	#define DISPOSALS_PIPE_LAYER        1.53
+	#define LATTICE_LAYER               1.54
+	#define PIPE_LAYER                  1.55
+	#define WIRE_LAYER                  1.56
+	#define WIRE_TERMINAL_LAYER         1.57
+	#define ABOVE_WIRE_LAYER            1.58
 	//TURF PLANE
 	//TURF_LAYER = 2
-	#define TURF_DETAIL_LAYER           2.01
-	#define TURF_SHADOW_LAYER           2.02
+	#define TURF_OVER_EDGE_LAYER        TURF_LAYER + (FLOOR_LAYER_CONSTANT*100)
+	#define TURF_DETAIL_LAYER           TURF_OVER_EDGE_LAYER + 0.01
+	#define TURF_SHADOW_LAYER           TURF_OVER_EDGE_LAYER + 0.02
 	//ABOVE TURF
-	#define DECAL_LAYER                 2.03
-	#define RUNE_LAYER                  2.04
-	#define ABOVE_TILE_LAYER            2.05
-	#define EXPOSED_PIPE_LAYER          2.06
-	#define EXPOSED_WIRE_LAYER          2.07
-	#define EXPOSED_WIRE_TERMINAL_LAYER 2.08
-	#define CATWALK_LAYER               2.09
-	#define BLOOD_LAYER                 2.10
-	#define MOUSETRAP_LAYER             2.11
-	#define PLANT_LAYER                 2.12
-	#define AO_LAYER                    2.13
+	#define DECAL_LAYER                 TURF_OVER_EDGE_LAYER + 0.03
+	#define RUNE_LAYER                  TURF_OVER_EDGE_LAYER + 0.04
+	#define AO_LAYER                    TURF_OVER_EDGE_LAYER + 0.045
+	#define ABOVE_TILE_LAYER            TURF_OVER_EDGE_LAYER + 0.05
+	#define EXPOSED_PIPE_LAYER          TURF_OVER_EDGE_LAYER + 0.06
+	#define EXPOSED_WIRE_LAYER          TURF_OVER_EDGE_LAYER + 0.07
+	#define EXPOSED_WIRE_TERMINAL_LAYER TURF_OVER_EDGE_LAYER + 0.08
+	#define CATWALK_LAYER               TURF_OVER_EDGE_LAYER + 0.09
+	#define BLOOD_LAYER                 TURF_OVER_EDGE_LAYER + 0.10
+	#define MOUSETRAP_LAYER             TURF_OVER_EDGE_LAYER + 0.11
+	#define PLANT_LAYER                 TURF_OVER_EDGE_LAYER + 0.12
 	//HIDING MOB
-	#define HIDING_MOB_LAYER            2.14
-	#define SHALLOW_FLUID_LAYER         2.15
-	#define MOB_SHADOW_LAYER            2.16
+	#define HIDING_MOB_LAYER            TURF_OVER_EDGE_LAYER + 0.14
+	#define SHALLOW_FLUID_LAYER         TURF_OVER_EDGE_LAYER + 0.15
+	#define MOB_SHADOW_LAYER            TURF_OVER_EDGE_LAYER + 0.16
 	//OBJ
-	#define BELOW_DOOR_LAYER            2.17
-	#define OPEN_DOOR_LAYER             2.18
-	#define BELOW_TABLE_LAYER           2.19
-	#define TABLE_LAYER                 2.20
-	#define BELOW_OBJ_LAYER             2.21
-	#define STRUCTURE_LAYER             2.22
+	#define BELOW_DOOR_LAYER            TURF_OVER_EDGE_LAYER + 0.17
+	#define OPEN_DOOR_LAYER             TURF_OVER_EDGE_LAYER + 0.18
+	#define BELOW_TABLE_LAYER           TURF_OVER_EDGE_LAYER + 0.19
+	#define TABLE_LAYER                 TURF_OVER_EDGE_LAYER + 0.20
+	#define BELOW_OBJ_LAYER             TURF_OVER_EDGE_LAYER + 0.21
+	#define STRUCTURE_LAYER             TURF_OVER_EDGE_LAYER + 0.22
+	#define ABOVE_STRUCTURE_LAYER       TURF_OVER_EDGE_LAYER + 0.23
 	// OBJ_LAYER                        3
 	#define ABOVE_OBJ_LAYER             3.01
 	#define CLOSED_DOOR_LAYER           3.02
@@ -121,6 +128,7 @@ What is the naming convention for planes or layers?
 	#define FULL_WINDOW_LAYER           3.05
 	#define ABOVE_WINDOW_LAYER          3.06
 	//LYING MOB AND HUMAN
+	#define UNDER_MOB_LAYER             3.065
 	#define LYING_MOB_LAYER             3.07
 	#define LYING_HUMAN_LAYER           3.08
 	#define BASE_ABOVE_OBJ_LAYER        3.09
@@ -158,72 +166,34 @@ What is the naming convention for planes or layers?
 
 	//FLY_LAYER                          5
 	//OBSERVER
-	#define OBSERVER_LAYER              5.1
-
 	#define BASE_AREA_LAYER             999
 
-#define OBSERVER_PLANE             1
+#define OBSERVER_PLANE           1
+  #define OBSERVER_LAYER           1
 
-#define LIGHTING_PLANE             2 // For Lighting. - The highest plane (ignoring all other even higher planes)
-	#define LIGHTBULB_LAYER        0
-	#define LIGHTING_LAYER         1
-	#define ABOVE_LIGHTING_LAYER   2
+#define LIGHTING_PLANE           2 // For Lighting. - The highest plane (ignoring all other even higher planes)
+  #define LIGHTBULB_LAYER          1
+  #define LIGHTING_LAYER           2
 
-#define EFFECTS_ABOVE_LIGHTING_PLANE   3 // For glowy eyes, laser beams, etc. that shouldn't be affected by darkness
-	#define EYE_GLOW_LAYER         1
-	#define BEAM_PROJECTILE_LAYER  2
-	#define SUPERMATTER_WALL_LAYER 3
-	#define OBFUSCATION_LAYER      4
+#define EMISSIVE_PLANE           3 // For over-lighting overlays (ex. cigarette glows)
+  #define EMISSIVE_LAYER           1
 
-#define FULLSCREEN_PLANE                4 // for fullscreen overlays that do not cover the hud.
+#define ABOVE_LIGHTING_PLANE     4 // laser beams, etc. that shouldn't be affected by darkness
+  #define ABOVE_LIGHTING_LAYER     1
+  #define BEAM_PROJECTILE_LAYER    2
+  #define SUBSPACE_WALL_LAYER      3
+  #define OBFUSCATION_LAYER        4
 
-	#define FULLSCREEN_LAYER    0
-	#define DAMAGE_LAYER        1
-	#define IMPAIRED_LAYER      2
-	#define BLIND_LAYER         3
-	#define CRIT_LAYER          4
+#define FULLSCREEN_PLANE         5 // for fullscreen overlays that do not cover the hud.
+  #define FULLSCREEN_LAYER         0
+  #define DAMAGE_LAYER             1
+  #define IMPAIRED_LAYER           2
+  #define BLIND_LAYER              3
+  #define CRIT_LAYER               4
 
-#define HUD_PLANE                    5
-	#define UNDER_HUD_LAYER              0
-	#define HUD_BASE_LAYER               2
-	#define HUD_ITEM_LAYER               3
-	#define HUD_ABOVE_ITEM_LAYER         4
-	#define HUD_ABOVE_HUD_LAYER          5
-
-
-//This is difference between planes used for atoms and effects
-#define PLANE_DIFFERENCE              3
-
-/atom
-	plane = DEFAULT_PLANE
-
-/atom/proc/hud_layerise()
-	plane = HUD_PLANE
-	layer = HUD_ITEM_LAYER
-
-/atom/proc/reset_plane_and_layer()
-	plane = initial(plane)
-	layer = initial(layer)
-
-/*
-  PLANE MASTERS
-*/
-
-/obj/screen/plane_master
-	appearance_flags = PLANE_MASTER
-	screen_loc = "CENTER,CENTER"
-	globalscreen = 1
-
-/obj/screen/plane_master/ghost_master
-	plane = OBSERVER_PLANE
-
-/obj/screen/plane_master/ghost_dummy
-	// this avoids a bug which means plane masters which have nothing to control get angry and mess with the other plane masters out of spite
-	alpha = 0
-	appearance_flags = 0
-	plane = OBSERVER_PLANE
-
-GLOBAL_LIST_INIT(ghost_master, list(
-	new /obj/screen/plane_master/ghost_master(),
-	new /obj/screen/plane_master/ghost_dummy()
-))
+#define HUD_PLANE                6
+  #define UNDER_HUD_LAYER          0
+  #define HUD_BASE_LAYER           2
+  #define HUD_ITEM_LAYER           3
+  #define HUD_ABOVE_ITEM_LAYER     4
+  #define HUD_ABOVE_HUD_LAYER      5

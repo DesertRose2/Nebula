@@ -7,7 +7,7 @@
 
 	var/obj/item/clothing/cloth // the clothing on the ironing board
 	var/obj/item/ironingiron/holding // ironing iron on the board
-	var/list/move_sounds = list( // some nasty sounds to make when moving the board
+	var/static/list/move_sounds = list( // some nasty sounds to make when moving the board
 		'sound/effects/metalscrape1.ogg',
 		'sound/effects/metalscrape2.ogg',
 		'sound/effects/metalscrape3.ogg'
@@ -24,28 +24,29 @@
 
 	. = ..()
 
-/obj/structure/bed/roller/ironingboard/proc/remove_item(var/obj/item/I)
-	if(I == cloth)
+/obj/structure/bed/roller/ironingboard/proc/remove_item(var/obj/item/used_item)
+	if(used_item == cloth)
 		cloth = null
-	else if(I == holding)
+	else if(used_item == holding)
 		holding = null
 
 	update_icon()
-	GLOB.destroyed_event.unregister(I, src, /obj/structure/bed/roller/ironingboard/proc/remove_item)
+	events_repository.unregister(/decl/observ/destroyed, used_item, src, TYPE_PROC_REF(/obj/structure/bed/roller/ironingboard, remove_item))
 
 // make a screeching noise to drive people mad
 /obj/structure/bed/roller/ironingboard/Move()
-	var/turf/T = get_turf(src)
-	if(isspace(T) || istype(T, /turf/simulated/floor/carpet))
+	. = ..()
+	if(!.)
 		return
+	var/turf/T = get_turf(src)
+	if(isspaceturf(T) || istype(T, /turf/floor/carpet))
+		return FALSE
 	playsound(T, pick(move_sounds), 75, 1)
 
-	. = ..()
-
-/obj/structure/bed/roller/ironingboard/examine(mob/user)
+/obj/structure/bed/roller/ironingboard/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
 	if(cloth)
-		to_chat(user, "<span class='notice'>\The \icon[cloth] [cloth] lies on it.</span>")
+		. += SPAN_NOTICE("\The [html_icon(cloth)] [cloth] lies on it.")
 
 /obj/structure/bed/roller/ironingboard/on_update_icon()
 	if(density)
@@ -55,84 +56,95 @@
 	if(holding)
 		icon_state = "holding"
 
-	overlays.Cut()
+	..()
 	if(cloth)
-		overlays += new /icon(cloth.icon, cloth.icon_state)
+		add_overlay(image(cloth.icon, cloth.icon_state))
 
-/obj/structure/bed/roller/ironingboard/attackby(var/obj/item/I, var/mob/user)
+/obj/structure/bed/roller/ironingboard/attackby(var/obj/item/used_item, var/mob/user)
 	if(!density)
-		if(istype(I,/obj/item/clothing) || istype(I,/obj/item/ironingiron))
+		if(istype(used_item,/obj/item/clothing) || istype(used_item,/obj/item/ironingiron))
 			to_chat(user, "<span class='notice'>[src] isn't deployed!</span>")
-			return
+			return TRUE
 		return ..()
 
-	if(istype(I,/obj/item/clothing))
+	if(istype(used_item,/obj/item/clothing))
 		if(cloth)
 			to_chat(user, "<span class='notice'>[cloth] is already on the ironing table!</span>")
-			return
-		if(buckled_mob)
-			to_chat(user, "<span class='notice'>[buckled_mob] is already on the ironing table!</span>")
-			return
+			return TRUE
+		if(has_buckled_mob())
+			to_chat(user, "<span class='notice'>\The [get_buckled_mob()] is already on the ironing table!</span>")
+			return TRUE
 
-		if(user.unEquip(I, src))
-			cloth = I
-			GLOB.destroyed_event.register(I, src, /obj/structure/bed/roller/ironingboard/proc/remove_item)
+		if(user.try_unequip(used_item, src))
+			cloth = used_item
+			events_repository.register(/decl/observ/destroyed, used_item, src, TYPE_PROC_REF(/obj/structure/bed/roller/ironingboard, remove_item))
 			update_icon()
-		return
-	else if(istype(I,/obj/item/ironingiron))
-		var/obj/item/ironingiron/R = I
+		return TRUE
+	else if(istype(used_item,/obj/item/ironingiron))
+		var/obj/item/ironingiron/iron = used_item
 
 		// anti-wrinkle "massage"
-		if(buckled_mob && ishuman(buckled_mob))
-			var/mob/living/carbon/human/H = buckled_mob
-			var/zone = user.zone_sel.selecting
+		var/mob/living/victim = get_buckled_mob(user = user)
+		if(istype(victim))
+			var/zone = user.get_target_zone()
 			var/parsed = parse_zone(zone)
 
-			visible_message("<span class='danger'>[user] begins ironing [src.buckled_mob]'s [parsed]!</span>", "<span class='danger'>You begin ironing [buckled_mob]'s [parsed]!</span>")
-			if(!do_after(user, 40, src))
-				return
-			visible_message("<span class='danger'>[user] irons [src.buckled_mob]'s [parsed]!</span>", "<span class='danger'>You iron [buckled_mob]'s [parsed]!</span>")
+			visible_message(
+				SPAN_DANGER("[user] begins ironing [victim]'s [parsed]!"),
+				SPAN_DANGER("You begin ironing [victim]'s [parsed]!")
+			)
+			if(!do_after(user, 4 SECONDS, src))
+				return TRUE
+			visible_message(
+				SPAN_DANGER("[user] irons [victim]'s [parsed]!"),
+				SPAN_DANGER("You iron [victim]'s [parsed]!")
+			)
 
-			var/obj/item/organ/external/affecting = H.get_organ(zone)
-			affecting.take_external_damage(0, 15, used_weapon = "Hot metal")
+			var/obj/item/organ/external/affecting = GET_EXTERNAL_ORGAN(victim, zone)
+			if(istype(affecting))
+				affecting.take_damage(15, BURN, inflicter = "Hot metal")
+			else
+				victim.take_damage(15, BURN)
 
-			return
+			return TRUE
 
 		if(!cloth)
-			if(!holding && !R.enabled && user.unEquip(I, src))
-				holding = R
-				GLOB.destroyed_event.register(I, src, /obj/structure/bed/roller/ironingboard/proc/remove_item)
+			if(!holding && !iron.enabled && user.try_unequip(used_item, src))
+				holding = iron
+				events_repository.register(/decl/observ/destroyed, used_item, src, TYPE_PROC_REF(/obj/structure/bed/roller/ironingboard, remove_item))
 				update_icon()
-				return	
+				return TRUE
 			to_chat(user, "<span class='notice'>There isn't anything on the ironing board.</span>")
-			return
+			return TRUE
 
 		visible_message("[user] begins ironing [cloth].")
-		if(!do_after(user, 40, src))
-			return
+		if(!do_after(user, 4 SECONDS, src))
+			return TRUE
 
 		visible_message("[user] finishes ironing [cloth].")
 		cloth.ironed_state = WRINKLES_NONE
-		return
+		return TRUE
 
-	..()
+	return ..()
 
 /obj/structure/bed/roller/ironingboard/attack_hand(var/mob/user)
+	if(!user.check_dexterity(DEXTERITY_SIMPLE_MACHINES, TRUE) || has_buckled_mob())
+		return ..()	//Takes care of unbuckling.
 	if(density) // check if it's deployed
 		if(holding && user.put_in_hands(holding))
 			remove_item(holding)
-			return
+			return TRUE
 		if(cloth && user.put_in_hands(cloth))
 			remove_item(cloth)
-			return
-		if(!buckled_mob)
+			return TRUE
+		if(!has_buckled_mob())
 			to_chat(user, "You fold the ironing table down.")
 			set_density(0)
 	else
 		to_chat(user, "You deploy the ironing table.")
 		set_density(1)
 	update_icon()
-	. = ..()	//Takes care of unbuckling.
+	return TRUE
 
 /obj/structure/bed/roller/ironingboard/collapse()
 	var/turf/T = get_turf(src)
@@ -148,4 +160,5 @@
 	name = "ironing board"
 	desc = "A collapsed ironing board that can be carried around."
 	icon = 'icons/obj/structures/ironing.dmi'
+	icon_state = "folded"
 	structure_form_type = /obj/structure/bed/roller/ironingboard

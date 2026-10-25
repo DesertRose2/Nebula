@@ -1,14 +1,17 @@
 // Variables not to expand the lists of. Vars is pointless to expand, and overlays/underlays cannot be expanded.
-/var/list/view_variables_dont_expand = list("overlays", "underlays", "vars")
+var/global/list/view_variables_dont_expand = list("overlays", "underlays", "filters", "vars", "vis_contents", "vis_locs")
 // Variables that runtime if you try to test associativity of the lists they contain by indexing
-/var/list/view_variables_no_assoc = list("verbs", "contents","screen","images")
+var/global/list/view_variables_no_assoc = list("verbs", "contents","screen","images")
 
 // Acceptable 'in world', as VV would be incredibly hampered otherwise
 /client/proc/debug_variables(datum/D in world)
 	set category = "Debug"
 	set name = "View Variables"
 
-	if(!check_rights(0))
+	debug_variables_inner(D)
+
+/client/proc/debug_variables_inner(datum/D, filter = "" as null|text)
+	if(!check_rights(R_VAREDIT | R_DEBUG))
 		return
 
 	if(!D)
@@ -20,6 +23,8 @@
 		A = D
 		if(A.icon && A.icon_state)
 			sprite = icon(A.icon, A.icon_state)
+			if(A.color)
+				sprite.Blend(A.color, ICON_MULTIPLY)
 			send_rsc(usr, sprite, "view_vars_sprite.png")
 
 	send_rsc(usr,'code/js/view_variables.js', "view_variables.js")
@@ -49,8 +54,8 @@
 					</td>
 					<td width='50%'>
 						<div align='center'>
-							<a href='?_src_=vars;datumrefresh=\ref[D]'>Refresh</a>
-							[A ? "<A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[A.x];Y=[A.y];Z=[A.z]'>Jump To</a>":""]
+							<a href='javascript:void(0)' onClick='refreshPage(\"\ref[D]\")'>Refresh</a>
+							[A ? "<A HREF='byond://?_src_=holder;adminplayerobservecoodjump=1;X=[A.x];Y=[A.y];Z=[A.z]'>Jump To</a>":""]
 							<form>
 								<select name='file'
 								        size='1'
@@ -86,7 +91,7 @@
 					<input type='text'
 					       id='filter'
 					       name='filter_text'
-					       value=''
+					       value='[filter]'
 					       style='width:100%;' />
 				</td>
 			</tr></table>
@@ -124,7 +129,7 @@
 		dat += "<h1>[make_view_variables_value(D)]</h1>"
 		for(var/v in user.client.watched_variables[D])
 			dat += "<div class='var'>"
-			dat += "(<a href='?_src_=vars;datumunwatch=\ref[D];varnameunwatch=[v]'>X</a>) "
+			dat += "(<a href='byond://?_src_=vars;datumunwatch=\ref[D];varnameunwatch=[v]'>X</a>) "
 			dat += "[D.make_view_variables_variable_entry(v, D.get_variable_value(v), 1)] [v] = [make_view_variables_value(D.get_variable_value(v), v)]"
 			dat += "</div>"
 
@@ -144,8 +149,8 @@
 
 /proc/make_view_variables_var_list(datum/D)
 	. = list()
-	var/list/variables = D.get_variables()
-	variables = sortList(variables)
+	var/list/variables = D.VV_get_variables()
+	variables = sortTim(variables, /proc/cmp_text_asc)
 	for(var/x in variables)
 		. += make_view_variables_var_entry(D, x, D.get_variable_value(x))
 	return jointext(., null)
@@ -164,12 +169,20 @@
 	else if(istype(value, /datum))
 		var/datum/DA = value
 		if("[DA]" == "[DA.type]" || !"[DA]")
-			vtext = "<a href='?_src_=vars;Vars=\ref[DA]'>\ref[DA]</a> - [DA.type]"
+			vtext = "<a href='byond://?_src_=vars;Vars=\ref[DA]'>\ref[DA]</a> - [DA.type]"
 		else
-			vtext = "<a href='?_src_=vars;Vars=\ref[DA]'>\ref[DA]</a> - [DA] ([DA.type])"
+			vtext = "<a href='byond://?_src_=vars;Vars=\ref[DA]'>\ref[DA]</a> - [DA] ([DA.type])"
 	else if(istype(value, /client))
 		var/client/C = value
-		vtext = "<a href='?_src_=vars;Vars=\ref[C]'>\ref[C]</a> - [C] ([C.type])"
+		vtext = "<a href='byond://?_src_=vars;Vars=\ref[C]'>\ref[C]</a> - [C] ([C.type])"
+	else if(istype(value, /alist))
+		var/alist/AL = value
+		vtext = "/alist ([AL.len])"
+		if(!(varname in view_variables_dont_expand) && AL.len > 0 && AL.len < 100)
+			extra += "<ul>"
+			for (var/key, entry in AL)
+				extra += "<li>[make_view_variables_value(key)] -> [make_view_variables_value(entry)]</li>"
+			extra += "</ul>"
 	else if(islist(value))
 		var/list/L = value
 		vtext = "/list ([L.len])"

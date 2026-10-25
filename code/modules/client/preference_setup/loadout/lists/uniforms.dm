@@ -1,161 +1,173 @@
-/datum/gear/uniform
-	sort_category = "Uniforms and Casual Dress"
-	slot = slot_w_uniform
-	category = /datum/gear/uniform
+/decl/loadout_category/uniform
+	name = "Uniform"
 
-/datum/gear/uniform/jumpsuit
-	display_name = "jumpsuit, colour select"
-	path = /obj/item/clothing/under/color
-	flags = GEAR_HAS_COLOR_SELECTION
+/decl/loadout_option/uniform
+	slot = slot_w_uniform_str
+	category = /decl/loadout_category/uniform
+	abstract_type = /decl/loadout_option/uniform
 
-/datum/gear/uniform/shortjumpskirt
-	display_name = "short jumpskirt, colour select"
-	path = /obj/item/clothing/under/shortjumpskirt
-	flags = GEAR_HAS_COLOR_SELECTION
+/decl/loadout_option/uniform/jumpsuit
+	name = "jumpsuit, color select"
+	path = /obj/item/clothing/jumpsuit
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_under_jumpsuit"
 
-/datum/gear/uniform/blackjumpshorts
-	display_name = "black jumpsuit shorts"
-	path = /obj/item/clothing/under/color/blackjumpshorts
+/decl/loadout_option/uniform/jumpskirt
+	name = "short jumpskirt, color select"
+	path = /obj/item/clothing/jumpsuit/skirt/short
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_under_jumpskirt"
 
-/datum/gear/uniform/roboticist_skirt
-	display_name = "skirt, roboticist"
-	path = /obj/item/clothing/under/rank/roboticist/skirt
+/decl/loadout_option/uniform/jumpskirt_selection
+	name = "jumpskirt selection"
+	path = /obj/item/clothing/jumpsuit/skirt
+	uid = "gear_under_jumpskirt_misc"
 
-/datum/gear/uniform/suit
-	display_name = "clothes selection"
-	path = /obj/item/clothing/under
-
-/datum/gear/uniform/suit/get_gear_tweak_options()
+/decl/loadout_option/uniform/jumpskirt_selection/get_gear_tweak_options()
 	. = ..()
 	LAZYINITLIST(.[/datum/gear_tweak/path/specified_types_list])
 	.[/datum/gear_tweak/path/specified_types_list] |= list(
-		/obj/item/clothing/under/sl_suit,
-		/obj/item/clothing/under/suit_jacket,
-		/obj/item/clothing/under/lawyer/blue,
-		/obj/item/clothing/under/suit_jacket/burgundy,
-		/obj/item/clothing/under/suit_jacket/charcoal,
-		/obj/item/clothing/under/suit_jacket/checkered,
-		/obj/item/clothing/under/suit_jacket/really_black,
-		/obj/item/clothing/under/suit_jacket/female,
-		/obj/item/clothing/under/gentlesuit,
-		/obj/item/clothing/under/suit_jacket/navy,
-		/obj/item/clothing/under/lawyer/oldman,
-		/obj/item/clothing/under/lawyer/purpsuit,
-		/obj/item/clothing/under/suit_jacket/red,
-		/obj/item/clothing/under/lawyer/red,
-		/obj/item/clothing/under/lawyer/black,
-		/obj/item/clothing/under/suit_jacket/tan,
-		/obj/item/clothing/under/scratch,
-		/obj/item/clothing/under/lawyer/bluesuit,
-		/obj/item/clothing/under/rank/internalaffairs/plain,
-		/obj/item/clothing/under/blazer,
-		/obj/item/clothing/under/blackjumpskirt,
-		/obj/item/clothing/under/kilt,
-		/obj/item/clothing/under/dress/dress_hr,
-		/obj/item/clothing/under/det,
-		/obj/item/clothing/under/det/black,
-		/obj/item/clothing/under/det/grey
+		/obj/item/clothing/jumpsuit/skirt,
+		/obj/item/clothing/jumpsuit/skirt/roboticist
 	)
 
-/datum/gear/uniform/scrubs
-	display_name = "standard medical scrubs"
-	path = /obj/item/clothing/under/rank/medical/scrubs
-	flags = GEAR_HAS_TYPE_SELECTION
+/decl/loadout_option/uniform/blackjumpshorts
+	name = "black jumpsuit shorts"
+	path = /obj/item/clothing/jumpsuit/blackjumpshorts
+	uid = "gear_under_jumpshorts"
 
-/datum/gear/uniform/scrubs/custom
-	display_name = "scrubs, colour select"
-	flags = GEAR_HAS_COLOR_SELECTION
+/decl/loadout_option/uniform/shirt
+	name = "shirt selection"
+	path = /obj/item/clothing/shirt
+	uid = "gear_under_shirt"
 
-/datum/gear/uniform/dress
-	display_name = "dress selection"
-	path = /obj/item/clothing/under
-
-/datum/gear/uniform/dress/get_gear_tweak_options()
+/decl/loadout_option/uniform/shirt/get_gear_tweak_options()
 	. = ..()
 	LAZYINITLIST(.[/datum/gear_tweak/path/specified_types_list])
 	.[/datum/gear_tweak/path/specified_types_list] |= list(
-		/obj/item/clothing/under/sundress_white,
-		/obj/item/clothing/under/dress/dress_fire,
-		/obj/item/clothing/under/dress/dress_green,
-		/obj/item/clothing/under/dress/dress_orange,
-		/obj/item/clothing/under/dress/dress_pink,
-		/obj/item/clothing/under/dress/dress_purple,
-		/obj/item/clothing/under/sundress
+		/obj/item/clothing/shirt/button,
+		/obj/item/clothing/shirt/ubac,
+		/obj/item/clothing/shirt/ubac/blue,
+		/obj/item/clothing/shirt/ubac/tan,
+		/obj/item/clothing/shirt/ubac/green,
+		/obj/item/clothing/shirt/tunic,
+		/obj/item/clothing/shirt/tunic/short
 	)
 
-/datum/gear/uniform/cheongsam
-	display_name = "cheongsam, colour select"
-	path = /obj/item/clothing/under/cheongsam
-	flags = GEAR_HAS_COLOR_SELECTION
+/decl/loadout_option/uniform/suit
+	name = "clothes selection"
+	path = /obj/item/clothing/costume
+	uid = "gear_under_clothes"
 
-/datum/gear/uniform/abaya
-	display_name = "abaya, colour select"
-	path = /obj/item/clothing/under/abaya
-	flags = GEAR_HAS_COLOR_SELECTION
+/decl/loadout_option/uniform/suit/get_gear_tweak_options()
+	. = ..()
+	LAZYINITLIST(.[/datum/gear_tweak/path/specified_types_list])
+	.[/datum/gear_tweak/path/specified_types_list] |= list(
+		/obj/item/clothing/costume/lawyer_blue,
+		/obj/item/clothing/costume/oldman,
+		/obj/item/clothing/costume/lawyer_red,
+		/obj/item/clothing/costume/lawyer,
+		/obj/item/clothing/costume/scratch,
+		/obj/item/clothing/costume/lawyer_bluesuit
+	)
 
-/datum/gear/uniform/skirt
-	display_name = "skirt selection"
-	path = /obj/item/clothing/under/skirt
-	flags = GEAR_HAS_TYPE_SELECTION
+/decl/loadout_option/uniform/dress_selection
+	name = "dress selection"
+	path = /obj/item/clothing/dress
+	uid = "gear_under_dress"
 
-/datum/gear/uniform/skirt_c
-	display_name = "short skirt, colour select"
-	path = /obj/item/clothing/under/skirt_c
-	flags = GEAR_HAS_COLOR_SELECTION
+/decl/loadout_option/uniform/dress_selection/get_gear_tweak_options()
+	. = ..()
+	LAZYINITLIST(.[/datum/gear_tweak/path/specified_types_list])
+	.[/datum/gear_tweak/path/specified_types_list] |= list(
+		/obj/item/clothing/dress,
+		/obj/item/clothing/dress/green,
+		/obj/item/clothing/dress/orange,
+		/obj/item/clothing/dress/pink,
+		/obj/item/clothing/dress/purple,
+		/obj/item/clothing/dress/sun,
+		/obj/item/clothing/dress/sun/white
+	)
 
-/datum/gear/uniform/skirt_c/dress
-	display_name = "simple dress, colour select"
-	path = /obj/item/clothing/under/skirt_c/dress
-	flags = GEAR_HAS_COLOR_SELECTION
+/decl/loadout_option/uniform/cheongsam
+	name = "cheongsam, color select"
+	path = /obj/item/clothing/dress/cheongsam
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_under_cheongsam"
 
-/datum/gear/uniform/casual_pants
-	display_name = "casual pants selection"
-	path = /obj/item/clothing/under/casual_pants
-	flags = GEAR_HAS_TYPE_SELECTION
+/decl/loadout_option/uniform/abaya
+	name = "abaya, color select"
+	path = /obj/item/clothing/suit/robe/abaya
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_under_abaya"
 
-/datum/gear/uniform/formal_pants
-	display_name = "formal pants selection"
-	path = /obj/item/clothing/under/formal_pants
-	flags = GEAR_HAS_TYPE_SELECTION
+/decl/loadout_option/uniform/skirt
+	name = "skirt selection"
+	path = /obj/item/clothing/skirt
+	loadout_flags = GEAR_HAS_TYPE_SELECTION
+	uid = "gear_under_skirt"
 
-/datum/gear/uniform/formal_pants/custom
-	display_name = "suit pants, colour select"
-	path = /obj/item/clothing/under/formal_pants
-	flags = GEAR_HAS_COLOR_SELECTION
+/decl/loadout_option/uniform/skirt/pleated
+	name = "pleated skirt selection"
+	path = /obj/item/clothing/skirt/pleated
+	loadout_flags = (GEAR_HAS_COLOR_SELECTION | GEAR_HAS_TYPE_SELECTION)
+	uid = "gear_under_skirt_pleated"
 
-/datum/gear/uniform/formal_pants/baggycustom
-	display_name = "baggy suit pants, colour select"
-	path = /obj/item/clothing/under/formal_pants/baggy
-	flags = GEAR_HAS_COLOR_SELECTION
+/decl/loadout_option/uniform/skirt/short
+	name = "short skirt, color select"
+	path = /obj/item/clothing/skirt/short
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_under_skirt_c"
 
-/datum/gear/uniform/shorts
-	display_name = "shorts selection"
-	path = /obj/item/clothing/under/shorts/jeans
-	flags = GEAR_HAS_TYPE_SELECTION
+/decl/loadout_option/uniform/dress_simple
+	name = "short dress, colour select"
+	path = /obj/item/clothing/dress/short
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_under_simple_dress"
 
-/datum/gear/uniform/shorts/custom
-	display_name = "athletic shorts, colour select"
-	path = /obj/item/clothing/under/shorts/
-	flags = GEAR_HAS_COLOR_SELECTION
+/decl/loadout_option/uniform/casual_pants
+	name = "casual pants selection"
+	path = /obj/item/clothing/pants/casual
+	loadout_flags = GEAR_HAS_TYPE_SELECTION
+	uid = "gear_under_pants"
 
-/datum/gear/uniform/turtleneck
-	display_name = "sweater, colour select"
-	path = /obj/item/clothing/under/rank/psych/turtleneck/sweater
-	flags = GEAR_HAS_COLOR_SELECTION
+/decl/loadout_option/uniform/formal_pants
+	name = "formal pants selection"
+	path = /obj/item/clothing/pants/formal
+	loadout_flags = GEAR_HAS_TYPE_SELECTION
+	uid = "gear_under_pants_formal"
 
-/datum/gear/uniform/kimono
-	display_name = "kimono, colour select"
-	path = /obj/item/clothing/under/kimono
-	flags = GEAR_HAS_COLOR_SELECTION
+/decl/loadout_option/uniform/formal_pants/baggycustom
+	name = "baggy suit pants, color select"
+	path = /obj/item/clothing/pants/baggy
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_under_pants_baggy"
 
-/datum/gear/uniform/sterile
-	display_name = "sterile jumpsuit"
-	path = /obj/item/clothing/under/sterile
+/decl/loadout_option/uniform/shorts
+	name = "shorts selection"
+	path = /obj/item/clothing/pants/shorts
+	loadout_flags = GEAR_HAS_TYPE_SELECTION
+	uid = "gear_under_shorts"
 
-/datum/gear/uniform/hazard
-	display_name = "hazard jumpsuit"
-	path = /obj/item/clothing/under/hazard
+/decl/loadout_option/uniform/shorts/custom
+	name = "athletic shorts, color select"
+	path = /obj/item/clothing/pants/shorts/athletic
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_under_shorts_athletic"
 
-/datum/gear/uniform/frontier
-	display_name = "frontier clothes"
-	path = /obj/item/clothing/under/frontier
+/decl/loadout_option/uniform/turtleneck
+	name = "sweater, color select"
+	path = /obj/item/clothing/shirt/sweater
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_under_sweater"
+
+/decl/loadout_option/uniform/kimono
+	name = "kimono, color select"
+	path = /obj/item/clothing/dress/kimono
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_under_kimono"
+
+/decl/loadout_option/uniform/nurse
+	name = "dress, nurse"
+	path = /obj/item/clothing/dress/nurse
+	uid = "gear_under_nurse"

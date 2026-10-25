@@ -4,34 +4,38 @@
 	channels = list(
 		"Service" = TRUE
 	)
-	sprites = list(
-		"Basic" = "JanBot2",
-		"Mopbot"  = "janitorrobot",
-		"Mop Gear Rex" = "mopgearrex"
+	module_sprites = list(
+		"Basic"        = 'icons/mob/robots/robot_janbot.dmi',
+		"Mopbot"       = 'icons/mob/robots/robot_janitor_old.dmi',
+		"Mop Gear Rex" = 'icons/mob/robots/robot_janitor.dmi'
 	)
 	equipment = list(
 		/obj/item/flash,
 		/obj/item/soap,
-		/obj/item/storage/bag/trash,
+		/obj/item/bag/trash,
 		/obj/item/mop/advanced,
 		/obj/item/holosign_creator,
 		/obj/item/lightreplacer,
 		/obj/item/borg/sight/hud/jani,
-		/obj/item/plunger/robot,
+		/obj/item/plunger/unbreakable,
 		/obj/item/crowbar,
-		/obj/item/weldingtool
+		/obj/item/fuelled_tool/welding
 	)
 	emag = /obj/item/chems/spray
+	has_nonslip_feet  = TRUE
+
+/obj/item/robot_module/janitor/handle_turf(turf/target, mob/user)
+	target.clean()
 
 /obj/item/robot_module/janitor/finalize_emag()
 	. = ..()
-	emag.reagents.add_reagent(/decl/material/liquid/lube, 250)
-	emag.SetName("Lube spray")
+	emag.add_to_reagents(/decl/material/liquid/lube, 250)
+	emag.SetName("lubricant spray")
 
-/obj/item/robot_module/janitor/respawn_consumable(var/mob/living/silicon/robot/R, var/amount)
+/obj/item/robot_module/janitor/respawn_consumable(var/mob/living/silicon/robot/robot, var/amount)
 	..()
 	var/obj/item/lightreplacer/LR = locate() in equipment
-	LR.Charge(R, amount)
+	LR.Charge(robot, amount)
 	if(emag)
 		var/obj/item/chems/spray/S = emag
-		S.reagents.add_reagent(/decl/material/liquid/lube, 20 * amount)
+		S.add_to_reagents(/decl/material/liquid/lube, 20 * amount)

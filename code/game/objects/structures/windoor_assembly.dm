@@ -12,8 +12,8 @@
 	name = "windoor assembly"
 	icon = 'icons/obj/doors/windoor.dmi'
 	icon_state = "l_windoor_assembly01"
-	anchored = 0
-	density = 0
+	anchored = FALSE
+	density = FALSE
 	dir = NORTH
 	w_class = ITEM_SIZE_NORMAL
 	material = /decl/material/solid/glass
@@ -29,12 +29,13 @@
 	. = ..()
 	update_nearby_tiles(need_rebuild=1)
 
-obj/structure/windoor_assembly/Destroy()
+/obj/structure/windoor_assembly/Destroy()
 	set_density(0)
 	update_nearby_tiles()
-	..()
+	return ..()
 
 /obj/structure/windoor_assembly/on_update_icon()
+	..()
 	icon_state = "[facing_left ? "l" : "r"]_[secure ? "_secure" : ""]windoor_assembly[anchored && wired ? "02" : "01"]"
 
 /obj/structure/windoor_assembly/CanPass(atom/movable/mover, turf/target, height=0, air_group=0)
@@ -70,7 +71,7 @@ obj/structure/windoor_assembly/Destroy()
 	. = initial(name)
 	if(electronics)
 		. = "nearly complete [.]"
-	else 
+	else
 		if(wired)
 			. = "wired [.]"
 		if(anchored)
@@ -100,7 +101,7 @@ obj/structure/windoor_assembly/Destroy()
 			visible_message(SPAN_NOTICE("\The [user] finishes \the [windoor]!"))
 			windoor.construct_state.post_construct(windoor)
 			qdel(src)
-		return TRUE	
+		return TRUE
 	. = ..()
 
 /obj/structure/windoor_assembly/handle_default_screwdriver_attackby(var/mob/user, var/obj/item/screwdriver)
@@ -114,11 +115,11 @@ obj/structure/windoor_assembly/Destroy()
 		return TRUE
 	return FALSE
 
-/obj/structure/windoor_assembly/attackby(obj/item/W, mob/user)
+/obj/structure/windoor_assembly/attackby(obj/item/used_item, mob/user)
 	. = ..()
 	if(!. && anchored)
-		if(!secure && istype(W, /obj/item/stack/material/rods))
-			var/obj/item/stack/material/rods/R = W
+		if(!secure && istype(used_item, /obj/item/stack/material/rods))
+			var/obj/item/stack/material/rods/R = used_item
 			if(R.get_amount() < 4)
 				to_chat(user, SPAN_WARNING("You need more rods to do this."))
 				return TRUE
@@ -127,14 +128,14 @@ obj/structure/windoor_assembly/Destroy()
 				visible_message(SPAN_NOTICE("\The [user] finishes reinforcing \the [src]."))
 				secure = TRUE
 			. = TRUE
-		else if(wired && !electronics && istype(W, /obj/item/stock_parts/circuitboard/airlock_electronics/windoor))
+		else if(wired && !electronics && istype(used_item, /obj/item/stock_parts/circuitboard/airlock_electronics/windoor))
 			playsound(loc, 'sound/items/Screwdriver.ogg', 100, 1)
-			visible_message(SPAN_NOTICE("\The [user] starts installing \the [W] into \the [src]."))
-			if(do_after(user, 4 SECONDS, src) && wired && !electronics && anchored && !QDELETED(src) && user.unEquip(W, src))
-				visible_message(SPAN_NOTICE("\The [user] finishes installing \the [W] into \the [src]."))
-				electronics = W
+			visible_message(SPAN_NOTICE("\The [user] starts installing \the [used_item] into \the [src]."))
+			if(do_after(user, 4 SECONDS, src) && wired && !electronics && anchored && !QDELETED(src) && user.try_unequip(used_item, src))
+				visible_message(SPAN_NOTICE("\The [user] finishes installing \the [used_item] into \the [src]."))
+				electronics = used_item
 			else
-				W.dropInto(loc)
+				used_item.dropInto(loc)
 			. = TRUE
 	update_icon()
 	update_name()
@@ -163,3 +164,6 @@ obj/structure/windoor_assembly/Destroy()
 	else
 		to_chat(usr, "The windoor will now slide to the left.")
 	update_icon()
+
+/obj/structure/windoor_assembly/secure
+	secure = TRUE

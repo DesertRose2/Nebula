@@ -3,8 +3,8 @@
 	display_name = "Illegal"
 	hide_on_manifest = 1
 	upgrade_locked = TRUE
-	sprites = list(
-		"Dread" = "securityrobot"
+	module_sprites = list(
+		"Dread" = 'icons/mob/robots/robot_security.dmi'
 	)
 	equipment = list(
 		/obj/item/flash,
@@ -17,18 +17,17 @@
 	var/id
 
 /obj/item/robot_module/syndicate/Initialize()
-	for(var/decl/hierarchy/skill/skill in GLOB.skills)
+	for(var/decl/skill/skill in global.using_map.get_available_skills())
 		skills[skill.type] = SKILL_EXPERT
 	. = ..()
 
-/obj/item/robot_module/syndicate/build_equipment(var/mob/living/silicon/robot/R)
+/obj/item/robot_module/syndicate/build_equipment(var/mob/living/silicon/robot/robot)
 	. = ..()
-	id = R.idcard
+	id = robot.idcard
 	equipment += id
 
-/obj/item/robot_module/syndicate/finalize_equipment(var/mob/living/silicon/robot/R)
-	var/obj/item/tank/jetpack/carbondioxide/jetpack = locate() in equipment
-	R.internals = jetpack
+/obj/item/robot_module/syndicate/finalize_equipment(var/mob/living/silicon/robot/robot)
+	robot.set_internals(locate(/obj/item/tank/jetpack/carbondioxide) in equipment)
 	. = ..()
 
 /obj/item/robot_module/syndicate/Destroy()

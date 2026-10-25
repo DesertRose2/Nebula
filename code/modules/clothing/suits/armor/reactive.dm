@@ -4,21 +4,21 @@
 	name = "reactive teleport armor"
 	desc = "Someone separated our Chief Science Officer from their own head!"
 	icon_state = ICON_STATE_WORLD
-	icon = 'icons/clothing/suit/armor/reactive.dmi'
+	icon = 'icons/clothing/suits/armor/reactive.dmi'
 	blood_overlay_type = "armor"
 	armor = null
 	var/active = 0
 
 /obj/item/clothing/suit/armor/reactive/Initialize()
 	. = ..()
-	slowdown_per_slot[slot_wear_suit] = 1
+	LAZYSET(slowdown_per_slot, slot_wear_suit_str, 1)
 
 /obj/item/clothing/suit/armor/reactive/handle_shield(mob/user, var/damage, atom/damage_source = null, mob/attacker = null, var/def_zone = null, var/attack_text = "the attack")
 	if(prob(50))
 		user.visible_message("<span class='danger'>The reactive teleport system flings [user] clear of the attack!</span>")
 		var/list/turfs = new/list()
 		for(var/turf/T in orange(6, user))
-			if(istype(T,/turf/space)) continue
+			if(isspaceturf(T)) continue
 			if(T.density) continue
 			if(T.x>world.maxx-6 || T.x<6)	continue
 			if(T.y>world.maxy-6 || T.y<6)	continue
@@ -27,10 +27,7 @@
 		var/turf/picked = pick(turfs)
 		if(!isturf(picked)) return
 
-		var/datum/effect/effect/system/spark_spread/spark_system = new /datum/effect/effect/system/spark_spread()
-		spark_system.set_up(5, 0, user.loc)
-		spark_system.start()
-		playsound(user.loc, "sparks", 50, 1)
+		spark_at(user.loc, amount=5)
 
 		user.forceMove(picked)
 		return PROJECTILE_FORCE_MISS
@@ -51,9 +48,7 @@
 	. = ..()
 	icon_state = "[get_world_inventory_state()][active ? "_on" : ""]"
 
-/obj/item/clothing/suit/armor/reactive/experimental_mob_overlay(mob/user_mob, slot)
-	var/image/ret = ..()
-	if(active && check_state_in_icon("[ret.icon_state]_on", icon))
-		ret.icon_state = "[ret.icon_state]_on"
-	return ret
-	
+/obj/item/clothing/suit/armor/reactive/adjust_mob_overlay(mob/living/user_mob, bodytype, image/overlay, slot, bodypart, use_fallback_if_icon_missing = TRUE)
+	if(overlay && active && check_state_in_icon("[overlay.icon_state]_on", overlay.icon))
+		overlay.icon_state = "[overlay.icon_state]_on"
+	. = ..()

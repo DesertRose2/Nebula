@@ -2,54 +2,70 @@
 
 /obj/machinery/computer/message_monitor
 	name = "messaging monitor console"
-	desc = "Used to access and maintain data on messaging servers. Allows you to view request console messages."
+	desc = "Used to access and maintain data on messaging servers. Allows you to view request console messages and telecommunication logs."
 	icon_screen = "comm_logs"
 	light_color = "#00b000"
-	var/hack_icon = "error"
-	//Server linked to.
-	var/obj/machinery/message_server/linkedServer = null
-	//Sparks effect - For emag
-	var/datum/effect/effect/system/spark_spread/spark_system = new /datum/effect/effect/system/spark_spread
-	//Messages - Saves me time if I want to change something.
-	var/noserver = "<span class='alert'>ALERT: No server detected.</span>"
-	var/incorrectkey = "<span class='warning'>ALERT: Incorrect decryption key!</span>"
-	var/defaultmsg = "<span class='notice'>Welcome. Please select an option.</span>"
-	var/rebootmsg = "<span class='warning'>%$&(£: Critical %$$@ Error // !RestArting! <lOadiNg backUp iNput ouTput> - ?pLeaSe wAit!</span>"
-	//Computer properties
-	var/screen = 0 		// 0 = Main menu, 1 = Message Logs, 2 = Hacked screen, 3 = Custom Message
-	var/hacking = 0		// Is it being hacked into by the AI/Cyborg
-	var/emag = 0		// When it is emagged.
-	var/message = "<span class='notice'>System bootup complete. Please select an option.</span>"	// The message that shows on the main menu.
-	var/auth = 0 // Are they authenticated?
 
-/obj/machinery/computer/message_monitor/attackby(obj/item/O, mob/living/user)
+	var/hack_icon = "error"
+	var/const/noserver = "<span class='alert'>ALERT: No server detected.</span>"
+	var/const/incorrectkey = "<span class='warning'>ALERT: Incorrect decryption key!</span>"
+	var/const/defaultmsg = "<span class='notice'>Welcome. Please select an option.</span>"
+	var/const/rebootmsg = "<span class='warning'>%$&(£: Critical %$$@ Error // !RestArting! <lOadiNg backUp iNput ouTput> - ?pLeaSe wAit!</span>"
+
+	var/const/SCREEN_MAIN_MENU    = 0
+	var/const/SCREEN_MESSAGE_LOGS = 1
+	var/const/SCREEN_HACKING      = 2
+	var/screen = SCREEN_MAIN_MENU
+	var/hacking = FALSE // Is it being hacked into by a silicon?
+	var/message = "<span class='notice'>System bootup complete. Please select an option.</span>"	// The message that shows on the main menu.
+	var/auth = FALSE // Are they authenticated?
+	var/obj/machinery/network/message_server/tracking_linked_server
+
+/obj/machinery/computer/message_monitor/Initialize()
+	set_extension(src, /datum/extension/network_device/lazy)
+	. = ..()
+
+/obj/machinery/computer/message_monitor/Destroy()
+	tracking_linked_server = null
+	. = ..()
+
+/obj/machinery/computer/message_monitor/proc/get_message_server()
+	if(!tracking_linked_server || (tracking_linked_server.stat & (NOPOWER|BROKEN)))
+		tracking_linked_server = null
+		var/datum/extension/network_device/network_device = get_extension(src, /datum/extension/network_device)
+		var/datum/computer_network/network = network_device?.get_network()
+		for(var/datum/extension/network_device/message_server in network?.devices)
+			var/obj/machinery/network/message_server/MS = message_server.holder
+			if(istype(MS) && !(MS.stat & (BROKEN|NOPOWER)))
+				tracking_linked_server = MS
+				break
+	. = tracking_linked_server
+
+/obj/machinery/computer/message_monitor/attackby(obj/item/used_item, mob/user)
 	if(stat & (NOPOWER|BROKEN))
-		..()
-		return
+		return ..()
 	if(!istype(user))
-		return
-	if(isScrewdriver(O) && emag)
+		return TRUE
+	if(IS_SCREWDRIVER(used_item) && emagged)
 		//Stops people from just unscrewing the monitor and putting it back to get the console working again.
 		to_chat(user, "<span class='warning'>It is too hot to mess with!</span>")
-		return
-
-	..()
-	return
+		return TRUE
+	return ..()
 
 /obj/machinery/computer/message_monitor/emag_act(var/remaining_charges, var/mob/user)
+
 	// Will create sparks and print out the console's password. You will then have to wait a while for the console to be back online.
-	// It'll take more time if there's more characters in the password..
-	if(!emag && operable())
-		if(!isnull(src.linkedServer))
-			emag = 1
-			screen = 2
-			spark_system.set_up(5, 0, src)
-			src.spark_system.start()
-			var/obj/item/paper/monitorkey/MK = new/obj/item/paper/monitorkey
-			MK.dropInto(loc)
+	// It'll take more time if there's more characters in the password.
+	if(!emagged && operable())
+		var/obj/machinery/network/message_server/linked_server = get_message_server()
+		if(linked_server)
+			emagged = TRUE
+			screen = SCREEN_HACKING
+			spark_at(src, amount = 5)
+			var/obj/item/paper/monitorkey/MK = new(loc)
 			// Will help make emagging the console not so easy to get away with.
 			MK.info += "<br><br><font color='red'>£%@%(*$%&(£&?*(%&£/{}</font>"
-			spawn(100*length(src.linkedServer.decryptkey)) UnmagConsole()
+			addtimer(CALLBACK(src, TYPE_PROC_REF(/obj/machinery/computer/message_monitor, UnemagConsole)), 100*length(linked_server.decryptkey))
 			message = rebootmsg
 			update_icon()
 			return 1
@@ -57,18 +73,11 @@
 			to_chat(user, "<span class='notice'>A no server error appears on the screen.</span>")
 
 /obj/machinery/computer/message_monitor/on_update_icon()
-	if(emag || hacking)
+	if(emagged || hacking)
 		icon_screen = hack_icon
 	else
 		icon_screen = initial(icon_screen)
 	..()
-
-/obj/machinery/computer/message_monitor/Initialize()
-	//Is the server isn't linked to a server, and there's a server available, default it to the first one in the list.
-	if(!linkedServer)
-		if(message_servers && message_servers.len > 0)
-			linkedServer = message_servers[1]
-	return ..()
 
 /obj/machinery/computer/message_monitor/interface_interact(user)
 	interact(user)
@@ -76,48 +85,72 @@
 
 /obj/machinery/computer/message_monitor/interact(var/mob/living/user)
 	//If the computer is being hacked or is emagged, display the reboot message.
-	if(hacking || emag)
+	if(hacking || emagged)
 		message = rebootmsg
+
+	var/obj/machinery/network/message_server/linked_server = get_message_server()
+	// This must run early so that changing the message actually works.
+	if(hacking || emagged)
+		screen = SCREEN_HACKING
+	else if(!auth || !linked_server || (linked_server.stat & (NOPOWER|BROKEN)))
+		message = auth ? noserver : message
+		screen = SCREEN_MAIN_MENU
 	var/list/dat = list()
 	dat += "<head><title>Message Monitor Console</title></head><body>"
 	dat += "<center><h2>Message Monitor Console</h2></center><hr>"
 	dat += "<center><h4><font color='blue'[message]</h5></center>"
 
 	if(auth)
-		dat += "<h4><dd><A href='?src=\ref[src];auth=1'>&#09;<font color='green'>\[Authenticated\]</font></a>&#09;/"
-		dat += " Server Power: <A href='?src=\ref[src];active=1'>[src.linkedServer && src.linkedServer.active ? "<font color='green'>\[On\]</font>":"<font color='red'>\[Off\]</font>"]</a></h4>"
+		dat += "<h4><dd><A href='byond://?src=\ref[src];auth=1'>&#09;<font color='green'>\[Authenticated\]</font></a>&#09;/"
+		dat += " Server Power: <A href='byond://?src=\ref[src];active=1'>[linked_server?.active ? "<font color='green'>\[On\]</font>":"<font color='red'>\[Off\]</font>"]</a></h4>"
 	else
-		dat += "<h4><dd><A href='?src=\ref[src];auth=1'>&#09;<font color='red'>\[Unauthenticated\]</font></a>&#09;/"
-		dat += " Server Power: <u>[src.linkedServer && src.linkedServer.active ? "<font color='green'>\[On\]</font>":"<font color='red'>\[Off\]</font>"]</u></h4>"
-
-	if(hacking || emag)
-		screen = 2
-	else if(!auth || !linkedServer || (linkedServer.stat & (NOPOWER|BROKEN)))
-		if(!linkedServer || (linkedServer.stat & (NOPOWER|BROKEN))) message = noserver
-		screen = 0
+		dat += "<h4><dd><A href='byond://?src=\ref[src];auth=1'>&#09;<font color='red'>\[Unauthenticated\]</font></a>&#09;/"
+		dat += " Server Power: <u>[linked_server?.active ? "<font color='green'>\[On\]</font>":"<font color='red'>\[Off\]</font>"]</u></h4>"
 
 	switch(screen)
 		//Main menu
-		if(0)
+		if(SCREEN_MAIN_MENU)
 			//&#09; = TAB
 			var/i = 0
-			dat += "<dd><A href='?src=\ref[src];find=1'>&#09;[++i]. Link To A Server</a></dd>"
+			dat += "<dd><A href='byond://?src=\ref[src];find=1'>&#09;[++i]. Link To A Server</a></dd>"
 			if(auth)
-				if(!linkedServer || (linkedServer.stat & (NOPOWER|BROKEN)))
+				if(!linked_server || (linked_server.stat & (NOPOWER|BROKEN)))
 					dat += "<dd><A>&#09;ERROR: Server not found!</A><br></dd>"
 				else
-					dat += "<dd><A href='?src=\ref[src];viewr=1'>&#09;[++i]. View Request Console Logs </a></br></dd>"
-					dat += "<dd><A href='?src=\ref[src];clearr=1'>&#09;[++i]. Clear Request Console Logs</a><br></dd>"
-					dat += "<dd><A href='?src=\ref[src];pass=1'>&#09;[++i]. Set Custom Key</a><br></dd>"
+					dat += "<dd><A href='byond://?src=\ref[src];viewr=1'>&#09;[++i]. View Request Console Logs </a></br></dd>"
+					dat += "<dd><A href='byond://?src=\ref[src];clearr=1'>&#09;[++i]. Clear Request Console Logs</a><br></dd>"
+					dat += "<dd><A href='byond://?src=\ref[src];pass=1'>&#09;[++i]. Set Custom Key</a><br></dd>"
 			else
 				dat += "<br><hr><dd><span class='notice'>Please authenticate with the server in order to show additional options.</span>"
-			if((istype(user, /mob/living/silicon/ai) || istype(user, /mob/living/silicon/robot)) && (user.mind.special_role && user.mind.original == user))
+			if((isAI(user) || isrobot(user)) && player_is_antag(user.mind))
 				//Malf/Traitor AIs can bruteforce into the system to gain the Key.
-				dat += "<dd><A href='?src=\ref[src];hack=1'><i><font color='Red'>*&@#. Bruteforce Key</font></i></font></a></dd>"
-
+				dat += "<dd><A href='byond://?src=\ref[src];hack=1'><i><font color='Red'>*&@#. Bruteforce Key</font></i></font></a></dd>"
+		//Request Console Logs
+		if(SCREEN_MESSAGE_LOGS)
+			var/index = 0
+			/* 	data_rc_msg
+				X												 - 5%
+				var/rec_dpt = "Unspecified" //name of the person - 15%
+				var/send_dpt = "Unspecified" //name of the sender- 15%
+				var/message = "Blank" //transferred message		 - 300px
+				var/stamp = "Unstamped"							 - 15%
+				var/id_auth = "Unauthenticated"					 - 15%
+				var/priority = "Normal"							 - 10%
+			*/
+			dat += "<center><A href='byond://?src=\ref[src];back=1'>Back</a> - <A href='byond://?src=\ref[src];refresh=1'>Refresh</center><hr>"
+			dat += {"<table border='1' width='100%'><tr><th width = '5%'>X</th><th width='15%'>Sending Dep.</th><th width='15%'>Receiving Dep.</th>
+			<th width='300px' word-wrap: break-word>Message</th><th width='15%'>Stamp</th><th width='15%'>ID Auth.</th><th width='15%'>Priority.</th></tr>"}
+			for(var/datum/data_rc_msg/rc in linked_server.rc_msgs)
+				if(++index > 3000)
+					break
+				// Del - Sender   - Recepient - Message
+				// X   - Al Green - Your Mom  - WHAT UP!?
+				dat += {"<tr><td width = '5%'><center><A href='byond://?src=\ref[src];deleter=\ref[rc]' style='color: rgb(255,0,0)'>X</a></center></td><td width='15%'>[rc.send_dpt]</td>
+				<td width='15%'>[rc.rec_dpt]</td><td width='300px'>[rc.message]</td><td width='15%'>[rc.stamp]</td><td width='15%'>[rc.id_auth]</td><td width='15%'>[rc.priority]</td></tr>"}
+			dat += "</table>"
 		//Hacking screen.
-		if(2)
-			if(istype(user, /mob/living/silicon/ai) || istype(user, /mob/living/silicon/robot))
+		if(SCREEN_HACKING)
+			if(issilicon(user))
 				dat += "Brute-forcing for server key.<br> It will take 20 seconds for every character that the password has."
 				dat += "In the meantime, this console can reveal your true intentions if you let someone access it. Make sure no humans enter the room during that time."
 			else
@@ -157,164 +190,161 @@
 				10010000001100100011101010111001001101001011011100110011<br>
 				10010000001110100011010000110000101110100001000000111010<br>
 				001101001011011010110010100101110"}
-
-		//Request Console Logs
-		if(4)
-
-			var/index = 0
-			/* 	data_rc_msg
-				X												 - 5%
-				var/rec_dpt = "Unspecified" //name of the person - 15%
-				var/send_dpt = "Unspecified" //name of the sender- 15%
-				var/message = "Blank" //transferred message		 - 300px
-				var/stamp = "Unstamped"							 - 15%
-				var/id_auth = "Unauthenticated"					 - 15%
-				var/priority = "Normal"							 - 10%
-			*/
-			dat += "<center><A href='?src=\ref[src];back=1'>Back</a> - <A href='?src=\ref[src];refresh=1'>Refresh</center><hr>"
-			dat += {"<table border='1' width='100%'><tr><th width = '5%'>X</th><th width='15%'>Sending Dep.</th><th width='15%'>Receiving Dep.</th>
-			<th width='300px' word-wrap: break-word>Message</th><th width='15%'>Stamp</th><th width='15%'>ID Auth.</th><th width='15%'>Priority.</th></tr>"}
-			for(var/datum/data_rc_msg/rc in src.linkedServer.rc_msgs)
-				index++
-				if(index > 3000)
-					break
-				// Del - Sender   - Recepient - Message
-				// X   - Al Green - Your Mom  - WHAT UP!?
-				dat += {"<tr><td width = '5%'><center><A href='?src=\ref[src];deleter=\ref[rc]' style='color: rgb(255,0,0)'>X</a></center></td><td width='15%'>[rc.send_dpt]</td>
-				<td width='15%'>[rc.rec_dpt]</td><td width='300px'>[rc.message]</td><td width='15%'>[rc.stamp]</td><td width='15%'>[rc.id_auth]</td><td width='15%'>[rc.priority]</td></tr>"}
-			dat += "</table>"
-
 	dat += "</body>"
-	message = defaultmsg
-	var/datum/browser/written/popup = new(user, "message", "Message Monitoring Console", 700, 700)
+	var/datum/browser/written_digital/popup = new(user, "message", "Message Monitoring Console", 700, 700)
 	popup.set_content(JOINTEXT(dat))
 	popup.open()
 	return
 
 /obj/machinery/computer/message_monitor/proc/BruteForce(mob/user)
-	if(isnull(linkedServer))
+	var/obj/machinery/network/message_server/linked_server = get_message_server()
+	if(!linked_server)
 		to_chat(user, "<span class='warning'>Could not complete brute-force: Linked Server Disconnected!</span>")
 	else
-		var/currentKey = src.linkedServer.decryptkey
+		var/currentKey = linked_server.decryptkey
 		to_chat(user, "<span class='warning'>Brute-force completed! The key is '[currentKey]'.</span>")
-	src.hacking = 0
+	hacking = FALSE
 	update_icon()
-	src.screen = 0 // Return the screen back to normal
+	screen = SCREEN_MAIN_MENU // Return the screen back to normal
+	message = defaultmsg // reset it for the next interaction
 
-/obj/machinery/computer/message_monitor/proc/UnmagConsole()
-	src.emag = 0
+/obj/machinery/computer/message_monitor/proc/UnemagConsole()
+	emagged = FALSE
 	update_icon()
 
-/obj/machinery/computer/message_monitor/Topic(href, href_list)
+/obj/machinery/computer/message_monitor/OnTopic(mob/user, href_list)
 	if((. = ..()))
 		return
 
 	//Authenticate
+	var/obj/machinery/network/message_server/linked_server = get_message_server()
 	if (href_list["auth"])
 		if(auth)
-			auth = 0
-			screen = 0
+			auth = FALSE
+			screen = SCREEN_MAIN_MENU
+			message = defaultmsg // reset it for the next interaction
+			. = TOPIC_REFRESH
 		else
-			var/dkey = trim(input(usr, "Please enter the decryption key.") as text|null)
-			if(dkey && dkey != "")
-				if(src.linkedServer.decryptkey == dkey)
-					auth = 1
+			var/dkey = trim(input(user, "Please enter the decryption key.") as text|null)
+			. = TOPIC_HANDLED
+			if(dkey)
+				. = TOPIC_REFRESH
+				if(linked_server?.decryptkey == dkey)
+					auth = TRUE
 				else
 					message = incorrectkey
 
 	//Turn the server on/off.
-	if (href_list["active"])
-		if(auth) linkedServer.active = !linkedServer.active
+	if (href_list["active"] && auth && linked_server)
+		linked_server.active = !linked_server.active
+		. = TOPIC_REFRESH
+
 	//Find a server
 	if (href_list["find"])
-		if(message_servers && message_servers.len > 1)
-			src.linkedServer = input(usr,"Please select a server.", "Select a server.", null) as null|anything in message_servers
+		var/list/local_message_servers = list()
+		var/list/local_zs = SSmapping.get_connected_levels(z)
+		for(var/obj/machinery/network/message_server/MS in SSmachines.machinery)
+			if((MS.z in local_zs) && !(MS.stat & (BROKEN|NOPOWER)))
+				local_message_servers += MS
+		if(length(local_message_servers) > 1)
+			tracking_linked_server = input(user, "Please select a server.", "Select a server.", null) as null|anything in local_message_servers
 			message = "<span class='alert'>NOTICE: Server selected.</span>"
-		else if(message_servers && message_servers.len > 0)
-			linkedServer = message_servers[1]
+		else if(length(local_message_servers) > 0)
+			tracking_linked_server = local_message_servers[1]
 			message =  "<span class='notice'>NOTICE: Only Single Server Detected - Server selected.</span>"
 		else
 			message = noserver
+		linked_server = get_message_server()
+		. = TOPIC_REFRESH
 
 	//Clears the request console logs - KEY REQUIRED
 	if (href_list["clearr"])
-		if(!linkedServer || (src.linkedServer.stat & (NOPOWER|BROKEN)))
+		if(!linked_server || (linked_server.stat & (NOPOWER|BROKEN)))
 			message = noserver
-		else
-			if(auth)
-				src.linkedServer.rc_msgs = list()
-				message = "<span class='notice'>NOTICE: Logs cleared.</span>"
+			. = TOPIC_REFRESH
+		else if(auth)
+			linked_server.rc_msgs = list()
+			message = "<span class='notice'>NOTICE: Logs cleared.</span>"
+			. = TOPIC_REFRESH
 	//Change the password - KEY REQUIRED
 	if (href_list["pass"])
-		if(!linkedServer || (src.linkedServer.stat & (NOPOWER|BROKEN)))
+		if(!linked_server || (linked_server.stat & (NOPOWER|BROKEN)))
 			message = noserver
-		else
-			if(auth)
-				var/dkey = trim(input(usr, "Please enter the decryption key.") as text|null)
-				if(dkey && dkey != "")
-					if(src.linkedServer.decryptkey == dkey)
-						var/newkey = trim(input(usr,"Please enter the new key (3 - 16 characters max):"))
-						if(length(newkey) <= 3)
-							message = "<span class='notice'>NOTICE: Decryption key too short!</span>"
-						else if(length(newkey) > 16)
-							message = "<span class='notice'>NOTICE: Decryption key too long!</span>"
-						else if(newkey && newkey != "")
-							src.linkedServer.decryptkey = newkey
-						message = "<span class='notice'>NOTICE: Decryption key set.</span>"
-					else
-						message = incorrectkey
+			. = TOPIC_REFRESH
+		else if(auth)
+			var/dkey = trim(input(user, "Please enter the decryption key.") as text|null)
+			. = TOPIC_HANDLED
+			if(dkey)
+				. = TOPIC_REFRESH
+				if(linked_server.decryptkey == dkey)
+					var/newkey = trim(input(user,"Please enter the new key (3 - 16 characters max):"))
+					if(length(newkey) <= 3)
+						message = "<span class='notice'>NOTICE: Decryption key too short!</span>"
+					else if(length(newkey) > 16)
+						message = "<span class='notice'>NOTICE: Decryption key too long!</span>"
+					else if(newkey && newkey != "")
+						linked_server.decryptkey = newkey
+					message = "<span class='notice'>NOTICE: Decryption key set.</span>"
+				else
+					message = incorrectkey
 
 	//Hack the Console to get the password
 	if (href_list["hack"])
-		if((istype(usr, /mob/living/silicon/ai) || istype(usr, /mob/living/silicon/robot)) && (usr.mind.special_role && usr.mind.original == usr))
-			src.hacking = 1
-			src.screen = 2
-			update_icon()
+		if(issilicon(user) && player_is_antag(user.mind))
+			hacking = TRUE
+			screen = SCREEN_HACKING
+			. = TOPIC_REFRESH
 			//Time it takes to bruteforce is dependant on the password length.
-			spawn(100*length(src.linkedServer.decryptkey))
-				if(src && src.linkedServer && usr)
-					BruteForce(usr)
+			addtimer(CALLBACK(src, TYPE_PROC_REF(/obj/machinery/computer/message_monitor, BruteForceConsole), user, linked_server), 10 SECONDS * length(linked_server.decryptkey))
 
 	//Delete the request console log.
 	if (href_list["deleter"])
-		//Are they on the view logs screen?
-		if(screen == 4)
-			if(!linkedServer || (src.linkedServer.stat & (NOPOWER|BROKEN)))
+		. = TOPIC_REFRESH
+		//Make sure they're still on the view logs screen.
+		if(screen == SCREEN_MESSAGE_LOGS)
+			if(!linked_server || (linked_server.stat & (NOPOWER|BROKEN)))
 				message = noserver
 			else //if(istype(href_list["delete"], /datum/data_pda_msg))
-				src.linkedServer.rc_msgs -= locate(href_list["deleter"])
+				linked_server.rc_msgs -= locate(href_list["deleter"])
 				message = "<span class='notice'>NOTICE: Log Deleted!</span>"
 
 	//Request Console Logs - KEY REQUIRED
 	if(href_list["viewr"])
-		if(src.linkedServer == null || (src.linkedServer.stat & (NOPOWER|BROKEN)))
+		if(linked_server == null || (linked_server.stat & (NOPOWER|BROKEN)))
 			message = noserver
-		else
-			if(auth)
-				src.screen = 4
+			. = TOPIC_REFRESH
+		else if(auth)
+			screen = SCREEN_MESSAGE_LOGS
+			. = TOPIC_REFRESH
 
 	if (href_list["back"])
-		src.screen = 0
+		screen = SCREEN_MAIN_MENU
+		message = defaultmsg // reset it for the next interaction
+		. = TOPIC_REFRESH
+	// don't call interact() here, let the prior Topic() call do that via our TOPIC_REFRESH return value
 
-	return interact(usr)
-
+/obj/machinery/computer/message_monitor/proc/BruteForceConsole(var/mob/user, var/decrypting)
+	var/obj/machinery/network/message_server/linked_server = get_message_server()
+	if(linked_server && linked_server == decrypting && user)
+		BruteForce(user)
 
 /obj/item/paper/monitorkey
-	//..()
-	name = "Monitor Decryption Key"
-	var/obj/machinery/message_server/server = null
+	name = "monitor decryption key"
+	info = "The paper is smudged and unreadable."
 
 /obj/item/paper/monitorkey/Initialize()
 	..()
 	return INITIALIZE_HINT_LATELOAD
 
 /obj/item/paper/monitorkey/LateInitialize()
-	..()
-	if(message_servers)
-		for(var/obj/machinery/message_server/server in message_servers)
-			if(!isnull(server))
-				if(!isnull(server.decryptkey))
-					info = "<center><h2>Daily Key Reset</h2></center><br>The new message monitor key is '[server.decryptkey]'.<br>This key is only intended for personnel granted access to the messaging server. Keep it safe.<br>If necessary, change the password to a more secure one."
-					info_links = info
-					icon_state = "paper_words"
-					break
+	. = ..()
+	var/turf/T = get_turf(src)
+	if(!T)
+		return
+	var/list/our_z = SSmapping.get_connected_levels(T.z)
+	for(var/obj/machinery/network/message_server/server in SSmachines.machinery)
+		if((server.z in our_z) && !(server.stat & (BROKEN|NOPOWER)) && !isnull(server.decryptkey))
+			info = "<center><h2>Daily Key Reset</h2></center><br>The new message monitor key is '[server.decryptkey]'.<br>This key is only intended for personnel granted access to the messaging server. Keep it safe.<br>If necessary, change the password to a more secure one."
+			info_links = info
+			update_icon()
+			break

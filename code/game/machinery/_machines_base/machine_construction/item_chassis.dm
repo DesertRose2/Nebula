@@ -5,20 +5,20 @@
 	down_state = /decl/machine_construction/default/panel_open/item_chassis
 
 
-/decl/machine_construction/default/panel_closed/item_chassis/attackby(obj/item/I, mob/user, obj/machinery/machine)
-	if(isWrench(I))
+/decl/machine_construction/default/panel_closed/item_chassis/attackby(obj/item/used_item, mob/user, obj/machinery/machine)
+	if(IS_WRENCH(used_item))
 		TRANSFER_STATE(/decl/machine_construction/default/deconstructed)
 		playsound(get_turf(machine), 'sound/items/Ratchet.ogg', 50, 1)
 		machine.visible_message(SPAN_NOTICE("\The [user] deconstructs \the [machine]."))
 		machine.dismantle()
-		return
+		return TRUE
 	return ..()
 
-/decl/machine_construction/default/panel_closed/mechanics_info()
+/decl/machine_construction/default/panel_closed/item_chassis/mechanics_info()
 	. = ..()
 	. += "Use a wrench to deconstruct the machine"
 
-/decl/machine_construction/default/panel_closed/post_construct()
+/decl/machine_construction/default/panel_closed/item_chassis/post_construct()
 
 /decl/machine_construction/default/panel_open/item_chassis
 	needs_board = null

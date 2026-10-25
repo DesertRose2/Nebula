@@ -1,7 +1,7 @@
 // HIDDEN UPLINK - Can be stored in anything but the host item has to have a trigger for it.
 /* How to create an uplink in 3 easy steps!
 
- 1. All obj/item 's have a hidden_uplink var. By default it's null. Give the item one with "new(src)", it must be in it's contents. Feel free to add "uses".
+ 1. All obj/item 's have a hidden_uplink var. By default it's null. Give the item one with "new(src)", it must be in its contents. Feel free to add "uses".
 
  2. Code in the triggers. Use check_trigger for this, I recommend closing the item's menu with "close_browser(usr, "window=windowname") if it returns true.
  The var/value is the value that will be compared with the var/target. If they are equal it will activate the menu.
@@ -13,15 +13,20 @@
 /obj/item/uplink
 	name = "hidden uplink"
 	desc = "There is something wrong if you're examining this."
+	max_health = ITEM_HEALTH_NO_DAMAGE
+	material = /decl/material/solid/organic/plastic
+	matter = list(
+		/decl/material/solid/metal/copper    = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/silicon         = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/metal/aluminium = MATTER_AMOUNT_REINFORCEMENT,
+	)
+	is_spawnable_type = FALSE
 	var/active = 0
-	var/datum/uplink_category/category 	= 0		// The current category we are in
-	var/exploit_id								// Id of the current exploit record we are viewing
+	var/datum/uplink_category/category	// The current category we are in
+	var/exploit_id						// Id of the current exploit record we are viewing
 
 	var/welcome = "Welcome, Operative"	// Welcoming menu message
 	var/uses 							// Numbers of crystals
-	var/list/ItemsCategory				// List of categories with lists of items
-	var/list/ItemsReference				// List of references with an associated item
-	var/list/nanoui_items				// List of items for NanoUI use
 	var/nanoui_menu = 0					// The current menu we are in
 	var/list/nanoui_data = new 			// Additional data for NanoUI use
 
@@ -45,13 +50,11 @@
 	update_nano_data()
 
 	src.uplink_owner = owner
-	world_uplinks += src
 	uses = telecrystals
 	START_PROCESSING(SSobj, src)
 
 /obj/item/uplink/Destroy()
 	uplink_owner = null
-	world_uplinks -= src
 	STOP_PROCESSING(SSobj, src)
 	return ..()
 
@@ -64,7 +67,7 @@
 		do
 			var/datum/uplink_random_selection/uplink_selection = get_uplink_random_selection_by_type(/datum/uplink_random_selection/blacklist)
 			new_discount_item = uplink_selection.get_random_item(INFINITY, src)
-		// Ensures we only only get items for which we get an actual discount and that this particular uplink can actually view (can buy would risk near-infinite loops).
+		// Ensures we only get items for which we get an actual discount and that this particular uplink can actually view (can buy would risk near-infinite loops).
 		while(is_improper_item(new_discount_item, discount_amount))
 		if(!new_discount_item)
 			return
@@ -114,7 +117,7 @@
 /*
 	NANO UI FOR UPLINK WOOP WOOP
 */
-/obj/item/uplink/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/uistate = GLOB.inventory_state)
+/obj/item/uplink/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/uistate = global.inventory_topic_state)
 	var/title = "Remote Uplink"
 	var/data[0]
 
@@ -147,6 +150,7 @@
 
 // The purchasing code.
 /obj/item/uplink/OnTopic(user, href_list)
+	var/decl/uplink/uplink = IMPLIED_DECL
 	if(href_list["buy_item"])
 		var/datum/uplink_item/UI = (locate(href_list["buy_item"]) in uplink.items)
 		UI.buy(src, usr)
@@ -170,6 +174,7 @@
 		update_nano_data()
 
 /obj/item/uplink/proc/update_nano_data()
+	var/decl/uplink/uplink = IMPLIED_DECL
 	if(nanoui_menu == 0)
 		var/categories[0]
 		for(var/datum/uplink_category/category in uplink.categories)
@@ -186,13 +191,13 @@
 		nanoui_data["items"] = items
 	else if(nanoui_menu == 2)
 		var/permanentData[0]
-		for(var/datum/computer_file/report/crew_record/L in GLOB.all_crew_records)
-			permanentData[++permanentData.len] = list(Name = L.get_name(),"id" = L.uid, "exploit" = length(L.get_antagRecord()))
+		for(var/datum/computer_file/report/crew_record/L in global.all_crew_records)
+			permanentData[++permanentData.len] = list(Name = L.get_name(),"id" = L.uid, "exploit" = length(L.get_antag_record()))
 		nanoui_data["exploit_records"] = permanentData
 	else if(nanoui_menu == 21)
 		nanoui_data["exploit_exists"] = 0
 
-		for(var/datum/computer_file/report/crew_record/L in GLOB.all_crew_records)
+		for(var/datum/computer_file/report/crew_record/L in global.all_crew_records)
 			if(L.uid == exploit_id)
 				nanoui_data["exploit"] = L.generate_nano_data()
 				nanoui_data["exploit_exists"] = 1
@@ -216,29 +221,25 @@
 // Includes normal radio uplink, multitool uplink,
 // implant uplink (not the implant tool) and a preset headset uplink.
 
-/obj/item/radio/uplink/Initialize(mapload, var/owner, var/amount)
-	. = ..()
-	hidden_uplink = new(src, owner, amount)
-	icon_state = "radio"
+/obj/item/radio/uplink
+	var/tc_amount = DEFAULT_TELECRYSTAL_AMOUNT
 
 /obj/item/radio/uplink/attack_self(mob/user)
+	if(!hidden_uplink && user.mind)
+		hidden_uplink = new(src, user.mind, tc_amount)
 	if(hidden_uplink)
 		hidden_uplink.trigger(user)
 
-/obj/item/multitool/uplink/Initialize(mapload, var/owner)
-	. = ..()
-	hidden_uplink = new(src, owner)
-
 /obj/item/multitool/uplink/attack_self(mob/user)
+	if(!hidden_uplink && user.mind)
+		hidden_uplink = new(src, user.mind, DEFAULT_TELECRYSTAL_AMOUNT)
 	if(hidden_uplink)
 		hidden_uplink.trigger(user)
 
 /obj/item/radio/headset/uplink
 	traitor_frequency = 1445
 
-/obj/item/radio/headset/uplink/Initialize()
+/obj/item/radio/headset/uplink/attack_self(mob/user)
+	if(!hidden_uplink && user.mind)
+		hidden_uplink = new(src, user.mind, DEFAULT_TELECRYSTAL_AMOUNT)
 	. = ..()
-	hidden_uplink = new(src)
-
-/obj/item/uplink/contained/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/uistate = GLOB.contained_state)
-	return ..()

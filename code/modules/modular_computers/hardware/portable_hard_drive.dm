@@ -6,8 +6,8 @@
 	icon_state = "flashdrive_basic"
 	hardware_size = 1
 	max_capacity = 16
-	origin_tech = "{'programming':1}"
-	material = /decl/material/solid/glass
+	origin_tech = @'{"programming":1}'
+	material = /decl/material/solid/fiberglass
 
 /obj/item/stock_parts/computer/hard_drive/portable/advanced
 	name = "advanced data crystal"
@@ -16,8 +16,7 @@
 	icon_state = "flashdrive_advanced"
 	hardware_size = 1
 	max_capacity = 64
-	origin_tech = "{'programming':2}"
-	material = /decl/material/solid/glass
+	origin_tech = @'{"programming":2}'
 
 /obj/item/stock_parts/computer/hard_drive/portable/super
 	name = "super data crystal"
@@ -26,22 +25,12 @@
 	icon_state = "flashdrive_super"
 	hardware_size = 1
 	max_capacity = 256
-	origin_tech = "{'programming':4}"
-	material = /decl/material/solid/glass
+	origin_tech = @'{"programming":4}'
 
 /obj/item/stock_parts/computer/hard_drive/portable/Initialize()
 	. = ..()
 	stored_files = list()
 	recalculate_size()
-
-// For idiot merchants who wipe the program from their console.
-/obj/item/stock_parts/computer/hard_drive/portable/merchant
-	name = "merchant_list_1155_CRACKZ_1155_no_keygen_repack"
-	desc = "An obviously pirated copy of well-known trading software."
-
-/obj/item/stock_parts/computer/hard_drive/portable/merchant/Initialize()
-	. = ..()
-	store_file(new/datum/computer_file/program/merchant(src))
 
 // Special disk for antags containing all the evil programs and readme for them
 /obj/item/stock_parts/computer/hard_drive/portable/advanced/warez
@@ -65,4 +54,3 @@
 	readme.stored_data = jointext(readme_data, "\[br\]")
 	readme.filename = "___README___"
 	store_file(readme)
-	

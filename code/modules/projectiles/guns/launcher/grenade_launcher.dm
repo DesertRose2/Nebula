@@ -3,9 +3,9 @@
 	desc = "A bulky pump-action grenade launcher. Holds up to 6 grenades in a revolving magazine."
 	icon = 'icons/obj/guns/launcher/grenade.dmi'
 	icon_state = ICON_STATE_WORLD
-	origin_tech = "{'combat':2,'materials':3}"
+	origin_tech = @'{"combat":2,"materials":3}'
 	w_class = ITEM_SIZE_HUGE
-	force = 10
+	_base_attack_force = 10
 
 	fire_sound = 'sound/weapons/empty.ogg'
 	fire_sound_text = "a metallic thunk"
@@ -14,7 +14,7 @@
 	release_force = 5
 	combustion = 1
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
+	matter = list(/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT)
 
 	var/obj/item/grenade/chambered
 	var/list/grenades = new/list()
@@ -46,13 +46,13 @@
 		to_chat(M, "<span class='warning'>You pump [src], but the magazine is empty.</span>")
 	update_icon()
 
-/obj/item/gun/launcher/grenade/examine(mob/user, distance)
+/obj/item/gun/launcher/grenade/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
 	if(distance <= 2)
 		var/grenade_count = grenades.len + (chambered? 1 : 0)
-		to_chat(user, "Has [grenade_count] grenade\s remaining.")
+		. += "Has [grenade_count] grenade\s remaining."
 		if(chambered)
-			to_chat(user, "\A [chambered] is chambered.")
+			. += "\A [chambered] is chambered."
 
 /obj/item/gun/launcher/grenade/proc/load(obj/item/grenade/G, mob/user)
 	if(!can_load_grenade_type(G, user))
@@ -61,7 +61,7 @@
 	if(grenades.len >= max_grenades)
 		to_chat(user, "<span class='warning'>\The [src] is full.</span>")
 		return
-	if(!user.unEquip(G, src))
+	if(!user.try_unequip(G, src))
 		return
 	grenades.Insert(1, G) //add to the head of the list, so that it is loaded on the next pump
 	user.visible_message("\The [user] inserts \a [G] into \the [src].", "<span class='notice'>You insert \a [G] into \the [src].</span>")
@@ -78,17 +78,17 @@
 /obj/item/gun/launcher/grenade/attack_self(mob/user)
 	pump(user)
 
-/obj/item/gun/launcher/grenade/attackby(obj/item/I, mob/user)
-	if((istype(I, /obj/item/grenade)))
-		load(I, user)
-	else
-		..()
+/obj/item/gun/launcher/grenade/attackby(obj/item/used_item, mob/user)
+	if(istype(used_item, /obj/item/grenade))
+		load(used_item, user)
+		return TRUE
+	return ..()
 
 /obj/item/gun/launcher/grenade/attack_hand(mob/user)
-	if(user.get_inactive_hand() == src)
-		unload(user)
-	else
-		..()
+	if(!user.is_holding_offhand(src) || !user.check_dexterity(DEXTERITY_HOLD_ITEM, TRUE))
+		return ..()
+	unload(user)
+	return TRUE
 
 /obj/item/gun/launcher/grenade/consume_next_projectile()
 	if(chambered)
@@ -96,7 +96,7 @@
 		chambered.activate(null)
 	return chambered
 
-/obj/item/gun/launcher/grenade/handle_post_fire(mob/user)
+/obj/item/gun/launcher/grenade/handle_post_fire(atom/movable/firer)
 	log_and_message_admins("fired a grenade ([chambered.name]) from a grenade launcher.")
 
 	chambered = null
@@ -108,8 +108,37 @@
 		return FALSE
 	return TRUE
 
-// For uplink purchase, comes loaded with a random assortment of grenades
+/obj/item/gun/launcher/grenade/loaded
+	var/initial_load_type
+
 /obj/item/gun/launcher/grenade/loaded/Initialize()
+	. = ..()
+	if(initial_load_type)
+		chambered = new initial_load_type(src)
+		LAZYINITLIST(grenades)
+		for(var/i = 1 to max_grenades)
+			grenades += new initial_load_type(src)
+
+/obj/item/gun/launcher/grenade/loaded/anti_photon
+	initial_load_type = /obj/item/grenade/anti_photon
+
+/obj/item/gun/launcher/grenade/loaded/smoke
+	initial_load_type = /obj/item/grenade/smokebomb
+
+/obj/item/gun/launcher/grenade/loaded/teargas
+	initial_load_type = /obj/item/grenade/chem_grenade/teargas
+
+/obj/item/gun/launcher/grenade/loaded/flashbang
+	initial_load_type = /obj/item/grenade/flashbang
+
+/obj/item/gun/launcher/grenade/loaded/emp
+	initial_load_type = /obj/item/grenade/empgrenade
+
+/obj/item/gun/launcher/grenade/loaded/frag
+	initial_load_type = /obj/item/grenade/frag/shell
+
+// For uplink purchase, comes loaded with a random assortment of grenades
+/obj/item/gun/launcher/grenade/random/Initialize()
 	. = ..()
 
 	var/list/grenade_types = list(
@@ -132,7 +161,6 @@
 	name = "underslung grenade launcher"
 	desc = "Not much more than a tube and a firing mechanism, this grenade launcher is designed to be fitted to a rifle."
 	w_class = ITEM_SIZE_NORMAL
-	force = 5
 	max_grenades = 0
 
 /obj/item/gun/launcher/grenade/underslung/attack_self()
@@ -146,7 +174,7 @@
 	if(chambered)
 		to_chat(user, "<span class='warning'>\The [src] is already loaded.</span>")
 		return
-	if(!user.unEquip(G, src))
+	if(!user.try_unequip(G, src))
 		return
 	chambered = G
 	user.visible_message("\The [user] load \a [G] into \the [src].", "<span class='notice'>You load \a [G] into \the [src].</span>")

@@ -12,7 +12,7 @@
 	if(status & PART_STAT_ACTIVE)
 		machine.update_power_channel(cached_channel)
 		unset_status(machine, PART_STAT_ACTIVE)
-	unset_terminal(loc, terminal)
+	qdel(terminal) // Will call unset_terminal().
 	..()
 
 /obj/item/stock_parts/power/terminal/Destroy()
@@ -26,8 +26,6 @@
 			machine.update_power_channel(cached_channel)
 			machine.power_change()
 		return
-	
-
 
 	var/surplus = terminal.surplus()
 	var/usage = machine.get_power_usage()
@@ -40,7 +38,7 @@
 		terminal.draw_power(usage)
 		if(surplus >= usage)
 			return // had enough power and good to go.
-		else 
+		else
 			// Try and use other (local) sources of power to make up for the deficit.
 			var/deficit = machine.use_power_oneoff(usage - surplus)
 			if(deficit > 0)
@@ -50,7 +48,7 @@
 //Is willing to provide power if the wired contribution is nonnegligible and there is enough total local power to run the machine.
 /obj/item/stock_parts/power/terminal/can_provide_power(var/obj/machinery/machine)
 	if(is_functional() && terminal && terminal.surplus() && machine.can_use_power_oneoff(machine.get_power_usage(), LOCAL) <= 0)
-		set_status(machine, PART_STAT_ACTIVE)
+		set_component_status(machine, PART_STAT_ACTIVE)
 		machine.update_power_channel(LOCAL)
 		return TRUE
 	return FALSE
@@ -73,18 +71,21 @@
 		unset_terminal(machine, terminal)
 	terminal = new_terminal
 	terminal.master = src
-	GLOB.destroyed_event.register(terminal, src, .proc/unset_terminal)
 
-	set_extension(src, /datum/extension/event_registration/shuttle_stationary, GLOB.moved_event, machine, .proc/machine_moved, get_area(src))
-	set_status(machine, PART_STAT_CONNECTED)
+	events_repository.register(/decl/observ/destroyed, terminal, src, PROC_REF(unset_terminal))
+	terminal.queue_icon_update()
+
+	set_extension(src, /datum/extension/event_registration/shuttle_stationary, GET_DECL(/decl/observ/moved), machine, PROC_REF(machine_moved), get_area(src))
+	set_component_status(machine, PART_STAT_CONNECTED)
 	start_processing(machine)
 
 /obj/item/stock_parts/power/terminal/proc/machine_moved(var/obj/machinery/machine, var/turf/old_loc, var/turf/new_loc)
 	if(!terminal)
-		GLOB.moved_event.unregister(machine, src, .proc/machine_moved)
+		events_repository.unregister(/decl/observ/moved, machine, src, PROC_REF(machine_moved))
 		return
 	if(istype(new_loc) && (terminal.loc == get_step(new_loc, terminal_dir)))
 		return     // This location is fine
+	// TODO: disconnect and drop the terminal as an item instead of deleting it.
 	machine.visible_message(SPAN_WARNING("The terminal is ripped out of \the [machine]!"))
 	qdel(terminal) // will handle everything via the destroyed event
 
@@ -92,13 +93,13 @@
 	if(!machine)
 		return
 	var/obj/machinery/power/terminal/new_terminal = new (get_step(machine, terminal_dir))
-	new_terminal.set_dir(terminal_dir ? GLOB.reverse_dir[terminal_dir] : machine.dir)
+	new_terminal.set_dir(terminal_dir ? global.reverse_dir[terminal_dir] : machine.dir)
 	new_terminal.connect_to_network()
 	set_terminal(machine, new_terminal)
 
 /obj/item/stock_parts/power/terminal/proc/unset_terminal(var/obj/machinery/power/old_terminal, var/obj/machinery/machine)
 	remove_extension(src, /datum/extension/event_registration/shuttle_stationary)
-	GLOB.destroyed_event.unregister(old_terminal, src)
+	events_repository.unregister(/decl/observ/destroyed, old_terminal, src)
 	if(!machine && istype(loc, /obj/machinery))
 		machine = loc
 	if(machine)
@@ -108,19 +109,19 @@
 
 /obj/item/stock_parts/power/terminal/proc/blocking_terminal_at_loc(var/obj/machinery/machine, var/turf/T, var/mob/user)
 	. = FALSE
-	var/check_dir = terminal_dir ? GLOB.reverse_dir[terminal_dir] : machine.dir
+	var/check_dir = terminal_dir ? global.reverse_dir[terminal_dir] : machine.dir
 	for(var/obj/machinery/power/terminal/term in T)
 		if(T.dir == check_dir)
 			to_chat(user, "<span class='notice'>There is already a terminal here.</span>")
 			return TRUE
 
-/obj/item/stock_parts/power/terminal/attackby(obj/item/I, mob/user)
+/obj/item/stock_parts/power/terminal/attackby(obj/item/used_item, mob/user)
 	var/obj/machinery/machine = loc
 	if(!istype(machine))
 		return ..()
 
 	// Interactions inside machine only
-	if (istype(I, /obj/item/stack/cable_coil) && !terminal)
+	if (istype(used_item, /obj/item/stack/cable_coil) && !terminal)
 		var/turf/T = get_step(machine, terminal_dir)
 		if(terminal_dir && user.loc != T)
 			return FALSE // Wrong terminal handler.
@@ -130,60 +131,63 @@
 		if(istype(T) && !T.is_plating())
 			to_chat(user, "<span class='warning'>You must remove the floor plating in front of \the [machine] first.</span>")
 			return TRUE
-		var/obj/item/stack/cable_coil/C = I
+		var/obj/item/stack/cable_coil/C = used_item
 		if(!C.can_use(10))
 			to_chat(user, "<span class='warning'>You need ten lengths of cable for \the [machine].</span>")
 			return TRUE
-		user.visible_message("<span class='warning'>\The [user] adds cables to the \the [machine].</span>", \
+		user.visible_message("<span class='warning'>\The [user] adds cables to \the [machine].</span>", \
 							"You start adding cables to \the [machine] frame...")
 		playsound(src.loc, 'sound/items/Deconstruct.ogg', 50, 1)
 		if(do_after(user, 20, machine))
 			if(C.can_use(10) && !terminal && (machine == loc) && machine.components_are_accessible(type) && !blocking_terminal_at_loc(machine, T, user))
 				var/obj/structure/cable/N = T.get_cable_node()
 				if (prob(50) && electrocute_mob(user, N, N))
-					var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-					s.set_up(5, 1, machine)
-					s.start()
-					if(user.stunned)
+					spark_at(machine, amount=5, cardinal_only = TRUE)
+					if(HAS_STATUS(user, STAT_STUN))
 						return TRUE
 				C.use(10)
 				user.visible_message(\
-					"<span class='warning'>\The [user] has added cables to the \the [machine]!</span>",\
-					"You add cables to the \the [machine].")
+					"<span class='warning'>\The [user] has added cables to \the [machine]!</span>",\
+					"You add cables to \the [machine].")
 				make_terminal(machine)
 		return TRUE
+	return FALSE
 
-	if(isWirecutter(I) && terminal)
-		var/turf/T = get_step(machine, terminal_dir)
-		if(terminal_dir && user.loc != T)
-			return FALSE // Wrong terminal handler.
-		if(istype(T) && !T.is_plating())
-			to_chat(user, "<span class='warning'>You must remove the floor plating in front of \the [machine] first.</span>")
-			return TRUE
-		user.visible_message("<span class='warning'>\The [user] dismantles the power terminal from \the [machine].</span>", \
-							"You begin to cut the cables...")
-		playsound(src.loc, 'sound/items/Deconstruct.ogg', 50, 1)
-		if(do_after(user, 50, machine))
-			if(terminal && (machine == loc) && machine.components_are_accessible(type))
-				if (prob(50) && electrocute_mob(user, terminal.powernet, terminal))
-					var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-					s.set_up(5, 1, machine)
-					s.start()
-					if(user.stunned)
-						return TRUE
-				new /obj/item/stack/cable_coil(T, 10)
-				to_chat(user, "<span class='notice'>You cut the cables and dismantle the power terminal.</span>")
-				qdel(terminal)
-		return TRUE
+/obj/item/stock_parts/power/terminal/get_source_info()
+	. = list("The machine can receive power by direct connection to the powernet.")
+	if(terminal)
+		if(!terminal.get_powernet())
+			. += "The power terminal must be connected to the powernet using additional cables."
+		else
+			. += "The connected powernet must be powered."
+	else
+		. += "Add cables to the machine to construct a power terminal."
 
 /obj/item/stock_parts/power/terminal/buildable
 	part_flags = PART_FLAG_HAND_REMOVE
+	max_health = null //Buildable variant may take damage
 	material = /decl/material/solid/metal/steel
+
+/decl/stock_part_preset/terminal_connect
+	expected_part_type = /obj/item/stock_parts/power/terminal
+
+/decl/stock_part_preset/terminal_connect/apply(obj/machinery/machine, var/obj/item/stock_parts/power/terminal/part, var/turf/picked_turf)
+	if(!picked_turf)
+		picked_turf = machine.loc
+	var/obj/machinery/power/terminal/term = locate() in picked_turf
+	if(istype(term) && !term.master)
+		part.set_terminal(machine, term)
 
 /decl/stock_part_preset/terminal_setup
 	expected_part_type = /obj/item/stock_parts/power/terminal
 
 /decl/stock_part_preset/terminal_setup/apply(obj/machinery/machine, var/obj/item/stock_parts/power/terminal/part)
-	var/obj/machinery/power/terminal/term = locate() in machine.loc
-	if(istype(term) && !term.master)
-		part.set_terminal(machine, term)
+	if(isturf(machine.loc) && machine.anchored)
+		part.make_terminal(machine)
+
+//Offset terminals towards the owner's facing direction
+/decl/stock_part_preset/terminal_connect/offset_dir/apply(obj/machinery/machine, obj/item/stock_parts/power/terminal/part, turf/picked_turf)
+	. = ..(machine, part, get_step(machine.loc, machine.dir))
+
+/decl/stock_part_preset/terminal_setup/offset_dir/apply(obj/machinery/machine, obj/item/stock_parts/power/terminal/part)
+	. = ..(machine, part)

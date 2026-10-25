@@ -1,7 +1,7 @@
 /datum/unit_test/chemistry
 	name = "CHEMISTRY: Reagent Template"
-	template = /datum/unit_test/chemistry
-	
+	abstract_type = /datum/unit_test/chemistry
+
 	var/container_volume = 45
 	var/donor_type = /obj/item
 	var/recipient_type = /obj/item
@@ -11,8 +11,8 @@
 	var/turf/test_loc = get_safe_turf()
 
 	var/atom/from = new donor_type(test_loc)
-	from.create_reagents(container_volume)
-	from.reagents.add_reagent(/decl/material/liquid/water, container_volume)
+	from.create_or_update_reagents(container_volume)
+	from.add_to_reagents(/decl/material/liquid/water, container_volume)
 
 	var/atom/target
 	if(ispath(recipient_type, /turf) && istype(test_loc, recipient_type))
@@ -22,8 +22,8 @@
 	else
 		target = new recipient_type(test_loc)
 	if(!target.reagents)
-		target.create_reagents(container_volume)
-	if(istype(target, /mob))
+		target.create_or_update_reagents(container_volume)
+	if(ismob(target))
 		var/mob/victim = target
 		victim.death() // to prevent reagent processing
 
@@ -39,6 +39,10 @@
 			fail("Error after transfer: [error]")
 		else
 			pass("Final reagent holders had correct values.")
+
+	qdel(from)
+	if(!isturf(target))
+		qdel(target)
 	return TRUE
 
 /datum/unit_test/chemistry/proc/perform_transfer(var/atom/from, var/atom/target)
@@ -56,11 +60,15 @@
 		var/to_holding_target = container_volume * 0.5
 		var/from_remaining_target = container_volume - to_holding_target
 		var/datum/reagents/checking = get_first_reagent_holder(from)
-		if(checking?.total_volume != from_remaining_target)
-			return "first holder should have [from_remaining_target]u remaining but has [from.reagents.total_volume]u."
+		if(!checking)
+			return "first holder is null."
+		if(REAGENT_TOTAL_VOLUME(checking) != from_remaining_target)
+			return "first holder should have [from_remaining_target]u remaining but has [REAGENT_TOTAL_VOLUME(checking)]u."
 		checking = get_second_reagent_holder(target)
-		if(checking?.total_volume != to_holding_target)
-			return "second holder should hold [to_holding_target]u but has [target.reagents.total_volume]u."
+		if(!checking)
+			return "second holder is null."
+		if(REAGENT_TOTAL_VOLUME(checking) != to_holding_target)
+			return "second holder should hold [to_holding_target]u but has [REAGENT_TOTAL_VOLUME(checking)]u."
 
 /datum/unit_test/chemistry/proc/validate_holders(var/atom/from, var/atom/target)
 	if(QDELETED(from))
@@ -86,11 +94,11 @@
 
 /datum/unit_test/chemistry/test_trans_to/to_mob
 	name = "CHEMISTRY: trans_to() Test (mob)"
-	recipient_type = /mob/living/carbon
+	recipient_type = /mob/living
 
 /datum/unit_test/chemistry/test_trans_to/to_mob/get_second_reagent_holder(var/atom/from)
-	var/mob/living/carbon/C = from
-	. = C.touching
+	var/mob/living/testmob = from
+	. = testmob.get_contact_reagents()
 
 /datum/unit_test/chemistry/test_trans_to_holder
 	name = "CHEMISTRY: trans_to_holder() Test"
@@ -110,41 +118,23 @@
 
 /datum/unit_test/chemistry/test_trans_to_mob
 	name = "CHEMISTRY: trans_to_mob() Test"
-	recipient_type = /mob/living/carbon
+	recipient_type = /mob/living
 
 /datum/unit_test/chemistry/test_trans_to_mob/perform_transfer(var/atom/from, var/atom/target)
 	. = ..()
 	if(!.)
 		from.reagents.trans_to_mob(target, container_volume * 0.5)
 
-/datum/unit_test/reagent_colors_test
-	name = "CHEMISTRY: Reagents must have valid colors without alpha in color value"
-
-/datum/unit_test/reagent_colors_test/start_test()
-	var/list/bad_reagents = list()
-
-	for(var/T in typesof(/decl/material))
-		var/decl/material/R = T
-		if(length(initial(R.color)) != 7)
-			bad_reagents += "[T] ([initial(R.color)])"
-
-	if(length(bad_reagents))
-		fail("Reagents with invalid colors found: [english_list(bad_reagents)]")
-	else
-		pass("All reagents have valid colors.")
-
-	return 1
-
 /datum/unit_test/chem_recipes_shall_not_overlap
 	name = "CHEMISTRY: Chem recipes shall not be subsets of other chem recipes for other reagents"
 
 /datum/unit_test/chem_recipes_shall_not_overlap/start_test()
 	var/list/bad_recipes = list()
-
-	for(var/path in SSmaterials.chemical_reactions)
-		var/datum/chemical_reaction/reaction = SSmaterials.chemical_reactions[path]
+	var/list/all_reactions = decls_repository.get_decls_of_subtype(/decl/chemical_reaction)
+	for(var/path in all_reactions)
+		var/decl/chemical_reaction/reaction = all_reactions[path]
 		for(var/reagent in reaction.required_reagents)
-			for(var/datum/chemical_reaction/other_reaction in SSmaterials.chemical_reactions_by_id[reagent])
+			for(var/decl/chemical_reaction/other_reaction in SSmaterials.chemical_reactions_by_id[reagent])
 				// We check if their requirements to react are a subset of our reaction's requirements, i.e. (we can react) implies (they can react)
 				if(other_reaction == reaction)
 					continue
@@ -167,15 +157,6 @@
 						break
 				if(safe)
 					continue
-				// Slime reactions have extra requirements
-				if(istype(other_reaction, /datum/chemical_reaction/slime))
-					var/datum/chemical_reaction/slime/other_slime = other_reaction
-					if(other_slime.required)
-						if(!istype(reaction, /datum/chemical_reaction/slime))
-							continue
-						var/datum/chemical_reaction/slime/our_slime = reaction
-						if(!ispath(our_slime.required, other_slime.required)) // This would mean our requirement is stronger than theirs
-							continue
 
 				// Now check for reagents
 				for(var/reagent_path in other_reaction.required_reagents)
@@ -192,4 +173,59 @@
 	else
 		pass("No reactions had conflicts.")
 
+	return 1
+
+/datum/unit_test/chemistry_premade_bottles_shall_not_melt
+	name = "CHEMISTRY: Reagent containers shall not be destroyed by their contents"
+	// List of master types that can be reasonably expected to spawn with chems inside them.
+	var/static/list/master_types = list(
+		/obj/item/chems,
+		/obj/structure/reagent_dispensers
+	)
+	// Types to be skipped for reasons other than abstraction/spawnability.
+	var/static/list/excepted_types = list()
+
+/datum/unit_test/chemistry_premade_bottles_shall_not_melt/start_test()
+
+	// Main test.
+	var/list/chem_refs = list()
+	var/turf/spawn_spot = get_safe_turf()
+	var/list/failures = list()
+	for(var/master_type in master_types)
+		for(var/chem_type in subtypesof(master_type))
+			if(chem_type in excepted_types)
+				continue
+			var/atom/chem = chem_type
+			if(!TYPE_IS_SPAWNABLE(chem))
+				continue
+			chem = new chem(spawn_spot)
+			if(QDELETED(chem))
+				failures += "- [chem.type] qdeleted after Initialize()"
+				continue
+			chem_refs[chem.type] = weakref(chem)
+
+	// Let SSmaterials process chemical reactions and solvents.
+	sleep(SSmaterials.wait * 2)
+
+	// Followup status checking.
+	for(var/chem_type in chem_refs)
+		var/weakref/chem_ref = chem_refs[chem_type]
+		var/atom/chem_instance = istype(chem_ref) && chem_ref.resolve()
+		if(QDELETED(chem_instance) || !istype(chem_instance, chem_type) || chem_instance.loc != spawn_spot)
+			failures += "- [chem_type] qdeleted after reacting"
+		else
+			// Cleanup pt. 1
+			qdel(chem_instance)
+
+	// Cleanup pt. 2
+	chem_refs.Cut()
+	if(REAGENT_TOTAL_VOLUME(spawn_spot.reagents))
+		spawn_spot.reagents.clear_reagents()
+		failures += "- spawn turf had fluids post-test"
+
+	// Report status.
+	if(length(failures))
+		fail("At least one subtype was qdeleted:\n[jointext(failures, "\n")]")
+	else
+		pass("No subtypes melted.")
 	return 1

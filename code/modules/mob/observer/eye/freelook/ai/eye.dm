@@ -49,7 +49,7 @@
 // The AI's "eye". Described on the top of the page.
 
 /mob/living/silicon/ai
-	var/obj/machinery/hologram/holopad/holo = null
+	var/obj/machinery/holopad/holo = null
 
 /mob/living/silicon/ai/proc/destroy_eyeobj(var/atom/new_eye)
 	if(!eyeobj) return
@@ -76,7 +76,7 @@
 	. = ..()
 
 /atom/proc/move_camera_by_click()
-	if(istype(usr, /mob/living/silicon/ai))
+	if(isAI(usr))
 		var/mob/living/silicon/ai/AI = usr
 		if(AI.eyeobj && AI.client.eye == AI.eyeobj)
 			AI.eyeobj.setLoc(src)

@@ -21,24 +21,35 @@
 	owner.contact_datums[effect] = src
 
 	marker = new(loc = effect)
-	marker.appearance = effect
-	marker.alpha = 0 // Marker fades in on detection.	
+	update_marker_icon()
+	marker.alpha = 0 // Marker fades in on detection.
+	marker.appearance_flags |= RESET_TRANSFORM
 
 	images += marker
-	
+
 	radar = image(loc = effect, icon = 'icons/obj/overmap.dmi', icon_state = "sensor_range")
-	radar.tag = "radar"
-	radar.filters = filter(type="blur", size = 1)
+	radar.color = source.color
+	radar.add_filter("blur", 1, list(type = "blur", size = 1))
+	radar.appearance_flags |= RESET_TRANSFORM | KEEP_APART
+	radar.appearance_flags &= ~PIXEL_SCALE
 
-/datum/overmap_contact/proc/update_marker_icon(var/range = 0)
-	marker.icon_state = effect.icon_state
-	marker.dir = effect.dir
+/datum/overmap_contact/proc/update_marker_icon()
+
+	marker.appearance = effect
+	marker.appearance_flags |= RESET_TRANSFORM
+	// Pixel offsets are included in appearance but since this marker's loc
+	// is the effect, it's already offset and we don't want to double it.
+	marker.pixel_x = 0
+	marker.pixel_y = 0
+
+	marker.transform = effect.transform
 	marker.overlays.Cut()
-
 	if(check_effect_shield())
 		var/image/shield_image = image(icon = 'icons/obj/overmap.dmi', icon_state = "shield")
 		shield_image.pixel_x = 8
 		marker.overlays += shield_image
+
+/datum/overmap_contact/proc/ping_radar(var/range = 0)
 
 	radar.transform = null
 	radar.alpha = 255
@@ -53,19 +64,33 @@
 		images -= radar
 
 /datum/overmap_contact/proc/show()
-	for(var/weakref/W in owner?.viewers)
-		var/mob/M = W.resolve()
-		if(istype(M))
-			M.client?.images |= images
+	if(!owner)
+		return
+	var/list/showing = owner.linked?.navigation_viewers || owner.viewers
+	if(length(showing))
+		for(var/weakref/viewer_ref in showing)
+			var/mob/M = viewer_ref.resolve()
+			if(istype(M) && M.client)
+				M.client.images |= images
+
+/datum/overmap_contact/proc/hide()
+	if(!owner)
+		return
+	var/list/showing = owner.linked?.navigation_viewers || owner.viewers
+	if(length(showing))
+		for(var/weakref/viewer_ref in showing)
+			var/mob/M = viewer_ref.resolve()
+			if(istype(M) && M.client)
+				M.client.images -= images
 
 /datum/overmap_contact/proc/check_effect_shield()
 	var/obj/effect/overmap/visitable/visitable_effect = effect
 	if(!visitable_effect || !istype(visitable_effect))
 		return FALSE
-	for(var/obj/machinery/power/shield_generator/S in SSmachines.machinery)
-		if(S.z in visitable_effect.map_z)
-			if(S.running == SHIELD_RUNNING)
-				return TRUE
+	for(var/thing in visitable_effect.get_linked_machines_of_type(/obj/machinery/shield_generator))
+		var/obj/machinery/shield_generator/S = thing
+		if(S.running == SHIELD_RUNNING)
+			return TRUE
 	return FALSE
 
 /datum/overmap_contact/proc/ping()
@@ -74,7 +99,7 @@
 	pinged = TRUE
 	show()
 	animate(marker, alpha=255, 0.5 SECOND, 1, LINEAR_EASING)
-	addtimer(CALLBACK(src, .proc/unping), 1 SECOND)
+	addtimer(CALLBACK(src, PROC_REF(unping)), 1 SECOND)
 
 /datum/overmap_contact/proc/unping()
 	animate(marker, alpha=75, 2 SECOND, 1, LINEAR_EASING)
@@ -82,13 +107,10 @@
 
 /datum/overmap_contact/Destroy()
 	if(owner)
-		for(var/weakref/W in owner?.viewers)
-			var/mob/M = W.resolve()
-			if(istype(M))
-				M.client?.images -= images
-
-		if(effect) owner.contact_datums -= effect
-	owner = null
+		hide()
+		if(effect)
+			owner.contact_datums -= effect
+		owner = null
 	effect = null
 	QDEL_NULL_LIST(images)
 	. = ..()

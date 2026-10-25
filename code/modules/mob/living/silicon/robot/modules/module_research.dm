@@ -4,11 +4,11 @@
 	channels = list(
 		"Science" = TRUE
 	)
-	networks = list(
-		NETWORK_RESEARCH
+	camera_channels = list(
+		CAMERA_CHANNEL_RESEARCH
 	)
-	sprites = list(
-		"Droid" = "droid-science"
+	module_sprites = list(
+		"Droid" = 'icons/mob/robots/robot_droid.dmi'
 	)
 	equipment = list(
 		/obj/item/flash,
@@ -19,12 +19,12 @@
 		/obj/item/card/robot,
 		/obj/item/wrench,
 		/obj/item/screwdriver,
-		/obj/item/weldingtool/mini,
+		/obj/item/fuelled_tool/welding/mini,
 		/obj/item/wirecutters,
 		/obj/item/crowbar,
-		/obj/item/scalpel/laser3,
+		/obj/item/scalpel/laser/advanced,
 		/obj/item/circular_saw,
-		/obj/item/extinguisher/mini,
+		/obj/item/chems/spray/extinguisher/mini,
 		/obj/item/chems/syringe,
 		/obj/item/gripper/chemistry,
 		/obj/item/stack/nanopaste
@@ -32,7 +32,6 @@
 	synths = list(
 		/datum/matter_synth/nanite = 10000
 	)
-	emag = /obj/prefab/hand_teleporter
 	skills = list(
 		SKILL_LITERACY            = SKILL_ADEPT,
 		SKILL_FINANCE             = SKILL_EXPERT,

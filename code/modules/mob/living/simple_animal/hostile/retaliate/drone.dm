@@ -1,59 +1,80 @@
 
 //malfunctioning combat drones
-/mob/living/simple_animal/hostile/retaliate/malf_drone
-	name = "combat drone"
-	desc = "An automated combat drone armed with state of the art weaponry and shielding."
-	icon_state = "drone"
-	icon_living = "drone"
-	icon_dead = "drone_dead"
-	ranged = 1
-	rapid = 0
-	speak_chance = 5
-	turns_per_move = 3
-	response_help = "pokes"
-	response_disarm = "gently pushes aside"
-	response_harm = "hits"
-	speak = list("ALERT.","Hostile-ile-ile entities dee-twhoooo-wected.","Threat parameterszzzz- szzet.","Bring sub-sub-sub-systems uuuup to combat alert alpha-a-a.")
-	emote_see = list("beeps menacingly","whirrs threateningly","scans its immediate vicinity")
-	a_intent = I_HURT
-	stop_automated_movement_when_pulled = 0
-	health = 300
-	maxHealth = 300
-	speed = 8
-	move_to_delay = 6
-	projectiletype = /obj/item/projectile/beam/drone
-	projectilesound = 'sound/weapons/laser3.ogg'
-	destroy_surroundings = 0
+/mob/living/simple_animal/hostile/malf_drone
+	name                = "combat drone"
+	desc                = "An automated combat drone armed with state of the art weaponry and shielding."
+	icon                = 'icons/mob/simple_animal/drones/combat.dmi'
+	burst_projectile    = 0
+	max_health          = 300
+	move_intents        = list(
+		/decl/move_intent/walk/animal_slow,
+		/decl/move_intent/run/animal_slow
+	)
+	projectiletype      = /obj/item/projectile/beam/drone
+	projectilesound     = 'sound/weapons/laser3.ogg'
+	gene_damage         = -1
+	butchery_data       = /decl/butchery_data/synthetic
+	bleed_colour        = SYNTH_BLOOD_COLOR
+	ai                  = /datum/mob_controller/aggressive/malf_drone
+	base_movement_delay = 2
 
-	meat_type =     null
-	meat_amount =   0
-	bone_material = null
-	bone_amount =   0
-	skin_material = null
-	skin_amount =   0
+	//Drones aren't affected by atmos.
+	min_gas        = null
+	max_gas        = null
+	minbodytemp    = 0
+	faction        = "malf_drone"
+	skip_spacemove = TRUE
 
 	var/datum/effect/effect/system/trail/ion_trail
+	var/has_loot       = 1
+	var/explode_chance = 1
+	var/disabled       = 0
+	var/exploding      = 0
 
+	var/static/list/debris = list(
+		/decl/material/solid/glass          = /obj/item/shard,
+		/decl/material/solid/metal/steel    = /obj/item/stack/material/rods,
+		/decl/material/solid/metal/plasteel = null
+	)
+
+/datum/mob_controller/aggressive/malf_drone
+	speak_chance = 1.25
+	turns_per_wander = 6
+	emote_speech = list("ALERT.","Hostile-ile-ile entities dee-twhoooo-wected.","Threat parameterszzzz- szzet.","Bring sub-sub-sub-systems uuuup to combat alert alpha-a-a.")
+	emote_see    = list("beeps menacingly","whirrs threateningly","scans its immediate vicinity")
+	stop_wander_when_pulled = FALSE
+	only_attack_enemies = TRUE
+	try_destroy_surroundings = FALSE
 	//the drone randomly switches between these states if it's malfunctioning
 	var/malfunctioning = 1
 	var/hostile_drone = 0
 	//0 - retaliate, only attack enemies that attack it
 	//1 - hostile, attack everything that comes near
+	var/hostile_range = 10
 
-	var/turf/patrol_target
-	var/explode_chance = 1
-	var/disabled = 0
-	var/exploding = 0
+/mob/living/simple_animal/hostile/malf_drone/has_ranged_attack(atom/target)
+	return TRUE
 
-	//Drones aren't affected by atmos.
-	min_gas = null
-	max_gas = null
-	minbodytemp = 0
+/datum/mob_controller/aggressive/malf_drone/get_raw_target_list()
+	if(hostile_drone)
+		target_scan_distance = hostile_range
+	else
+		target_scan_distance = initial(target_scan_distance)
+	. = ..()
 
-	var/has_loot = 1
-	faction = "malf_drone"
+/datum/mob_controller/aggressive/malf_drone/get_valid_targets()
+	. = ..()
+	for(var/mob/M in .)
+		if(istype(M, body.type))
+			. -= M
 
-/mob/living/simple_animal/hostile/retaliate/malf_drone/Initialize()
+/mob/living/simple_animal/hostile/malf_drone/check_has_mouth()
+	return FALSE
+
+/mob/living/simple_animal/hostile/malf_drone/can_act()
+	return disabled <= 0 && ..()
+
+/mob/living/simple_animal/hostile/malf_drone/Initialize()
 	. = ..()
 	if(prob(5))
 		projectiletype = /obj/item/projectile/beam/pulse/drone
@@ -62,225 +83,203 @@
 	ion_trail.set_up(src)
 	ion_trail.start()
 
-/mob/living/simple_animal/hostile/retaliate/malf_drone/Process_Spacemove()
-	return 1
+/mob/living/simple_animal/hostile/malf_drone/Destroy()
+	QDEL_NULL(ion_trail)
+	return ..()
 
-/mob/living/simple_animal/hostile/retaliate/malf_drone/proc/Haywire()
-	if(prob(disabled ? 0 : 1) && malfunctioning)
-		if(hostile_drone)
-			src.visible_message("<span class='notice'>\icon[src] [src] retracts several targetting vanes, and dulls it's running lights.</span>")
-			hostile_drone = 0
+/mob/living/simple_animal/hostile/malf_drone/proc/Haywire()
+	var/datum/mob_controller/aggressive/malf_drone/drone_ai = ai
+	if(prob(disabled ? 0 : 1) && istype(drone_ai) && drone_ai.malfunctioning)
+		if(drone_ai.hostile_drone)
+			src.visible_message("<span class='notice'>[html_icon(src)] [src] retracts several targetting vanes, and dulls it's running lights.</span>")
+			drone_ai.hostile_drone = 0
 		else
-			src.visible_message("<span class='warning'>\icon[src] [src] suddenly lights up, and additional targetting vanes slide into place.</span>")
-			hostile_drone = 1
-
-/mob/living/simple_animal/hostile/retaliate/malf_drone/ListTargets()
-	if(hostile_drone)
-		return view(src, 10)
-	else
-		return ..()
+			src.visible_message("<span class='warning'>[html_icon(src)] [src] suddenly lights up, and additional targetting vanes slide into place.</span>")
+			drone_ai.hostile_drone = 1
 
 //self repair systems have a chance to bring the drone back to life
-/mob/living/simple_animal/hostile/retaliate/malf_drone/Life()
+/mob/living/simple_animal/hostile/malf_drone/handle_living_non_stasis_processes()
+	. = ..()
+	if(!.)
+		return FALSE
 
 	//emps and lots of damage can temporarily shut us down
 	if(disabled > 0)
 		set_stat(UNCONSCIOUS)
-		icon_state = "[initial(icon_state)]_dead"
 		disabled--
-		wander = 0
-		speak_chance = 0
+		if(istype(ai))
+			ai.stop_wandering()
+			ai.speak_chance = 0
 		if(disabled <= 0)
 			set_stat(CONSCIOUS)
-			icon_state = "[initial(icon_state)]0"
-			wander = 1
-			speak_chance = 5
+			if(istype(ai))
+				ai.resume_wandering()
+				ai.speak_chance = initial(ai.speak_chance)
 
 	//repair a bit of damage
 	if(prob(1))
-		src.visible_message("<span class='warning'>\icon[src] [src] shudders and shakes as some of it's damaged systems come back online.</span>")
-		var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-		s.set_up(3, 1, src)
-		s.start()
-		health += rand(25,100)
+		src.visible_message("<span class='warning'>[html_icon(src)] [src] shudders and shakes as some of it's damaged systems come back online.</span>")
+		spark_at(src, cardinal_only = TRUE)
+		heal_damage(BRUTE, (rand(10,50)), do_update_health = FALSE)
+		heal_damage(BURN, (rand(10,50)))
 
 	//spark for no reason
 	if(prob(5))
-		var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-		s.set_up(3, 1, src)
-		s.start()
+		spark_at(src, cardinal_only = TRUE)
 
 	//sometimes our targetting sensors malfunction, and we attack anyone nearby
 	Haywire()
 
-	if(health / maxHealth > 0.9)
-		icon_state = "[initial(icon_state)]"
+	var/current_health_ratio = get_health_ratio()
+	if(current_health_ratio > 0.9)
 		explode_chance = 0
-	else if(health / maxHealth > 0.7)
-		icon_state = "[initial(icon_state)]2"
+	else if(current_health_ratio > 0.7)
 		explode_chance = 0
-	else if(health / maxHealth > 0.5)
-		icon_state = "[initial(icon_state)]1"
+	else if(current_health_ratio > 0.5)
 		explode_chance = 0.5
-	else if(health / maxHealth > 0.3)
-		icon_state = "[initial(icon_state)]0"
+	else if(current_health_ratio > 0.3)
 		explode_chance = 5
-	else if(health > 0)
+	else if(current_health > 0)
 		//if health gets too low, shut down
-		icon_state = "[initial(icon_state)]_dead"
 		exploding = 0
 		if(!disabled)
 			if(prob(50))
-				src.visible_message("<span class='notice'>\icon[src] [src] suddenly shuts down!</span>")
+				src.visible_message("<span class='notice'>[html_icon(src)] [src] suddenly shuts down!</span>")
 			else
-				src.visible_message("<span class='notice'>\icon[src] [src] suddenly lies still and quiet.</span>")
+				src.visible_message("<span class='notice'>[html_icon(src)] [src] suddenly lies still and quiet.</span>")
 			disabled = rand(150, 600)
-			walk(src,0)
+			stop_automove()
 
 	if(exploding && prob(20))
 		if(prob(50))
-			src.visible_message("<span class='warning'>\icon[src] [src] begins to spark and shake violenty!</span>")
+			src.visible_message("<span class='warning'>[html_icon(src)] [src] begins to spark and shake violenty!</span>")
 		else
-			src.visible_message("<span class='warning'>\icon[src] [src] sparks and shakes like it's about to explode!</span>")
-		var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-		s.set_up(3, 1, src)
-		s.start()
+			src.visible_message("<span class='warning'>[html_icon(src)] [src] sparks and shakes like it's about to explode!</span>")
+		spark_at(src, cardinal_only = TRUE)
 
 	if(!exploding && !disabled && prob(explode_chance))
 		exploding = 1
 		set_stat(UNCONSCIOUS)
-		wander = 1
-		walk(src,0)
+		ai?.resume_wandering()
+		stop_automove()
 		spawn(rand(50,150))
 			if(!disabled && exploding)
 				explosion(get_turf(src), 0, 1, 4, 7)
-				//proc/explosion(turf/epicenter, devastation_range, heavy_impact_range, light_impact_range, flash_range, adminlog = 1)
-	..()
+				death()
+
+	update_icon()
+
+/mob/living/simple_animal/hostile/malf_drone/on_update_icon()
+	. = ..()
+	if(stat != DEAD)
+		var/current_max_health = get_max_health()
+		if(current_health / current_max_health <= 0.3)
+			icon_state = "[icon_state]-shield3"
+		else if(current_health / current_max_health <= 0.5)
+			icon_state = "[icon_state]-shield1"
+		else if(current_health / current_max_health <= 0.7)
+			icon_state = "[icon_state]-shield2"
 
 //ion rifle!
-/mob/living/simple_animal/hostile/retaliate/malf_drone/emp_act(severity)
-	health -= rand(3,15) * (severity + 1)
+/mob/living/simple_animal/hostile/malf_drone/emp_act(severity)
+	take_damage(rand(3,15) * (severity + 1), BURN)
 	disabled = rand(150, 600)
-	hostile_drone = 0
-	walk(src,0)
+	var/datum/mob_controller/aggressive/malf_drone/drone_brain = ai
+	if(istype(drone_brain))
+		drone_brain.hostile_drone = 0
+	stop_automove()
 
-/mob/living/simple_animal/hostile/retaliate/malf_drone/death()
-	..(null,"suddenly breaks apart.", "You have been destroyed.")
-	qdel(src)
+/mob/living/simple_animal/hostile/malf_drone/get_death_message(gibbed)
+	return "suddenly breaks apart."
 
-/mob/living/simple_animal/hostile/retaliate/malf_drone/Destroy()
+/mob/living/simple_animal/hostile/malf_drone/get_self_death_message(gibbed)
+	return "You have been destroyed."
+
+/mob/living/simple_animal/hostile/malf_drone/death(gibbed)
+	. = ..()
+	if(. && !gibbed)
+		physically_destroyed()
+
+/mob/living/simple_animal/hostile/malf_drone/physically_destroyed(skip_qdel)
 	//some random debris left behind
 	if(has_loot)
-		var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-		s.set_up(3, 1, src)
-		s.start()
-		var/obj/O
-
-		//shards
-		O = new /obj/item/shard(src.loc)
-		step_to(O, get_turf(pick(view(7, src))))
-		if(prob(75))
-			O = new /obj/item/shard(src.loc)
-			step_to(O, get_turf(pick(view(7, src))))
-		if(prob(50))
-			O = new /obj/item/shard(src.loc)
-			step_to(O, get_turf(pick(view(7, src))))
-		if(prob(25))
-			O = new /obj/item/shard(src.loc)
-			step_to(O, get_turf(pick(view(7, src))))
-
-		//rods
-		O = new /obj/item/stack/material/rods(loc)
-		step_to(O, get_turf(pick(view(7, src))))
-		if(prob(75))
-			O = new /obj/item/stack/material/rods(loc)
-			step_to(O, get_turf(pick(view(7, src))))
-		if(prob(50))
-			O = new /obj/item/stack/material/rods(loc)
-			step_to(O, get_turf(pick(view(7, src))))
-		if(prob(25))
-			O = new /obj/item/stack/material/rods(loc)
-			step_to(O, get_turf(pick(view(7, src))))
-
-		//plasteel
-		O = new /obj/item/stack/material/plasteel(src.loc)
-		step_to(O, get_turf(pick(view(7, src))))
-		if(prob(75))
-			O = new /obj/item/stack/material/plasteel(src.loc)
-			step_to(O, get_turf(pick(view(7, src))))
-		if(prob(50))
-			O = new /obj/item/stack/material/plasteel(src.loc)
-			step_to(O, get_turf(pick(view(7, src))))
-		if(prob(25))
-			O = new /obj/item/stack/material/plasteel(src.loc)
-			step_to(O, get_turf(pick(view(7, src))))
-
+		spark_at(src, cardinal_only = TRUE)
+		var/atom/movable/M
+		for(var/mat in debris)
+			for(var/chance in list(100, 75, 50, 25))
+				if(!prob(chance))
+					break
+				M = SSmaterials.create_object(mat, loc, 1, debris[mat])
+				if(istype(M))
+					step_to(M, get_turf(pick(view(7, src))))
 		//also drop dummy circuit boards deconstructable for research (loot)
 		var/obj/item/stock_parts/circuitboard/C
-
 		//spawn 1-4 boards of a random type
 		var/spawnees = 0
 		var/num_boards = rand(1,4)
+		//TODO: Make these use actual subtypes instead
 		var/list/options = list(1,2,4,8,16,32,64,128,256,512)
 		for(var/i=0, i<num_boards, i++)
 			var/chosen = pick(options)
 			options.Remove(options.Find(chosen))
 			spawnees |= chosen
-
 		if(spawnees & 1)
 			C = new(src.loc)
 			C.SetName("Drone CPU motherboard")
-			C.origin_tech = "{'[TECH_DATA]':[rand(3, 6)]}"
-
+			C.origin_tech = json_encode(list((TECH_DATA) = rand(3, 6)))
 		if(spawnees & 2)
 			C = new(src.loc)
 			C.SetName("Drone neural interface")
-			C.origin_tech = "{'[TECH_BIO]':[rand(3, 6)]}"
-
+			C.origin_tech = json_encode(list((TECH_BIO) = rand(3, 6)))
 		if(spawnees & 4)
 			C = new(src.loc)
 			C.SetName("Drone suspension processor")
-			C.origin_tech = "{'[TECH_MAGNET]':[rand(3, 6)]}"
-
+			C.origin_tech = json_encode(list((TECH_MAGNET) = rand(3, 6)))
 		if(spawnees & 8)
 			C = new(src.loc)
 			C.SetName("Drone shielding controller")
-			C.origin_tech = "{'wormholes':[rand(3, 6)]}"
-
+			C.origin_tech = json_encode(list((TECH_WORMHOLES) = rand(3, 6)))
 		if(spawnees & 16)
 			C = new(src.loc)
 			C.SetName("Drone power capacitor")
-			C.origin_tech = "{'[TECH_POWER]':[rand(3, 6)]}"
-
+			C.origin_tech = json_encode(list((TECH_POWER) = rand(3, 6)))
 		if(spawnees & 32)
 			C = new(src.loc)
 			C.SetName("Drone hull reinforcer")
-			C.origin_tech = "{'[TECH_MATERIAL]':[rand(3, 6)]}"
-
+			C.origin_tech = json_encode(list((TECH_MATERIAL) = rand(3, 6)))
 		if(spawnees & 64)
 			C = new(src.loc)
 			C.SetName("Drone auto-repair system")
-			C.origin_tech = "{'[TECH_ENGINEERING]':[rand(3, 6)]}"
-
+			C.origin_tech = json_encode(list((TECH_ENGINEERING) = rand(3, 6)))
 		if(spawnees & 128)
 			C = new(src.loc)
 			C.SetName("Drone antigravity overcharge counter")
-			C.origin_tech = "{'[TECH_EXOTIC_MATTER]':[rand(3, 6)]}"
-
+			C.origin_tech = json_encode(list((TECH_EXOTIC_MATTER) = rand(3, 6)))
 		if(spawnees & 256)
 			C = new(src.loc)
 			C.SetName("Drone targetting circuitboard")
-			C.origin_tech = "{'[TECH_COMBAT]':[rand(3, 6)]}"
-
+			C.origin_tech = json_encode(list((TECH_COMBAT) = rand(3, 6)))
 		if(spawnees & 512)
 			C = new(src.loc)
 			C.SetName("Corrupted drone morality core")
-			C.origin_tech = "{'[TECH_ESOTERIC]':[rand(3, 6)]}"
+			C.origin_tech = json_encode(list((TECH_ESOTERIC) = rand(3, 6)))
+	return ..()
 
-	..()
+/mob/living/simple_animal/hostile/malf_drone/isSynthetic()
+	return TRUE
 
 /obj/item/projectile/beam/drone
 	damage = 15
 
 /obj/item/projectile/beam/pulse/drone
 	damage = 10
+
+/mob/living/simple_animal/hostile/malf_drone/lesser
+	name = "old combat drone"
+	desc = "An automated combat drone with an aged apperance."
+	base_movement_delay = 1 SECOND
+
+/mob/living/simple_animal/hostile/malf_drone/mining
+	name = "mining drone"
+	desc = "An automated drone with a worn-out appearance, but an ominous gaze."
+	icon = 'icons/mob/simple_animal/drones/mining.dmi'

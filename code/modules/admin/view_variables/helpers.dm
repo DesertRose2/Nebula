@@ -1,31 +1,29 @@
-
-// Keep these two together, they *must* be defined on both
-// If /client ever becomes /datum/client or similar, they can be merged
+// If /client/var/parent_type ever stops being /datum, this proc will need to be redefined on client.
 /datum/proc/get_view_variables_header()
 	return "<b>[src]</b>"
 
 /atom/get_view_variables_header()
 	return {"
-		<a href='?_src_=vars;datumedit=\ref[src];varnameedit=name'><b>[src]</b></a>
+		<a href='byond://?_src_=vars;datumedit=\ref[src];varnameedit=name'><b>[src]</b></a>
 		<br><font size='1'>
-		<a href='?_src_=vars;rotatedatum=\ref[src];rotatedir=left'><<</a>
-		<a href='?_src_=vars;datumedit=\ref[src];varnameedit=dir'>[dir2text(dir)]</a>
-		<a href='?_src_=vars;rotatedatum=\ref[src];rotatedir=right'>>></a>
+		<a href='byond://?_src_=vars;rotatedatum=\ref[src];rotatedir=left'>\<\<</a>
+		<a href='byond://?_src_=vars;datumedit=\ref[src];varnameedit=dir'>[dir2text(dir)]</a>
+		<a href='byond://?_src_=vars;rotatedatum=\ref[src];rotatedir=right'>\>\></a>
 		</font>
 		"}
 
 /mob/living/get_view_variables_header()
 	return {"
-		<a href='?_src_=vars;rename=\ref[src]'><b>[src]</b></a><font size='1'>
-		<br><a href='?_src_=vars;rotatedatum=\ref[src];rotatedir=left'><<</a> <a href='?_src_=vars;datumedit=\ref[src];varnameedit=dir'>[dir2text(dir)]</a> <a href='?_src_=vars;rotatedatum=\ref[src];rotatedir=right'>>></a>
-		<br><a href='?_src_=vars;datumedit=\ref[src];varnameedit=ckey'>[ckey ? ckey : "No ckey"]</a> / <a href='?_src_=vars;datumedit=\ref[src];varnameedit=real_name'>[real_name ? real_name : "No real name"]</a>
+		<a href='byond://?_src_=vars;rename=\ref[src]'><b>[src]</b></a><font size='1'>
+		<br><a href='byond://?_src_=vars;rotatedatum=\ref[src];rotatedir=left'>\<\<</a> <a href='byond://?_src_=vars;datumedit=\ref[src];varnameedit=dir'>[dir2text(dir)]</a> <a href='byond://?_src_=vars;rotatedatum=\ref[src];rotatedir=right'>\>\></a>
+		<br><a href='byond://?_src_=vars;datumedit=\ref[src];varnameedit=ckey'>[ckey ? ckey : "No ckey"]</a> / <a href='byond://?_src_=vars;datumedit=\ref[src];varnameedit=real_name'>[real_name ? real_name : "No real name"]</a>
 		<br>
-		BRUTE:<a href='?_src_=vars;mobToDamage=\ref[src];adjustDamage=brute'>[getBruteLoss()]</a>
-		FIRE:<a href='?_src_=vars;mobToDamage=\ref[src];adjustDamage=fire'>[getFireLoss()]</a>
-		TOXIN:<a href='?_src_=vars;mobToDamage=\ref[src];adjustDamage=toxin'>[getToxLoss()]</a>
-		OXY:<a href='?_src_=vars;mobToDamage=\ref[src];adjustDamage=oxygen'>[getOxyLoss()]</a>
-		CLONE:<a href='?_src_=vars;mobToDamage=\ref[src];adjustDamage=clone'>[getCloneLoss()]</a>
-		BRAIN:<a href='?_src_=vars;mobToDamage=\ref[src];adjustDamage=brain'>[getBrainLoss()]</a>
+		BRUTE:<a href='byond://?_src_=vars;mobToDamage=\ref[src];adjustDamage=[BRUTE]'>[get_damage(BRUTE)]</a>
+		FIRE:<a href='byond://?_src_=vars;mobToDamage=\ref[src];adjustDamage=[BURN]'>[get_damage(BURN)]</a>
+		TOXIN:<a href='byond://?_src_=vars;mobToDamage=\ref[src];adjustDamage=[TOX]'>[get_damage(TOX)]</a>
+		OXY:<a href='byond://?_src_=vars;mobToDamage=\ref[src];adjustDamage=[OXY]'>[get_damage(OXY)]</a>
+		CLONE:<a href='byond://?_src_=vars;mobToDamage=\ref[src];adjustDamage=[CLONE]'>[get_damage(CLONE)]</a>
+		BRAIN:<a href='byond://?_src_=vars;mobToDamage=\ref[src];adjustDamage=[BP_BRAIN]'>[get_damage(BRAIN)]</a>
 		</font>
 		"}
 
@@ -37,21 +35,20 @@
 	return ..() + {"
 		<option value='?_src_=vars;mob_player_panel=\ref[src]'>Show player panel</option>
 		<option>---</option>
-		<option value='?_src_=vars;give_spell=\ref[src]'>Give Spell</option>
 		<option value='?_src_=vars;godmode=\ref[src]'>Toggle Godmode</option>
 		<option value='?_src_=vars;build_mode=\ref[src]'>Toggle Build Mode</option>
-
-		<option value='?_src_=vars;ninja=\ref[src]'>Make Space Ninja</option>
-		<option value='?_src_=vars;make_skeleton=\ref[src]'>Make 2spooky</option>
 
 		<option value='?_src_=vars;direct_control=\ref[src]'>Assume Direct Control</option>
 		<option value='?_src_=vars;drop_everything=\ref[src]'>Drop Everything</option>
 
-		<option value='?_src_=vars;regenerateicons=\ref[src]'>Regenerate Icons</option>
+		<option value='?_src_=vars;updateicon=\ref[src]'>Update Icon</option>
 		<option value='?_src_=vars;addlanguage=\ref[src]'>Add Language</option>
 		<option value='?_src_=vars;remlanguage=\ref[src]'>Remove Language</option>
 		<option value='?_src_=vars;addorgan=\ref[src]'>Add Organ</option>
 		<option value='?_src_=vars;remorgan=\ref[src]'>Remove Organ</option>
+
+		<option value='?_src_=vars;give_ability=\ref[src]'>Give Ability</option>
+		<option value='?_src_=vars;remove_ability=\ref[src]'>Remove Ability</option>
 
 		<option value='?_src_=vars;fix_nano=\ref[src]'>Fix NanoUI</option>
 
@@ -65,19 +62,25 @@
 
 /mob/living/get_view_variables_options()
 	return ..() + {"
-		<option value='?_src_=vars;addaura=\ref[src]'>Add Aura</option>
-		<option value='?_src_=vars;removeaura=\ref[src]'>Remove Aura</option>
+		<option value='?_src_=vars;add_mob_modifier=\ref[src]'>Add Modifier</option>
+		<option value='?_src_=vars;remove_mob_modifier=\ref[src]'>Remove Modifier</option>
+		<option value='?_src_=vars;addstressor=\ref[src]'>Add Stressor</option>
+		<option value='?_src_=vars;removestressor=\ref[src]'>Remove Stressor</option>
+		<option value='?_src_=vars;setstatuscond=\ref[src]'>Set Status Condition</option>
 		"}
 
-/mob/living/carbon/human/get_view_variables_options()
+/mob/living/human/get_view_variables_options()
 	return ..() + {"
+		<option value='?_src_=vars;refreshoverlays=\ref[src]'>Refresh Visible Overlays</option>
 		<option value='?_src_=vars;setspecies=\ref[src]'>Set Species</option>
+		<option value='?_src_=vars;setbodytype=\ref[src]'>Set Bodytype</option>
+		<option value='?_src_=vars;addailment=\ref[src]'>Add Ailment</option>
+		<option value='?_src_=vars;remailment=\ref[src]'>Remove Ailment</option>
 		<option value='?_src_=vars;dressup=\ref[src]'>Dressup</option>
 		<option value='?_src_=vars;makeai=\ref[src]'>Make AI</option>
 		<option value='?_src_=vars;makerobot=\ref[src]'>Make cyborg</option>
 		<option value='?_src_=vars;makemonkey=\ref[src]'>Make monkey</option>
 		<option value='?_src_=vars;makealien=\ref[src]'>Make alien</option>
-		<option value='?_src_=vars;makeslime=\ref[src]'>Make slime</option>
 		"}
 
 /obj/get_view_variables_options()
@@ -88,13 +91,18 @@
 		<option value='?_src_=vars;emp=\ref[src]'>Trigger EM pulse</option>
 		"}
 
+/obj/item/get_view_variables_options()
+	return ..() + {"
+		<option value='?_src_=vars;setmaterial=\ref[src]'>Set material</option>
+		"}
+
 /turf/get_view_variables_options()
 	return ..() + {"
 		<option value='?_src_=vars;explode=\ref[src]'>Trigger explosion</option>
 		<option value='?_src_=vars;emp=\ref[src]'>Trigger EM pulse</option>
 		"}
 
-/datum/proc/get_variables()
+/datum/proc/VV_get_variables()
 	. = vars - VV_hidden()
 	if(!usr || !check_rights(R_ADMIN|R_DEBUG, FALSE))
 		. -= VV_secluded()
@@ -110,18 +118,18 @@
 
 /datum/proc/make_view_variables_variable_entry(var/varname, var/value, var/hide_watch = 0)
 	return {"
-			(<a href='?_src_=vars;datumedit=\ref[src];varnameedit=[varname]'>E</a>)
-			(<a href='?_src_=vars;datumchange=\ref[src];varnamechange=[varname]'>C</a>)
-			(<a href='?_src_=vars;datummass=\ref[src];varnamemass=[varname]'>M</a>)
-			[hide_watch ? "" : "(<a href='?_src_=vars;datumwatch=\ref[src];varnamewatch=[varname]'>W</a>)"]
+			(<a href='byond://?_src_=vars;datumedit=\ref[src];varnameedit=[varname]'>E</a>)
+			(<a href='byond://?_src_=vars;datumchange=\ref[src];varnamechange=[varname]'>C</a>)
+			(<a href='byond://?_src_=vars;datummass=\ref[src];varnamemass=[varname]'>M</a>)
+			[hide_watch ? "" : "(<a href='byond://?_src_=vars;datumwatch=\ref[src];varnamewatch=[varname]'>W</a>)"]
 			"}
 
 // No mass editing of clients
 /client/make_view_variables_variable_entry(var/varname, var/value, var/hide_watch = 0)
 	return {"
-			(<a href='?_src_=vars;datumedit=\ref[src];varnameedit=[varname]'>E</a>)
-			(<a href='?_src_=vars;datumchange=\ref[src];varnamechange=[varname]'>C</a>)
-			[hide_watch ? "" : "(<a href='?_src_=vars;datumwatch=\ref[src];varnamewatch=[varname]'>W</a>)"]
+			(<a href='byond://?_src_=vars;datumedit=\ref[src];varnameedit=[varname]'>E</a>)
+			(<a href='byond://?_src_=vars;datumchange=\ref[src];varnamechange=[varname]'>C</a>)
+			[hide_watch ? "" : "(<a href='byond://?_src_=vars;datumwatch=\ref[src];varnamewatch=[varname]'>W</a>)"]
 			"}
 
 // These methods are all procs and don't use stored lists to avoid VV exploits
@@ -134,12 +142,9 @@
 /datum/proc/VV_secluded()
 	return list()
 
-/datum/configuration/VV_secluded()
-	return vars
-
 // The following vars cannot be edited by anyone
 /datum/proc/VV_static()
-	return list("parent_type")
+	return list("parent_type", "gc_destroyed", "is_processing")
 
 /atom/VV_static()
 	return ..() + list("bound_x", "bound_y", "bound_height", "bound_width", "bounds", "step_x", "step_y", "step_size")
@@ -180,10 +185,10 @@
 /datum/proc/may_edit_var(var/user, var/var_to_edit)
 	if(!user)
 		return FALSE
-	if(!(var_to_edit in vars))
+	if(!(var_to_edit in VV_get_variables()))
 		to_chat(user, "<span class='warning'>\The [src] does not have a var '[var_to_edit]'</span>")
 		return FALSE
-	if(var_to_edit in VV_static())
+	if((var_to_edit in VV_static()) || (var_to_edit in VV_hidden()))
 		return FALSE
 	if((var_to_edit in VV_secluded()) && !check_rights(R_ADMIN|R_DEBUG, FALSE, C = user))
 		return FALSE

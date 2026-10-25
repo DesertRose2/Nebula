@@ -14,7 +14,6 @@
 		"nav_cluster_6",
 		"nav_cluster_7"
 	)
-	known = 0
 
 /obj/effect/overmap/visitable/sector/cluster/generate_skybox()
 	return overlay_image('icons/skybox/rockbox.dmi', "rockbox", COLOR_ASTEROID_ROCK, RESET_COLOR)
@@ -26,12 +25,11 @@
 
 /datum/map_template/ruin/away_site/mining_asteroid
 	name = "Mining - Asteroid"
-	id = "awaysite_mining_asteroid"
 	description = "A medium-sized asteroid full of minerals."
 	suffixes = list("mining/mining-asteroid.dmm")
 	cost = 1
 	accessibility_weight = 10
-	generate_mining_by_z = 1
+	level_data_type = /datum/level_data/mining_level/asteroid
 	apc_test_exempt_areas = list(
 		/area/outpost/abandoned = NO_SCRUBBER,
 		/area/mine/explored = NO_SCRUBBER|NO_VENT|NO_APC,
@@ -85,7 +83,6 @@
 		"nav_away_6",
 		"nav_away_7"
 	)
-	known = 0
 
 /obj/effect/overmap/visitable/sector/away/generate_skybox()
 	return overlay_image('icons/skybox/rockbox.dmi', "rockbox", COLOR_ASTEROID_ROCK, RESET_COLOR)
@@ -97,12 +94,10 @@
 
 /datum/map_template/ruin/away_site/mining_signal
 	name = "Mining - Planetoid"
-	id = "awaysite_mining_signal"
 	description = "A mineral-rich, formerly-volcanic site on a planetoid."
 	suffixes = list("mining/mining-signal.dmm")
 	cost = 1
-	generate_mining_by_z = 1
-	base_turf_for_zs = /turf/simulated/floor/asteroid
+	level_data_type = /datum/level_data/mining_level/asteroid
 	area_usage_test_exempted_root_areas = list(/area/mine, /area/outpost)
 	apc_test_exempt_areas = list(
 		/area/mine/explored = NO_SCRUBBER|NO_VENT|NO_APC,
@@ -155,7 +150,6 @@
 		"nav_orb_6",
 		"nav_orb_7"
 	)
-	known = 0
 
 /obj/effect/overmap/visitable/sector/orb/get_skybox_representation()
 	var/image/res = overlay_image('icons/skybox/skybox_rock_128.dmi', "bigrock", COLOR_ASTEROID_ROCK, RESET_COLOR)
@@ -165,13 +159,11 @@
 
 /datum/map_template/ruin/away_site/orb
 	name = "Mining - Orb"
-	id = "awaysite_mining_orb"
 	description = "A sort of circular asteroid with a bird."
 	suffixes = list("mining/mining-orb.dmm")
 	cost = 1
 	accessibility_weight = 10
-	generate_mining_by_z = 1
-	base_turf_for_zs = /turf/simulated/floor/asteroid
+	level_data_type = /datum/level_data/mining_level/asteroid
 	area_usage_test_exempted_root_areas = list(/area/mine)
 	area_usage_test_exempted_areas = list(/area/djstation)
 	apc_test_exempt_areas = list(
@@ -214,24 +206,23 @@
 	desc = "Some kind of post, pillar, plinth, column, or totem."
 	icon = 'icons/obj/structures/totem.dmi'
 	icon_state = "totem"
-	density = 1
-	anchored = 1
-	unacidable = 1
+	density = TRUE
+	anchored = TRUE
+	material = /decl/material/solid/metal/aliumium
 	var/number
 
 /obj/structure/totem/Initialize()
 	. = ..()
 	number = rand(10,99)
 
-/obj/structure/totem/examine(mob/user)
+/obj/structure/totem/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
-	to_chat(user, "It's been engraved with the symbols '<font face='Shage'>RWH QaG [number]</font>'.") //i am not a linguist
-
+	. += "It's been engraved with the symbols '<font face='Shage'>RWH QaG [number]</font>'."
 
 /obj/item/stool/stone/Initialize(mapload)
 	. = ..(mapload, /decl/material/solid/stone/sandstone)
 
-/turf/simulated/floor/airless/stone
+/turf/floor/plating/airless/stone
 	name = "temple floor"
 	desc = "You can only imagine what once took place in these halls."
 	icon = 'icons/turf/flooring/cult.dmi'

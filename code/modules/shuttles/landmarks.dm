@@ -1,30 +1,39 @@
-//making this separate from /obj/effect/landmark until that mess can be dealt with
+var/global/list/shuttle_landmarks = list()
+
+//making this separate from /obj/abstract/landmark until that mess can be dealt with
 /obj/effect/shuttle_landmark
 	name = "Nav Point"
-	icon = 'icons/effects/effects.dmi'
-	icon_state = "energynet"
-	anchored = 1
-	unacidable = 1
-	simulated = 0
-	invisibility = 101
+	icon = 'icons/effects/landmarks.dmi'
+	icon_state = "shuttle_landmark"
+	anchored = TRUE
+	simulated = FALSE
+	layer = ABOVE_PROJECTILE_LAYER
+	invisibility = INVISIBILITY_ABSTRACT
+	is_spawnable_type = FALSE
 
 	var/landmark_tag
 	//ID of the controller on the dock side
 	var/datum/computer/file/embedded_program/docking/docking_controller
-	//ID of controller used for this landmark for shuttles with multiple ones.
+	//Docking cues for shuttles with multiple docking controllers. Format: shuttle type -> string cue. On the shuttle, set docking_cues as well.
 	var/list/special_dock_targets
 
 	//when the shuttle leaves this landmark, it will leave behind the base area
 	//also used to determine if the shuttle can arrive here without obstruction
 	var/area/base_area
-	//Will also leave this type of turf behind if set.
+	//Will also leave this type of turf behind if set, if the turfs do not have prev_type set.
 	var/turf/base_turf
-	//Name of the shuttle, null for generic waypoint
+	//Type path of a shuttle to which this landmark is restricted, null for generic waypoint.
 	var/shuttle_restricted
+	var/overmap_id = OVERMAP_ID_SPACE
 	var/flags = 0
+
+/obj/effect/shuttle_landmark/Destroy()
+	global.shuttle_landmarks -= src
+	. = ..()
 
 /obj/effect/shuttle_landmark/Initialize()
 	. = ..()
+	global.shuttle_landmarks += src
 	if(docking_controller)
 		. = INITIALIZE_HINT_LATELOAD
 
@@ -33,7 +42,7 @@
 		var/turf/T = get_turf(src)
 		if(T)
 			base_turf = T.type
-	else
+	else if(ispath(base_area) || !base_area)
 		base_area = locate(base_area || world.area)
 
 	SetName(name + " ([x],[y])")
@@ -46,15 +55,21 @@
 	docking_controller = SSshuttle.docking_registry[docking_tag]
 	if(!istype(docking_controller))
 		log_error("Could not find docking controller for shuttle waypoint '[name]', docking tag was '[docking_tag]'.")
-	if(GLOB.using_map.use_overmap)
-		var/obj/effect/overmap/visitable/location = map_sectors["[z]"]
-		if(location && location.docking_codes)
-			docking_controller.docking_codes = location.docking_codes
+
+	var/obj/effect/overmap/visitable/location = global.overmap_sectors[z]
+	if(location && location.docking_codes)
+		docking_controller.docking_codes = location.docking_codes
+
+/obj/effect/shuttle_landmark/modify_mapped_vars(map_hash)
+	..()
+	ADJUST_TAG_VAR(landmark_tag, map_hash)
+	if(docking_controller)
+		ADJUST_TAG_VAR(docking_controller, map_hash)
 
 /obj/effect/shuttle_landmark/forceMove()
-	var/obj/effect/overmap/visitable/map_origin = map_sectors["[z]"]
+	var/obj/effect/overmap/visitable/map_origin = global.overmap_sectors[z]
 	. = ..()
-	var/obj/effect/overmap/visitable/map_destination = map_sectors["[z]"]
+	var/obj/effect/overmap/visitable/map_destination = global.overmap_sectors[z]
 	if(map_origin != map_destination)
 		if(map_origin)
 			map_origin.remove_landmark(src, shuttle_restricted)
@@ -62,17 +77,19 @@
 			map_destination.add_landmark(src, shuttle_restricted)
 
 //Called when the landmark is added to an overmap sector.
-/obj/effect/shuttle_landmark/proc/sector_set(var/obj/effect/overmap/visitable/O, shuttle_name)
-	shuttle_restricted = shuttle_name
+/obj/effect/shuttle_landmark/proc/sector_set(var/obj/effect/overmap/visitable/O, shuttle_restricted_type)
+	shuttle_restricted = shuttle_restricted_type
 
 /obj/effect/shuttle_landmark/proc/is_valid(var/datum/shuttle/shuttle)
 	if(shuttle.current_location == src)
 		return FALSE
+	var/atom/movable/center_of_rotation = shuttle.get_center_of_rotation()
+	var/angle_offset = shuttle.get_angle_offset(center_of_rotation, src)
 	for(var/area/A in shuttle.shuttle_area)
-		var/list/translation = get_turf_translation(get_turf(shuttle.current_location), get_turf(src), A.contents)
+		var/list/translation = get_turf_translation(get_turf(center_of_rotation), get_turf(src), A.contents, angle = angle_offset)
 		if(check_collision(base_area, list_values(translation)))
 			return FALSE
-	var/conn = GetConnectedZlevels(z)
+	var/conn = SSmapping.get_connected_levels(z)
 	for(var/w in (z - shuttle.multiz) to z)
 		if(!(w in conn))
 			return FALSE
@@ -101,6 +118,11 @@
 			return TRUE //dense turf
 	return FALSE
 
+/obj/effect/shuttle_landmark/proc/get_angle_offset(obj/effect/shuttle_landmark/other)
+	if(other.flags & SLANDMARK_FLAG_REORIENT)
+		return dir2angle(other.dir) - dir2angle(dir)
+	return 0
+
 //Self-naming/numbering ones.
 /obj/effect/shuttle_landmark/automatic
 	name = "Navpoint"
@@ -113,21 +135,38 @@
 
 /obj/effect/shuttle_landmark/automatic/sector_set(var/obj/effect/overmap/visitable/O)
 	..()
-	SetName("[O.name] - [initial(name)] ([x],[y])")
+	SetName("[initial(name)] ([x],[y],[z])")
 
 //Subtype that calls explosion on init to clear space for shuttles
 /obj/effect/shuttle_landmark/automatic/clearing
+	name = "clearing"
+	var/offset = FALSE
 	var/radius = 10
 
-/obj/effect/shuttle_landmark/automatic/clearing/Initialize()
+/obj/effect/shuttle_landmark/automatic/clearing/Initialize(var/ml, var/supplied_radius)
 	..()
+	if(!isnull(supplied_radius))
+		radius = supplied_radius
 	return INITIALIZE_HINT_LATELOAD
 
 /obj/effect/shuttle_landmark/automatic/clearing/LateInitialize()
 	..()
-	for(var/turf/T in range(radius, src))
+	var/center
+	if(offset)
+		switch(dir)
+			if(NORTH)
+				center = locate(src.x, src.y - radius / 2, src.z)
+			if(SOUTH)
+				center = locate(src.x, src.y + radius / 2, src.z)
+			if(EAST)
+				center = locate(src.x - radius / 2, src.y, src.z)
+			if(WEST)
+				center = locate(src.x + radius / 2, src.y, src.z)
+	center ||= src
+	for(var/turf/T in circlerangeturfs(center, radius))
 		if(T.density)
 			T.ChangeTurf(get_base_turf_by_area(T))
+		T.turf_flags |= TURF_FLAG_NO_POINTS_OF_INTEREST
 
 //Used for custom landing locations. Self deletes after a shuttle leaves.
 /obj/effect/shuttle_landmark/temporary
@@ -135,8 +174,10 @@
 	landmark_tag = "landing"
 	flags = SLANDMARK_FLAG_AUTOSET
 
-/obj/effect/shuttle_landmark/temporary/Initialize()
+/obj/effect/shuttle_landmark/temporary/Initialize(var/mapload, var/secure = TRUE)
 	landmark_tag += "-[random_id("landmarks",1,9999)]"
+	if(!secure)
+		flags |= (SLANDMARK_FLAG_DISCONNECTED | SLANDMARK_FLAG_ZERO_G)
 	. = ..()
 
 /obj/effect/shuttle_landmark/temporary/Destroy()
@@ -156,11 +197,12 @@
 	icon = 'icons/obj/items/device/long_range_flare.dmi'
 	icon_state = "bluflare"
 	light_color = "#3728ff"
+	material = /decl/material/solid/organic/plastic
 	var/active
 
 /obj/item/spaceflare/attack_self(var/mob/user)
 	if(!active)
-		visible_message("<span class='notice'>[user] pulls the cord, activating the [src].</span>")
+		visible_message("<span class='notice'>[user] pulls the cord, activating \the [src].</span>")
 		activate()
 
 /obj/item/spaceflare/proc/activate()
@@ -168,11 +210,11 @@
 		return
 	var/turf/T = get_turf(src)
 	var/mob/M = loc
-	if(istype(M) && !M.unEquip(src, T))
+	if(istype(M) && !M.try_unequip(src, T))
 		return
 
 	active = 1
-	anchored = 1
+	anchored = TRUE
 
 	var/obj/effect/shuttle_landmark/automatic/mark = new(T)
 	mark.SetName("Beacon signal ([T.x],[T.y])")
@@ -180,6 +222,7 @@
 	update_icon()
 
 /obj/item/spaceflare/on_update_icon()
+	. = ..()
 	if(active)
 		icon_state = "bluflare_on"
-		set_light(0.3, 0.1, 6, 2, "85d1ff")
+		set_light(6, 2, "#85d1ff")

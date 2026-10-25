@@ -1,4 +1,4 @@
-/datum/movement_handler/mob/multiz/DoMove(var/direction, var/mob/mover, var/is_external)
+/datum/movement_handler/mob/multiz/DoMove(direction, mob/mover, is_external)
 	if(!(direction & (UP|DOWN)))
 		return MOVEMENT_PROCEED
 
@@ -10,10 +10,6 @@
 	var/turf/start = get_turf(mob)
 	if(!start.CanZPass(mob, direction))
 		to_chat(mob, "<span class='warning'>\The [start] is in the way.</span>")
-		return MOVEMENT_HANDLED
-
-	if(!destination.CanZPass(mob, direction))
-		to_chat(mob, "<span class='warning'>You bump against \the [destination].</span>")
 		return MOVEMENT_HANDLED
 
 	var/area/area = get_area(mob)
@@ -33,7 +29,7 @@
 	return MOVEMENT_PROCEED
 
 //For ghosts and such
-/datum/movement_handler/mob/multiz_connected/DoMove(var/direction, var/mob/mover, var/is_external)
+/datum/movement_handler/mob/multiz_connected/DoMove(direction, mob/mover, is_external)
 	if(!(direction & (UP|DOWN)))
 		return MOVEMENT_PROCEED
 
@@ -44,7 +40,7 @@
 
 	return MOVEMENT_PROCEED
 
-/datum/movement_handler/deny_multiz/DoMove(var/direction, var/mob/mover, var/is_external)
+/datum/movement_handler/deny_multiz/DoMove(direction, mob/mover, is_external)
 	if(direction & (UP|DOWN))
 		return MOVEMENT_HANDLED
 	return MOVEMENT_PROCEED

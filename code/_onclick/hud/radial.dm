@@ -1,54 +1,7 @@
 #define NEXT_PAGE_ID "__next__"
 #define DEFAULT_CHECK_DELAY 20
 
-GLOBAL_LIST_EMPTY(radial_menus)
-
-/obj/screen/radial
-	icon = 'icons/screen/radial.dmi'
-	layer = HUD_ABOVE_ITEM_LAYER
-	plane = HUD_PLANE
-	var/datum/radial_menu/parent
-
-/obj/screen/radial/slice
-	icon_state = "radial_slice"
-	var/choice
-	var/next_page = FALSE
-	var/tooltips = FALSE
-
-/obj/screen/radial/slice/MouseEntered(location, control, params)
-	. = ..()
-	icon_state = "radial_slice_focus"
-	if(tooltips)
-		openToolTip(usr, src, params, title = name)
-
-/obj/screen/radial/slice/MouseExited(location, control, params)
-	. = ..()
-	icon_state = "radial_slice"
-	if(tooltips)
-		closeToolTip(usr)
-
-/obj/screen/radial/slice/Click(location, control, params)
-	if(usr.client == parent.current_user)
-		if(next_page)
-			parent.next_page()
-		else
-			parent.element_chosen(choice,usr)
-
-/obj/screen/radial/center
-	name = "Close Menu"
-	icon_state = "radial_center"
-
-/obj/screen/radial/center/MouseEntered(location, control, params)
-	. = ..()
-	icon_state = "radial_center_focus"
-
-/obj/screen/radial/center/MouseExited(location, control, params)
-	. = ..()
-	icon_state = "radial_center"
-
-/obj/screen/radial/center/Click(location, control, params)
-	if(usr.client == parent.current_user)
-		parent.finished = TRUE
+var/global/list/radial_menus = list()
 
 /datum/radial_menu
 	var/list/choices = list() //List of choice id's
@@ -165,7 +118,7 @@ GLOBAL_LIST_EMPTY(radial_menus)
 	E.alpha = 0
 	E.name = "None"
 	E.maptext = null
-	E.mouse_opacity = 0
+	E.mouse_opacity = MOUSE_OPACITY_UNCLICKABLE
 	E.choice = null
 	E.next_page = FALSE
 
@@ -186,7 +139,7 @@ GLOBAL_LIST_EMPTY(radial_menus)
 
 	//Visuals
 	E.alpha = 255
-	E.mouse_opacity = 1
+	E.mouse_opacity = MOUSE_OPACITY_NORMAL
 	E.overlays.Cut()
 	if(choice_id == NEXT_PAGE_ID)
 		E.name = "Next Page"
@@ -220,7 +173,7 @@ GLOBAL_LIST_EMPTY(radial_menus)
 /datum/radial_menu/proc/get_next_id()
 	return "c_[choices.len]"
 
-/datum/radial_menu/proc/set_choices(list/new_choices, use_tooltips, use_labels)
+/datum/radial_menu/proc/set_choices(list/new_choices, use_tooltips, use_labels = RADIAL_LABELS_NONE)
 	if(choices.len)
 		Reset()
 	for(var/E in new_choices)
@@ -233,8 +186,7 @@ GLOBAL_LIST_EMPTY(radial_menus)
 				choices_icons[id] = I
 	setup_menu(use_tooltips)
 
-
-/datum/radial_menu/proc/extract_image(image/E, var/use_labels)
+/datum/radial_menu/proc/extract_image(image/E, var/use_labels = RADIAL_LABELS_NONE)
 	var/mutable_appearance/MA = new /mutable_appearance(E)
 	if(MA)
 		MA.layer = HUD_ABOVE_HUD_LAYER
@@ -243,9 +195,15 @@ GLOBAL_LIST_EMPTY(radial_menus)
 			MA.maptext_width = 64
 			MA.maptext_height = 64
 			MA.appearance_flags = APPEARANCE_UI_IGNORE_ALPHA
-			MA.maptext_x = -round(MA.maptext_width/2) + 16
-			MA.maptext_x = -round(MA.maptext_height/2) + 16
-			MA.maptext = "<center><span style=\"font-family: 'Small Fonts'; -dm-text-outline: 1 black; font-size: 7px\">[E.name]</span></center>"
+			switch(use_labels)
+				if(RADIAL_LABELS_OFFSET)
+					MA.maptext_x = -16
+					MA.maptext_y = -8
+					MA.maptext = STYLE_SMALLFONTS_OUTLINE("<center>[E.name]</center>", 7, COLOR_WHITE, COLOR_BLACK)
+				if(RADIAL_LABELS_CENTERED)
+					MA.maptext_x = -16
+					MA.maptext_y = -16
+					MA.maptext = "<span style='font-family: \"Small Fonts\"; color: #fff; -dm-text-outline: 1 #000; font-size: 7px; text-align:center; vertical-align:middle'>[E.name]</span>"
 
 	return MA
 
@@ -264,7 +222,7 @@ GLOBAL_LIST_EMPTY(radial_menus)
 	//Blank
 	menu_holder = image(icon = 'icons/effects/effects.dmi', loc = anchor, icon_state = "nothing", layer = HUD_ABOVE_ITEM_LAYER)
 	menu_holder.appearance_flags |= KEEP_APART
-	menu_holder.vis_contents += elements + close_button
+	menu_holder.add_vis_contents(elements + close_button)
 	current_user.images += menu_holder
 
 /datum/radial_menu/proc/hide()
@@ -290,6 +248,8 @@ GLOBAL_LIST_EMPTY(radial_menus)
 /datum/radial_menu/Destroy()
 	Reset()
 	hide()
+	QDEL_NULL_LIST(elements)
+	QDEL_NULL(close_button)
 	QDEL_NULL(custom_check_callback)
 	return ..()
 
@@ -298,7 +258,7 @@ GLOBAL_LIST_EMPTY(radial_menus)
 	Choices should be a list where list keys are movables or text used for element names and return value
 	and list values are movables/icons/images used for element icons
 */
-/proc/show_radial_menu(mob/user, atom/anchor, list/choices, uniqueid, radius, datum/callback/custom_check, require_near = FALSE, tooltips = FALSE, no_repeat_close = FALSE, list/check_locs, use_labels = FALSE)
+/proc/show_radial_menu(mob/user, atom/anchor, list/choices, uniqueid, radius, datum/callback/custom_check, require_near = FALSE, tooltips = FALSE, no_repeat_close = FALSE, list/check_locs, use_labels = RADIAL_LABELS_NONE)
 	if(!user || !anchor || !length(choices))
 		return
 	if(!uniqueid)
@@ -308,14 +268,14 @@ GLOBAL_LIST_EMPTY(radial_menus)
 		for(var/atom/thing in check_locs)
 			check_locs[thing] = thing.loc
 
-	if(GLOB.radial_menus[uniqueid])
+	if(global.radial_menus[uniqueid])
 		if(!no_repeat_close)
-			var/datum/radial_menu/menu = GLOB.radial_menus[uniqueid]
+			var/datum/radial_menu/menu = global.radial_menus[uniqueid]
 			menu.finished = TRUE
 		return
 
 	var/datum/radial_menu/menu = new
-	GLOB.radial_menus[uniqueid] = menu
+	global.radial_menus[uniqueid] = menu
 	if(radius)
 		menu.radius = radius
 	if(istype(custom_check))
@@ -327,7 +287,26 @@ GLOBAL_LIST_EMPTY(radial_menus)
 	menu.wait(user, anchor, require_near, check_locs)
 	var/answer = menu.selected_choice
 	qdel(menu)
-	GLOB.radial_menus -= uniqueid
+	global.radial_menus -= uniqueid
 	return answer
 
 #define RADIAL_INPUT(user, choices) show_radial_menu(user, user, choices)
+
+/*
+	Helper to make a radial menu button with a name and icon for a given atom.
+*/
+/proc/make_item_radial_menu_button(var/atom/movable/AM, var/name_prefix = "", var/name_suffix = "")
+	var/image/radial_button = new
+	radial_button.appearance = AM
+	radial_button.plane = FLOAT_PLANE
+	radial_button.layer = FLOAT_LAYER
+	radial_button.name = "[name_prefix][AM.name][name_suffix]"
+	return radial_button
+
+/*
+	Helper to make a radial menu button for a set of atoms with their names and icons.
+*/
+/proc/make_item_radial_menu_choices(var/list/items, var/name_prefix = "", var/name_suffix = "")
+	for(var/atom/movable/AM in items)
+		LAZYSET(., AM, make_item_radial_menu_button(AM, name_prefix, name_suffix))
+

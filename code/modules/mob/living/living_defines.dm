@@ -1,10 +1,13 @@
 /mob/living
 	see_in_dark = 2
 	see_invisible = SEE_INVISIBLE_LIVING
+	transform_animate_time = ANIM_LYING_TIME
+	abstract_type = /mob/living
 
 	//Health and life related vars
-	var/maxHealth = 100 //Maximum health that should be possible.
-	var/health = 100 	//A mob's health
+	max_health = 100 //Maximum health that should be possible.
+	current_health = INFINITY // A mob's current health. Set by update_health(). Defaults to INFINITY so mobs don't die on init.
+	skillset = /datum/skillset // moved here from /mob to avoid giving dview a skillset
 
 	var/hud_updateflag = 0
 
@@ -15,13 +18,10 @@
 	//var/fireloss = 0  //Burn damage caused by being way too hot, too cold or burnt.
 	//var/halloss = 0   //Hallucination damage. 'Fake' damage obtained through hallucinating or the holodeck. Sleeping should cause it to wear off.
 
-	var/last_special = 0 //Used by the resist verb, likely used to prevent players from bypassing next_move by logging in/out.
+	/// Used by the resist verb and some mob abilities.
+	var/next_special_ability = 0
 
-	var/t_oxygen = null
-	var/t_sl_gas = null
-	var/t_n2 = null
-
-	var/now_pushing = null
+	var/now_pushing = FALSE
 	var/mob_bump_flag = 0
 	var/mob_swap_flags = 0
 	var/mob_push_flags = 0
@@ -30,21 +30,79 @@
 	var/mob/living/cameraFollow = null
 	var/list/datum/action/actions = list()
 
-	var/update_slimes = 1
-	var/silent = null 		// Can't talk. Value goes down every life proc.
-	var/on_fire = 0 //The "Are we on fire?" var
-	var/fire_stacks
+	/// The "Are we on fire?" var. Use of is_on_fire() is preferred instead.
+	VAR_PRIVATE/_on_fire = FALSE
+	VAR_PRIVATE/_fire_intensity
 
-	var/failed_last_breath = 0 //This is used to determine if the mob failed a breath. If they did fail a brath, they will attempt to breathe each tick, otherwise just once per 4 ticks.
-	var/possession_candidate // Can be possessed by ghosts if unplayed.
-
-	var/eye_blind = null	//Carbon
-	var/eye_blurry = null	//Carbon
-	var/ear_damage = null	//Carbon
-	var/stuttering = null	//Carbon
-	var/slurring = null		//Carbon
+	/// A suffocation counter representing the number of ticks we should fail to breathe.
+	var/suffocation_counter = 0
+	/// This is used to determine if the mob failed a breath. If they did fail a breath, they will attempt to breathe each tick, otherwise just once per 4 ticks.
+	var/failed_last_breath = FALSE
+	/// Can be possessed by ghosts if unplayed.
+	var/possession_candidate = FALSE
 
 	var/job = null//Living
-	var/list/obj/aura/auras = null //Basically a catch-all aura/force-field thing.
 
 	var/last_resist = 0
+	var/admin_paralyzed = FALSE
+
+	/// For leaping and vaulting.
+	var/jumping = FALSE
+
+	var/list/chem_effects
+	var/list/_chem_doses
+	var/last_pain_message
+	var/next_pain_time = 0
+
+	var/stress = 0
+	var/currently_updating_stress = FALSE
+	var/list/stressors
+
+	var/life_tick
+
+	var/nutrition = 400
+	var/hydration = 400
+
+	var/original_fingerprint_seed
+	var/fingerprint
+	var/original_genetic_seed
+	var/unique_enzymes
+	var/blood_type = "A+"
+
+	var/last_cough = 0
+
+	// Used to track appearance descriptor datums.
+	// Currently only on humans due to the spaghetti code involved, TODO: generalize.
+	var/list/appearance_descriptors
+
+	/// Total level of flash protection
+	var/flash_protection = FLASH_PROTECTION_NONE
+
+	/// Whether this mob's ability to stand has been affected
+	var/stance_damage = 0
+
+	var/list/smell_cooldown
+
+	/// Whether or not this mob has a client who wishes to sleep indefinitely.
+	var/player_triggered_sleeping = FALSE
+
+	/// Organ instances that should report info to Stat().
+	var/list/stat_organs
+
+	/// Should this mob subscribe to the weather system for periodic weather effects?
+	var/weather_sensitive = FALSE
+
+	/// Var used to track current step for footsteps sounds.
+	var/tmp/step_count = 0
+
+	/// Has this mob -ever- had a gripper? Used to skip hand checks in some cases.
+	var/has_had_gripper = FALSE
+
+	/// Should grabs be placed in the hand rather than the general mob contents?
+	var/use_gripper_for_grabs_if_available = TRUE
+
+	/// Timer for chewing off your hand when cuffed.
+	var/next_restraint_chew = 0
+
+	/// Used by equip code to determine backpack overrides.
+	var/datum/backpack_setup/backpack_setup

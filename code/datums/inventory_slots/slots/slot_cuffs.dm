@@ -1,0 +1,27 @@
+/datum/inventory_slot/handcuffs
+	slot_name = "Handcuffs"
+	slot_id = slot_handcuffed_str
+	skip_on_inventory_display = TRUE // Handcuffs have their own logic on examine.
+	skip_on_strip_display = TRUE // Handcuffs are removed with their own button in the strip menu.
+	requires_organ_tag = list(
+		BP_L_HAND,
+		BP_R_HAND
+	)
+	mob_overlay_layer = HO_HANDCUFF_LAYER
+
+/datum/inventory_slot/handcuffs/equipped(mob/living/user, obj/item/prop, var/silent = FALSE)
+	. = ..()
+	if(.)
+		user.drop_held_items()
+
+/datum/inventory_slot/handcuffs/unequipped(var/mob/living/user, var/obj/item/prop, var/redraw_mob = TRUE)
+	. = ..()
+	if(. && user.buckled?.buckle_require_restraints)
+		user.buckled.unbuckle_mob(user)
+
+/datum/inventory_slot/handcuffs/can_equip_to_slot(var/mob/user, var/obj/item/prop, var/disable_warning, var/ignore_equipped)
+	. = ..() && istype(prop, /obj/item/handcuffs)
+
+/datum/inventory_slot/handcuffs/get_examined_string(mob/owner, mob/user, distance, hideflags, decl/pronouns/pronouns)
+	if(_holding)
+		return SPAN_WARNING("[pronouns.He] [pronouns.is] [html_icon(_holding)] restrained with \the [_holding]!")

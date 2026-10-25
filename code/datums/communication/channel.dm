@@ -1,6 +1,7 @@
 #define plain_key_name(A) key_name(A, highlight_special_characters = 0)
 
 /decl/communication_channel
+	abstract_type = /decl/communication_channel
 	var/name
 	var/config_setting
 	var/expected_communicator_type = /datum
@@ -9,6 +10,9 @@
 	var/mute_setting
 	var/show_preference_setting
 
+/decl/communication_channel/proc/get_emblem(client/C)
+	return
+
 /decl/communication_channel/proc/can_ignore(var/client/C)
 	if (!C)
 		return TRUE
@@ -16,7 +20,7 @@
 	if(!show_preference_setting)
 		return FALSE
 	// If you're trying to see the channel, you can't ignore it
-	if (C.get_preference_value(show_preference_setting) == GLOB.PREF_SHOW)
+	if (C.get_preference_value(show_preference_setting) == PREF_SHOW)
 		return FALSE
 	// I suppose the host is more equal than others
 	if (check_rights(R_HOST, 0, C))
@@ -45,7 +49,7 @@
 		log_debug("[log_info_line(communicator)] attempted to communicate over the channel [src] but was of an unexpected type.")
 		return FALSE
 
-	if(config_setting && !config.vars[config_setting] && !check_rights(R_INVESTIGATE,0,communicator))
+	if(config_setting && !get_config_value(config_setting) && !check_rights(R_INVESTIGATE,0,communicator))
 		to_chat(communicator, "<span class='danger'>[name] is globally muted.</span>")
 		return FALSE
 
@@ -99,6 +103,41 @@
 /decl/communication_channel/proc/do_receive_communication(var/datum/communicator, var/datum/receiver, var/message)
 	to_chat(receiver, message)
 
+
+/*
+ * Procs for the handling of system broadcasts
+ */
+/decl/communication_channel/proc/broadcast(message, force = FALSE)
+	if (!can_broadcast(message, force))
+		return FALSE
+	call(log_proc)("[(flags & COMMUNICATION_LOG_CHANNEL_NAME) ? "([name]) " : ""]SYSTEM BROADCAST : [message]")
+	return do_broadcast(message, force)
+
+
+/decl/communication_channel/proc/can_broadcast(message, override_config = FALSE)
+	if (!message)
+		return FALSE
+
+	if (!override_config && config_setting && !get_config_value(config_setting))
+		return FALSE
+
+	return TRUE
+
+
+/decl/communication_channel/proc/do_broadcast(message)
+	return
+
+
+/decl/communication_channel/proc/receive_broadcast(datum/receiver, message)
+	if (!can_receive_communication(receiver))
+		return
+	do_receive_broadcast(receiver, message)
+
+
+/decl/communication_channel/proc/do_receive_broadcast(datum/receiver, message)
+	to_chat(receiver, message)
+
+
 // Misc. helpers
 /datum/proc/communication_identifier()
 	return usr ? "[src] - usr: [plain_key_name(usr)]" : "[src]"
@@ -119,5 +158,11 @@
 	new_args += args.Copy(4)
 
 	return channel.communicate(arglist(new_args))
+
+/proc/communicate_broadcast(channel_type, message, forced = FALSE)
+	var/list/channels = decls_repository.get_decls_of_subtype(/decl/communication_channel)
+	var/decl/communication_channel/channel = channels[channel_type]
+
+	return channel.broadcast(message, forced)
 
 #undef plain_key_name

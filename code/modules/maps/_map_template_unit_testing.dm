@@ -1,0 +1,19 @@
+/datum/map_template
+	var/const/NO_APC         = BITFLAG(0)
+	var/const/NO_VENT        = BITFLAG(1)
+	var/const/NO_SCRUBBER    = BITFLAG(2)
+	var/const/SKIP_ALL_TESTS = BITFLAG(3)
+
+	var/list/area_usage_test_exempted_areas = list()
+	var/list/area_usage_test_exempted_root_areas = list()
+	var/list/apc_test_exempt_areas = list()
+	var/list/area_coherency_test_exempt_areas = list()
+	var/list/area_coherency_test_subarea_count = list()
+
+/datum/map_template/New(var/created_ad_hoc)
+	..(created_ad_hoc)
+	global.using_map.area_usage_test_exempted_areas |= area_usage_test_exempted_areas
+	global.using_map.area_usage_test_exempted_root_areas |= area_usage_test_exempted_root_areas
+	global.using_map.apc_test_exempt_areas |= apc_test_exempt_areas
+	global.using_map.area_coherency_test_exempt_areas |= area_coherency_test_exempt_areas
+	global.using_map.area_coherency_test_subarea_count |= area_coherency_test_subarea_count

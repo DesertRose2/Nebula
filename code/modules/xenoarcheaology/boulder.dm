@@ -1,61 +1,78 @@
 /obj/structure/boulder
 	name = "boulder"
-	desc = "Leftover rock from an excavation, it's been partially dug out already but there's still a lot to go."
-	icon = 'icons/obj/mining.dmi'
-	icon_state = "boulder1"
-	density = 1
-	opacity = 1
-	anchored = 1
-	material = /decl/material/solid/stone/sandstone
-	material_alteration = MAT_FLAG_ALTERATION_COLOR | MAT_FLAG_ALTERATION_NAME
+	desc = "A large boulder, somewhat bigger than a small boulder."
+	icon = 'icons/obj/structures/boulder.dmi'
+	icon_state = ICON_STATE_WORLD
+	density = TRUE
+	opacity = TRUE
+	anchored = TRUE
+	material = null
+	material_alteration = MAT_FLAG_ALTERATION_COLOR | MAT_FLAG_ALTERATION_NAME | MAT_FLAG_ALTERATION_DESC
 	var/excavation_level = 0
 	var/datum/artifact_find/artifact_find
-	var/last_act = 0
+
+/obj/structure/boulder/Initialize(ml, _mat, coloration)
+	if(isnull(material) && isnull(_mat))
+		var/turf/our_turf = loc
+		if(istype(our_turf))
+			material = our_turf.get_strata_material_type()
+		material ||= /decl/material/solid/stone/sandstone
+	. = ..()
+
+/obj/structure/boulder/excavated
+	desc = "Leftover rock from an excavation, it's been partially dug out already but there's still a lot to go."
+
+/obj/structure/boulder/basalt
+	material = /decl/material/solid/stone/basalt
+	color = /decl/material/solid/stone/basalt::color
+
+/obj/structure/boulder/sandstone
+	material = /decl/material/solid/stone/sandstone
+	color = /decl/material/solid/stone/sandstone::color
+
+/obj/structure/boulder/create_dismantled_products(turf/T)
+	new /obj/item/stack/material/ore(T, rand(3,5), material?.type)
+	matter = null
+	material = null
+	return ..()
 
 /obj/structure/boulder/Initialize(var/ml, var/_mat, var/coloration)
 	. = ..()
-	icon_state = "boulder[rand(1,6)]"
+	icon_state = "[initial(icon_state)][rand(1,6)]"
 	if(coloration)
 		color = coloration
 	excavation_level = rand(5, 50)
 
 /obj/structure/boulder/Destroy()
 	QDEL_NULL(artifact_find)
-	..()
+	return ..()
 
-/obj/structure/boulder/attackby(var/obj/item/I, var/mob/user)
-	if(istype(I, /obj/item/depth_scanner))
-		var/obj/item/depth_scanner/C = I
+/obj/structure/boulder/attackby(var/obj/item/used_item, var/mob/user)
+
+	if(istype(used_item, /obj/item/depth_scanner))
+		var/obj/item/depth_scanner/C = used_item
 		C.scan_atom(user, src)
-		return
+		return TRUE
 
-	if(istype(I, /obj/item/measuring_tape))
-		var/obj/item/measuring_tape/P = I
-		user.visible_message("<span class='notice'>\The [user] extends \the [P] towards \the [src].</span>", "<span class='notice'>You extend \the [P] towards \the [src].</span>")
+	if(istype(used_item, /obj/item/measuring_tape))
+		var/obj/item/measuring_tape/P = used_item
+		user.visible_message(
+			SPAN_NOTICE("\The [user] extends \the [P] towards \the [src]."),
+			SPAN_NOTICE("You extend \the [P] towards \the [src].")
+		)
 		if(do_after(user, 15))
-			to_chat(user, "<span class='notice'>\The [src] has been excavated to a depth of [src.excavation_level]cm.</span>")
-		return
+			to_chat(user, SPAN_NOTICE("\The [src] has been excavated to a depth of [src.excavation_level]cm."))
+		return TRUE
 
-	if(istype(I, /obj/item/pickaxe))
-		var/obj/item/pickaxe/P = I
-
-		if(last_act + P.digspeed > world.time)//prevents message spam
-			return
-		last_act = world.time
-
-		to_chat(user, "<span class='warning'>You start [P.drill_verb] [src].</span>")
-
-		if(!do_after(user, P.digspeed))
-			return
-
-		to_chat(user, "<span class='notice'>You finish [P.drill_verb] [src].</span>")
-		excavation_level += P.excavation_amount
-
+	if(used_item.do_tool_interaction(TOOL_PICK, user, src, 3 SECONDS, set_cooldown = TRUE))
+		excavation_level += used_item.get_tool_property(TOOL_PICK, TOOL_PROP_EXCAVATION_DEPTH)
 		if(excavation_level > 200)
-			//failure
-			user.visible_message("<span class='warning'>\The [src] suddenly crumbles away.</span>", "<span class='warning'>\The [src] has disintegrated under your onslaught, any secrets it was holding are long gone.</span>")
-			qdel(src)
-			return
+			user.visible_message(
+				SPAN_DANGER("\The [src] suddenly crumbles away."),
+				SPAN_DANGER("\The [src] has disintegrated under your onslaught. Any secrets it was holding are long gone.")
+			)
+			physically_destroyed()
+			return TRUE
 
 		if(prob(excavation_level))
 			//success
@@ -66,20 +83,38 @@
 					var/obj/structure/artifact/X = O
 					if(X.my_effect)
 						X.my_effect.artifact_id = artifact_find.artifact_id
-				src.visible_message("<span class='warning'>\The [src] suddenly crumbles away.</span>")
+				visible_message(SPAN_DANGER("\The [src] suddenly crumbles away."))
 			else
-				user.visible_message("<span class='warning'>\The [src] suddenly crumbles away.</span>", "<span class='notice'>\The [src] has been whittled away under your careful excavation, but there was nothing of interest inside.</span>")
-			qdel(src)
+				user.visible_message(
+					SPAN_DANGER("\The [src] suddenly crumbles away."),
+					SPAN_DANGER("\The [src] has been whittled away under your careful excavation, but there was nothing of interest inside.")
+				)
+			physically_destroyed()
+		return TRUE
+
+	return ..()
 
 /obj/structure/boulder/Bumped(AM)
 	. = ..()
-	if(istype(AM,/mob/living/carbon/human))
-		var/mob/living/carbon/human/H = AM
-		var/obj/item/pickaxe/P = H.get_inactive_hand()
-		if(istype(P))
-			src.attackby(P, H)
+	if(isliving(AM))
+		var/mob/living/user = AM
+		var/obj/item/equipped_item = user.get_active_held_item()
+		if(istype(equipped_item) && IS_PICK(equipped_item))
+			attackby(equipped_item, user)
 
-	else if(istype(AM,/mob/living/silicon/robot))
-		var/mob/living/silicon/robot/R = AM
-		if(istype(R.module_active,/obj/item/pickaxe))
-			attackby(R.module_active,R)
+/obj/structure/boulder/iron
+	material = /decl/material/solid/hematite
+/obj/structure/boulder/coal
+	material = /decl/material/solid/graphite
+/obj/structure/boulder/silver
+	material = /decl/material/solid/tetrahedrite
+/obj/structure/boulder/gold
+	material = /decl/material/solid/metal/gold
+/obj/structure/boulder/uranium
+	material = /decl/material/solid/pitchblende
+/obj/structure/boulder/platinum
+	material = /decl/material/solid/sperrylite
+/obj/structure/boulder/lead
+	material = /decl/material/solid/galena
+/obj/structure/boulder/diamond
+	material = /decl/material/solid/gemstone/diamond

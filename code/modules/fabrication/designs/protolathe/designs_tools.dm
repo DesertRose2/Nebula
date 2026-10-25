@@ -11,9 +11,6 @@
 /datum/fabricator_recipe/protolathe/tool/brace_jack
 	path = /obj/item/crowbar/brace_jack
 
-/datum/fabricator_recipe/protolathe/tool/clamp
-	path = /obj/item/clamp
-
 /datum/fabricator_recipe/protolathe/tool/inducer
 	path = /obj/item/inducer
 
@@ -21,7 +18,7 @@
 	path = /obj/item/scanner/price
 
 /datum/fabricator_recipe/protolathe/tool/experimental_welder
-	path = /obj/item/weldingtool/experimental
+	path = /obj/item/fuelled_tool/welding/experimental
 
 /datum/fabricator_recipe/protolathe/tool/shield_diffuser
 	path = /obj/item/shield_diffuser
@@ -33,16 +30,16 @@
 	path = /obj/item/oxycandle
 
 /datum/fabricator_recipe/protolathe/tool/scalpel_laser1
-	path = /obj/item/scalpel/laser1
+	path = /obj/item/scalpel/laser
 
 /datum/fabricator_recipe/protolathe/tool/scalpel_laser2
-	path = /obj/item/scalpel/laser2
+	path = /obj/item/scalpel/laser/upgraded
 
 /datum/fabricator_recipe/protolathe/tool/scalpel_laser3
-	path = /obj/item/scalpel/laser3
+	path = /obj/item/scalpel/laser/advanced
 
 /datum/fabricator_recipe/protolathe/tool/scalpel_manager
-	path = /obj/item/scalpel/manager
+	path = /obj/item/incision_manager
 
 /datum/fabricator_recipe/protolathe/tool/noreactsyringe
 	path = /obj/item/chems/syringe/noreact
@@ -50,7 +47,7 @@
 /datum/fabricator_recipe/protolathe/tool/advancedsyringe
 	path = /obj/item/chems/syringe/advanced
 
-/datum/fabricator_recipe/protolathe/tool/slime_scanner
+/datum/fabricator_recipe/protolathe/tool/xenoscanner
 	path = /obj/item/scanner/xenobio
 
 /datum/fabricator_recipe/protolathe/tool/robot_scanner
@@ -68,6 +65,12 @@
 /datum/fabricator_recipe/protolathe/tool/adv_reagent_scanner
 	path = /obj/item/scanner/reagent/adv
 
+/datum/fabricator_recipe/protolathe/tool/health_scanner
+	path = /obj/item/scanner/health
+
+/datum/fabricator_recipe/protolathe/tool/breath_scanner
+	path = /obj/item/scanner/breath
+
 /datum/fabricator_recipe/protolathe/tool/nanopaste
 	path = /obj/item/stack/nanopaste
 
@@ -78,27 +81,25 @@
 	path = /obj/item/bodybag/cryobag
 
 /datum/fabricator_recipe/protolathe/tool/jackhammer
-	path = /obj/item/pickaxe/jackhammer
+	path = /obj/item/tool/hammer/jack
 
 /datum/fabricator_recipe/protolathe/tool/drill
-	path = /obj/item/pickaxe/drill
+	path = /obj/item/tool/drill
 
-/*
 /datum/fabricator_recipe/protolathe/tool/plasmacutter
 	path = /obj/item/gun/energy/plasmacutter
-*/
 
-/datum/fabricator_recipe/protolathe/tool/pick_diamond
-	path = /obj/item/pickaxe/diamond
+/datum/fabricator_recipe/protolathe/tool/pick_titanium
+	path = /obj/item/tool/pickaxe/titanium
 
 /datum/fabricator_recipe/protolathe/tool/drill_diamond
-	path = /obj/item/pickaxe/diamonddrill
+	path = /obj/item/tool/drill/diamond
 
 /datum/fabricator_recipe/protolathe/tool/depth_scanner
 	path = /obj/item/depth_scanner
 
 /datum/fabricator_recipe/protolathe/tool/rped
-	path = /obj/item/storage/part_replacer
+	path = /obj/item/part_replacer
 
 /datum/fabricator_recipe/protolathe/tool/rped_advanced
-	path = /obj/item/storage/part_replacer/advanced
+	path = /obj/item/part_replacer/advanced

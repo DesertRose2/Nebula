@@ -1,75 +1,58 @@
-//NEVER USE THIS IT SUX	-PETETHEGOAT
-//THE GOAT WAS RIGHT - RKF
-
-var/global/list/cached_icons = list()
-
-/obj/item/chems/glass/paint
-	desc = "It's a paint bucket."
+/obj/item/chems/glass/bucket/paint
 	name = "paint bucket"
+	desc = "It's a paint bucket."
 	icon = 'icons/obj/items/paint_bucket.dmi'
-	icon_state = "paintbucket"
-	item_state = "paintcan"
 	material = /decl/material/solid/metal/aluminium
 	w_class = ITEM_SIZE_NORMAL
 	amount_per_transfer_from_this = 10
 	possible_transfer_amounts = @"[10,20,30,60]"
-	volume = 60
-	unacidable = 0
-	atom_flags = ATOM_FLAG_OPEN_CONTAINER
+	chem_volume = 60
 	var/pigment
 
-/obj/item/chems/glass/paint/afterattack(turf/simulated/target, mob/user, proximity)
-	if(!proximity) return
-	if(istype(target) && reagents.total_volume > 5)
-		user.visible_message("<span class='warning'>\The [target] has been splashed with something by [user]!</span>")
-		reagents.trans_to_turf(target, 5)
-	else
-		return ..()
-
-/obj/item/chems/glass/paint/Initialize()
-	. = ..()
-	reagents.add_reagent(/decl/material/liquid/narcotics, reagents.maximum_volume-10)
+/obj/item/chems/glass/bucket/paint/populate_reagents()
+	var/amt = REAGENT_MAXIMUM_VOLUME(reagents)
 	if(pigment)
-		reagents.add_reagent(pigment, reagents.maximum_volume-10)
+		amt = round(amt/2)
+		add_to_reagents(pigment, amt)
+	add_to_reagents(/decl/material/liquid/paint, amt)
 
-/obj/item/chems/glass/paint/on_update_icon()
-	overlays.Cut()
-	if(reagents.total_volume)
-		var/image/filling = image('icons/obj/reagentfillings.dmi', src, "paintbucket")
-		filling.color = reagents.get_color()
-		overlays += filling
+/obj/item/chems/glass/bucket/paint/get_edible_material_amount(mob/eater)
+	return 0
 
-/obj/item/chems/glass/paint/red
+/obj/item/chems/glass/bucket/paint/get_utensil_food_type()
+	return null
+
+/obj/item/chems/glass/bucket/paint/red
 	name = "red paint bucket"
-	pigment = /decl/material/pigment/red
+	pigment = /decl/material/liquid/pigment/red
 
-/obj/item/chems/glass/paint/yellow
+/obj/item/chems/glass/bucket/paint/yellow
 	name = "yellow paint bucket"
-	pigment = /decl/material/pigment/yellow
+	pigment = /decl/material/liquid/pigment/yellow
 
-/obj/item/chems/glass/paint/green
+/obj/item/chems/glass/bucket/paint/green
 	name = "green paint bucket"
-	pigment = /decl/material/pigment/green
+	pigment = /decl/material/liquid/pigment/green
 
-/obj/item/chems/glass/paint/blue
+/obj/item/chems/glass/bucket/paint/blue
 	name = "blue paint bucket"
-	pigment = /decl/material/pigment/blue
+	pigment = /decl/material/liquid/pigment/blue
 
-/obj/item/chems/glass/paint/purple
+/obj/item/chems/glass/bucket/paint/purple
 	name = "purple paint bucket"
-	pigment = /decl/material/pigment/purple
+	pigment = /decl/material/liquid/pigment/purple
 
-/obj/item/chems/glass/paint/black
+/obj/item/chems/glass/bucket/paint/black
 	name = "black paint bucket"
-	pigment = /decl/material/pigment/black
+	pigment = /decl/material/liquid/pigment/black
 
-/obj/item/chems/glass/paint/white
+/obj/item/chems/glass/bucket/paint/white
 	name = "white paint bucket"
-	pigment = /decl/material/pigment/white
+	pigment = /decl/material/liquid/pigment/white
 
-/obj/item/chems/glass/paint/random
+/obj/item/chems/glass/bucket/paint/random
 	name = "odd paint bucket"
 
-/obj/item/chems/glass/paint/random/Initialize()
-	pigment = pick(subtypesof(/decl/material/pigment))
+/obj/item/chems/glass/bucket/paint/random/Initialize()
+	pigment = pick(decls_repository.get_decl_paths_of_subtype(/decl/material/liquid/pigment))
 	. = ..()

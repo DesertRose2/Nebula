@@ -6,8 +6,10 @@
 	icon_state = ICON_STATE_WORLD
 	center_of_mass = null
 	randpixel = 0
+	material = /decl/material/solid/organic/plastic
 
 	var/screen_icon
+	var/dark_screen_state
 	var/list/decals
 	var/computer_emagged = FALSE
 	var/ambience_last_played
@@ -19,5 +21,4 @@
 	var/interact_sound_volume = 40
 	var/list/default_hardware = list()
 	var/list/default_programs = list()
-	var/initial_hardware_flag = 0
 	var/computer_type = /datum/extension/assembly/modular_computer

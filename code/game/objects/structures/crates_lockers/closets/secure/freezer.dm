@@ -4,9 +4,11 @@
 
 /obj/structure/closet/secure_closet/freezer/kitchen/WillContain()
 	return list(
-		/obj/item/chems/food/condiment/salt = 1,
-		/obj/item/chems/food/condiment/flour = 7,
-		/obj/item/chems/food/condiment/sugar = 2
+		/obj/item/chems/condiment/large/salt = 1,
+		/obj/item/chems/condiment/flour = 7,
+		/obj/item/chems/condiment/yeast = 1,
+		/obj/item/chems/condiment/spices = 1,
+		/obj/item/chems/condiment/sugar = 2
 	)
 
 /obj/structure/closet/secure_closet/freezer/kitchen/mining
@@ -19,8 +21,8 @@
 
 /obj/structure/closet/secure_closet/freezer/meat/WillContain()
 	return list(
-		/obj/item/chems/food/snacks/meat/beef = 8,
-		/obj/item/chems/food/snacks/fish = 4
+		/obj/item/food/butchery/meat/beef = 8,
+		/obj/item/food/butchery/meat/fish = 4
 	)
 
 /obj/structure/closet/secure_closet/freezer/fridge
@@ -30,9 +32,11 @@
 
 /obj/structure/closet/secure_closet/freezer/fridge/WillContain()
 	return list(
-		/obj/item/chems/food/drinks/milk = 6,
-		/obj/item/chems/food/drinks/soymilk = 4,
-		/obj/item/storage/fancy/egg_box = 4
+		/obj/item/chems/drinks/milk = 6,
+		/obj/item/chems/drinks/soymilk = 4,
+		/obj/item/food/dairy/butter/stick = 2,
+		/obj/item/food/dairy/butter/stick/margarine = 2,
+		/obj/item/box/fancy/egg_box = 4
 	)
 
 /obj/structure/closet/secure_closet/freezer/money
@@ -41,15 +45,15 @@
 	closet_appearance = null
 	req_access = list(access_heads_vault)
 
-/obj/structure/closet/secure_closet/freezer/money/Initialize()
-	. = ..()
+/obj/structure/closet/secure_closet/freezer/money/WillContain()
+	. = list()
 	//let's make hold a substantial amount.
 	var/created_size = 0
 	for(var/i = 1 to 200) //sanity loop limit
 		var/obj/item/cash_type = pick(3; /obj/item/cash/c1000, 4; /obj/item/cash/c500, 5; /obj/item/cash/c200)
-		var/bundle_size = initial(cash_type.w_class) / 2
+		var/bundle_size = initial(cash_type.w_class)
 		if(created_size + bundle_size <= storage_capacity)
 			created_size += bundle_size
-			new cash_type(src)
+			. += cash_type
 		else
 			break

@@ -36,13 +36,13 @@ Class Procs:
 		Called when zones have a direct connection and equivalent pressure and temperature.
 		Merges the zones to create a single zone.
 
-	connect(turf/simulated/A, turf/B)
-		Called by turf/update_air_properties(). The first argument must be simulated.
+	connect(turf/A, turf/B)
+		Called by turf/update_air_properties(). The first argument must participate in ZAS.
 		Creates a connection between A and B.
 
 	mark_zone_update(zone/Z)
 		Adds zone to the update list. Unlike mark_for_update(), this one is called automatically whenever
-		air is returned from a simulated turf.
+		air is returned from a turf.
 
 	equivalent_pressure(zone/A, zone/B)
 		Currently identical to A.air.compare(B.air). Returns 1 when directly connected zones are ready to be merged.
@@ -133,10 +133,18 @@ SUBSYSTEM_DEF(air)
 	report_progress("Processing Geometry...")
 
 	var/simulated_turf_count = 0
-	for(var/turf/simulated/S)
+	for(var/turf/T in world)
+		// Although update_air_properties can be called on non-ZAS participating turfs for convenience, it is unnecessary on roundstart/reboot.
+		if(!SHOULD_PARTICIPATE_IN_ZONES(T))
+			continue
 		simulated_turf_count++
-		S.update_air_properties()
-
+		// We also skip anything already queued, since it'll be settled when fire() runs anyway.
+		if(T.needs_air_update)
+			continue
+		T.update_air_properties()
+		// air state is necessarily globally incomplete during this
+		// so we can't do T.post_update_air_properties(), which needs
+		// connections to have been settled already.
 		CHECK_TICK
 
 	report_progress({"Total Simulated Turfs: [simulated_turf_count]
@@ -171,6 +179,7 @@ Total Unsimulated Turfs: [world.maxx*world.maxy*world.maxz - simulated_turf_coun
 	var/list/curr_hotspot = processing_hotspots
 	var/list/curr_zones = zones_to_update
 
+	var/airblock // zeroed by ATMOS_CANPASS_TURF, declared early as microopt
 	while (curr_tiles.len)
 		var/turf/T = curr_tiles[curr_tiles.len]
 		curr_tiles.len--
@@ -184,9 +193,8 @@ Total Unsimulated Turfs: [world.maxx*world.maxy*world.maxz - simulated_turf_coun
 			continue
 
 		//check if the turf is self-zone-blocked
-		var/c_airblock
-		ATMOS_CANPASS_TURF(c_airblock, T, T)
-		if(c_airblock & ZONE_BLOCKED)
+		ATMOS_CANPASS_TURF(airblock, T, T)
+		if(airblock & ZONE_BLOCKED)
 			deferred += T
 			if (no_mc_tick)
 				CHECK_TICK
@@ -196,10 +204,9 @@ Total Unsimulated Turfs: [world.maxx*world.maxy*world.maxz - simulated_turf_coun
 
 		T.update_air_properties()
 		T.post_update_air_properties()
-		T.needs_air_update = 0
+		T.needs_air_update = FALSE
 		#ifdef ZASDBG
-		T.overlays -= mark
-		updated++
+		T.remove_vis_contents(zasdbgovl_mark)
 		#endif
 
 		if (no_mc_tick)
@@ -213,10 +220,9 @@ Total Unsimulated Turfs: [world.maxx*world.maxy*world.maxz - simulated_turf_coun
 
 		T.update_air_properties()
 		T.post_update_air_properties()
-		T.needs_air_update = 0
+		T.needs_air_update = FALSE
 		#ifdef ZASDBG
-		T.overlays -= mark
-		updated++
+		T.remove_vis_contents(zasdbgovl_mark)
 		#endif
 
 		if (no_mc_tick)
@@ -314,29 +320,37 @@ Total Unsimulated Turfs: [world.maxx*world.maxy*world.maxz - simulated_turf_coun
 		B.c_merge(A)
 		mark_zone_update(A)
 
-/datum/controller/subsystem/air/proc/connect(turf/simulated/A, turf/simulated/B)
+/datum/controller/subsystem/air/proc/connect(turf/A, turf/B)
 	#ifdef ZASDBG
-	ASSERT(istype(A))
+	ASSERT(isturf(A))
 	ASSERT(isturf(B))
 	ASSERT(A.zone)
 	ASSERT(!A.zone.invalid)
-	//ASSERT(B.zone)
 	ASSERT(A != B)
 	#endif
 
+	if(!SHOULD_PARTICIPATE_IN_ZONES(A))
+		return
+
 	var/block = air_blocked(A,B)
-	if(block & AIR_BLOCKED) return
+	if(block & AIR_BLOCKED)
+		return
 
 	var/direct = !(block & ZONE_BLOCKED)
-	var/space = !istype(B)
+	var/space = !SHOULD_PARTICIPATE_IN_ZONES(B)
 
 	if(!space)
 		if(min(A.zone.contents.len, B.zone.contents.len) < ZONE_MIN_SIZE || (direct && (equivalent_pressure(A.zone,B.zone) || times_fired == 0)))
 			merge(A.zone,B.zone)
 			return
 
+	#ifdef MULTIZAS
+	var/a_to_b = get_dir_multiz(A,B)
+	var/b_to_a = get_dir_multiz(B,A)
+	#else
 	var/a_to_b = get_dir(A,B)
 	var/b_to_a = get_dir(B,A)
+	#endif
 
 	if(!A.connections) A.connections = new
 	if(!B.connections) B.connections = new
@@ -360,13 +374,15 @@ Total Unsimulated Turfs: [world.maxx*world.maxy*world.maxz - simulated_turf_coun
 	#ifdef ZASDBG
 	ASSERT(isturf(T))
 	#endif
-	if(T.needs_air_update)
+	// don't queue us if we've already been queued
+	// and if SSair hasn't run, every turf in the world will get updated soon anyway
+	if(T.needs_air_update || !SSair.initialized)
 		return
 	tiles_to_update += T
 	#ifdef ZASDBG
-	T.overlays += mark
+	T.add_vis_contents(zasdbgovl_mark)
 	#endif
-	T.needs_air_update = 1
+	T.needs_air_update = TRUE
 
 /datum/controller/subsystem/air/proc/mark_zone_update(zone/Z)
 	#ifdef ZASDBG
@@ -409,29 +425,14 @@ Total Unsimulated Turfs: [world.maxx*world.maxy*world.maxz - simulated_turf_coun
 		return edge
 	else
 		for(var/connection_edge/unsimulated/edge in A.edges)
-			if(has_same_air(edge.B,B))
+			var/datum/gas_mixture/opponent_air = edge.B.return_air()
+			var/turf/our_turf = B
+			if(opponent_air.compare(our_turf.return_air()))
 				return edge
 		var/connection_edge/edge = new/connection_edge/unsimulated(A,B)
 		edges += edge
 		edge.recheck()
 		return edge
-
-/datum/controller/subsystem/air/proc/has_same_air(turf/A, turf/B)
-	if(A.initial_gas)
-		if(!B.initial_gas)
-			return 0
-		for(var/g in A.initial_gas)
-			if(A.initial_gas[g] != B.initial_gas[g])
-				return 0
-	if(B.initial_gas)
-		if(!A.initial_gas)
-			return 0
-		for(var/g in B.initial_gas)
-			if(A.initial_gas[g] != B.initial_gas[g])
-				return 0
-	if(A.temperature != B.temperature)
-		return 0
-	return 1
 
 /datum/controller/subsystem/air/proc/remove_edge(connection_edge/E)
 	edges -= E

@@ -1,6 +1,10 @@
 // Init optimization.
 
-GLOBAL_LIST_INIT(machine_path_to_circuit_type, cache_circuits_by_build_path())
+var/global/list/machine_path_to_circuit_type
+/proc/get_circuit_by_build_path(var/circuit)
+	if(!global.machine_path_to_circuit_type)
+		global.machine_path_to_circuit_type = cache_circuits_by_build_path()
+	return global.machine_path_to_circuit_type[circuit]
 
 /proc/cache_circuits_by_build_path()
 	. = list()
@@ -18,7 +22,7 @@ GLOBAL_LIST_INIT(machine_path_to_circuit_type, cache_circuits_by_build_path())
 /obj/machinery/proc/populate_parts(var/full_populate) // Full populate creates a circuitboard and all needed components automatically.
 	if(full_populate)
 		var/path_to_check = base_type || type
-		var/board_path = GLOB.machine_path_to_circuit_type[path_to_check]
+		var/board_path = get_circuit_by_build_path(path_to_check)
 		if(board_path)
 			var/obj/item/stock_parts/circuitboard/board = install_component(board_path, refresh_parts = FALSE)
 			var/list/req_components = board.spawn_components || board.req_components
@@ -29,16 +33,20 @@ GLOBAL_LIST_INIT(machine_path_to_circuit_type, cache_circuits_by_build_path())
 				LAZYINITLIST(uncreated_component_parts)
 				for(var/type in req_components)
 					uncreated_component_parts[type] += (req_components[type] || 1)
-		if(initial_access && length(initial_access) > 0)
+		if(LAZYLEN(initial_access) > 0)
 			for(var/access_list in initial_access)
 				// Each part is an AND component.
-				var/obj/item/stock_parts/network_lock/lock = install_component(/obj/item/stock_parts/network_lock/buildable, refresh_parts = FALSE)
-				lock.grants = access_list
+				var/obj/item/stock_parts/network_receiver/network_lock/lock = install_component(/obj/item/stock_parts/network_receiver/network_lock/buildable, refresh_parts = FALSE)
+				lock.groups = islist(access_list) ? access_list : list(access_list)
 
 	// Create the parts we are supposed to have. If not full_populate, this is only hard-baked parts, and more will be added later.
 	for(var/component_path in uncreated_component_parts)
 		var/number = uncreated_component_parts[component_path] || 1
 		LAZYREMOVE(uncreated_component_parts, component_path)
+		// Stacks are created differently to avoid qdel churn.
+		if(ispath(component_path, /obj/item/stack))
+			install_component(new component_path(src, number), refresh_parts = FALSE)
+			continue
 		for(var/i in 1 to number)
 			install_component(component_path, refresh_parts = FALSE)
 
@@ -52,7 +60,7 @@ GLOBAL_LIST_INIT(machine_path_to_circuit_type, cache_circuits_by_build_path())
 
 	var/list/processed_parts = list()
 	for(var/path in stock_part_presets)
-		var/decl/stock_part_preset/preset = decls_repository.get_decl(path)
+		var/decl/stock_part_preset/preset = GET_DECL(path)
 		var/number = stock_part_presets[path] || 1
 		for(var/obj/item/stock_parts/part in component_parts)
 			if(processed_parts[part])
@@ -69,7 +77,7 @@ GLOBAL_LIST_INIT(machine_path_to_circuit_type, cache_circuits_by_build_path())
 	if(!stock_part_presets)
 		return
 	for(var/path in stock_part_presets)
-		var/decl/stock_part_preset/preset = decls_repository.get_decl(path)
+		var/decl/stock_part_preset/preset = GET_DECL(path)
 		if(istype(part, preset.expected_part_type))
 			return preset
 
@@ -144,9 +152,11 @@ GLOBAL_LIST_INIT(machine_path_to_circuit_type, cache_circuits_by_build_path())
 		. = part
 
 	if(istype(part))
+		if(part in component_parts)
+			CRASH("Tried to insert \a '[part]' twice in \the [src] ([x], [y], [z])!")
 		LAZYADD(component_parts, part)
 		part.on_install(src)
-		GLOB.destroyed_event.register(part, src, .proc/component_destroyed)
+		events_repository.register(/decl/observ/destroyed, part, src, PROC_REF(component_destroyed))
 	else if(ispath(part))
 		LAZYINITLIST(uncreated_component_parts)
 		uncreated_component_parts[part] += 1
@@ -174,22 +184,23 @@ GLOBAL_LIST_INIT(machine_path_to_circuit_type, cache_circuits_by_build_path())
 		if(QDELETED(part)) // unremovable stuff
 			return
 		part.dropInto(loc)
-		GLOB.destroyed_event.unregister(part, src)
+		events_repository.unregister(/decl/observ/destroyed, part, src)
 		return part
 
-/obj/machinery/proc/replace_part(mob/user, var/obj/item/storage/part_replacer/R, var/obj/item/stock_parts/old_part, var/obj/item/stock_parts/new_part)
+/obj/machinery/proc/replace_part(mob/user, var/obj/item/part_replacer/replacer, var/obj/item/stock_parts/old_part, var/obj/item/stock_parts/new_part)
 	if(ispath(old_part))
 		old_part = get_component_of_type(old_part, TRUE)
 	old_part = uninstall_component(old_part)
-	if(R)
-		R.remove_from_storage(new_part, src)
-		R.handle_item_insertion(old_part, 1)
-		R.part_replacement_sound()
+	if(replacer)
+		if(replacer.storage)
+			replacer.storage.remove_from_storage(null, new_part, src)
+			replacer.storage.handle_item_insertion(null, old_part, TRUE)
+		replacer.part_replacement_sound()
 	install_component(new_part)
 	to_chat(user, "<span class='notice'>[old_part.name] replaced with [new_part.name].</span>")
 
 /obj/machinery/proc/component_destroyed(var/obj/item/component)
-	GLOB.destroyed_event.unregister(component, src)
+	events_repository.unregister(/decl/observ/destroyed, component, src)
 	LAZYREMOVE(component_parts, component)
 	LAZYREMOVE(processing_parts, component)
 	power_components -= component
@@ -217,7 +228,7 @@ GLOBAL_LIST_INIT(machine_path_to_circuit_type, cache_circuits_by_build_path())
 
 // Use to block interactivity if panel is not open, etc.
 /obj/machinery/proc/components_are_accessible(var/path)
-	if(ispath(path, /obj/item/stock_parts/access_lock))
+	if(ispath(path, /obj/item/stock_parts/access_lock) || ispath(path, /obj/item/stock_parts/item_holder))
 		return TRUE
 	return panel_open
 
@@ -235,7 +246,7 @@ GLOBAL_LIST_INIT(machine_path_to_circuit_type, cache_circuits_by_build_path())
 		to_chat(user, SPAN_WARNING("The insertion point for \the [component] is inaccessible!"))
 		return 0
 	for(var/path in maximum_component_parts)
-		if(istype(component, path) && (number_of_components(path) == maximum_component_parts[path]))
+		if(istype(component, path) && (number_of_components(path) >= maximum_component_parts[path]))
 			to_chat(user, SPAN_WARNING("There are too many parts of this type installed in \the [src] already!"))
 			return 0
 	return 1
@@ -243,18 +254,18 @@ GLOBAL_LIST_INIT(machine_path_to_circuit_type, cache_circuits_by_build_path())
 // Hook to get updates.
 /obj/machinery/proc/component_stat_change(var/obj/item/stock_parts/part, old_stat, flag)
 
-/obj/machinery/attackby(obj/item/I, mob/user)
-	if(component_attackby(I, user))
-		return TRUE
+/obj/machinery/attackby(obj/item/used_item, mob/user)
+	if((. = component_attackby(used_item, user)))
+		return
 	return ..()
 
-/obj/machinery/proc/component_attackby(obj/item/I, mob/user)
+/obj/machinery/proc/component_attackby(obj/item/used_item, mob/user)
 	for(var/obj/item/stock_parts/part in component_parts)
 		if(!components_are_accessible(part.type))
 			continue
-		if((. = part.attackby(I, user)))
+		if((. = part.attackby(used_item, user)))
 			return
-	return construct_state && construct_state.attackby(I, user, src)
+	return construct_state?.attackby(used_item, user, src)
 
 /obj/machinery/proc/component_attack_hand(mob/user)
 	for(var/obj/item/stock_parts/part in component_parts)
@@ -262,21 +273,21 @@ GLOBAL_LIST_INIT(machine_path_to_circuit_type, cache_circuits_by_build_path())
 			continue
 		if((. = part.attack_hand(user)))
 			return
-	return construct_state && construct_state.attack_hand(user, src)
+	return construct_state?.attack_hand(user, src)
 
 /*
 Standard helpers for users interacting with machinery parts.
 */
 
-/obj/machinery/proc/part_replacement(mob/user, obj/item/storage/part_replacer/R)
+/obj/machinery/proc/part_replacement(mob/user, obj/item/part_replacer/replacer)
 	for(var/obj/item/stock_parts/A in component_parts)
 		if(!A.base_type)
 			continue
 		if(!(A.part_flags & PART_FLAG_HAND_REMOVE))
 			continue
-		for(var/obj/item/stock_parts/B in R.contents)
+		for(var/obj/item/stock_parts/B in replacer.contents)
 			if(istype(B, A.base_type) && B.rating > A.rating)
-				replace_part(user, R, A, B)
+				replace_part(user, replacer, A, B)
 				return TRUE
 	for(var/path in uncreated_component_parts)
 		var/obj/item/stock_parts/A = path
@@ -284,13 +295,13 @@ Standard helpers for users interacting with machinery parts.
 			continue
 		var/base_type = initial(A.base_type)
 		if(base_type)
-			for(var/obj/item/stock_parts/B in R.contents)
+			for(var/obj/item/stock_parts/B in replacer.contents)
 				if(istype(B, base_type) && B.rating > initial(A.rating))
-					replace_part(user, R, A, B)
+					replace_part(user, replacer, A, B)
 					return TRUE
 
 /obj/machinery/proc/part_insertion(mob/user, obj/item/stock_parts/part) // Second argument may actually be an arbitrary item.
-	if(!user.canUnEquip(part) && !isstack(part))
+	if(!user.can_unequip_item(part) && !isstack(part))
 		return FALSE
 	var/number = can_add_component(part, user)
 	if(!number)
@@ -299,7 +310,7 @@ Standard helpers for users interacting with machinery parts.
 		var/obj/item/stack/stack = part
 		install_component(stack.split(number, TRUE))
 	else
-		user.unEquip(part, src)
+		user.try_unequip(part, src)
 		install_component(part)
 	user.visible_message(SPAN_NOTICE("\The [user] installs \the [part] in \the [src]!"), SPAN_NOTICE("You install \the [part] in \the [src]!"))
 	return TRUE
@@ -310,7 +321,7 @@ Standard helpers for users interacting with machinery parts.
 		var/obj/item/stock_parts/part = path
 		if(!(initial(part.part_flags) & PART_FLAG_HAND_REMOVE))
 			continue
-		var/obj/item/stock_parts/network_lock/lock = part
+		var/obj/item/stock_parts/network_receiver/network_lock/lock = part
 		if(istype(lock) && !allowed(user))
 			continue
 		if(components_are_accessible(path))
@@ -324,6 +335,7 @@ Standard helpers for users interacting with machinery parts.
 			return TRUE
 		remove_part_and_give_to_user(path, user)
 		return TRUE
+	return FALSE
 
 /obj/machinery/proc/remove_part_and_give_to_user(var/path, mob/user)
 	var/obj/item/stock_parts/part = uninstall_component(get_component_of_type(path, TRUE))
@@ -341,3 +353,12 @@ Standard helpers for users interacting with machinery parts.
 			var/present = number_of_components(required_type, only_functional)
 			if(present < needed)
 				LAZYSET(., required_type, needed - present)
+
+/obj/machinery/get_alt_interactions(mob/user)
+	. = ..()
+	for(var/obj/item/stock_parts/component in component_parts)
+		if(!components_are_accessible(component.type))
+			continue
+		var/list/machine_alt_interactions = component.get_machine_alt_interactions(user)
+		if(LAZYLEN(machine_alt_interactions))
+			LAZYADD(., machine_alt_interactions)

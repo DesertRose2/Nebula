@@ -1,4 +1,4 @@
-GLOBAL_LIST_INIT(local_networks, new)		
+var/global/list/local_networks = list()
 
 /datum/local_network
 	var/id_tag
@@ -7,11 +7,11 @@ GLOBAL_LIST_INIT(local_networks, new)
 
 /datum/local_network/New(var/_id)
 	id_tag = _id
-	GLOB.local_networks[id_tag] = src
+	global.local_networks[id_tag] = src
 
 /datum/local_network/Destroy()
 	network_entities.Cut()
-	GLOB.local_networks -= src
+	global.local_networks -= id_tag
 	. = ..()
 
 /datum/local_network/proc/within_radius(var/atom/checking)
@@ -23,11 +23,11 @@ GLOBAL_LIST_INIT(local_networks, new)
 
 /datum/local_network/proc/add_device(var/obj/machinery/device)
 	var/list/entities = get_devices(device.type)
-	
+
 	if(!entities)
 		entities = list()
 		network_entities[device.type] = entities
-	
+
 	entities[device] = TRUE
 
 	return entities[device]
@@ -58,20 +58,20 @@ GLOBAL_LIST_INIT(local_networks, new)
 
 
 //Multilevel network
-GLOBAL_LIST_INIT(multilevel_local_networks, new)	
+var/global/list/multilevel_local_networks = list()
 
 /datum/local_network/multilevel/New(var/_id)
 	id_tag = _id
-	GLOB.multilevel_local_networks[id_tag] = src
+	global.multilevel_local_networks[id_tag] = src
 
 /datum/local_network/multilevel/Destroy()
 	network_entities.Cut()
-	GLOB.multilevel_local_networks -= src
+	global.multilevel_local_networks -= src
 	. = ..()
 
 /datum/local_network/multilevel/within_radius(var/atom/checking)
 	for(var/entity_list in network_entities)
 		for(var/atom/entity in entity_list)
-			if(!(get_z(entity) in GetConnectedZlevels(get_z(checking))))
+			if(!(get_z(entity) in SSmapping.get_connected_levels(get_z(checking))))
 				return FALSE
 	return TRUE

@@ -1,11 +1,11 @@
 /datum/artifact_trigger/touch
 	name = "touch"
 
-/datum/artifact_trigger/touch/proc/can_touch(mob/living/carbon/human/H, bodypart)
+/datum/artifact_trigger/touch/proc/can_touch(mob/living/human/H, bodypart)
 	return TRUE
 
 /datum/artifact_trigger/touch/on_touch(mob/living/M)
-	return can_touch(M, M.hand ? BP_R_HAND : BP_L_HAND)
+	return can_touch(M, M.get_active_held_item_slot())
 
 /datum/artifact_trigger/touch/on_bump(atom/movable/AM)
 	if(prob(25))
@@ -14,7 +14,7 @@
 /datum/artifact_trigger/touch/organic
 	name = "organic touch"
 
-/datum/artifact_trigger/touch/organic/can_touch(mob/living/carbon/human/H, bodypart)
+/datum/artifact_trigger/touch/organic/can_touch(mob/living/human/H, bodypart)
 	if(!istype(H))
 		return FALSE
 	if(H.get_covering_equipped_item_by_zone(bodypart))
@@ -31,10 +31,10 @@
 	if(issilicon(L))
 		return TRUE
 	if(ishuman(L))
-		var/mob/living/carbon/human/H = L
+		var/mob/living/human/H = L
 		if(H.isSynthetic())
 			return TRUE
-		var/obj/item/organ/external/E = H.get_organ(bodypart)
+		var/obj/item/organ/external/E = GET_EXTERNAL_ORGAN(H, bodypart)
 		if(E && BP_IS_PROSTHETIC(E))
 			return TRUE
 		return FALSE

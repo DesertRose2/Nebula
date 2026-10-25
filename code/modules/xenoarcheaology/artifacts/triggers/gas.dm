@@ -5,7 +5,9 @@
 
 /datum/artifact_trigger/gas/New()
 	if(!gas_needed)
-		gas_needed = list(pick(subtypesof(/decl/material/gas)) = rand(1,10))
+		gas_needed = list(pick(get_filterable_material_types(as_list = TRUE)) = rand(1,10))
+	var/decl/material/gas/gas = GET_DECL(gas_needed[1])
+	name = "concentration of [gas.name]"
 
 /datum/artifact_trigger/gas/copy()
 	var/datum/artifact_trigger/gas/C = ..()
@@ -19,17 +21,13 @@
 			return FALSE
 
 /datum/artifact_trigger/gas/co2
-	name = "concentration of CO2"
 	gas_needed = list(/decl/material/gas/carbon_dioxide = 5)
 
 /datum/artifact_trigger/gas/o2
-	name = "concentration of oxygen"
 	gas_needed = list(/decl/material/gas/oxygen = 5)
 
 /datum/artifact_trigger/gas/n2
-	name = "concentration of nitrogen"
 	gas_needed = list(/decl/material/gas/nitrogen = 5)
 
 /datum/artifact_trigger/gas/hydrogen
-	name = "concentration of hydrogen"
 	gas_needed = list(/decl/material/gas/hydrogen = 5)

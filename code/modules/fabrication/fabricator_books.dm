@@ -8,22 +8,29 @@
 	active_power_usage = 1000
 	base_type = /obj/machinery/fabricator/book
 	fabricator_class = FABRICATOR_CLASS_BOOKS
-	base_storage_capacity = list(
-		/decl/material/solid/wood =      SHEET_MATERIAL_AMOUNT * 20,
-		/decl/material/solid/plastic =   SHEET_MATERIAL_AMOUNT * 20
-	)
 	color_selectable = TRUE
 
-/obj/machinery/fabricator/book/do_build(datum/fabricator_recipe/recipe, amount)
-	. = recipe.build(get_turf(src), amount, selected_color)
+/obj/machinery/fabricator/book/can_ingest(obj/item/thing)
+	var/static/list/paper_types = list(
+		/obj/item/paper,
+		/obj/item/shreddedp
+	)
+	. = is_type_in_list(thing, paper_types) || ..()
 
-/datum/fabricator_recipe/book/skill/build(var/turf/location, var/amount = 1, var/color = COLOR_WHITE)
+/obj/machinery/fabricator/book/make_order(datum/fabricator_recipe/recipe, multiplier)
+	var/datum/fabricator_build_order/order = ..()
+	LAZYSET(order.data, "selected_color", selected_color)
+	return order
+
+/obj/machinery/fabricator/book/do_build(datum/fabricator_build_order/order)
+	. = order.target_recipe.build(get_turf(src), order)
+
+/datum/fabricator_recipe/book/skill/build(var/turf/location, var/datum/fabricator_build_order/order)
 	. = list()
-	for(var/i = 1, i <= amount, i++)
+	for(var/i = 1, i <= order.multiplier, i++)
 		var/obj/item/book/skill/custom/new_item = new path(location)
 		if(colorable)
-			new_item.color = color
-			new_item.overlays += overlay_image('icons/obj/library.dmi', "tb_over_pages", null, RESET_COLOR)
+			new_item.set_color(order.get_data("selected_color", COLOR_WHITE))
 		. += new_item
 
 /obj/machinery/fabricator/book/get_color_list()

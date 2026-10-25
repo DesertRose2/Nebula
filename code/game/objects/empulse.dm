@@ -4,23 +4,17 @@
 
 // #define EMPDEBUG 10
 
-proc/empulse(turf/epicenter, heavy_range, light_range, log=0)
+/proc/empulse(turf/epicenter, heavy_range, light_range, log=0)
 	if(!epicenter) return
 
-	if(!istype(epicenter, /turf))
+	if(!isturf(epicenter))
 		epicenter = get_turf(epicenter.loc)
 
 	if(log)
 		log_and_message_admins("EMP with size ([heavy_range], [light_range]) in area [epicenter.loc.name] ")
 
 	if(heavy_range > 1)
-		var/obj/effect/overlay/pulse = new/obj/effect/overlay(epicenter)
-		pulse.icon = 'icons/effects/effects.dmi'
-		pulse.icon_state = "emppulse"
-		pulse.SetName("emp pulse")
-		pulse.anchored = 1
-		spawn(20)
-			qdel(pulse)
+		new /obj/effect/temp_visual/emppulse(epicenter)
 
 	if(heavy_range > light_range)
 		light_range = heavy_range

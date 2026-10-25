@@ -1,3 +1,6 @@
+#define SOAP_MAX_VOLUME     30 //Maximum volume the soap can contain
+#define SOAP_CLEANER_ON_WET 15 //Volume of cleaner generated when wetting the soap
+
 /obj/item/soap
 	name = "soap"
 	desc = "A cheap bar of soap. Doesn't smell."
@@ -6,11 +9,14 @@
 	icon_state = "soap"
 	atom_flags = ATOM_FLAG_OPEN_CONTAINER
 	w_class = ITEM_SIZE_SMALL
-	throwforce = 0
 	throw_speed = 4
 	throw_range = 20
-	var/key_data
+	material = /decl/material/liquid/cleaner/soap
+	max_health = 5
+	_base_attack_force = 0
+	chem_volume = SOAP_MAX_VOLUME
 
+	var/key_data
 	var/list/valid_colors = list(COLOR_GREEN_GRAY, COLOR_RED_GRAY, COLOR_BLUE_GRAY, COLOR_BROWN, COLOR_PALE_PINK, COLOR_PALE_BTL_GREEN, COLOR_OFF_WHITE, COLOR_GRAY40, COLOR_GOLD)
 	var/list/valid_scents = list("fresh air", "cinnamon", "mint", "cocoa", "lavender", "an ocean breeze", "a summer garden", "vanilla", "cheap perfume")
 	var/list/scent_intensity = list("faintly", "strongly", "overbearingly")
@@ -18,88 +24,107 @@
 	var/decal_name
 	var/list/decals = list("diamond", "heart", "circle", "triangle", "")
 
+/obj/item/soap/crafted
+	desc = "A lump of home-made soap."
+	icon_state = "soap-lump"
+	material_alteration = MAT_FLAG_ALTERATION_COLOR
+
+/obj/item/soap/crafted/generate_icon()
+	return
+
+/obj/item/soap/populate_reagents()
+	wet()
+
 /obj/item/soap/Initialize()
 	. = ..()
-	create_reagents(30)
-	wet()
+	generate_icon()
+
+/obj/item/soap/proc/generate_icon()
 	var/shape = pick(valid_shapes)
 	var/scent = pick(valid_scents)
 	var/smelly = pick(scent_intensity)
 	icon_state = "soap-[shape]"
-	color = pick(valid_colors)
+	set_color(pick(valid_colors))
 	decal_name = pick(decals)
 	desc = "\A [shape] bar of soap. It smells [smelly] of [scent]."
 	update_icon()
 
 /obj/item/soap/proc/wet()
-	reagents.add_reagent(/decl/material/liquid/cleaner, 15)
+	add_to_reagents(/decl/material/liquid/cleaner/soap, SOAP_CLEANER_ON_WET, phase = MAT_PHASE_LIQUID)
 
-/obj/item/soap/Crossed(var/mob/living/AM)
-	if(istype(AM))
-		AM.slip("the [src.name]",3)
+/obj/item/soap/Crossed(atom/movable/AM)
+	var/mob/living/victim = AM
+	if(istype(victim))
+		victim.slip("\the [src]", 3)
+	return ..()
 
 /obj/item/soap/afterattack(atom/target, mob/user, proximity)
-	if(!proximity) return
-	//I couldn't feasibly  fix the overlay bugs caused by cleaning items we are wearing.
-	//So this is a workaround. This also makes more sense from an IC standpoint. ~Carn
-	var/cleaned = FALSE
-	if(user.client && (target in user.client.screen))
-		to_chat(user, "<span class='notice'>You need to take that [target.name] off before cleaning it.</span>")
-	else if(istype(target,/obj/effect/decal/cleanable/blood))
-		to_chat(user, "<span class='notice'>You scrub \the [target.name] out.</span>")
-		target.clean_blood() //Blood is a cleanable decal, therefore needs to be accounted for before all cleanable decals.
-		cleaned = TRUE
-	else if(istype(target,/obj/effect/decal/cleanable))
-		to_chat(user, "<span class='notice'>You scrub \the [target.name] out.</span>")
-		qdel(target)
-		cleaned = TRUE
-	else if(istype(target,/turf) || istype(target, /obj/structure/catwalk))
-		var/turf/T = get_turf(target)
-		if(!T)
-			return
-		user.visible_message("<span class='warning'>[user] starts scrubbing \the [T].</span>")
-		T.clean(src, user, 80, "<span class='notice'>You scrub \the [target.name] clean.</span>")
-		cleaned = TRUE
-	else if(istype(target,/obj/structure/hygiene/sink))
-		to_chat(user, "<span class='notice'>You wet \the [src] in the sink.</span>")
-		wet()
-	else if(ishuman(target))
-		to_chat(user, "<span class='notice'>You clean \the [target.name].</span>")
-		if(reagents)
-			reagents.trans_to(target, reagents.total_volume / 8)
-		target.clean_blood() //Clean bloodied atoms. Blood decals themselves need to be handled above.
-		cleaned = TRUE
-	else 
-		to_chat(user, "<span class='notice'>You clean \the [target.name].</span>")
-		target.clean_blood() //Clean bloodied atoms. Blood decals themselves need to be handled above.
-		cleaned = TRUE
 
-	if(cleaned)
-		user.update_personal_goal(/datum/goal/clean, 1)
+	if(!proximity)
+		return ..()
+
+	if(istype(target,/obj/structure/hygiene/sink))
+		to_chat(user, SPAN_NOTICE("You wet \the [src] in the sink."))
+		wet()
+		return TRUE
+
+	if(REAGENT_TOTAL_VOLUME(reagents) < 1)
+		to_chat(user, SPAN_WARNING("\The [src] is too dry to clean \the [target]."))
+		return TRUE
+
+	if(isturf(target) || istype(target, /obj/structure/catwalk))
+		target = get_turf(target)
+		if(!isturf(target))
+			return ..()
+		user.visible_message(SPAN_NOTICE("\The [user] starts scrubbing \the [target]."))
+		if(!do_after(user, 8 SECONDS, target) && REAGENT_TOTAL_VOLUME(reagents))
+			return TRUE
+		to_chat(user, SPAN_NOTICE("You scrub \the [target] clean."))
+	else if(istype(target,/obj/effect/decal/cleanable))
+		to_chat(user, SPAN_NOTICE("You scrub \the [target] out."))
+	else
+		to_chat(user, SPAN_NOTICE("You clean \the [target]."))
+
+	reagents.touch_atom(target)
+	reagents.remove_any(1)
+	user.update_personal_goal(/datum/goal/clean, 1)
+	return TRUE
 
 //attack_as_weapon
-/obj/item/soap/attack(mob/living/target, mob/living/user, var/target_zone)
-	if(target && user && ishuman(target) && ishuman(user) && !target.stat && !user.stat && user.zone_sel &&user.zone_sel.selecting == BP_MOUTH)
-		user.visible_message("<span class='danger'>\The [user] washes \the [target]'s mouth out with soap!</span>")
-		if(reagents)
-			reagents.trans_to_mob(target, reagents.total_volume / 2, CHEM_INGEST)
+/obj/item/soap/use_on_mob(mob/living/target, mob/living/user, animate = TRUE)
+	if(ishuman(target) && !user?.check_intent(I_FLAG_HARM))
+		var/mob/living/human/victim = target
+		if(user.get_target_zone() == BP_MOUTH && victim.check_has_mouth())
+			user.visible_message(SPAN_DANGER("\The [user] washes \the [target]'s mouth out with soap!"))
+			if(reagents)
+				reagents.trans_to_mob(target, REAGENT_TOTAL_VOLUME(reagents) / 2, CHEM_INGEST)
+		else
+			user.visible_message(SPAN_NOTICE("\The [user] cleans \the [target]."))
+			if(reagents)
+				reagents.trans_to(target, REAGENT_TOTAL_VOLUME(reagents) / 8)
+			target.clean()
 		user.setClickCooldown(DEFAULT_QUICK_COOLDOWN) //prevent spam
-		return
-	..()
+		return TRUE
+	return ..()
 
-/obj/item/soap/attackby(var/obj/item/I, var/mob/user)
-	if(istype(I, /obj/item/key))
-		if(!key_data)
-			to_chat(user, "<span class='notice'>You imprint \the [I] into \the [src].</span>")
-			var/obj/item/key/K = I
+/obj/item/soap/attackby(var/obj/item/used_item, var/mob/user)
+	if(istype(used_item, /obj/item/key))
+		if(key_data)
+			to_chat(user, SPAN_WARNING("\The [src] already has a key imprint."))
+		else
+			to_chat(user, SPAN_NOTICE("You imprint \the [used_item] into \the [src]."))
+			var/obj/item/key/K = used_item
 			key_data = K.key_data
 			update_icon()
-		return
-	..()
+		return TRUE
+	return ..()
 
 /obj/item/soap/on_update_icon()
-	overlays.Cut()
+	. = ..()
 	if(key_data)
-		overlays += image(icon, icon_state = "soap_key_overlay")
+		add_overlay("soap_key_overlay")
 	else if(decal_name)
-		overlays +=	overlay_image(icon, "decal-[decal_name]")
+		add_overlay("decal-[decal_name]")
+
+#undef SOAP_MAX_VOLUME
+#undef SOAP_CLEANER_ON_WET

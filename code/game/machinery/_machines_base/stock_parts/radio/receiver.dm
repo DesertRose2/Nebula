@@ -3,7 +3,7 @@
 /obj/item/stock_parts/radio/receiver
 	name = "radio receiver"
 	desc = "A radio receiver designed for use with machines."
-	icon_state = "subspace_amplifier"
+	icon_state = "receiver"
 	multitool_extension = /datum/extension/interactive/multitool/radio/receiver
 	var/list/receive_and_write
 	var/list/receive_and_call
@@ -46,5 +46,6 @@
 			method.perform(machine, signal.data[thing])
 
 /obj/item/stock_parts/radio/receiver/buildable
+	max_health = null //Buildable variant may take damage
 	part_flags = PART_FLAG_HAND_REMOVE
 	material = /decl/material/solid/metal/steel

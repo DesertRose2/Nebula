@@ -1,24 +1,26 @@
-// TODO: remove the robot.mmi and robot.cell variables and completely rely on the robot component system
+// TODO: remove the robot.central_processor and robot.cell variables and completely rely on the robot component system
+/datum/robot_component
+	var/name
+	/// Installation status; not a bool, may be -1, 0 or 1.
+	var/installed    = 0
+	var/powered      = FALSE
+	var/toggled      = TRUE
+	var/brute_damage = 0
+	var/burn_damage  = 0
+	/// Amount of power used every MC tick. In joules.
+	var/idle_usage   = 0
+	/// Amount of power used for every action. Actions are module-specific. Actuator for each tile moved, etc.
+	var/active_usage = 0
+	/// HP of this component.
+	var/max_damage   = 30
+	var/mob/living/silicon/robot/owner
+	/// The actual device object that has to be installed for this.
+	var/external_type
+	/// The wrapped device(e.g. radio), only set if external_type isn't null
+	var/obj/item/wrapped
 
-/datum/robot_component/var/name
-/datum/robot_component/var/installed = 0
-/datum/robot_component/var/powered = 0
-/datum/robot_component/var/toggled = 1
-/datum/robot_component/var/brute_damage = 0
-/datum/robot_component/var/electronics_damage = 0
-/datum/robot_component/var/idle_usage = 0   // Amount of power used every MC tick. In joules.
-/datum/robot_component/var/active_usage = 0 // Amount of power used for every action. Actions are module-specific. Actuator for each tile moved, etc.
-/datum/robot_component/var/max_damage = 30  // HP of this component.
-/datum/robot_component/var/mob/living/silicon/robot/owner
-
-// The actual device object that has to be installed for this.
-/datum/robot_component/var/external_type = null
-
-// The wrapped device(e.g. radio), only set if external_type isn't null
-/datum/robot_component/var/obj/item/wrapped = null
-
-/datum/robot_component/New(mob/living/silicon/robot/R)
-	src.owner = R
+/datum/robot_component/New(mob/living/silicon/robot/robot)
+	src.owner = robot
 
 /datum/robot_component/proc/accepts_component(var/obj/item/thing)
 	. = istype(thing, external_type)
@@ -37,6 +39,13 @@
 	installed = -1
 	uninstall()
 
+/datum/robot_component/Destroy()
+	if(owner)
+		owner.components -= src
+	owner = null
+	wrapped = null
+	return ..()
+
 /datum/robot_component/proc/repair()
 	if (istype(wrapped, /obj/item/robot_parts/robot_component))
 		var/obj/item/robot_parts/robot_component/comp = wrapped
@@ -45,13 +54,13 @@
 	installed = 1
 	install()
 
-/datum/robot_component/proc/take_damage(brute, electronics, sharp, edge)
+/datum/robot_component/proc/take_component_damage(brute, electronics, sharp, edge)
 	if(installed != 1) return
 
 	brute_damage += brute
-	electronics_damage += electronics
+	burn_damage += electronics
 
-	if(brute_damage + electronics_damage >= max_damage) destroy()
+	if(brute_damage + burn_damage >= max_damage) destroy()
 
 /datum/robot_component/proc/heal_damage(brute, electronics)
 	if(installed != 1)
@@ -59,19 +68,19 @@
 		return 0
 
 	brute_damage = max(0, brute_damage - brute)
-	electronics_damage = max(0, electronics_damage - electronics)
+	burn_damage = max(0, burn_damage - electronics)
 
 /datum/robot_component/proc/is_powered()
-	return (installed == 1) && (brute_damage + electronics_damage < max_damage) && (!idle_usage || powered)
+	return (installed == 1) && (brute_damage + burn_damage < max_damage) && (!idle_usage || powered)
 
 /datum/robot_component/proc/update_power_state()
-	if(toggled == 0)
-		powered = 0
+	if(!toggled)
+		powered = FALSE
 		return
 	if(owner.cell_use_power(idle_usage))
-		powered = 1
+		powered = TRUE
 	else
-		powered = 0
+		powered = FALSE
 
 // ARMOUR
 // Protects the cyborg from damage. Usually first module to be hit
@@ -104,7 +113,7 @@
 
 //A fixed and much cleaner implementation of /tg/'s special snowflake code.
 /datum/robot_component/actuator/is_powered()
-	return (installed == 1) && (brute_damage + electronics_damage < max_damage)
+	return (installed == 1) && (brute_damage + burn_damage < max_damage)
 
 
 // POWER CELL
@@ -119,6 +128,10 @@
 	..()
 	stored_cell = owner.cell
 	owner.cell = null
+
+/datum/robot_component/cell/Destroy()
+	QDEL_NULL(stored_cell)
+	return ..()
 
 /datum/robot_component/cell/repair()
 	owner.cell = stored_cell
@@ -154,28 +167,14 @@
 	external_type = /obj/item/robot_parts/robot_component/camera
 	idle_usage = 10
 	max_damage = 40
-	var/obj/machinery/camera/camera
-
-/datum/robot_component/camera/New(mob/living/silicon/robot/R)
-	..()
-	camera = R.camera
 
 /datum/robot_component/camera/update_power_state()
-	..()
-	if (camera)
-		camera.status = powered
-
-/datum/robot_component/camera/install()
-	if (camera)
-		camera.status = 1
-
-/datum/robot_component/camera/uninstall()
-	if (camera)
-		camera.status = 0
+	. = ..()
+	cameranet.update_visibility(owner, FALSE)
 
 /datum/robot_component/camera/destroy()
-	if (camera)
-		camera.status = 0
+	. = ..()
+	cameranet.update_visibility(owner, FALSE)
 
 // SELF DIAGNOSIS MODULE
 // Analyses cyborg's modules, providing damage readouts and basic information
@@ -225,28 +224,45 @@
 	icon = 'icons/obj/robot_component.dmi'
 	icon_state = "working"
 	material = /decl/material/solid/metal/steel
-
-	var/brute = 0
-	var/burn = 0
+	max_health = 30
+	var/burn_damage = 0
+	var/brute_damage = 0
 	var/icon_state_broken = "broken"
-	var/total_dam = 0
-	var/max_dam = 30
 
-/obj/item/robot_parts/robot_component/proc/take_damage(var/brute_amt, var/burn_amt)
-	brute += brute_amt
-	burn += burn_amt
-	total_dam = brute+burn
-	if(total_dam >= max_dam)
-		var/obj/item/stock_parts/circuitboard/broken/broken_device = new (get_turf(src))
-		if(icon_state_broken != "broken")
-			broken_device.icon = src.icon
-			broken_device.icon_state = icon_state_broken
-		broken_device.name = "broken [name]"
-		return broken_device
-	return 0
+/obj/item/robot_parts/robot_component/check_health(lastdamage, lastdamtype, lastdamflags, consumed)
+	var/current_max_health = get_max_health()
+	if(lastdamage > 0)
+		if(lastdamtype == BRUTE)
+			brute_damage = clamp(lastdamage, 0, current_max_health)
+		if(lastdamtype == BURN || lastdamtype == ELECTROCUTE)
+			burn_damage = clamp(lastdamage, 0, current_max_health)
+
+	//Health works differently for this thing
+	current_health = clamp(current_max_health - (brute_damage + burn_damage), 0, current_max_health)
+	. = ..()
+
+/obj/item/robot_parts/robot_component/proc/set_bruteloss(var/amount)
+	var/current_max_health = get_max_health()
+	brute_damage = clamp(amount, 0, current_max_health)
+	current_health = current_max_health - (brute_damage + burn_damage)
+	check_health(amount, BRUTE)
+
+/obj/item/robot_parts/robot_component/proc/set_burnloss(var/amount)
+	var/current_max_health = get_max_health()
+	burn_damage = clamp(amount, 0, current_max_health)
+	current_health = current_max_health - (brute_damage + burn_damage)
+	check_health(amount, BURN)
+
+/obj/item/robot_parts/robot_component/physically_destroyed(skip_qdel)
+	var/obj/item/stock_parts/circuitboard/broken/broken_device = new (get_turf(src))
+	if(icon_state_broken != "broken")
+		broken_device.icon = src.icon
+		broken_device.icon_state = icon_state_broken
+	broken_device.name = "broken [name]"
+	. = ..()
 
 /obj/item/robot_parts/robot_component/proc/is_functional()
-	return ((brute + burn) < max_dam)
+	return ((brute_damage + burn_damage) < get_max_health())
 
 /obj/item/robot_parts/robot_component/binary_communication_device
 	name = "binary communication device"

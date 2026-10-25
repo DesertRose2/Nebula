@@ -5,18 +5,17 @@
 	var/list/instances		//What items are actually stored
 	var/atom/storing_object
 
-/datum/stored_items/New(var/atom/storing_object, var/path, var/name = null, var/amount = 0)
+/datum/stored_items/New(atom/_storing_object, _path, _name, _amount = 0)
+	if(_storing_object)
+		storing_object = _storing_object
 	if(!istype(storing_object))
-		CRASH("Unexpected storing object.")
-	src.storing_object = storing_object
-	src.item_path = path
-	src.amount = amount
-
-	if(!name)
-		var/atom/tmp = path
-		src.item_name = initial(tmp.name)
-	else
-		src.item_name = name
+		CRASH("Unexpected storing object: [storing_object]")
+	if(_path)
+		item_path = _path
+	if(!ispath(item_path))
+		CRASH("Unexpected item path: [item_path || "NULL"]")
+	item_name = _name || atom_info_repository.get_name_for(item_path)
+	amount = _amount
 	..()
 
 /datum/stored_items/Destroy()
@@ -52,7 +51,8 @@
 		product = new item_path(storing_object)
 
 	amount--
-	product.forceMove(product_location)
+	if(!QDELETED(product)) // Some spawners will qdel after vending.
+		product.forceMove(product_location)
 	return product
 
 /datum/stored_items/proc/get_specific_product(var/product_location, var/atom/movable/product)
@@ -81,3 +81,15 @@
 	storing_object = new_storing_obj
 	for(var/atom/movable/thing in instances)
 		thing.forceMove(new_storing_obj)
+
+/datum/stored_items/proc/get_combined_matter(include_instances = TRUE, include_reagents = TRUE)
+	var/virtual_amount = amount - length(instances)
+	if(virtual_amount)
+		. = atom_info_repository.get_matter_for(item_path)?.Copy()
+		for(var/key in .)
+			.[key] *= virtual_amount
+	else
+		. = list()
+	if(include_instances)
+		for(var/atom/instance in instances)
+			. = MERGE_ASSOCS_WITH_NUM_VALUES(., instance.get_contained_matter(include_reagents))

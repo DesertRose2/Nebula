@@ -1,49 +1,53 @@
 /obj/item/chems/spray
-	name = "spray bottle"
-	desc = "A spray bottle, with an unscrewable top."
-	icon = 'icons/obj/janitor.dmi'
-	icon_state = "cleaner"
-	item_state = "cleaner"
-	item_flags = ITEM_FLAG_NO_BLUDGEON
-	atom_flags = ATOM_FLAG_OPEN_CONTAINER
-	slot_flags = SLOT_BELT
-	throwforce = 3
-	w_class = ITEM_SIZE_SMALL
-	throw_speed = 2
-	throw_range = 10
-	amount_per_transfer_from_this = 10
-	unacidable = 1 //plastic
-	possible_transfer_amounts = @"[5,10]"
-	volume = 250
-	var/spray_size = 3
-	var/list/spray_sizes = list(1,3)
-	var/step_delay = 10 // lower is faster
+	name                              = "spray bottle"
+	desc                              = "A spray bottle, with an unscrewable top."
+	icon                              = 'icons/obj/janitor.dmi'
+	icon_state                        = "cleaner"
+	item_state                        = "cleaner"
+	item_flags                        = ITEM_FLAG_NO_BLUDGEON
+	atom_flags                        = ATOM_FLAG_OPEN_CONTAINER
+	slot_flags                        = SLOT_LOWER_BODY
+	w_class                           = ITEM_SIZE_SMALL
+	throw_speed                       = 2
+	throw_range                       = 10
+	attack_cooldown                   = DEFAULT_QUICK_COOLDOWN
+	material                          = /decl/material/solid/organic/plastic
+	chem_volume                       = 250
+	amount_per_transfer_from_this     = 10
+	possible_transfer_amounts         = @"[5,10]"
+	var/tmp/possible_particle_amounts = @"[1,3]"                    ///Possible chempuff particles amount for each transfer amount setting
+	var/spray_particles               = 3                           ///Amount of chempuff particles
+	var/tmp/particle_move_delay       = 10                          ///lower is faster
+	var/tmp/sound_spray               = 'sound/effects/spray2.ogg'  ///Sound played when spraying
+	var/safety                        = FALSE                       ///Whether the safety is on
+
+/obj/item/chems/spray/solvent_can_melt(var/solvent_power = MAT_SOLVENT_STRONG)
+	return FALSE // maybe reconsider this
 
 /obj/item/chems/spray/Initialize()
 	. = ..()
 	src.verbs -= /obj/item/chems/verb/set_amount_per_transfer_from_this
 
-/obj/item/chems/spray/afterattack(atom/A, mob/user, proximity)
-	if(istype(A, /obj/item/storage) || istype(A, /obj/structure/table) || istype(A, /obj/structure/closet) || istype(A, /obj/item/chems) || istype(A, /obj/structure/hygiene/sink) || istype(A, /obj/structure/janitorialcart))
-		return
+// Override to avoid drinking from this or feeding it to your neighbor.
+/obj/item/chems/spray/use_on_mob(mob/living/target, mob/living/user, animate = TRUE)
+	return FALSE
 
-	if(istype(A, /spell))
+/obj/item/chems/spray/afterattack(atom/A, mob/user, proximity)
+	if(A?.storage || istype(A, /obj/structure/table) || istype(A, /obj/structure/closet) || istype(A, /obj/item/chems) || istype(A, /obj/structure/hygiene/sink) || istype(A, /obj/structure/janitorialcart))
 		return
 
 	if(proximity)
 		if(standard_dispenser_refill(user, A))
 			return
 
-	if(reagents.total_volume < amount_per_transfer_from_this)
-		to_chat(user, "<span class='notice'>\The [src] is empty!</span>")
+	if(REAGENT_TOTAL_VOLUME(reagents) < amount_per_transfer_from_this)
+		to_chat(user, SPAN_WARNING("\The [src] is empty!"))
 		return
 
 	Spray_at(A, user, proximity)
 
-	user.setClickCooldown(DEFAULT_QUICK_COOLDOWN)
-
 	if(reagents.has_reagent(/decl/material/liquid/acid))
-		log_and_message_admins("fired sulphuric acid from \a [src].", user)
+		log_and_message_admins("fired sulfuric acid from \a [src].", user)
 	if(reagents.has_reagent(/decl/material/liquid/acid/polyacid))
 		log_and_message_admins("fired polyacid from \a [src].", user)
 	if(reagents.has_reagent(/decl/material/liquid/lube))
@@ -51,104 +55,119 @@
 	return
 
 /obj/item/chems/spray/proc/Spray_at(atom/movable/A, mob/user, proximity)
-	playsound(src.loc, 'sound/effects/spray2.ogg', 50, 1, -6)
+	if(has_safety() && safety)
+		to_chat(user, SPAN_WARNING("The safety is on!"))
+		return
+	playsound(src, sound_spray, 50, TRUE, -6)
 	if (A.density && proximity)
 		reagents.splash(A, amount_per_transfer_from_this)
 		if(A == user)
-			A.visible_message("<span class='notice'>\The [user] sprays themselves with \the [src].</span>")
+			A.visible_message(SPAN_NOTICE("\The [user] sprays themselves with \the [src]."))
 		else
-			A.visible_message("<span class='notice'>\The [user] sprays \the [A] with \the [src].</span>")
+			A.visible_message(SPAN_NOTICE("\The [user] sprays \the [A] with \the [src]."))
 	else
-		spawn(0)
-			var/obj/effect/effect/water/chempuff/D = new/obj/effect/effect/water/chempuff(get_turf(src))
-			var/turf/my_target = get_turf(A)
-			D.create_reagents(amount_per_transfer_from_this)
-			if(!src)
-				return
-			reagents.trans_to_obj(D, amount_per_transfer_from_this)
-			D.set_color()
-			D.set_up(my_target, spray_size, step_delay)
-	return
+		create_chempuff(A)
+	return TRUE
+
+/obj/item/chems/spray/proc/create_chempuff(var/atom/movable/target, var/particle_amount)
+	set waitfor = FALSE
+
+	var/obj/effect/effect/water/chempuff/D = new(get_turf(src))
+	if(QDELETED(src))
+		return
+	reagents.trans_to_obj(D, amount_per_transfer_from_this)
+	D.set_up(get_turf(target), particle_amount? particle_amount : spray_particles, particle_move_delay)
+	return D
 
 /obj/item/chems/spray/attack_self(var/mob/user)
-	if(!possible_transfer_amounts)
-		return
-	amount_per_transfer_from_this = next_in_list(amount_per_transfer_from_this, cached_json_decode(possible_transfer_amounts))
-	spray_size = next_in_list(spray_size, spray_sizes)
-	to_chat(user, "<span class='notice'>You adjusted the pressure nozzle. You'll now use [amount_per_transfer_from_this] units per spray.</span>")
+	if(has_safety())
+		toggle_safety(user)
+		return TRUE
+	else
+		//If no safety, we just toggle the nozzle
+		var/decl/interaction_handler/handler = GET_DECL(/decl/interaction_handler/next_spray_amount)
+		if(handler.is_possible(src, user))
+			handler.invoked(src, user, user.get_active_held_item())
+			return TRUE
 
-/obj/item/chems/spray/examine(mob/user, distance)
+///Whether the spray has a safety toggle
+/obj/item/chems/spray/proc/has_safety()
+	return FALSE
+
+/obj/item/chems/spray/proc/toggle_safety(mob/user)
+	safety = !safety
+	to_chat(user, SPAN_NOTICE("You switch the safety [safety ? "on" : "off"]."))
+
+/obj/item/chems/spray/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
-	if(distance == 0 && loc == user)
-		to_chat(user, "[round(reagents.total_volume)] unit\s left.")
+	if(loc == user)
+		. += "[round(REAGENT_TOTAL_VOLUME(reagents))] unit\s left."
+	if(has_safety() && distance <= 1)
+		. += "The safety is [safety ? "on" : "off"]."
 
-/obj/item/chems/spray/verb/empty()
+/obj/item/chems/spray/get_alt_interactions(mob/user)
+	. = ..()
+	LAZYADD(., /decl/interaction_handler/empty/chems)
+	LAZYADD(., /decl/interaction_handler/next_spray_amount)
 
-	set name = "Empty Spray Bottle"
-	set category = "Object"
-	set src in usr
+///Toggle the spray size and transfer amount between the possible options
+/decl/interaction_handler/next_spray_amount
+	name                 = "Next Nozzle Setting"
+	expected_target_type = /obj/item/chems/spray
+	interaction_flags    = INTERACTION_NEEDS_INVENTORY | INTERACTION_NEEDS_PHYSICAL_INTERACTION
+	examine_desc         = "select the next nozzle spray amount"
 
-	if (alert(usr, "Are you sure you want to empty that?", "Empty Bottle:", "Yes", "No") != "Yes")
+/decl/interaction_handler/next_spray_amount/is_possible(obj/item/chems/spray/target, mob/user, obj/item/prop)
+	. = ..()
+	if(.)
+		return !isnull(target.possible_transfer_amounts)
+
+/decl/interaction_handler/next_spray_amount/invoked(atom/target, mob/user, obj/item/prop)
+	var/obj/item/chems/spray/spray = target
+	if(!spray.possible_transfer_amounts)
 		return
-	if(isturf(usr.loc))
-		to_chat(usr, "<span class='notice'>You empty \the [src] onto the floor.</span>")
-		reagents.splash(usr.loc, reagents.total_volume)
+	spray.amount_per_transfer_from_this = next_in_list(spray.amount_per_transfer_from_this, cached_json_decode(spray.possible_transfer_amounts))
+	spray.spray_particles = next_in_list(spray.spray_particles, cached_json_decode(spray.possible_particle_amounts))
+	to_chat(user, SPAN_NOTICE("You adjusted the pressure nozzle. You'll now use [spray.amount_per_transfer_from_this] units per spray."))
 
 //space cleaner
 /obj/item/chems/spray/cleaner
 	name = "space cleaner"
 	desc = "BLAM!-brand non-foaming space cleaner!"
-	step_delay = 6
+	particle_move_delay = 6
 
-/obj/item/chems/spray/cleaner/Initialize()
-	. = ..()
-	reagents.add_reagent(/decl/material/liquid/cleaner, volume)
+/obj/item/chems/spray/cleaner/populate_reagents()
+	add_to_reagents(/decl/material/liquid/cleaner, REAGENT_MAXIMUM_VOLUME(reagents))
 
 /obj/item/chems/spray/antiseptic
 	name = "antiseptic spray"
 	desc = "Great for hiding incriminating bloodstains and sterilizing scalpels."
 
-/obj/item/chems/spray/antiseptic/Initialize()
-	. = ..()
-	reagents.add_reagent(/decl/material/liquid/antiseptic, volume)
+/obj/item/chems/spray/antiseptic/populate_reagents()
+	add_to_reagents(/decl/material/liquid/antiseptic, REAGENT_MAXIMUM_VOLUME(reagents))
 
 /obj/item/chems/spray/hair_remover
 	name = "hair remover"
 	desc = "Very effective at removing hair, feathers, spines and horns."
 
-/obj/item/chems/spray/hair_remover/Initialize()
-	. = ..()
-	reagents.add_reagent(/decl/material/liquid/hair_remover, volume)
+/obj/item/chems/spray/hair_remover/populate_reagents()
+	add_to_reagents(/decl/material/liquid/hair_remover, REAGENT_MAXIMUM_VOLUME(reagents))
 
 /obj/item/chems/spray/pepper
 	name = "pepperspray"
 	desc = "Manufactured by Uhang Inc., it fires a mist of condensed capsaicin to blind and down an opponent quickly."
 	icon = 'icons/obj/items/weapon/pepperspray.dmi'
-	icon_state = "pepperspray"
-	item_state = "pepperspray"
+	icon_state = ICON_STATE_WORLD
 	possible_transfer_amounts = null
-	volume = 60
-	var/safety = 1
-	step_delay = 1
+	chem_volume = 60
+	particle_move_delay = 1
+	safety = TRUE
 
-/obj/item/chems/spray/pepper/Initialize()
-	. = ..()
-	reagents.add_reagent(/decl/material/liquid/capsaicin/condensed, 60)
+/obj/item/chems/spray/pepper/populate_reagents()
+	add_to_reagents(/decl/material/liquid/capsaicin/condensed, REAGENT_MAXIMUM_VOLUME(reagents))
 
-/obj/item/chems/spray/pepper/examine(mob/user, distance)
-	. = ..()
-	if(distance <= 1)
-		to_chat(user, "The safety is [safety ? "on" : "off"].")
-
-/obj/item/chems/spray/pepper/attack_self(var/mob/user)
-	safety = !safety
-	to_chat(usr, "<span class = 'notice'>You switch the safety [safety ? "on" : "off"].</span>")
-
-/obj/item/chems/spray/pepper/Spray_at(atom/A)
-	if(safety)
-		to_chat(usr, "<span class = 'warning'>The safety is on!</span>")
-		return
-	..()
+/obj/item/chems/spray/pepper/has_safety()
+	return TRUE
 
 /obj/item/chems/spray/waterflower
 	name = "water flower"
@@ -158,11 +177,10 @@
 	item_state = "sunflower"
 	amount_per_transfer_from_this = 1
 	possible_transfer_amounts = null
-	volume = 10
+	chem_volume = 10
 
-/obj/item/chems/spray/waterflower/Initialize()
-	. = ..()
-	reagents.add_reagent(/decl/material/liquid/water, 10)
+/obj/item/chems/spray/waterflower/populate_reagents()
+	add_to_reagents(/decl/material/liquid/water, REAGENT_MAXIMUM_VOLUME(reagents))
 
 /obj/item/chems/spray/chemsprayer
 	name = "chem sprayer"
@@ -170,14 +188,13 @@
 	icon = 'icons/obj/items/device/chemsprayer.dmi'
 	icon_state = "chemsprayer"
 	item_state = "chemsprayer"
-	throwforce = 3
 	w_class = ITEM_SIZE_LARGE
 	possible_transfer_amounts = null
-	volume = 600
-	origin_tech = "{'combat':3,'materials':3,'engineering':3}"
-	step_delay = 8
+	chem_volume = 600
+	origin_tech = @'{"combat":3,"materials":3,"engineering":3}'
+	particle_move_delay = 2 //Was hardcoded to 2 before, and 8 was slower than most mob's move speed
 	material = /decl/material/solid/metal/steel
-	matter = list(/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT)
+	matter = list(/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT)
 
 /obj/item/chems/spray/chemsprayer/Spray_at(atom/A)
 	var/direction = get_dir(src, A)
@@ -187,16 +204,9 @@
 	var/list/the_targets = list(T, T1, T2)
 
 	for(var/a = 1 to 3)
-		spawn(0)
-			if(reagents.total_volume < 1) break
-			var/obj/effect/effect/water/chempuff/D = new/obj/effect/effect/water/chempuff(get_turf(src))
-			var/turf/my_target = the_targets[a]
-			D.create_reagents(amount_per_transfer_from_this)
-			if(!src)
-				return
-			reagents.trans_to_obj(D, amount_per_transfer_from_this)
-			D.set_color()
-			D.set_up(my_target, rand(6, 8), 2)
+		if(REAGENT_TOTAL_VOLUME(reagents) < 1)
+			break
+		create_chempuff(the_targets[a], rand(6, 8))
 	return
 
 /obj/item/chems/spray/plantbgone
@@ -205,25 +215,16 @@
 	icon = 'icons/obj/hydroponics/hydroponics_machines.dmi'
 	icon_state = "plantbgone"
 	item_state = "plantbgone"
-	volume = 100
+	chem_volume = 100
 
-/obj/item/chems/spray/plantbgone/Initialize()
-	. = ..()
-	reagents.add_reagent(/decl/material/liquid/weedkiller, 100)
-
-/obj/item/chems/spray/plantbgone/afterattack(atom/A, mob/user, proximity)
-	if(!proximity) return
-
-	if(istype(A, /obj/effect/blob)) // blob damage in blob code
-		return
-
-	..()
+/obj/item/chems/spray/plantbgone/populate_reagents()
+	add_to_reagents(/decl/material/liquid/weedkiller, REAGENT_MAXIMUM_VOLUME(reagents))
 
 /obj/item/chems/spray/cleaner/deodorant
 	name = "deodorant"
 	desc = "A can of Gold Standard spray deodorant - for when you're too lazy to shower."
 	gender = PLURAL
-	volume = 35
+	chem_volume = 35
 	icon = 'icons/obj/items/deodorant.dmi'
 	icon_state = "deodorant"
 	item_state = "deodorant"

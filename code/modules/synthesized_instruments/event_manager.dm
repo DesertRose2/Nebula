@@ -1,9 +1,8 @@
-datum/musical_event
+/datum/musical_event
 	var/datum/sound_player/source
 	var/time = 0
 	var/new_volume = 100
 	var/datum/sound_token/token
-	var/sound_id
 
 
 /datum/musical_event/New(datum/sound_player/source, datum/sound_token/token, time, volume)
@@ -43,12 +42,9 @@ datum/musical_event
 	var/active = 0
 	var/kill_loop = 0
 
-
 /datum/musical_event_manager/proc/push_event(datum/sound_player/source, datum/sound_token/token, time, volume)
 	if (istype(source) && istype(token) && volume >= 0 && volume <= 100)
 		src.events += new /datum/musical_event(source, token, time, volume)
-
-
 
 /datum/musical_event_manager/proc/handle_events()
 	var/list/datum/musical_event/left_events = list()
@@ -72,9 +68,7 @@ datum/musical_event
 	if (active)	return 0
 	src.active = 1
 
-	addtimer(CALLBACK(src, .proc/handle_events), 0)
-
-
+	addtimer(CALLBACK(src, PROC_REF(handle_events)), 0)
 
 /datum/musical_event_manager/proc/deactivate()
 	if (src.kill_loop) return 0
@@ -86,6 +80,9 @@ datum/musical_event
 	src.suspended = 0
 	return 1
 
-
 /datum/musical_event_manager/proc/is_overloaded()
-	return src.events.len > GLOB.musical_config.max_events
+	return src.events.len > global.musical_config.max_events
+
+/datum/musical_event_manager/Destroy()
+	deactivate()
+	return ..()

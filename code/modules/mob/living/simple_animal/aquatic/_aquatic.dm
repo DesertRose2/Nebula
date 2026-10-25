@@ -1,36 +1,18 @@
 /mob/living/simple_animal/aquatic
-	icon = 'icons/mob/simple_animal/aquatic.dmi'
-	turns_per_move = 5
-	speed = 4
+	icon = 'icons/mob/simple_animal/fish_content.dmi'
 	mob_size = MOB_SIZE_SMALL
+	base_animal_type = /mob/living/simple_animal/aquatic
+	is_aquatic = TRUE
+	butchery_data = /decl/butchery_data/animal/fish/small
+	holder_type = /obj/item/holder
+	ai = /datum/mob_controller/aquatic
+
+/datum/mob_controller/aquatic
+	turns_per_wander = 10
 	emote_see = list("glubs", "blubs", "bloops")
-
-	// They only really care if there's water around them or not.
-	max_gas = list()
-	min_gas = list()
-	minbodytemp = 0
-
-	meat_type = /obj/item/chems/food/snacks/fish
-	meat_amount = 3
-	bone_amount = 5
-	skin_amount = 5
-	bone_material = /decl/material/solid/bone/fish
-	skin_material = /decl/material/solid/skin/fish
 
 /mob/living/simple_animal/aquatic/Initialize()
 	. = ..()
 	default_pixel_x = rand(-12,12)
 	default_pixel_y = rand(-12,12)
-	pixel_x = default_pixel_x
-	pixel_y = default_pixel_y
-
-/mob/living/simple_animal/aquatic/Life()
-	if(!submerged())
-		if(icon_state == icon_living)
-			icon_state = "[icon_living]_dying"
-		walk(src, 0)
-		Paralyse(3)
-	. = ..()
-
-/mob/living/simple_animal/aquatic/handle_atmos(var/atmos_suitable = 1)
-	. = ..(atmos_suitable = submerged())
+	reset_offsets(0)

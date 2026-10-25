@@ -11,7 +11,7 @@
 	public_variables = list(
 		/decl/public_access/public_variable/gas,
 		/decl/public_access/public_variable/pressure,
-		/decl/public_access/public_variable/temperature		
+		/decl/public_access/public_variable/temperature
 	)
 	stock_part_presets = list(/decl/stock_part_preset/radio/basic_transmitter/air_sensor = 1)
 	use_power = POWER_USE_IDLE
@@ -25,7 +25,7 @@
 	uncreated_component_parts = null
 
 /obj/machinery/air_sensor/on_update_icon()
-	if(!powered())
+	if(stat & NOPOWER)
 		icon_state = "gsensor0"
 	else
 		icon_state = "gsensor[use_power]"
@@ -36,7 +36,7 @@
 	desc = "A list of gas data from the sensor location; the list entries are two-entry lists with \"symbol\" and \"percent\" fields."
 	can_write = FALSE
 	has_updates = FALSE
-	var_type = IC_FORMAT_LIST
+	var_type = VAR_FORMAT_LIST
 
 /decl/public_access/public_variable/gas/access_var(obj/machinery/sensor)
 	var/datum/gas_mixture/air_sample = sensor.return_air()
@@ -46,9 +46,9 @@
 	if(total_moles <= 0)
 		return
 	. = list()
-	for(var/gas in air_sample.gas)
-		var/decl/material/mat = decls_repository.get_decl(gas)			
-		var/gaspercent = round(air_sample.gas[gas]*100/total_moles,0.01)
+	for(var/gas_type, gas_amount in air_sample.gas)
+		var/decl/material/mat = GET_DECL(gas_type)
+		var/gaspercent = round(gas_amount*100/total_moles,0.01)
 		var/gas_list = list("symbol" = mat.gas_symbol_html, "percent" = gaspercent)
 		. += list(gas_list)
 
@@ -58,7 +58,7 @@
 	desc = "The pressure of the gas at the sensor."
 	can_write = FALSE
 	has_updates = FALSE
-	var_type = IC_FORMAT_STRING
+	var_type = VAR_FORMAT_STRING
 
 /decl/public_access/public_variable/pressure/access_var(obj/machinery/sensor)
 	var/datum/gas_mixture/air_sample = sensor.return_air()
@@ -70,7 +70,7 @@
 	desc = "The temperature of the gas at the sensor."
 	can_write = FALSE
 	has_updates = FALSE
-	var_type = IC_FORMAT_NUMBER
+	var_type = VAR_FORMAT_NUMBER
 
 /decl/public_access/public_variable/temperature/access_var(obj/machinery/sensor)
 	var/datum/gas_mixture/air_sample = sensor.return_air()
@@ -91,7 +91,7 @@
 	frequency = ATMOS_ENGINE_FREQ
 
 /obj/machinery/air_sensor/dist
-	stock_part_presets = list(/decl/stock_part_preset/radio/basic_transmitter/air_sensor/engine = 1)
+	stock_part_presets = list(/decl/stock_part_preset/radio/basic_transmitter/air_sensor/dist = 1)
 
-/decl/stock_part_preset/radio/basic_transmitter/air_sensor/engine
+/decl/stock_part_preset/radio/basic_transmitter/air_sensor/dist
 	frequency = ATMOS_DIST_FREQ

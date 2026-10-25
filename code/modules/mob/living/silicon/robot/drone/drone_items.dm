@@ -5,7 +5,7 @@
 	desc = "A simple grasping tool specialized in construction and engineering work."
 	icon = 'icons/obj/items/borg_module/borg_gripper.dmi'
 	icon_state = "gripper"
-
+	max_health = ITEM_HEALTH_NO_DAMAGE
 	item_flags = ITEM_FLAG_NO_BLUDGEON
 
 	//Has a list of items that it can hold.
@@ -15,14 +15,14 @@
 		/obj/item/tracker_electronics,
 		/obj/item/stock_parts,
 		/obj/item/frame,
-		/obj/item/camera_assembly,
+		/obj/item/frame/camera/kit,
 		/obj/item/tank,
 		/obj/item/stock_parts/circuitboard,
 		/obj/item/stock_parts/smes_coil,
 		/obj/item/stock_parts/computer,
 		/obj/item/fuel_assembly,
-		/obj/item/stack/material/deuterium,
-		/obj/item/stack/material/tritium,
+		/obj/item/stack/material/aerogel/mapped/deuterium,
+		/obj/item/stack/material/aerogel/mapped/tritium,
 		/obj/item/stack/tile
 		)
 
@@ -53,7 +53,7 @@
 		/obj/item/card/id,
 		/obj/item/book,
 		/obj/item/newspaper,
-		/obj/item/smallDelivery,
+		/obj/item/parcel,
 		/obj/item/forensics/sample
 		)
 
@@ -65,7 +65,7 @@
 		/obj/item/chems/glass,
 		/obj/item/chems/pill,
 		/obj/item/chems/ivbag,
-		/obj/item/storage/pill_bottle
+		/obj/item/pill_bottle
 	)
 
 /obj/item/gripper/research //A general usage gripper, used for toxins/robotics/xenobio/etc
@@ -76,17 +76,14 @@
 	can_hold = list(
 		/obj/item/cell,
 		/obj/item/stock_parts,
-		/obj/item/mmi,
 		/obj/item/robot_parts,
 		/obj/item/borg/upgrade,
 		/obj/item/flash,
 		/obj/item/organ/internal/brain,
-		/obj/item/organ/internal/posibrain,
 		/obj/item/stack/cable_coil,
 		/obj/item/stock_parts/circuitboard,
-		/obj/item/slime_extract,
 		/obj/item/chems/glass,
-		/obj/item/chems/food/snacks/monkeycube,
+		/obj/item/food/animal_cube,
 		/obj/item/stock_parts/computer,
 		/obj/item/transfer_valve,
 		/obj/item/assembly/signaler,
@@ -103,8 +100,6 @@
 	can_hold = list(
 		/obj/item/chems/glass,
 		/obj/item/seeds,
-		/obj/item/grown,
-		/obj/item/slime_extract,
 		/obj/item/disk/botany
 	)
 
@@ -114,9 +109,10 @@
 	desc = "A simple grasping tool used to perform tasks in the service sector, such as handling food, drinks, and seeds."
 	can_hold = list(
 		/obj/item/chems/glass,
-		/obj/item/chems/food,
+		/obj/item/food,
+		/obj/item/chems/drinks,
+		/obj/item/chems/condiment,
 		/obj/item/seeds,
-		/obj/item/grown,
 		/obj/item/glass_extra
 	)
 
@@ -143,12 +139,12 @@
 
 	can_hold = list(
 		/obj/item/stack/material
-		)
+	)
 
-/obj/item/gripper/examine(mob/user)
+/obj/item/gripper/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
 	if(wrapped)
-		to_chat(user, "It is holding \a [wrapped].")
+		. += "It is holding \a [wrapped]."
 
 /obj/item/gripper/attack_self(mob/user)
 	if(wrapped)
@@ -175,9 +171,9 @@
 	wrapped = null
 	//on_update_icon()
 
-/obj/item/gripper/attack(mob/living/carbon/M, mob/living/carbon/user)
+/obj/item/gripper/use_on_mob(mob/living/target, mob/living/user, animate = TRUE)
 	// Don't fall through and smack people with gripper, instead just no-op
-	return 0
+	return FALSE
 
 /obj/item/gripper/resolve_attackby(var/atom/target, var/mob/living/user, params)
 
@@ -191,15 +187,15 @@
 		//Temporary put wrapped into user so target's attackby() checks pass.
 		wrapped.forceMove(user)
 
-		//The force of the wrapped obj gets set to zero during the attack() and afterattack().
-		var/force_holder = wrapped.force
-		wrapped.force = 0.0
+		//The force of the wrapped obj gets set to zero during the use_on_mob() and afterattack().
+		var/force_holder = wrapped.get_base_attack_force()
+		wrapped.set_base_attack_force(0)
 
 		//Pass the attack on to the target. This might delete/relocate wrapped.
 		var/resolved = wrapped.resolve_attackby(target,user,params)
 
 		//If resolve_attackby forces waiting before taking wrapped, we need to let it finish before doing the rest.
-		addtimer(CALLBACK(src, .proc/finish_using, target, user, params, force_holder, resolved), 0)
+		addtimer(CALLBACK(src, PROC_REF(finish_using), target, user, params, force_holder, resolved), 0)
 
 	else if(istype(target,/obj/item)) //Check that we're not pocketing a mob.
 		var/obj/item/I = target
@@ -213,12 +209,10 @@
 
 		//We can grab the item, finally.
 		if(grab)
-			if(I == user.s_active)
-				var/obj/item/storage/storage = I
-				storage.close(user) //Closes the ui.
-			if(istype(I.loc, /obj/item/storage))
-				var/obj/item/storage/storage = I.loc
-				if(!storage.remove_from_storage(I, src))
+			if(I == user.active_storage?.holder)
+				user.active_storage.close(user) //Closes the ui.
+			if(I.loc?.storage)
+				if(!I.loc.storage.remove_from_storage(user, I, src))
 					return
 			else
 				I.forceMove(src)
@@ -228,8 +222,8 @@
 		else
 			to_chat(user, "<span class='danger'>Your gripper cannot hold \the [target].</span>")
 
-	else if(istype(target,/obj/machinery/power/apc))
-		var/obj/machinery/power/apc/A = target
+	else if(istype(target,/obj/machinery/apc))
+		var/obj/machinery/apc/A = target
 		if(A.components_are_accessible(/obj/item/stock_parts/power/battery))
 			var/obj/item/stock_parts/power/battery/bat = A.get_component_of_type(/obj/item/stock_parts/power/battery)
 			var/obj/item/cell/cell = bat.extract_cell(src)
@@ -237,7 +231,7 @@
 				wrapped = cell
 				cell.forceMove(src)
 
-	else if(istype(target,/mob/living/silicon/robot))
+	else if(isrobot(target))
 		var/mob/living/silicon/robot/A = target
 		if(A.opened)
 			if(A.cell)
@@ -261,7 +255,7 @@
 		wrapped.afterattack(target, user, 1, params)
 
 	if(wrapped)
-		wrapped.force = force_holder
+		wrapped.set_base_attack_force(force_holder)
 
 	//If wrapped was neither deleted nor put into target, put it back into the gripper.
 	if(wrapped && user && !QDELETED(wrapped) && wrapped.loc == user)
@@ -271,11 +265,11 @@
 
 //TODO: Matter decompiler.
 /obj/item/matter_decompiler
-
 	name = "matter decompiler"
 	desc = "Eating trash, bits of glass, or other debris will replenish your stores."
 	icon = 'icons/obj/items/borg_module/decompiler.dmi'
 	icon_state = "decompiler"
+	max_health = ITEM_HEALTH_NO_DAMAGE
 
 	//Metal, glass, wood, plastic.
 	var/datum/matter_synth/metal = null
@@ -283,8 +277,63 @@
 	var/datum/matter_synth/wood = null
 	var/datum/matter_synth/plastic = null
 
-/obj/item/matter_decompiler/attack(mob/living/carbon/M, mob/living/carbon/user)
-	return
+/obj/item/matter_decompiler/Destroy()
+	metal = null
+	glass = null
+	wood = null
+	plastic = null
+	return ..()
+
+/obj/item/matter_decompiler/use_on_mob(mob/living/target, mob/living/user, animate = TRUE)
+	return FALSE
+
+/obj/item/matter_decompiler/proc/try_ingest(atom/thing)
+	//Different classes of items give different commodities.
+	if(istype(thing,/obj/item/trash/cigbutt))
+		if(plastic)
+			plastic.add_charge(500)
+	else if(istype(thing,/obj/item/light))
+		var/obj/item/light/L = thing
+		if(L.status >= 2)
+			if(metal)
+				metal.add_charge(250)
+			if(glass)
+				glass.add_charge(250)
+	else if(istype(thing,/obj/item/remains/robot))
+		if(metal)
+			metal.add_charge(2000)
+		if(plastic)
+			plastic.add_charge(2000)
+		if(glass)
+			glass.add_charge(1000)
+	else if(istype(thing,/obj/item/trash))
+		if(metal)
+			metal.add_charge(1000)
+		if(plastic)
+			plastic.add_charge(3000)
+	else if(istype(thing,/obj/effect/decal/cleanable/blood/gibs/robot))
+		if(metal)
+			metal.add_charge(2000)
+		if(glass)
+			glass.add_charge(2000)
+	else if(istype(thing,/obj/item/ammo_casing))
+		if(metal)
+			metal.add_charge(1000)
+	else if(istype(thing,/obj/item/shard/shrapnel))
+		if(metal)
+			metal.add_charge(1000)
+	else if(istype(thing,/obj/item/shard))
+		if(glass)
+			glass.add_charge(1000)
+	else if(istype(thing,/obj/item/food/grown))
+		if(wood)
+			wood.add_charge(4000)
+	else if(istype(thing,/obj/item/pipe))
+		// This allows drones and engiborgs to clear pipe assemblies from floors.
+		pass()
+	else
+		return FALSE
+	return TRUE
 
 /obj/item/matter_decompiler/afterattack(atom/target, mob/living/user, proximity, params)
 
@@ -299,7 +348,7 @@
 	var/grabbed_something = 0
 
 	for(var/mob/M in T)
-		if(istype(M,/mob/living/simple_animal/lizard) || istype(M,/mob/living/simple_animal/mouse))
+		if(islizard(M) || ismouse(M))
 			src.loc.visible_message("<span class='danger'>[src.loc] sucks [M] into its decompiler. There's a horrible crunching noise.</span>","<span class='danger'>It's a bit of a struggle, but you manage to suck [M] into your decompiler. It makes a series of visceral crunching noises.</span>")
 			new/obj/effect/decal/cleanable/blood/splatter(get_turf(src))
 			qdel(M)
@@ -309,7 +358,7 @@
 				plastic.add_charge(2000)
 			return
 
-		else if(istype(M,/mob/living/silicon/robot/drone) && !M.client)
+		else if(isdrone(M) && !M.client)
 
 			var/mob/living/silicon/robot/D = src.loc
 
@@ -340,118 +389,14 @@
 		else
 			continue
 
-	for(var/obj/W in T)
-		//Different classes of items give different commodities.
-		if(istype(W,/obj/item/trash/cigbutt))
-			if(plastic)
-				plastic.add_charge(500)
-		else if(istype(W,/obj/effect/spider/spiderling))
-			if(wood)
-				wood.add_charge(2000)
-			if(plastic)
-				plastic.add_charge(2000)
-		else if(istype(W,/obj/item/light))
-			var/obj/item/light/L = W
-			if(L.status >= 2)
-				if(metal)
-					metal.add_charge(250)
-				if(glass)
-					glass.add_charge(250)
-			else
-				continue
-		else if(istype(W,/obj/item/remains/robot))
-			if(metal)
-				metal.add_charge(2000)
-			if(plastic)
-				plastic.add_charge(2000)
-			if(glass)
-				glass.add_charge(1000)
-		else if(istype(W,/obj/item/trash))
-			if(metal)
-				metal.add_charge(1000)
-			if(plastic)
-				plastic.add_charge(3000)
-		else if(istype(W,/obj/effect/decal/cleanable/blood/gibs/robot))
-			if(metal)
-				metal.add_charge(2000)
-			if(glass)
-				glass.add_charge(2000)
-		else if(istype(W,/obj/item/ammo_casing))
-			if(metal)
-				metal.add_charge(1000)
-		else if(istype(W,/obj/item/shard/shrapnel))
-			if(metal)
-				metal.add_charge(1000)
-		else if(istype(W,/obj/item/shard))
-			if(glass)
-				glass.add_charge(1000)
-		else if(istype(W,/obj/item/chems/food/snacks/grown))
-			if(wood)
-				wood.add_charge(4000)
-		else if(istype(W,/obj/item/pipe))
-			// This allows drones and engiborgs to clear pipe assemblies from floors.
-		else
+	// TODO: Jesus Christ, use matter or the procs the decompiler nades use.
+	for(var/obj/thing in T)
+		if(!try_ingest(thing))
 			continue
-
-		qdel(W)
+		qdel(thing)
 		grabbed_something = 1
 
 	if(grabbed_something)
 		to_chat(user, "<span class='notice'>You deploy your decompiler and clear out the contents of \the [T].</span>")
 	else
 		to_chat(user, "<span class='danger'>Nothing on \the [T] is useful to you.</span>")
-	return
-
-//PRETTIER TOOL LIST.
-/mob/living/silicon/robot/drone/installed_modules()
-
-	if(weapon_lock)
-		to_chat(src, "<span class='danger'>Weapon lock active, unable to use modules! Count:[weaponlock_time]</span>")
-		return
-
-	if(!module)
-		module = new /obj/item/robot_module/drone(src)
-
-	var/dat = "<HEAD><TITLE>Drone modules</TITLE></HEAD><BODY>\n"
-	dat += {"
-	<B>Activated Modules</B>
-	<BR>
-	Module 1: [module_state_1 ? "<A HREF=?src=\ref[src];mod=\ref[module_state_1]>[module_state_1]<A>" : "No Module"]<BR>
-	Module 2: [module_state_2 ? "<A HREF=?src=\ref[src];mod=\ref[module_state_2]>[module_state_2]<A>" : "No Module"]<BR>
-	Module 3: [module_state_3 ? "<A HREF=?src=\ref[src];mod=\ref[module_state_3]>[module_state_3]<A>" : "No Module"]<BR>
-	<BR>
-	<B>Installed Modules</B><BR><BR>"}
-
-
-	var/tools = "<B>Tools and devices</B><BR>"
-	var/resources = "<BR><B>Resources</B><BR>"
-
-	for (var/O in module.equipment)
-
-		var/module_string = ""
-
-		if (!O)
-			module_string += text("<B>Resource depleted</B><BR>")
-		else if(activated(O))
-			module_string += text("[O]: <B>Activated</B><BR>")
-		else
-			module_string += text("[O]: <A HREF=?src=\ref[src];act=\ref[O]>Activate</A><BR>")
-
-		if((istype(O,/obj/item) || istype(O,/obj/item)) && !(istype(O,/obj/item/stack/cable_coil)))
-			tools += module_string
-		else
-			resources += module_string
-
-	dat += tools
-
-	if (emagged)
-		if (!module.emag)
-			dat += text("<B>Resource depleted</B><BR>")
-		else if(activated(module.emag))
-			dat += text("[module.emag]: <B>Activated</B><BR>")
-		else
-			dat += text("[module.emag]: <A HREF=?src=\ref[src];act=\ref[module.emag]>Activate</A><BR>")
-
-	dat += resources
-
-	show_browser(src, dat, "window=robotmod")

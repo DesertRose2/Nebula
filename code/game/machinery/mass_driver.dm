@@ -5,12 +5,11 @@
 	desc = "Shoots things into space."
 	icon = 'icons/obj/machines/massdriver.dmi'
 	icon_state = "mass_driver"
-	anchored = 1.0
+	anchored = TRUE
 	idle_power_usage = 2
 	active_power_usage = 50
 
 	var/power = 1.0
-	var/code = 1.0
 	var/drive_range = 50 //this is mostly irrelevant since current mass drivers throw into space, but you could make a lower-range mass driver for interstation transport or something I guess.
 
 	uncreated_component_parts = list(
@@ -33,8 +32,7 @@
 		if(!O.anchored)
 			O_limit++
 			if(O_limit >= 20)
-				for(var/mob/M in hearers(src, null))
-					to_chat(M, "<span class='notice'>The mass driver lets out a screech, it mustn't be able to handle any more items.</span>")
+				visible_message(SPAN_NOTICE("\The [src] lets out a mechanical groan and refuses to budge!"))
 				break
 			use_power_oneoff(500)
 			spawn( 0 )
@@ -57,12 +55,12 @@
 /decl/public_access/public_method/driver_drive
 	name = "launch"
 	desc = "Makes the mass driver launch immediately"
-	call_proc = /obj/machinery/mass_driver/proc/drive
+	call_proc = TYPE_PROC_REF(/obj/machinery/mass_driver, drive)
 
 /decl/public_access/public_method/driver_drive_delayed
 	name = "delayed launch"
 	desc = "Makes the mass driver launch after a short delay"
-	call_proc = /obj/machinery/mass_driver/proc/delayed_drive
+	call_proc = TYPE_PROC_REF(/obj/machinery/mass_driver, delayed_drive)
 
 /decl/stock_part_preset/radio/receiver/driver
 	frequency = BLAST_DOORS_FREQ

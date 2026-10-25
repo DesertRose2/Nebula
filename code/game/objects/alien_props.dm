@@ -7,18 +7,19 @@
 	icon = 'icons/obj/xenoarchaeology.dmi'
 	icon_state = "unknown1"
 	maxcharge = 5000
-	origin_tech = "{'powerstorage':7}"
-	var/global/base_icon
+	origin_tech = @'{"powerstorage":7}'
+	var/base_icon_state
 
 /obj/item/cell/alien/on_update_icon()
-	if(!base_icon)
-		base_icon = pick("instrument", "unknown1", "unknown3", "unknown4")
-	icon_state = base_icon
+	. = ..()
+	if(!base_icon_state)
+		base_icon_state = pick("instrument", "unknown1", "unknown3", "unknown4")
+	icon_state = base_icon_state
 
 // APC
 #define APC_UPDATE_ALLGOOD 128
 
-/obj/machinery/power/apc/alien
+/obj/machinery/apc/alien
 	name = "alien device"
 	desc = "It's affixed to the floor, with a thick wire going into it."
 	icon = 'icons/obj/xenoarchaeology.dmi'
@@ -28,8 +29,8 @@
 	uncreated_component_parts = list(
 		/obj/item/cell/alien
 	)
-	
-/obj/machinery/power/apc/alien/on_update_icon()
+
+/obj/machinery/apc/alien/on_update_icon()
 	check_updates()
 	if(update_state & APC_UPDATE_ALLGOOD)
 		icon_state = "ano11"
@@ -46,6 +47,7 @@
 	base_state = "bulb"
 	color = COLOR_PURPLE
 	light_type = /obj/item/light/alien
+	accepts_light_type = /obj/item/light/alien
 
 /obj/machinery/light/alien/Initialize()
 	color = null  //It's just for mapping
@@ -57,14 +59,13 @@
 	base_state = "lbulb"
 	desc = "A simple alien device, perhaps some sort of light source."
 	color = COLOR_PURPLE
-	var/global/random_light_color
+	var/static/random_light_color
 
 /obj/item/light/alien/Initialize()
 	. = ..()
 	if(!random_light_color)
 		random_light_color = get_random_colour(FALSE, 100, 255)
-	b_colour = random_light_color
-	color = random_light_color
+	set_color(random_light_color) // if stuff starts exploding due to too-early update_icon calls it's this thing's fault
 
 //Airlock
 /obj/machinery/door/airlock/alien
@@ -73,7 +74,7 @@
 
 /obj/machinery/door/airlock/alien/Initialize()
 	. = ..()
-	var/decl/material/A = decls_repository.get_decl(/decl/material/solid/metal/aliumium)
+	var/decl/material/A = GET_DECL(/decl/material/solid/metal/aliumium)
 	if(A)
 		door_color = A.color
 	stripe_color = get_random_colour(FALSE, 0, 255)

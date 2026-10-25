@@ -2,28 +2,12 @@
 	A derivative of radial menu which persists onscreen until closed and invokes a callback each time an element is clicked
 */
 
-/obj/screen/radial/persistent/center
-	name = "Close Menu"
-	icon_state = "radial_center"
-
-/obj/screen/radial/persistent/center/Click(location, control, params)
-	if(usr.client == parent.current_user)
-		parent.element_chosen(null,usr)
-
-/obj/screen/radial/persistent/center/MouseEntered(location, control, params)
-	. = ..()
-	icon_state = "radial_center_focus"
-
-/obj/screen/radial/persistent/center/MouseExited(location, control, params)
-	. = ..()
-	icon_state = "radial_center"
-
 /datum/radial_menu/persistent
 	var/uniqueid
 	var/datum/callback/select_proc_callback
 
 /datum/radial_menu/persistent/New()
-	close_button = new /obj/screen/radial/persistent/center
+	close_button = new /obj/screen/radial/persistent/center(null)
 	close_button.parent = src
 
 /datum/radial_menu/persistent/element_chosen(choice_id,mob/user)
@@ -37,7 +21,7 @@
 
 /datum/radial_menu/persistent/Destroy()
 	QDEL_NULL(select_proc_callback)
-	GLOB.radial_menus -= uniqueid
+	global.radial_menus -= uniqueid
 	Reset()
 	hide()
 	return ..()
@@ -55,12 +39,12 @@
 	if(!uniqueid)
 		uniqueid = "defmenu_\ref[user]_\ref[anchor]"
 
-	if(GLOB.radial_menus[uniqueid])
+	if(global.radial_menus[uniqueid])
 		return
 
 	var/datum/radial_menu/persistent/menu = new
 	menu.uniqueid = uniqueid
-	GLOB.radial_menus[uniqueid] = menu
+	global.radial_menus[uniqueid] = menu
 	if(radius)
 		menu.radius = radius
 	menu.select_proc_callback = select_proc

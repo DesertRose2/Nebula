@@ -1,23 +1,29 @@
 //Let's get some REAL contraband stuff in here. Because come on, getting brigged for LIPSTICK is no fun.
 
 //Illicit drugs~
-/obj/item/storage/pill_bottle/happy
+/obj/item/pill_bottle/happy
 	name = "bottle of Happy pills"
 	desc = "Highly illegal drug. When you want to see the rainbow."
 	wrapper_color = COLOR_PINK
-	startswith = list(/obj/item/chems/pill/happy = 10)
 
-/obj/item/storage/pill_bottle/zoom
+/obj/item/pill_bottle/happy/WillContain()
+	return list(/obj/item/chems/pill/happy = 10)
+
+/obj/item/pill_bottle/zoom
 	name = "bottle of Zoom pills"
 	desc = "Highly illegal drug. Trade brain for speed."
 	wrapper_color = COLOR_BLUE
-	startswith = list(/obj/item/chems/pill/zoom = 10)
 
-/obj/item/storage/pill_bottle/gleam
-	name = "bottle of Three Eye pills"
+/obj/item/pill_bottle/zoom/WillContain()
+	return list(/obj/item/chems/pill/zoom = 10)
+
+/obj/item/pill_bottle/gleam
+	name = "bottle of Gleam pills"
 	desc = "Highly illegal drug. Stimulates rarely used portions of the brain."
 	wrapper_color = COLOR_BLUE
-	startswith = list(/obj/item/chems/pill/gleam = 10)
+
+/obj/item/pill_bottle/gleam/WillContain()
+	return list(/obj/item/chems/pill/gleam = 10)
 
 /obj/item/chems/glass/beaker/vial/random
 	atom_flags = 0
@@ -34,15 +40,18 @@
 
 /obj/item/chems/glass/beaker/vial/random/Initialize()
 	. = ..()
+	update_icon()
 
+/obj/item/chems/glass/beaker/vial/random/populate_reagents()
 	var/list/picked_reagents = pickweight(random_reagent_list)
 	for(var/reagent in picked_reagents)
-		reagents.add_reagent(reagent, picked_reagents[reagent])
+		add_to_reagents(reagent, picked_reagents[reagent])
 
 	var/list/names = new
-	for(var/reagent_type in reagents.reagent_volumes)
-		var/decl/material/R = decls_repository.get_decl(reagent_type)
-		names += R.liquid_name
+	for(var/decl/material/reagent as anything in REAGENT_LIQUID_VOLUMES(reagents))
+		names += reagent.get_reagent_name(reagents, MAT_PHASE_LIQUID)
+
+	for(var/decl/material/reagent as anything in REAGENT_SOLID_VOLUMES(reagents))
+		names += reagent.get_reagent_name(reagents, MAT_PHASE_SOLID)
 
 	desc = "Contains [english_list(names)]."
-	update_icon()

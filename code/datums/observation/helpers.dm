@@ -1,5 +1,6 @@
 /atom/movable/proc/recursive_move(var/atom/movable/am, var/old_loc, var/new_loc)
-	GLOB.moved_event.raise_event(src, old_loc, new_loc)
+	if(event_listeners?[/decl/observ/moved])
+		raise_event_non_global(/decl/observ/moved, old_loc, new_loc)
 
 /atom/movable/proc/move_to_turf(var/atom/movable/am, var/old_loc, var/new_loc)
 	var/turf/T = get_turf(new_loc)
@@ -24,9 +25,9 @@
 	qdel(src)
 
 /proc/register_all_movement(var/event_source, var/listener)
-	GLOB.moved_event.register(event_source, listener, /atom/movable/proc/recursive_move)
-	GLOB.dir_set_event.register(event_source, listener, /atom/proc/recursive_dir_set)
+	events_repository.register(/decl/observ/moved, event_source, listener, TYPE_PROC_REF(/atom/movable, recursive_move))
+	events_repository.register(/decl/observ/dir_set, event_source, listener, TYPE_PROC_REF(/atom, recursive_dir_set))
 
 /proc/unregister_all_movement(var/event_source, var/listener)
-	GLOB.moved_event.unregister(event_source, listener, /atom/movable/proc/recursive_move)
-	GLOB.dir_set_event.unregister(event_source, listener, /atom/proc/recursive_dir_set)
+	events_repository.unregister(/decl/observ/moved, event_source, listener, TYPE_PROC_REF(/atom/movable, recursive_move))
+	events_repository.unregister(/decl/observ/dir_set, event_source, listener, TYPE_PROC_REF(/atom, recursive_dir_set))

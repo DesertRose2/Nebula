@@ -2,8 +2,9 @@
 	name = "wall frame window grille spawner"
 	icon = 'icons/obj/structures/grille.dmi'
 	icon_state = "wingrille"
-	density = 1
-	anchored = 1.0
+	density = TRUE
+	anchored = TRUE
+	atmos_canpass = CANPASS_NEVER
 	var/win_path = /obj/structure/window/basic/full
 	var/frame_path = /obj/structure/wall_frame/standard
 	var/grille_path = /obj/structure/grille
@@ -14,7 +15,9 @@
 	return 0
 
 /obj/effect/wallframe_spawn/attack_hand()
+	SHOULD_CALL_PARENT(FALSE)
 	activate()
+	return TRUE
 
 /obj/effect/wallframe_spawn/attack_ghost()
 	activate()
@@ -40,6 +43,28 @@
 	if(locate(win_path) in loc)
 		warning("Frame Spawner: A window structure already exists at [loc.x]-[loc.y]-[loc.z]")
 
+	var/list/neighbours = list()
+	if(fulltile)
+		var/obj/structure/window/new_win = new win_path(loc)
+		handle_window_spawn(new_win)
+	else
+		for (var/dir in global.cardinal)
+			var/turf/T = get_step(src, dir)
+			var/obj/effect/wallframe_spawn/other = locate(type) in T
+			if(!other)
+				var/found_connection
+				if(locate(/obj/structure/grille) in T)
+					for(var/obj/structure/window/window in T)
+						if(window.type == win_path && window.dir == get_dir(T,src))
+							found_connection = 1
+							qdel(window)
+				if(!found_connection)
+					var/obj/structure/window/new_win = new win_path(loc)
+					new_win.set_dir(dir)
+					handle_window_spawn(new_win)
+			else
+				neighbours |= other
+
 	if(grille_path)
 		if(locate(grille_path) in loc)
 			warning("Frame Spawner: A grille already exists at [loc.x]-[loc.y]-[loc.z]")
@@ -47,33 +72,12 @@
 			var/obj/structure/grille/G = new grille_path (loc)
 			handle_grille_spawn(G)
 
-	var/list/neighbours = list()
-	if(fulltile)
-		var/obj/structure/window/new_win = new win_path(loc)
-		handle_window_spawn(new_win)
-	else
-		for (var/dir in GLOB.cardinal)
-			var/turf/T = get_step(src, dir)
-			var/obj/effect/wallframe_spawn/other = locate(type) in T
-			if(!other)
-				var/found_connection
-				if(locate(/obj/structure/grille) in T)
-					for(var/obj/structure/window/W in T)
-						if(W.type == win_path && W.dir == get_dir(T,src))
-							found_connection = 1
-							qdel(W)
-				if(!found_connection)
-					var/obj/structure/window/new_win = new win_path(loc)
-					new_win.set_dir(dir)
-					handle_window_spawn(new_win)
-			else
-				neighbours |= other
 	activated = 1
 	for(var/obj/effect/wallframe_spawn/other in neighbours)
 		if(!other.activated) other.activate()
 
 /obj/effect/wallframe_spawn/proc/handle_frame_spawn(var/obj/structure/wall_frame/F)
-	for(var/direction in GLOB.cardinal)
+	for(var/direction in global.cardinal)
 		var/turf/T = get_step(src, direction)
 		for(var/obj/O in T)
 			if( istype(O, /obj/machinery/door))
@@ -81,7 +85,7 @@
 				D.update_connections()
 				D.update_icon()
 
-/obj/effect/wallframe_spawn/proc/handle_window_spawn(var/obj/structure/window/W)
+/obj/effect/wallframe_spawn/proc/handle_window_spawn(var/obj/structure/window/window)
 	return
 
 /obj/effect/wallframe_spawn/proc/handle_grille_spawn(var/obj/structure/grille/G)

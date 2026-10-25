@@ -1,0 +1,129 @@
+name: Run Tests
+
+on:
+  push:
+    branches:
+      - dev
+      - stable
+      - staging
+  pull_request:
+    branches:
+      - dev
+      - stable
+      - staging
+  workflow_dispatch:
+
+env:
+  BYOND_MAJOR: "516"
+  BYOND_MINOR: "1685"
+  SPACEMAN_DMM_VERSION: suite-1.11
+
+jobs:
+  DreamChecker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Cache
+        uses: actions/cache@v3
+        with:
+          path: ~/spaceman_dmm/${{ env.SPACEMAN_DMM_VERSION }}
+          key: ${{ runner.os }}-spacemandmm-${{ env.SPACEMAN_DMM_VERSION }}
+      - name: Install Dreamchecker
+        run:  scripts/install-spaceman-dmm.sh dreamchecker
+      - name: Run Dreamchecker
+        run: |
+          set -o pipefail
+          ./test/lint-all-modpacks.sh nebula.dme
+          ./test/lint-each-modpack.sh nebula.dme
+      - name: Annotate Lints
+        uses: yogstation13/DreamAnnotate@v2
+        if: always()
+        with:
+          outputFile: output-annotations.txt
+      - name: Run Failure Webhook
+        env:
+          JOB_STATUS: ${{ job.status }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          HOOK_OS_NAME: ${{ runner.os }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+        if: ${{ failure() }}
+        run: |
+          wget https://raw.githubusercontent.com/DiscordHooks/github-actions-discord-webhook/master/send.sh
+          chmod +x send.sh
+          ./send.sh failure $WEBHOOK_URL
+  OpenDream:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Python setup
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - name: Install OpenDream
+        uses: robinraju/release-downloader@v1.9
+        with:
+          repository: "OpenDreamProject/OpenDream"
+          tag: "latest"
+          fileName: "DMCompiler_linux-x64.tar.gz"
+          extract: true
+      - name: Run OpenDream
+        run: ./test/compile-od-all-modpacks.sh nebula.dme
+  Code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Cache
+        uses: actions/cache@v3
+        with:
+          path: ~/BYOND-${{ env.BYOND_MAJOR }}.${{ env.BYOND_MINOR }}
+          key: ${{ runner.os }}-byond-${{ env.BYOND_MAJOR }}-${{ env.BYOND_MINOR }}
+      - name: Install Dependencies
+        run: sudo apt-get install -y uchardet
+      - name: Run Tests
+        env:
+          TEST: CODE
+        run: test/run-test.sh
+      - name: Run Failure Webhook
+        env:
+          JOB_STATUS: ${{ job.status }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          HOOK_OS_NAME: ${{ runner.os }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+        if: ${{ failure() }}
+        run: |
+          wget https://raw.githubusercontent.com/DiscordHooks/github-actions-discord-webhook/master/send.sh
+          chmod +x send.sh
+          ./send.sh failure $WEBHOOK_URL
+  Maps:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        map_path: [example, tradeship, exodus, ministation, shaded_hills, away_sites_testing, modpack_testing, planets_testing]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Cache
+        uses: actions/cache@v3
+        with:
+          path: ~/BYOND-${{ env.BYOND_MAJOR }}.${{ env.BYOND_MINOR }}
+          key: ${{ runner.os }}-byond-${{ env.BYOND_MAJOR }}-${{ env.BYOND_MINOR }}
+      - name: Install Dependencies
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt update || true
+          sudo apt install -o APT::Immediate-Configure=false curl:i386
+      - name: Run Tests
+        env:
+          TEST: MAP
+          MAP_PATH: ${{ matrix.map_path }}
+        run: test/run-test.sh
+      - name: Run Failure Webhook
+        env:
+          JOB_STATUS: ${{ job.status }}
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          HOOK_OS_NAME: ${{ runner.os }}
+          WORKFLOW_NAME: ${{ github.workflow }}
+        if: ${{ failure() }}
+        run: |
+          wget https://raw.githubusercontent.com/DiscordHooks/github-actions-discord-webhook/master/send.sh
+          chmod +x send.sh
+          ./send.sh failure $WEBHOOK_URL

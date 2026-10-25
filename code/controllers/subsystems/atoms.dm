@@ -8,15 +8,15 @@ SUBSYSTEM_DEF(atoms)
 	init_order = SS_INIT_ATOMS
 	flags = SS_NO_FIRE | SS_NEEDS_SHUTDOWN
 
-	// override and GetArguments() exists for mod-override/downstream hook functionality.
-	// Useful for total-overhaul type modifications.
-	var/adjust_init_arguments = FALSE
-
 	var/atom_init_stage = INITIALIZATION_INSSATOMS
 	var/old_init_stage
 
-	var/list/late_loaders
+	/// An associative list of UIDs to atoms that were deserialized prior to flush.
+	var/list/deserialized_atoms = list()
+	/// A non-associative list of lists, with the format list(list(atom, list(Initialize arguments))).
 	var/list/created_atoms = list()
+	/// A non-associative list of lists, with the format list(list(atom, list(LateInitialize arguments))).
+	var/list/late_loaders = list()
 
 	var/list/BadInitializeCalls = list()
 
@@ -26,43 +26,76 @@ SUBSYSTEM_DEF(atoms)
 	return ..()
 
 /datum/controller/subsystem/atoms/proc/InitializeAtoms()
-	if(atom_init_stage <= INITIALIZATION_INSSATOMS_LATE)
+	if(atom_init_stage <= INITIALIZATION_INSSATOMS)
 		return
 
 	atom_init_stage = INITIALIZATION_INNEW_MAPLOAD
 
-	LAZYINITLIST(late_loaders)
+	// Preload any atoms that have deserialized during the initial load process prior to flush.
+	var/index = 1
+	var/list/postinit_serde_atoms = list()
+	if(length(deserialized_atoms))
+		while(index <= length(deserialized_atoms))
+			var/uid = deserialized_atoms[index++]
+			var/atom/instance = deserialized_atoms[uid]
+			if(instance.Preload(deserialized_atoms) == SERDE_HINT_POSTINIT)
+				postinit_serde_atoms += instance
+			CHECK_TICK
+		report_progress("Deserialized [index-1] atom\s.")
+		index = 1
 
 	var/list/mapload_arg = list(TRUE)
-
-	var/count = created_atoms.len
-	while(created_atoms.len)
-		var/atom/A = created_atoms[created_atoms.len]
-		created_atoms.len--
-		if(!(A.atom_flags & ATOM_FLAG_INITIALIZED))
-			InitAtom(A, GetArguments(A, mapload_arg))
+	// Things can add to the end of this list while we iterate, so we can't use a for loop.
+	while(index <= length(created_atoms))
+		// Don't remove from this list while we run, that's expensive.
+		// That would also make it harder to handle things added while we iterate.
+		var/list/creation_packet = created_atoms[index++]
+		var/atom/A = creation_packet[1]
+		var/list/atom_args = creation_packet[2]
+		// I sure hope nothing in this list is ever hard-deleted, or else QDELING will runtime.
+		// If you get a null reference runtime error, just change it back to QDELETED.
+		// The ATOM_FLAG_INITIALIZED check is because of INITIALIZE_IMMEDIATE().
+		if(!QDELING(A) && !(A.atom_flags & ATOM_FLAG_INITIALIZED))
+			if(atom_args)
+				atom_args.Insert(1, TRUE)
+				InitAtom(A, atom_args)
+			else
+				InitAtom(A, mapload_arg)
 			CHECK_TICK
+	created_atoms.Cut()
 
-	// If wondering why not just store all atoms in created_atoms and use the block above: that turns out unbearably expensive.
-	// Instead, atoms without extra arguments in New created on server start are fished out of world directly.
-	// We do this exactly once.
-	if(!initialized)
-		for(var/atom/A in world)
-			if(!(A.atom_flags & ATOM_FLAG_INITIALIZED))
-				InitAtom(A, GetArguments(A, mapload_arg, FALSE))
-				++count
-				CHECK_TICK
-
-	report_progress("Initialized [count] atom\s")
+	report_progress("Initialized [index-1] atom\s.")
 
 	atom_init_stage = INITIALIZATION_INNEW_REGULAR
 
-	if(late_loaders.len)
-		for(var/I in late_loaders)
-			var/atom/A = I
-			A.LateInitialize(arglist(late_loaders[A]))
-		report_progress("Late initialized [late_loaders.len] atom\s")
+	if(length(late_loaders))
+		index = 1
+		while(index <= length(late_loaders))
+			var/list/creation_packet = late_loaders[index++]
+			var/atom/A = creation_packet[1]
+			A.LateInitialize(arglist(creation_packet[2]))
+			CHECK_TICK
+		report_progress("Late initialized [index] atom\s")
 		late_loaders.Cut()
+
+	if(length(postinit_serde_atoms))
+		index = 1
+		while(index <= length(postinit_serde_atoms))
+			var/atom/instance = postinit_serde_atoms[index++]
+			instance.DeserializePostInit(deserialized_atoms)
+			CHECK_TICK
+		postinit_serde_atoms.Cut()
+
+	// Clear out the serde payloads now that everything should be tidied away.
+	if(length(deserialized_atoms))
+		index = 1
+		while(index <= length(deserialized_atoms))
+			var/uid = deserialized_atoms[index++]
+			var/atom/instance = deserialized_atoms[uid]
+			if(istype(instance))
+				instance.__deserialization_payload = null
+			CHECK_TICK
+		deserialized_atoms.Cut()
 
 /datum/controller/subsystem/atoms/proc/InitAtom(atom/A, list/arguments)
 	var/the_type = A.type
@@ -70,27 +103,34 @@ SUBSYSTEM_DEF(atoms)
 		BadInitializeCalls[the_type] |= BAD_INIT_QDEL_BEFORE
 		return TRUE
 
+	// This is handled and battle tested by dreamchecker. Limit to UNIT_TEST just in case that ever fails.
+	#ifdef UNIT_TEST
 	var/start_tick = world.time
+	#endif
 
 	var/result = A.Initialize(arglist(arguments))
 
+	#ifdef UNIT_TEST
 	if(start_tick != world.time)
 		BadInitializeCalls[the_type] |= BAD_INIT_SLEPT
+	#endif
 
 	var/qdeleted = FALSE
 
-	if(result != INITIALIZE_HINT_NORMAL)
-		switch(result)
-			if(INITIALIZE_HINT_LATELOAD)
-				if(arguments[1])	//mapload
-					late_loaders[A] = arguments
-				else
-					A.LateInitialize(arglist(arguments))
-			if(INITIALIZE_HINT_QDEL)
-				qdel(A)
-				qdeleted = TRUE
+	switch(result)
+		if(INITIALIZE_HINT_NORMAL)
+			EMPTY_BLOCK_GUARD
+		if(INITIALIZE_HINT_LATELOAD)
+			if(arguments[1])	//mapload
+				late_loaders[++late_loaders.len] = list(A, arguments)
 			else
-				BadInitializeCalls[the_type] |= BAD_INIT_NO_HINT
+				A.LateInitialize(arglist(arguments))
+		if(INITIALIZE_HINT_QDEL)
+			A.atom_flags |= ATOM_FLAG_INITIALIZED // never call EarlyDestroy if we return this hint
+			qdel(A)
+			qdeleted = TRUE
+		else
+			BadInitializeCalls[the_type] |= BAD_INIT_NO_HINT
 
 	if(!A)	//possible harddel
 		qdeleted = TRUE
@@ -99,27 +139,12 @@ SUBSYSTEM_DEF(atoms)
 
 	return qdeleted || QDELING(A)
 
-// override and GetArguments() exists for mod-override/downstream hook functionality.
-// Useful for total-overhaul type modifications.
-/atom/proc/AdjustInitializeArguments(list/arguments)
-	// Lists are passed by reference so can simply modify the arguments list without returning it
-
-/datum/controller/subsystem/atoms/proc/GetArguments(atom/A, list/mapload_arg, created=TRUE)
-	if(!created && !adjust_init_arguments)
-		return mapload_arg // Performance optimization. Nothing to do.
-	var/list/arguments = mapload_arg.Copy()
-	if(created && created_atoms[A])
-		arguments += created_atoms[A]
-	if(adjust_init_arguments)
-		A.AdjustInitializeArguments(arguments)
-	return arguments
-
 /datum/controller/subsystem/atoms/stat_entry(msg)
 	..("Bad Initialize Calls:[BadInitializeCalls.len]")
 
 /datum/controller/subsystem/atoms/proc/map_loader_begin()
 	old_init_stage = atom_init_stage
-	atom_init_stage = INITIALIZATION_INSSATOMS_LATE
+	atom_init_stage = INITIALIZATION_INSSATOMS
 
 /datum/controller/subsystem/atoms/proc/map_loader_stop()
 	atom_init_stage = old_init_stage
@@ -148,9 +173,4 @@ SUBSYSTEM_DEF(atoms)
 /datum/controller/subsystem/atoms/Shutdown()
 	var/initlog = InitLog()
 	if(initlog)
-		text2file(initlog, "[GLOB.log_directory]/initialize.log")
-
-#undef BAD_INIT_QDEL_BEFORE
-#undef BAD_INIT_DIDNT_INIT
-#undef BAD_INIT_SLEPT
-#undef BAD_INIT_NO_HINT
+		text2file(initlog, "[global.log_directory]/initialize.log")

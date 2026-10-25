@@ -10,6 +10,9 @@
 
 	var/ui_template = "shuttle_control_console.tmpl"
 
+/obj/machinery/computer/shuttle_control/modify_mapped_vars(map_hash)
+	..()
+	ADJUST_TAG_VAR(shuttle_tag, map_hash)
 
 /obj/machinery/computer/shuttle_control/interface_interact(mob/user)
 	ui_interact(user)
@@ -31,10 +34,10 @@
 			else if(cannot_depart)
 				shuttle_status = cannot_depart
 			else
-				shuttle_status = "Standing-by at \the [shuttle.get_location_name()]."
+				shuttle_status = "Standing-by at [shuttle.get_location_name()]."
 
 		if(WAIT_LAUNCH, FORCE_LAUNCH)
-			shuttle_status = "Shuttle has recieved command and will depart shortly."
+			shuttle_status = "Shuttle has received command and will depart shortly."
 		if(WAIT_ARRIVE)
 			shuttle_status = "Proceeding to \the [shuttle.get_destination_name()]."
 		if(WAIT_FINISH)
@@ -49,6 +52,7 @@
 		"can_launch" = shuttle.can_launch(),
 		"can_cancel" = shuttle.can_cancel(),
 		"can_force" = shuttle.can_force(),
+		"timeleft" = max(round((shuttle.arrive_time - world.time) / 10, 1), 0),
 		"docking_codes" = shuttle.docking_codes
 	)
 
@@ -85,7 +89,7 @@
 
 	if(href_list["set_codes"])
 		var/newcode = input("Input new docking codes", "Docking codes", shuttle.docking_codes) as text|null
-		if (newcode && CanInteract(usr, GLOB.default_state))
+		if (newcode && CanInteract(user, global.default_topic_state))
 			shuttle.set_docking_codes(uppertext(newcode))
 		return TOPIC_REFRESH
 
@@ -99,7 +103,7 @@
 
 	ui = SSnano.try_update_ui(user, src, ui_key, ui, data, force_open)
 	if(!ui)
-		ui = new(user, src, ui_key, ui_template, "[shuttle_tag] Shuttle Control", 470, 450)
+		ui = new(user, src, ui_key, ui_template, "[shuttle.display_name] Shuttle Control", 470, 450)
 		ui.set_initial_data(data)
 		ui.open()
 		ui.set_auto_update(1)
@@ -113,13 +117,3 @@
 		hacked = 1
 		to_chat(user, "You short out the console's ID checking system. It's now available to everyone!")
 		return 1
-
-/obj/machinery/computer/shuttle_control/bullet_act(var/obj/item/projectile/Proj)
-	visible_message("\The [Proj] ricochets off \the [src]!")
-
-/obj/machinery/computer/shuttle_control/explosion_act()
-	SHOULD_CALL_PARENT(FALSE)
-	return
-
-/obj/machinery/computer/shuttle_control/emp_act()
-	return

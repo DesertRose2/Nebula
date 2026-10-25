@@ -11,14 +11,14 @@
 	icon = 'icons/atmos/vent_pump.dmi'
 	icon_state = "map_vent"
 
-	name = "Air Vent"
-	desc = "Has a valve and pump attached to it."
+	name = "air vent"
+	desc = "A vent that moves air into or out of the attached pipe system, and uses a valve and pump to prevent backflow."
 	use_power = POWER_USE_OFF
 	idle_power_usage = 150		//internal circuitry, friction losses and stuff
 	power_rating = 30000			// 30000 W ~ 40 HP
 
 	connect_types = CONNECT_TYPE_REGULAR|CONNECT_TYPE_SUPPLY|CONNECT_TYPE_FUEL //connects to regular, supply pipes, and fuel pipes
-	level = 1
+	level = LEVEL_BELOW_PLATING
 	identifier = "AVP"
 
 	var/hibernate = 0 //Do we even process?
@@ -39,7 +39,6 @@
 
 	var/welded = 0 // Added for aliens -- TLE
 
-	var/controlled = TRUE  //if we should register with an air alarm on spawn
 	build_icon_state = "uvent"
 	var/sound_id
 	var/datum/sound_token/sound_token
@@ -64,6 +63,7 @@
 	)
 	public_methods = list(
 		/decl/public_access/public_method/toggle_power,
+		/decl/public_access/public_method/toggle_pump_dir,
 		/decl/public_access/public_method/purge_pump,
 		/decl/public_access/public_method/refresh
 	)
@@ -75,6 +75,44 @@
 	frame_type = /obj/item/pipe
 	construct_state = /decl/machine_construction/default/panel_closed/item_chassis
 	base_type = /obj/machinery/atmospherics/unary/vent_pump/buildable
+
+/obj/machinery/atmospherics/unary/vent_pump/Initialize()
+	if (!id_tag)
+		id_tag = "[sequential_id("obj/machinery")]"
+	if(controlled)
+		var/area/A = get_area(src)
+		if(A && !A.air_vent_names[id_tag])
+			update_name()
+			events_repository.register(/decl/observ/name_set, A, src, PROC_REF(change_area_name))
+	. = ..()
+	air_contents.total_volume = ATMOS_DEFAULT_VOLUME_PUMP
+	update_sound()
+
+/obj/machinery/atmospherics/unary/vent_pump/proc/change_area_name(var/area/A, var/old_area_name, var/new_area_name)
+	if(get_area(src) != A)
+		return
+	update_name()
+
+/obj/machinery/atmospherics/unary/vent_pump/area_changed(area/old_area, area/new_area)
+	if(old_area)
+		old_area.air_vent_names -= id_tag
+	. = ..()
+	update_name()
+
+/obj/machinery/atmospherics/unary/vent_pump/proc/update_name()
+	var/area/A = get_area(src)
+	if(!A || A == global.space_area || !controlled)
+		SetName("vent pump")
+		return
+	var/index
+	if(A.air_vent_names[id_tag])
+		index = A.air_vent_names.Find(id_tag)
+	else
+		A.air_vent_names[id_tag] = TRUE
+		index = length(A.air_vent_names)
+	var/new_name = "[A.proper_name] vent pump #[index]"
+	A.air_vent_names[id_tag] = new_name
+	SetName(new_name)
 
 /obj/machinery/atmospherics/unary/vent_pump/buildable
 	uncreated_component_parts = null
@@ -100,74 +138,56 @@
 	pressure_checks = 2
 	pressure_checks_default = 2
 
-/obj/machinery/atmospherics/unary/vent_pump/Initialize()
-	. = ..()
-	air_contents.volume = ATMOS_DEFAULT_VOLUME_PUMP
-	icon = null
-	update_sound()
-
 /obj/machinery/atmospherics/unary/vent_pump/Destroy()
 	QDEL_NULL(sound_token)
-	var/area/A = get_area(src)
-	if(A)
-		GLOB.name_set_event.unregister(A, src, .proc/change_area_name)
-		A.air_vent_info -= id_tag
-		A.air_vent_names -= id_tag
 	. = ..()
+
+/obj/machinery/atmospherics/unary/vent_pump/reset_area(area/old_area, area/new_area)
+	if(!controlled)
+		return
+	if(old_area == new_area)
+		return
+	if(old_area)
+		events_repository.unregister(/decl/observ/name_set, old_area, src, PROC_REF(change_area_name))
+		old_area.air_vent_info -= id_tag
+		old_area.air_vent_names -= id_tag
+	if(new_area && new_area == get_area(src))
+		events_repository.register(/decl/observ/name_set, new_area, src, PROC_REF(change_area_name))
+		if(!new_area.air_vent_names[id_tag])
+			var/new_name = "[new_area.proper_name] Vent Pump #[new_area.air_vent_names.len+1]"
+			new_area.air_vent_names[id_tag] = new_name
+			SetName(new_name)
 
 /obj/machinery/atmospherics/unary/vent_pump/high_volume
 	name = "large air vent"
+	desc = "A high-volume vent that moves lots of air into or out of the attached pipe system, and uses a valve and pump to prevent backflow."
 	power_channel = EQUIP
 	power_rating = 45000
+	base_type = /obj/machinery/atmospherics/unary/vent_pump/high_volume/buildable
+
+/obj/machinery/atmospherics/unary/vent_pump/high_volume/buildable
+	uncreated_component_parts = null
 
 /obj/machinery/atmospherics/unary/vent_pump/high_volume/Initialize()
 	. = ..()
-	air_contents.volume = ATMOS_DEFAULT_VOLUME_PUMP + 800
+	air_contents.total_volume = ATMOS_DEFAULT_VOLUME_PUMP + 800
 
-
-/obj/machinery/atmospherics/unary/vent_pump/on_update_icon(var/safety = 0)
-	if(!check_icon_cache())
-		return
-	if (!node)
-		return
-
-	overlays.Cut()
-
-	var/vent_icon = "vent"
-
-	var/turf/T = get_turf(src)
-	if(!istype(T))
-		return
-
-	if(!T.is_plating() && node && node.level == 1 && istype(node, /obj/machinery/atmospherics/pipe))
-		vent_icon += "h"
+/obj/machinery/atmospherics/unary/vent_pump/on_update_icon()
+	var/visible_directions = build_device_underlays()
+	var/vent_prefix = visible_directions ? "" : "h" // h prefix for hidden == no visible directions
+	var/vent_icon
 
 	if(welded)
-		vent_icon += "weld"
-	else if(!powered())
-		vent_icon += "off"
+		vent_icon = "weld"
+	else if((stat & NOPOWER) || !use_power)
+		vent_icon = "off"
 	else
-		vent_icon += "[use_power ? "[pump_direction ? "out" : "in"]" : "off"]"
+		vent_icon += "[pump_direction ? "out" : "in"]"
 
-	overlays += icon_manager.get_atmos_icon("device", , , vent_icon)
-
-/obj/machinery/atmospherics/unary/vent_pump/update_underlays()
-	if(..())
-		underlays.Cut()
-		var/turf/T = get_turf(src)
-		if(!istype(T))
-			return
-		if(!T.is_plating() && node && node.level == 1 && istype(node, /obj/machinery/atmospherics/pipe))
-			return
-		else
-			if(node)
-				add_underlay(T, node, dir, node.icon_connect_type)
-			else
-				add_underlay(T,, dir)
+	icon_state = "[vent_prefix][vent_icon]"
 
 /obj/machinery/atmospherics/unary/vent_pump/hide()
 	update_icon()
-	update_underlays()
 
 /obj/machinery/atmospherics/unary/vent_pump/proc/can_pump()
 	if(stat & (NOPOWER|BROKEN))
@@ -184,7 +204,7 @@
 	if (hibernate > world.time)
 		return 1
 
-	if (!node)
+	if (!LAZYLEN(nodes_to_networks))
 		update_use_power(POWER_USE_OFF)
 	if(!can_pump())
 		return 0
@@ -196,17 +216,14 @@
 	//Figure out the target pressure difference
 	var/pressure_delta = get_pressure_delta(environment)
 	var/transfer_moles
-	//src.visible_message("DEBUG >>> [src]: pressure_delta = [pressure_delta]")
 
 	if((environment.temperature || air_contents.temperature) && pressure_delta > 0.5)
 		if(pump_direction) //internal -> external
 			transfer_moles = calculate_transfer_moles(air_contents, environment, pressure_delta)
 			power_draw = pump_gas(src, air_contents, environment, transfer_moles, power_rating)
 		else //external -> internal
-			transfer_moles = calculate_transfer_moles(environment, air_contents, pressure_delta, (network)? network.volume : 0)
-
-			//limit flow rate from turfs
-			transfer_moles = min(transfer_moles, environment.total_moles*air_contents.volume/environment.volume)	//group_multiplier gets divided out here
+			var/datum/pipe_network/network = network_in_dir(dir)
+			transfer_moles = calculate_transfer_moles(environment, air_contents, pressure_delta, network?.total_volume) / environment.group_multiplier // limit it to just one turf's worth of gas per tick
 			power_draw = pump_gas(src, environment, air_contents, transfer_moles, power_rating)
 
 	else
@@ -215,8 +232,8 @@
 		if(pump_direction && pressure_checks == PRESSURE_CHECK_EXTERNAL) //99% of all vents
 			hibernate = world.time + (rand(100,200))
 
-	if(network && (transfer_moles > 0))
-		network.update = 1
+	if(transfer_moles > 0)
+		update_networks()
 	if (power_draw >= 0)
 		last_power_draw = power_draw
 		use_power_oneoff(power_draw)
@@ -243,28 +260,14 @@
 /obj/machinery/atmospherics/unary/vent_pump/area_uid()
 	return controlled ? ..() : "NONE"
 
-/obj/machinery/atmospherics/unary/vent_pump/Initialize()
-	if (!id_tag)
-		id_tag = "[sequential_id("obj/machinery")]"
-	if(controlled)
-		var/area/A = get_area(src)
-		if(A && !A.air_vent_names[id_tag])
-			var/new_name = "[A.name] Vent Pump #[A.air_vent_names.len+1]"
-			A.air_vent_names[id_tag] = new_name
-			SetName(new_name)
-			GLOB.name_set_event.register(A, src, .proc/change_area_name)
-	. = ..()
-
-/obj/machinery/atmospherics/unary/vent_pump/proc/change_area_name(var/area/A, var/old_area_name, var/new_area_name)
-	if(get_area(src) != A)
-		return
-	var/new_name = replacetext(A.air_vent_names[id_tag], old_area_name, new_area_name)
-	SetName(new_name)
-	A.air_vent_names[id_tag] = new_name
-
 /obj/machinery/atmospherics/unary/vent_pump/proc/purge()
 	pressure_checks &= ~PRESSURE_CHECK_EXTERNAL
 	pump_direction = 0
+	queue_icon_update()
+
+/obj/machinery/atmospherics/unary/vent_pump/proc/toggle_pump_dir()
+	pump_direction = !pump_direction
+	queue_icon_update()
 
 /obj/machinery/atmospherics/unary/vent_pump/refresh()
 	..()
@@ -275,17 +278,17 @@
 	. = ..()
 	toggle_input_toggle()
 
-/obj/machinery/atmospherics/unary/vent_pump/attackby(obj/item/W, mob/user)
-	if(isWelder(W))
+/obj/machinery/atmospherics/unary/vent_pump/attackby(obj/item/used_item, mob/user)
+	if(IS_WELDER(used_item))
 
-		var/obj/item/weldingtool/WT = W
+		var/obj/item/fuelled_tool/welding/welder = used_item
 
-		if(!WT.isOn())
-			to_chat(user, "<span class='notice'>The welding tool needs to be on to start this task.</span>")
+		if(!welder.tool_is_running())
+			to_chat(user, "<span class='notice'>\The [welder] needs to be on to start this task.</span>")
 			return 1
 
-		if(!WT.remove_fuel(0,user))
-			to_chat(user, "<span class='warning'>You need more welding fuel to complete this task.</span>")
+		if(!welder.weld(0,user))
+			to_chat(user, "<span class='warning'>You need more fuel to complete this task.</span>")
 			return 1
 
 		to_chat(user, "<span class='notice'>Now welding \the [src].</span>")
@@ -298,8 +301,8 @@
 		if(!src)
 			return 1
 
-		if(!WT.isOn())
-			to_chat(user, "<span class='notice'>The welding tool needs to be on to finish this task.</span>")
+		if(!welder.tool_is_running())
+			to_chat(user, "<span class='notice'>\The [welder] needs to be on to finish this task.</span>")
 			return 1
 
 		welded = !welded
@@ -309,50 +312,52 @@
 			"<span class='notice'>You [welded ? "weld \the [src] shut" : "unweld \the [src]"].</span>", \
 			"You hear welding.")
 		return 1
-	if(isMultitool(W))
-		var/datum/browser/written/popup = new(user, "Vent Configuration Utility", "[src] Configuration Panel", 600, 200)
+	if(IS_MULTITOOL(used_item))
+		var/datum/browser/written_digital/popup = new(user, "Vent Configuration Utility", "[src] Configuration Panel", 600, 200)
 		popup.set_content(jointext(get_console_data(),"<br>"))
 		popup.open()
 		return TRUE
 
 	return ..()
 
-/obj/machinery/atmospherics/unary/vent_pump/examine(mob/user, distance)
+/obj/machinery/atmospherics/unary/vent_pump/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
 	if(distance <= 1)
-		to_chat(user, "A small gauge in the corner reads [round(last_flow_rate, 0.1)] L/s; [round(last_power_draw)] W")
+		. += "A small gauge in the corner reads [round(last_flow_rate, 0.1)] L/s; [round(last_power_draw)] W."
 	else
-		to_chat(user, "You are too far away to read the gauge.")
+		. += "You are too far away to read the gauge."
 	if(welded)
-		to_chat(user, "It seems welded shut.")
+		. += "It seems welded shut."
 
 /obj/machinery/atmospherics/unary/vent_pump/cannot_transition_to(state_path, mob/user)
 	if(state_path == /decl/machine_construction/default/deconstructed)
 		if(!(stat & NOPOWER) && use_power)
-			return SPAN_NOTICE("You cannot unwrench \the [src], turn it off first.")
+			return SPAN_WARNING("You cannot unwrench \the [src], turn it off first.")
 		var/turf/T = src.loc
-		if (node && node.level==1 && isturf(T) && !T.is_plating())
-			return SPAN_NOTICE("You must remove the plating first.")
-		var/datum/gas_mixture/int_air = return_air()
-		var/datum/gas_mixture/env_air = loc.return_air()
-		if ((int_air.return_pressure()-env_air.return_pressure()) > 2*ONE_ATMOSPHERE)
-			return SPAN_NOTICE("You cannot unwrench \the [src], it is too exerted due to internal pressure.")
+		var/hidden_pipe_check = FALSE
+		for(var/obj/machinery/atmospherics/node as anything in nodes_to_networks)
+			if(node.level == LEVEL_BELOW_PLATING)
+				hidden_pipe_check = TRUE
+				break
+		if (hidden_pipe_check && isturf(T) && !T.is_plating())
+			return SPAN_WARNING("You must remove the plating first.")
+		if (check_internal_pressure_difference_over(2 ATM))
+			return SPAN_WARNING("You cannot unwrench \the [src], it is too exerted due to internal pressure.")
 	return ..()
 
 /obj/machinery/atmospherics/unary/vent_pump/proc/get_console_data()
 	. = list()
 	. += "<table>"
 	. += "<tr><td><b>Name:</b></td><td>[name]</td>"
-	. += "<tr><td><b>Pump Status:</b></td><td>[pump_direction?("<font color = 'green'>Releasing</font>"):("<font color = 'red'>Siphoning</font>")]</td><td><a href='?src=\ref[src];switchMode=\ref[src]'>Toggle</a></td></tr>"
+	. += "<tr><td><b>Pump Status:</b></td><td>[pump_direction?("<font color = 'green'>Releasing</font>"):("<font color = 'red'>Siphoning</font>")]</td><td><a href='byond://?src=\ref[src];switchMode=\ref[src]'>Toggle</a></td></tr>"
 	. = JOINTEXT(.)
 
 /obj/machinery/atmospherics/unary/vent_pump/OnTopic(mob/user, href_list, datum/topic_state/state)
 	if((. = ..()))
 		return
-	if(href_list["switchMode"])
-		pump_direction = !pump_direction
+	if(href_list["switchMode"]) // todo: this could easily be refhacked if you don't have a multitool
+		toggle_pump_dir()
 		to_chat(user, "<span class='notice'>The multitool emits a short beep confirming the change.</span>")
-		queue_icon_update() //force the icon to refresh after changing directional mode.
 		return TOPIC_REFRESH
 
 /decl/public_access/public_variable/pump_dir
@@ -361,7 +366,7 @@
 	desc = "The pump mode of the vent. Expected values are \"siphon\" or \"release\"."
 	can_write = TRUE
 	has_updates = TRUE
-	var_type = IC_FORMAT_STRING
+	var_type = VAR_FORMAT_STRING
 
 /decl/public_access/public_variable/pump_dir/access_var(obj/machinery/atmospherics/unary/vent_pump/machine)
 	return machine.pump_direction ? "release" : "siphon"
@@ -379,7 +384,7 @@
 	desc = "Numerical codes for whether the pump checks internal or internal pressure (or both) prior to operating. Can also be supplied the string keyword \"default\"."
 	can_write = TRUE
 	has_updates = FALSE
-	var_type = IC_FORMAT_ANY
+	var_type = VAR_FORMAT_ANY
 
 /decl/public_access/public_variable/pump_checks/access_var(obj/machinery/atmospherics/unary/vent_pump/machine)
 	return machine.pressure_checks
@@ -387,9 +392,7 @@
 /decl/public_access/public_variable/pump_checks/write_var(obj/machinery/atmospherics/unary/vent_pump/machine, new_value)
 	if(new_value == "default")
 		new_value = machine.pressure_checks_default
-	var/sanitized = sanitize_integer(new_value, 0, 3)
-	if(new_value != sanitized)
-		return FALSE
+	new_value = sanitize_integer(text2num(new_value), 0, 3, machine.pressure_checks)
 	. = ..()
 	if(.)
 		machine.pressure_checks = new_value
@@ -400,7 +403,7 @@
 	desc = "The bound on internal pressure used in checks (a number). When writing, can be supplied the string keyword \"default\" instead."
 	can_write = TRUE
 	has_updates = FALSE
-	var_type = IC_FORMAT_ANY
+	var_type = VAR_FORMAT_ANY
 
 /decl/public_access/public_variable/pressure_bound/access_var(obj/machinery/atmospherics/unary/vent_pump/machine)
 	return machine.internal_pressure_bound
@@ -408,7 +411,10 @@
 /decl/public_access/public_variable/pressure_bound/write_var(obj/machinery/atmospherics/unary/vent_pump/machine, new_value)
 	if(new_value == "default")
 		new_value = machine.internal_pressure_bound_default
-	new_value = Clamp(text2num(new_value), 0, MAX_PUMP_PRESSURE)
+	new_value = text2num(new_value)
+	if(!isnum(new_value))
+		return FALSE
+	new_value = clamp(new_value, 0, MAX_PUMP_PRESSURE)
 	. = ..()
 	if(.)
 		machine.internal_pressure_bound = new_value
@@ -424,7 +430,7 @@
 /decl/public_access/public_variable/pressure_bound/external/write_var(obj/machinery/atmospherics/unary/vent_pump/machine, new_value)
 	if(new_value == "default")
 		new_value = machine.external_pressure_bound_default
-	new_value = Clamp(new_value, 0, MAX_PUMP_PRESSURE)
+	new_value = clamp(new_value, 0, MAX_PUMP_PRESSURE)
 	. = ..()
 	if(.)
 		machine.external_pressure_bound = new_value
@@ -432,7 +438,12 @@
 /decl/public_access/public_method/purge_pump
 	name = "activate purge mode"
 	desc = "Activates purge mode, overriding pressure checks and removing air."
-	call_proc = /obj/machinery/atmospherics/unary/vent_pump/proc/purge
+	call_proc = TYPE_PROC_REF(/obj/machinery/atmospherics/unary/vent_pump, purge)
+
+/decl/public_access/public_method/toggle_pump_dir
+	name = "toggle pump direction"
+	desc = "Toggles the pump's direction, from release to siphon or vice versa."
+	call_proc = TYPE_PROC_REF(/obj/machinery/atmospherics/unary/vent_pump, toggle_pump_dir)
 
 /decl/stock_part_preset/radio/event_transmitter/vent_pump
 	frequency = PUMP_FREQ
@@ -549,8 +560,8 @@
 
 /obj/machinery/atmospherics/unary/vent_pump/engine/Initialize()
 	. = ..()
-	air_contents.volume = ATMOS_DEFAULT_VOLUME_PUMP + 500 //meant to match air injector
-	
+	air_contents.total_volume = ATMOS_DEFAULT_VOLUME_PUMP + 500 //meant to match air injector
+
 /obj/machinery/atmospherics/unary/vent_pump/power_change()
 	. = ..()
 	if(.)
@@ -560,7 +571,7 @@
 	if(!sound_id)
 		sound_id = "[sequential_id("vent_z[z]")]"
 	if(can_pump())
-		sound_token = GLOB.sound_player.PlayLoopingSound(src, sound_id, 'sound/machines/vent_hum.ogg', 15, range = 7, falloff = 4)
+		sound_token = play_looping_sound(src, sound_id, 'sound/machines/vent_hum.ogg', 10, range = 7, falloff = 4)
 	else
 		QDEL_NULL(sound_token)
 

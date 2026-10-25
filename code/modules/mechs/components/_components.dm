@@ -3,6 +3,14 @@
 	w_class = ITEM_SIZE_HUGE
 	gender = PLURAL
 	color = COLOR_GUNMETAL
+	atom_flags = ATOM_FLAG_CAN_BE_PAINTED
+
+	material = /decl/material/solid/metal/steel
+	matter = list(
+		/decl/material/solid/organic/plastic = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/metal/osmium = MATTER_AMOUNT_TRACE
+	)
+	dir = SOUTH
 
 	var/on_mech_icon = 'icons/mecha/mech_parts.dmi'
 	var/exosuit_desc_string
@@ -13,34 +21,26 @@
 	var/damage_state = 1
 	var/list/has_hardpoints = list()
 	var/decal
+	var/decal_blend = BLEND_MULTIPLY
 	var/power_use = 0
-	material = /decl/material/solid/metal/steel
-	matter = list(
-		/decl/material/solid/plastic = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/metal/osmium = MATTER_AMOUNT_TRACE
-	)
-	dir = SOUTH
-
-/obj/item/mech_component/proc/set_colour(new_colour)
-	var/last_colour = color
-	color = new_colour
-	return color != last_colour
 
 /obj/item/mech_component/emp_act(var/severity)
 	take_burn_damage(rand((10 - (severity*3)),15-(severity*4)))
 	for(var/obj/item/thing in contents)
 		thing.emp_act(severity)
 
-/obj/item/mech_component/examine(mob/user)
+/obj/item/mech_component/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
 	if(ready_to_install())
-		to_chat(user, SPAN_NOTICE("It is ready for installation."))
+		. += SPAN_NOTICE("It is ready for installation.")
 	else
-		show_missing_parts(user)
+		var/list/missing_parts = show_missing_parts(user)
+		if(length(missing_parts))
+			. += missing_parts
 
 //These icons have multiple directions but before they're attached we only want south.
 /obj/item/mech_component/set_dir()
-	..(SOUTH)
+	return ..(SOUTH)
 
 /obj/item/mech_component/proc/show_missing_parts(var/mob/user)
 	return
@@ -49,14 +49,21 @@
 	return
 
 /obj/item/mech_component/proc/install_component(var/obj/item/thing, var/mob/user)
-	if(user.unEquip(thing, src))
+	if(user.try_unequip(thing, src))
 		user.visible_message(SPAN_NOTICE("\The [user] installs \the [thing] in \the [src]."))
-		return 1
+		return TRUE
+	return FALSE
 
-/obj/item/mech_component/proc/update_health()
+/obj/item/mech_component/proc/update_component_health()
 	total_damage = brute_damage + burn_damage
 	if(total_damage > max_damage) total_damage = max_damage
-	damage_state = Clamp(round((total_damage/max_damage) * 4), MECH_COMPONENT_DAMAGE_UNDAMAGED, MECH_COMPONENT_DAMAGE_DAMAGED_TOTAL)
+	var/prev_state = damage_state
+	damage_state = clamp(round((total_damage/max_damage) * 4), MECH_COMPONENT_DAMAGE_UNDAMAGED, MECH_COMPONENT_DAMAGE_DAMAGED_TOTAL)
+	if(damage_state > prev_state)
+		if(damage_state == MECH_COMPONENT_DAMAGE_DAMAGED_BAD)
+			playsound(src.loc, 'sound/mecha/internaldmgalarm.ogg', 40, 1)
+		if(damage_state == MECH_COMPONENT_DAMAGE_DAMAGED_TOTAL)
+			playsound(src.loc, 'sound/mecha/critdestr.ogg', 50)
 
 /obj/item/mech_component/proc/ready_to_install()
 	return 1
@@ -69,13 +76,13 @@
 
 /obj/item/mech_component/proc/take_brute_damage(var/amt)
 	brute_damage = max(0, brute_damage + amt)
-	update_health()
+	update_component_health()
 	if(total_damage == max_damage)
 		take_component_damage(amt,0)
 
 /obj/item/mech_component/proc/take_burn_damage(var/amt)
 	burn_damage = max(0, burn_damage + amt)
-	update_health()
+	update_component_health()
 	if(total_damage == max_damage)
 		take_component_damage(0,amt)
 
@@ -85,12 +92,13 @@
 		damageable_components += RC
 	if(!damageable_components.len) return
 	var/obj/item/robot_parts/robot_component/RC = pick(damageable_components)
-	if(RC.take_damage(brute, burn))
+	if(RC.take_damage(brute, BRUTE) || RC.take_damage(burn, BURN))
 		qdel(RC)
 		update_components()
 
-/obj/item/mech_component/attackby(var/obj/item/thing, var/mob/user)
-	if(isScrewdriver(thing))
+/obj/item/mech_component/attackby(var/obj/item/used_item, var/mob/user)
+
+	if(IS_SCREWDRIVER(used_item))
 		if(contents.len)
 			//Filter non movables
 			var/list/valid_contents = list()
@@ -98,39 +106,50 @@
 				if(!A.anchored)
 					valid_contents += A
 			if(!valid_contents.len)
-				return
+				return TRUE
 			var/obj/item/removed = pick(valid_contents)
 			if(!(removed in contents))
-				return
+				return TRUE
 			user.visible_message(SPAN_NOTICE("\The [user] removes \the [removed] from \the [src]."))
 			removed.forceMove(user.loc)
 			playsound(user.loc, 'sound/effects/pop.ogg', 50, 0)
 			update_components()
 		else
 			to_chat(user, SPAN_WARNING("There is nothing to remove."))
-		return
-	if(isWelder(thing))
-		repair_brute_generic(thing, user)
-		return
-	if(isCoil(thing))
-		repair_burn_generic(thing, user)
-		return
+		return TRUE
+
+	if(IS_WELDER(used_item))
+		repair_brute_generic(used_item, user)
+		return TRUE
+
+	if(IS_COIL(used_item))
+		repair_burn_generic(used_item, user)
+		return TRUE
+
+	if(istype(used_item, /obj/item/robotanalyzer))
+		to_chat(user, SPAN_NOTICE("Diagnostic Report for \the [src]:"))
+		return_diagnostics(user)
+		return TRUE
 
 	return ..()
 
 /obj/item/mech_component/proc/update_components()
 	return
 
-/obj/item/mech_component/proc/repair_brute_generic(var/obj/item/weldingtool/WT, var/mob/user)
-	if(!istype(WT))
+/obj/item/mech_component/proc/repair_brute_generic(var/obj/item/fuelled_tool/welding/welder, var/mob/user)
+	if(!istype(welder))
 		return
 	if(!brute_damage)
 		to_chat(user, SPAN_NOTICE("You inspect \the [src] but find nothing to weld."))
 		return
-	if(!WT.isOn())
-		to_chat(user, SPAN_WARNING("Turn \the [WT] on, first."))
+	if(!welder.tool_is_running())
+		to_chat(user, SPAN_WARNING("Turn \the [welder] on, first."))
 		return
-	if(WT.remove_fuel((SKILL_MAX + 1) - user.get_skill_value(SKILL_CONSTRUCTION), user))
+	if(welder.weld((SKILL_MAX + 1) - user.get_skill_value(SKILL_CONSTRUCTION), user))
+		user.visible_message(
+			SPAN_NOTICE("\The [user] begins welding the damage on \the [src]..."),
+			SPAN_NOTICE("You begin welding the damage on \the [src]...")
+		)
 		var/repair_value = 10 * max(user.get_skill_value(SKILL_CONSTRUCTION), user.get_skill_value(SKILL_DEVICES))
 		if(user.do_skilled(10, SKILL_DEVICES , src, 0.6) && brute_damage)
 			repair_brute_damage(repair_value)
@@ -154,7 +173,7 @@
 	if(user.do_skilled(10, SKILL_DEVICES , src, 0.6) && burn_damage)
 		if(QDELETED(CC) || QDELETED(src) || !CC.use(needed_amount))
 			return
-			
+
 		repair_burn_damage(25)
 		to_chat(user, SPAN_NOTICE("You mend the damage to \the [src]'s wiring."))
 		playsound(user.loc, 'sound/items/Deconstruct.ogg', 25, 1)
@@ -163,11 +182,15 @@
 /obj/item/mech_component/proc/get_damage_string()
 	switch(damage_state)
 		if(MECH_COMPONENT_DAMAGE_UNDAMAGED)
-			return FONT_COLORED(COLOR_GREEN, "undamaged")
+			return SPAN_GREEN("undamaged")
 		if(MECH_COMPONENT_DAMAGE_DAMAGED)
-			return FONT_COLORED(COLOR_YELLOW, "damaged")
+			return SPAN_YELLOW("damaged")
 		if(MECH_COMPONENT_DAMAGE_DAMAGED_BAD)
-			return FONT_COLORED(COLOR_ORANGE, "badly damaged")
+			return SPAN_ORANGE("badly damaged")
 		if(MECH_COMPONENT_DAMAGE_DAMAGED_TOTAL)
-			return FONT_COLORED(COLOR_RED, "almost destroyed")
-	return FONT_COLORED(COLOR_RED, "destroyed")
+			return SPAN_RED("almost destroyed")
+	return SPAN_RED("destroyed")
+
+/obj/item/mech_component/proc/return_diagnostics(var/mob/user)
+	to_chat(user, SPAN_NOTICE("[capitalize(src.name)]:"))
+	to_chat(user, SPAN_NOTICE(" - Integrity: <b>[round((((max_damage - total_damage) / max_damage)) * 100)]%</b>" ))

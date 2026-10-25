@@ -3,9 +3,6 @@ SUBSYSTEM_DEF(lore)
 	init_order = SS_INIT_LORE
 	flags = SS_NO_FIRE
 
-	var/list/cultural_info_by_name =      list()
-	var/list/cultural_info_by_path =      list()
-	var/list/tagged_info =                list()
 	var/list/dreams = list(
 		"a familiar face", "voices from all around", "a traitor", "an ally",
 		"darkness", "light", "a catastrophe", "a loved one", "warmth", "freezing",
@@ -16,6 +13,7 @@ SUBSYSTEM_DEF(lore)
 		"an old home", "right behind you", "standing above you", "someone near by", "a place forgotten"
 	)
 
+	var/list/tagged_info =             list()
 	var/list/credits_other =           list("ATTACK! ATTACK! ATTACK!")
 	var/list/credits_adventure_names = list("QUEST", "FORCE", "ADVENTURE")
 	var/list/credits_crew_names =      list("EVERYONE")
@@ -25,26 +23,16 @@ SUBSYSTEM_DEF(lore)
 	var/list/credits_topics =          list("SACRED GEOMETRY","ABSTRACT MATHEMATICS","LOVE","DRUGS","CRIME","PRODUCTIVITY","LAUNDRY")
 	var/list/credits_nouns =           list("DIGNITY", "SANITY")
 
-	// Probably not the best subsystem for these, but oh well.
-	var/list/languages_by_key
-	var/list/languages_by_name
-
 /datum/controller/subsystem/lore/Initialize()
 
-	for(var/ftype in subtypesof(/decl/cultural_info))
-		var/decl/cultural_info/culture = ftype
-		if(!initial(culture.name))
-			continue
-		culture = new culture
-		if(cultural_info_by_name[culture.name])
-			crash_with("Duplicate cultural datum ID - [culture.name] - [ftype]")
-		cultural_info_by_name[culture.name] = culture
-		cultural_info_by_path[ftype] = culture
-		if(culture.category && !culture.hidden)
-			if(!tagged_info[culture.category])
-				tagged_info[culture.category] = list()
-			var/list/tag_list = tagged_info[culture.category]
-			tag_list[culture.name] = culture
+	var/list/all_backgrounds = decls_repository.get_decls_of_subtype(/decl/background_detail)
+	for(var/ftype in all_backgrounds)
+		var/decl/background_detail/background = all_backgrounds[ftype]
+		if(background.name && background.category && !background.hidden)
+			if(!tagged_info[background.category])
+				tagged_info[background.category] = list()
+			var/list/tag_list = tagged_info[background.category]
+			tag_list[background.name] = background
 
 	for(var/jobtype in subtypesof(/datum/job))
 		var/datum/job/job = jobtype
@@ -59,13 +47,13 @@ SUBSYSTEM_DEF(lore)
 	return tagged_info[token]
 
 /datum/controller/subsystem/lore/proc/refresh_credits_from_departments()
-	for(var/thing in SSdepartments.departments)
-		var/datum/department/dept = SSdepartments.departments[thing]
-		if(dept.title)
-			credits_nouns |= uppertext(dept.title)
+	var/list/all_departments = decls_repository.get_decls_of_subtype(/decl/department)
+	for(var/thing in all_departments)
+		var/decl/department/dept = all_departments[thing]
+		credits_nouns |= uppertext(dept.name)
 
 /datum/controller/subsystem/lore/proc/get_end_credits_title(var/force)
-	if(!GLOB.end_credits_title || force)
+	if(!global.end_credits_title || force)
 		var/list/possible_titles = list()
 		refresh_credits_from_departments()
 		possible_titles += "THE [pick("DOWNFALL OF", "RISE OF", "TROUBLE WITH", "FINAL STAND OF", "DARK SIDE OF", "DESOLATION OF", "DESTRUCTION OF", "CRISIS OF")] [pick(credits_nouns)]"
@@ -75,30 +63,7 @@ SUBSYSTEM_DEF(lore)
 		possible_titles += "A VERY [pick(credits_adjectives)] [pick(credits_holidays)]"
 		possible_titles += "[pick(credits_adjectives)] [pick(credits_adventure_names)]"
 		possible_titles += "[pick(credits_topics)] [pick(credits_adventure_names)]"
-		possible_titles += "THE DAY [uppertext(GLOB.using_map.station_short)] STOOD STILL"
+		possible_titles += "THE DAY [uppertext(global.using_map.station_short)] STOOD STILL"
 		possible_titles |= credits_other
-		GLOB.end_credits_title = pick(possible_titles)
-	. = GLOB.end_credits_title
-
-/datum/controller/subsystem/lore/proc/get_culture(var/culture_ident)
-	return cultural_info_by_name[culture_ident] ? cultural_info_by_name[culture_ident] : cultural_info_by_path[culture_ident]
-
-/datum/controller/subsystem/lore/proc/get_language_by_name(var/language_name)
-	if(!languages_by_name)
-		languages_by_name = list()
-		var/list/language_types = decls_repository.get_decls_of_subtype(/decl/language)
-		for(var/thing in language_types)
-			var/decl/language/lang = language_types[thing]
-			if(lang.name)
-				languages_by_name[lang.name] = lang
-	. = languages_by_name[language_name]
-
-/datum/controller/subsystem/lore/proc/get_language_by_key(var/language_key)
-	if(!languages_by_key)
-		languages_by_key = list()
-		var/list/language_types = decls_repository.get_decls_of_subtype(/decl/language)
-		for(var/thing in language_types)
-			var/decl/language/lang = language_types[thing]
-			if(lang.key)
-				languages_by_key[lang.key] = lang
-	. = languages_by_key[language_key]
+		global.end_credits_title = pick(possible_titles)
+	. = global.end_credits_title

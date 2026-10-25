@@ -12,6 +12,13 @@ SUBSYSTEM_DEF(unit_tests)
 	var/stage = 1
 	var/end_unit_tests
 
+	var/static/list/skipped_template_categories = list(
+		MAP_TEMPLATE_CATEGORY_AWAYSITE,
+		MAP_TEMPLATE_CATEGORY_PLANET,
+		MAP_TEMPLATE_CATEGORY_EXOPLANET,
+		MAP_TEMPLATE_CATEGORY_LANDMARK_LOADED
+	)
+
 /datum/controller/subsystem/unit_tests/Initialize(timeofday)
 
 	#ifndef UNIT_TEST_COLOURED
@@ -24,8 +31,11 @@ SUBSYSTEM_DEF(unit_tests)
 	#endif
 	log_unit_test("Initializing Unit Testing")
 
-	// Load Map Templates
-	load_map_templates()
+	// Misc validation.
+	if(istype(global.using_map))
+		global.using_map.validate()
+	else
+		log_error("global.using_map is null or invalid!")
 
 	//
 	//Start the Round.
@@ -33,28 +43,16 @@ SUBSYSTEM_DEF(unit_tests)
 	SSticker.master_mode = "extended"
 	for(var/test_datum_type in get_test_datums())
 		queue += new test_datum_type
+	sortTim(queue, /proc/cmp_unit_test_priority)
 	log_unit_test("[queue.len] unit tests loaded.")
 	. = ..()
 
-/datum/controller/subsystem/unit_tests/proc/load_map_templates()
-	for(var/map_template_name in (SSmapping.map_templates))
-		var/datum/map_template/map_template = SSmapping.map_templates[map_template_name]
-		// Away sites are supposed to be tested separately in the Away Site environment
-		if(istype(map_template, /datum/map_template/ruin/away_site))
-			report_progress("Skipping template '[map_template]' ([map_template.type]): Is an Away Site")
-			continue
-
-		// Suggestion: Do smart things here to squeeze as many templates as possible into the same Z-level
-		if(map_template.tallness == 1)
-			INCREMENT_WORLD_Z_SIZE
-			GLOB.using_map.sealed_levels += world.maxz
-			var/corner = locate(world.maxx/2, world.maxy/2, world.maxz)
-			log_unit_test("Loading template '[map_template]' ([map_template.type]) at [log_info_line(corner)]")
-			map_template.load(corner)
-		else // Multi-Z templates are loaded using different means
-			log_unit_test("Loading template '[map_template]' ([map_template.type]) at Z-level [world.maxz+1] with a tallness of [map_template.tallness]")
-			map_template.load_new_z()
-	log_unit_test("Map Templates Loaded")
+///Returns whether a template should be loaded for all unit tests or if it's tested in a specific unit test on its own.
+/datum/controller/subsystem/unit_tests/proc/is_tested_separately(var/datum/map_template/map_template)
+	for(var/cat in map_template.template_categories)
+		if(cat in skipped_template_categories)
+			return TRUE
+	return FALSE
 
 /datum/controller/subsystem/unit_tests/proc/start_game()
 	if (GAME_STATE >= RUNLEVEL_POSTGAME)
@@ -80,15 +78,19 @@ SUBSYSTEM_DEF(unit_tests)
 	while (curr.len)
 		var/datum/unit_test/test = curr[curr.len]
 		curr.len--
-		if(do_unit_test(test, end_unit_tests))
-			if(test.async)
-				async_tests += test
-			else
-				test.teardown_test()
+		if(test.async)
+			async_tests += test
+		else
+			do_unit_test(test, end_unit_tests)
 		total_unit_tests++
 		if (MC_TICK_CHECK)
 			return
+
+	// Once we have dealt with all synchronous tests
+	//  start all async tests and proceed to the next stage
 	if (!curr.len)
+		for(var/test in async_tests)
+			do_unit_test(test, end_unit_tests)
 		stage++
 
 /datum/controller/subsystem/unit_tests/proc/handle_async(resumed = 0)
@@ -100,7 +102,7 @@ SUBSYSTEM_DEF(unit_tests)
 		var/datum/unit_test/test = current_async[async.len]
 		for(var/S in test.subsystems_to_await())
 			var/datum/controller/subsystem/subsystem = S
-			if(subsystem.times_fired < 1)
+			if(subsystem.times_fired <= test.times_fired_at_setup[subsystem])
 				return
 		async.len--
 		if(check_unit_test(test, end_unit_tests))
@@ -127,11 +129,11 @@ SUBSYSTEM_DEF(unit_tests)
 		if (4)	// do normal tests
 			handle_tests()
 
-		if (5)
+		if (5) // do async tests
 			handle_async(resumed)
 
 		if (6)	// Finalization.
 			unit_test_final_message()
-			log_unit_test("Caught [GLOB.total_runtimes] Runtime\s.")
+			log_unit_test("Caught [global.total_runtimes] Runtime\s.")
 			del world
 

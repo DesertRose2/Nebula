@@ -1,19 +1,3 @@
-/client/proc/Debug2()
-	set category = "Debug"
-	set name = "Debug-Game"
-	if(!check_rights(R_DEBUG))	return
-
-	if(Debug2)
-		Debug2 = 0
-		message_admins("[key_name(src)] toggled debugging off.")
-		log_admin("[key_name(src)] toggled debugging off.")
-	else
-		Debug2 = 1
-		message_admins("[key_name(src)] toggled debugging on.")
-		log_admin("[key_name(src)] toggled debugging on.")
-
-	SSstatistics.add_field_details("admin_verb","DG2") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
-
 // callproc moved to code/modules/admin/callproc
 
 
@@ -24,7 +8,7 @@
 		return
 	var/turf/T = mob.loc
 
-	if (!( istype(T, /turf) ))
+	if (!( isturf(T) ))
 		return
 
 	var/datum/gas_mixture/env = T.return_air()
@@ -32,8 +16,8 @@
 	var/t = "<span class='notice'>Coordinates: [T.x],[T.y],[T.z]</span>\n"
 	t += "<span class='warning'>Temperature: [env.temperature]</span>\n"
 	t += "<span class='warning'>Pressure: [env.return_pressure()]kPa</span>\n"
-	for(var/g in env.gas)
-		t += "<span class='notice'>[g]: [env.gas[g]] / [env.gas[g] * R_IDEAL_GAS_EQUATION * env.temperature / env.volume]kPa</span>\n"
+	for(var/gas_type, gas_amount in env.gas)
+		t += "<span class='notice'>[gas_type]: [gas_amount] / [gas_amount * R_IDEAL_GAS_EQUATION * env.temperature / env.total_volume]kPa</span>\n"
 
 	usr.show_message(t, 1)
 	SSstatistics.add_field_details("admin_verb","ASL") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
@@ -45,7 +29,7 @@
 	if(GAME_STATE < RUNLEVEL_GAME)
 		alert("Wait until the game starts")
 		return
-	if(istype(M, /mob/living/carbon/human))
+	if(ishuman(M))
 		log_admin("[key_name(src)] has robotized [M.key].")
 		spawn(10)
 			M:Robotize()
@@ -65,7 +49,7 @@
 		alert("That mob doesn't seem to exist, close the panel and try again.")
 		return
 
-	if(istype(M, /mob/new_player))
+	if(isnewplayer(M))
 		alert("The mob must not be a new_player.")
 		return
 
@@ -80,9 +64,9 @@
 	set desc = "Specify a location to spawn a pAI device, then specify a key to play that pAI"
 
 	var/list/available = list()
-	for(var/mob/C in SSmobs.mob_list)
-		if(C.key)
-			available.Add(C)
+	for(var/mob/player in SSmobs.mob_list)
+		if(player.key)
+			available.Add(player)
 	var/mob/choice = input("Choose a player to play the pAI", "Spawn pAI") in available
 	if(!choice)
 		return 0
@@ -92,7 +76,7 @@
 			return 0
 	var/obj/item/paicard/card = new(T)
 	var/mob/living/silicon/pai/pai = new(card)
-	pai.SetName(sanitizeSafe(input(choice, "Enter your pAI name:", "pAI Name", "Personal AI") as text))
+	pai.SetName(sanitize_safe(input(choice, "Enter your pAI name:", "pAI Name", "Personal AI") as text))
 	pai.real_name = pai.name
 	pai.key = choice.key
 	card.setPersonality(pai)
@@ -101,29 +85,13 @@
 			paiController.pai_candidates.Remove(candidate)
 	SSstatistics.add_field_details("admin_verb","MPAI") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
 
-/client/proc/cmd_admin_slimeize(var/mob/M in SSmobs.mob_list)
-	set category = "Fun"
-	set name = "Make slime"
-
-	if(GAME_STATE < RUNLEVEL_GAME)
-		alert("Wait until the game starts")
-		return
-	if(ishuman(M))
-		log_admin("[key_name(src)] has slimeized [M.key].")
-		spawn(10)
-			M:slimeize()
-			SSstatistics.add_field_details("admin_verb","MKMET") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
-		log_and_message_admins("made [key_name(M)] into a slime.")
-	else
-		alert("Invalid mob")
-
 //TODO: merge the vievars version into this or something maybe mayhaps
 /client/proc/cmd_debug_del_all()
 	set category = "Debug"
 	set name = "Del-All"
 
 	// to prevent REALLY stupid deletions
-	var/blocked = list(/obj, /mob, /mob/living, /mob/living/carbon, /mob/living/carbon/human, /mob/observer, /mob/living/silicon, /mob/living/silicon/robot, /mob/living/silicon/ai)
+	var/blocked = list(/obj, /mob, /mob/living, /mob/living/human, /mob/observer, /mob/living/silicon, /mob/living/silicon/robot, /mob/living/silicon/ai)
 	var/hsbitem = input(usr, "Choose an object to delete.", "Delete:") as null|anything in typesof(/obj) + typesof(/mob) - blocked
 	if(hsbitem)
 		for(var/atom/O in world)
@@ -144,10 +112,13 @@
 /client/proc/cmd_debug_tog_aliens()
 	set category = "Server"
 	set name = "Toggle Aliens"
+	if(toggle_config_value(/decl/config/toggle/aliens_allowed))
+		log_admin("[key_name(src)] has turned aliens on.")
+		message_admins("[key_name_admin(src)] has turned aliens on.", 0)
+	else
+		log_admin("[key_name(src)] has turned aliens off.")
+		message_admins("[key_name_admin(src)] has turned aliens off.", 0)
 
-	config.aliens_allowed = !config.aliens_allowed
-	log_admin("[key_name(src)] has turned aliens [config.aliens_allowed ? "on" : "off"].")
-	message_admins("[key_name_admin(src)] has turned aliens [config.aliens_allowed ? "on" : "off"].", 0)
 	SSstatistics.add_field_details("admin_verb","TAL") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
 
 /client/proc/cmd_admin_grantfullaccess(var/mob/M in SSmobs.mob_list)
@@ -157,8 +128,8 @@
 	if (GAME_STATE < RUNLEVEL_GAME)
 		alert("Wait until the game starts")
 		return
-	if (istype(M, /mob/living/carbon/human))
-		var/mob/living/carbon/human/H = M
+	if (ishuman(M))
+		var/mob/living/human/H = M
 		var/obj/item/card/id/id = H.GetIdCard()
 		if(id)
 			id.icon_state = "gold"
@@ -170,8 +141,7 @@
 			id.registered_name = H.real_name
 			id.assignment = "Captain"
 			id.SetName("[id.registered_name]'s ID Card ([id.assignment])")
-			H.equip_to_slot_or_del(id, slot_wear_id)
-			H.update_inv_wear_id()
+			H.equip_to_slot_or_del(id, slot_wear_id_str)
 	else
 		alert("Invalid mob")
 	SSstatistics.add_field_details("admin_verb","GFA") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
@@ -214,41 +184,41 @@
 	var/list/areas_with_intercom = list()
 	var/list/areas_with_camera = list()
 
-	for(var/area/A in world)
+	for(var/area/A in global.areas)
 		if(!(A.type in areas_all))
 			areas_all.Add(A.type)
 
-	for(var/obj/machinery/power/apc/APC in world)
+	for(var/obj/machinery/apc/APC in SSmachines.machinery)
 		var/area/A = get_area(APC)
 		if(!(A.type in areas_with_APC))
 			areas_with_APC.Add(A.type)
 
-	for(var/obj/machinery/alarm/alarm in world)
+	for(var/obj/machinery/alarm/alarm in SSmachines.machinery)
 		var/area/A = get_area(alarm)
 		if(!(A.type in areas_with_air_alarm))
 			areas_with_air_alarm.Add(A.type)
 
-	for(var/obj/machinery/requests_console/RC in world)
+	for(var/obj/machinery/network/requests_console/RC in SSmachines.machinery)
 		var/area/A = get_area(RC)
 		if(!(A.type in areas_with_RC))
 			areas_with_RC.Add(A.type)
 
-	for(var/obj/machinery/light/L in world)
+	for(var/obj/machinery/light/L in SSmachines.machinery)
 		var/area/A = get_area(L)
 		if(!(A.type in areas_with_light))
 			areas_with_light.Add(A.type)
 
-	for(var/obj/machinery/light_switch/LS in world)
+	for(var/obj/machinery/light_switch/LS in SSmachines.machinery)
 		var/area/A = get_area(LS)
 		if(!(A.type in areas_with_LS))
 			areas_with_LS.Add(A.type)
 
-	for(var/obj/item/radio/intercom/I in world)
+	for(var/obj/item/radio/intercom/I in SSmachines.machinery)
 		var/area/A = get_area(I)
 		if(!(A.type in areas_with_intercom))
 			areas_with_intercom.Add(A.type)
 
-	for(var/obj/machinery/camera/C in world)
+	for(var/obj/machinery/camera/C in SSmachines.machinery)
 		var/area/A = get_area(C)
 		if(!(A.type in areas_with_camera))
 			areas_with_camera.Add(A.type)
@@ -296,27 +266,27 @@
 	if(!check_rights(R_FUN))
 		return
 
-	var/mob/living/carbon/human/H = input("Select mob.", "Select equipment.") as null|anything in GLOB.human_mob_list
+	var/mob/living/human/H = input("Select mob.", "Select equipment.") as null|anything in global.human_mob_list
 	if(!H)
 		return
 
-	var/decl/hierarchy/outfit/outfit = input("Select outfit.", "Select equipment.") as null|anything in outfits()
+	var/decl/outfit/outfit = input("Select outfit.", "Select equipment.") as null|anything in decls_repository.get_decls_of_subtype_unassociated(/decl/outfit)
 	if(!outfit)
 		return
 
-	var/reset_equipment = (outfit.flags&OUTFIT_RESET_EQUIPMENT)
+	var/reset_equipment = (outfit.outfit_flags & OUTFIT_RESET_EQUIPMENT)
 	if(!reset_equipment)
 		reset_equipment = alert("Do you wish to delete all current equipment first?", "Delete Equipment?","Yes", "No") == "Yes"
 
 	SSstatistics.add_field_details("admin_verb","SEQ")
 	dressup_human(H, outfit, reset_equipment)
 
-/proc/dressup_human(var/mob/living/carbon/human/H, var/decl/hierarchy/outfit/outfit, var/undress = TRUE)
+/proc/dressup_human(var/mob/living/human/H, var/decl/outfit/outfit, var/undress = TRUE)
 	if(!H || !outfit)
 		return
 	if(undress)
 		H.delete_inventory(TRUE)
-	outfit.equip(H)
+	outfit.equip_outfit(H)
 	log_and_message_admins("changed the equipment of [key_name(H)] to [outfit.name].")
 
 /client/proc/startSinglo()
@@ -327,42 +297,28 @@
 	if(alert("Are you sure? This will start up the engine. Should only be used during debug!",,"Yes","No") != "Yes")
 		return
 
-	for(var/obj/machinery/power/emitter/E in world)
+	for(var/obj/machinery/emitter/E in SSmachines.machinery)
 		if(E.anchored)
 			E.active = 1
 
-	for(var/obj/machinery/field_generator/F in world)
+	for(var/obj/machinery/field_generator/F in SSmachines.machinery)
 		if(F.anchored)
 			F.Varedit_start = 1
-	spawn(30)
-		for(var/obj/machinery/the_singularitygen/G in world)
+	spawn(3 SECONDS)
+		for(var/obj/machinery/singularity_generator/G in SSmachines.machinery)
 			if(G.anchored)
-				var/obj/singularity/S = new /obj/singularity(get_turf(G), 50)
-				spawn(0)
-					qdel(G)
-				S.energy = 1750
-				S.current_size = 7
-				S.icon = 'icons/effects/224x224.dmi'
-				S.icon_state = "singularity_s7"
-				S.pixel_x = -96
-				S.pixel_y = -96
-				S.grav_pull = 0
-				//S.consume_range = 3
-				S.dissipate = 0
-				//S.dissipate_delay = 10
-				//S.dissipate_track = 0
-				//S.dissipate_strength = 10
+				new /obj/effect/singularity(get_turf(G), 1750)
+				qdel(G)
 
-	for(var/obj/machinery/power/rad_collector/Rad in world)
+	for(var/obj/machinery/rad_collector/Rad in SSmachines.machinery)
 		if(Rad.anchored)
 			if(!Rad.loaded_tank)
-				Rad.loaded_tank = new /obj/item/tank/hydrogen(Rad)
-				Rad.loaded_tank.air_contents.gas[/decl/material/gas/hydrogen] = 70
+				Rad.loaded_tank = new /obj/item/tank/hydrogen/collector(Rad)
 				Rad.drainratio = 0
 			if(!Rad.active)
 				Rad.toggle_power()
 
-	for(var/obj/machinery/power/smes/SMES in world)
+	for(var/obj/machinery/power/smes/SMES in SSmachines.machinery)
 		if(SMES.anchored)
 			SMES.input_attempt = 1
 
@@ -373,35 +329,19 @@
 
 	switch(input("Which list?") in list("Players","Admins","Mobs","Living Mobs","Dead Mobs", "Ghost Mobs", "Clients"))
 		if("Players")
-			to_chat(usr, jointext(GLOB.player_list,","))
+			to_chat(usr, jointext(global.player_list,","))
 		if("Admins")
-			to_chat(usr, jointext(GLOB.admins,","))
+			to_chat(usr, jointext(global.admins,","))
 		if("Mobs")
 			to_chat(usr, jointext(SSmobs.mob_list,","))
 		if("Living Mobs")
-			to_chat(usr, jointext(GLOB.living_mob_list_,","))
+			to_chat(usr, jointext(global.living_mob_list_,","))
 		if("Dead Mobs")
-			to_chat(usr, jointext(GLOB.dead_mob_list_,","))
+			to_chat(usr, jointext(global.dead_mob_list_,","))
 		if("Ghost Mobs")
-			to_chat(usr, jointext(GLOB.ghost_mob_list,","))
+			to_chat(usr, jointext(global.ghost_mob_list,","))
 		if("Clients")
-			to_chat(usr, jointext(GLOB.clients,","))
-
-// DNA2 - Admin Hax
-/client/proc/cmd_admin_toggle_block(var/mob/M,var/block)
-	if(GAME_STATE < RUNLEVEL_GAME)
-		alert("Wait until the game starts")
-		return
-	if(istype(M, /mob/living/carbon))
-		M.dna.SetSEState(block,!M.dna.GetSEState(block))
-		domutcheck(M,null,MUTCHK_FORCED)
-		M.update_mutations()
-		var/state="[M.dna.GetSEState(block)?"on":"off"]"
-		var/blockname=assigned_blocks[block]
-		message_admins("[key_name_admin(src)] has toggled [M.key]'s [blockname] block [state]!")
-		log_admin("[key_name(src)] has toggled [M.key]'s [blockname] block [state]!")
-	else
-		alert("Invalid mob")
+			to_chat(usr, jointext(global.clients,","))
 
 /datum/admins/proc/view_runtimes()
 	set category = "Debug"
@@ -411,19 +351,19 @@
 	if(!check_rights(R_DEBUG))
 		return
 
-	GLOB.error_cache.show_to(usr.client)
+	global.error_cache.show_to(usr.client)
 
 /client/proc/cmd_analyse_health_panel()
 	set category = "Debug"
 	set name = "Analyse Health"
 	set desc = "Get an advanced health reading on a human mob."
 
-	var/mob/living/carbon/human/H = input("Select mob.", "Analyse Health") as null|anything in GLOB.human_mob_list
+	var/mob/living/human/H = input("Select mob.", "Analyse Health") as null|anything in global.human_mob_list
 	if(!H)	return
 
 	cmd_analyse_health(H)
 
-/client/proc/cmd_analyse_health(var/mob/living/carbon/human/H)
+/client/proc/cmd_analyse_health(var/mob/living/human/H)
 
 	if(!check_rights(R_DEBUG))
 		return
@@ -432,10 +372,10 @@
 
 	var/dat = display_medical_data(H.get_raw_medical_data(), SKILL_MAX)
 
-	dat += text("<BR><A href='?src=\ref[];mach_close=scanconsole'>Close</A>", usr)
+	dat += text("<BR><A href='byond://?src=\ref[];mach_close=scanconsole'>Close</A>", usr)
 	show_browser(usr, dat, "window=scanconsole;size=430x600")
 
-/client/proc/cmd_analyse_health_context(mob/living/carbon/human/H as mob in GLOB.human_mob_list)
+/client/proc/cmd_analyse_health_context(mob/living/human/H as mob in global.human_mob_list)
 	set category = null
 	set name = "Analyse Human Health"
 
@@ -447,7 +387,7 @@
 
 /obj/effect/debugmarker
 	icon = 'icons/effects/lighting_overlay.dmi'
-	icon_state = "transparent"
+	icon_state = "blank"
 	layer = HOLOMAP_LAYER
 	alpha = 127
 
@@ -463,7 +403,7 @@
 	for(var/datum/powernet/PN in SSmachines.powernets)
 		var/netcolor = rgb(rand(100,255),rand(100,255),rand(100,255))
 		for(var/obj/structure/cable/C in PN.cables)
-			var/image/I = image('icons/effects/lighting_overlay.dmi', get_turf(C), "transparent")
+			var/image/I = image('icons/effects/lighting_overlay.dmi', get_turf(C), "blank")
 			I.plane = DEFAULT_PLANE
 			I.layer = EXPOSED_WIRE_LAYER
 			I.alpha = 127
@@ -484,8 +424,107 @@
 	set name = "Spawn Material Stack"
 	if(!check_rights(R_DEBUG)) return
 
-	var/material = input("Select material to spawn") as null|anything in SSmaterials.materials_by_name
-	if(!material)
+	var/decl/material/spawn_material = input("Select material to spawn") as null|anything in decls_repository.get_decls_of_subtype_unassociated(/decl/material)
+	if(istype(spawn_material))
+		spawn_material.create_object(get_turf(mob), 50)
+
+/client/proc/force_ghost_trap_trigger()
+	set category = "Debug"
+	set name = "Force Ghost Trap Trigger"
+	if(!check_rights(R_DEBUG)) return
+	var/decl/ghosttrap/trap = input("Select a ghost trap.", "Force Ghost Trap Trigger") as null|anything in decls_repository.get_decl_paths_of_type(/decl/ghosttrap)
+	if(!trap)
 		return
-	var/decl/material/M = decls_repository.get_decl(material)
-	new M.stack_type(get_turf(mob), 50, M)
+	trap = GET_DECL(trap)
+	trap.forced(mob)
+
+/client/proc/spawn_exoplanet(exoplanet_type as anything in subtypesof(/datum/map_template/planetoid/random/exoplanet))
+	set category = "Debug"
+	set name = "Create Exoplanet"
+
+	var/budget = input("Ruins budget. Default is 5, a budget of 0 will not spawn any ruins, 5 will spawn around 3-5 ruins:", "Ruins Budget", 5) as num | null
+
+	if (isnull(budget) || budget < 0)
+		budget = 5
+
+	var/theme = input("Choose a theme:", "Theme") as null|anything in typesof(/datum/exoplanet_theme) | null
+
+	if (!theme)
+		theme = /datum/exoplanet_theme
+
+	var/daycycle = alert("Should the planet have a day-night cycle?","Day Night Cycle", "Yes", "No") == "Yes"
+
+	var/last_chance = alert("Spawn exoplanet?", "Final Confirmation", "Yes", "Cancel")
+
+	if (last_chance == "Cancel")
+		return
+
+	//#TODO: This definitely could be improved.
+	var/datum/map_template/planetoid/random/exoplanet/planet_template = SSmapping.get_template_by_type(exoplanet_type)
+	var/datum/planetoid_data/PD = planet_template.create_planetoid_instance()
+	if(planet_template.subtemplate_budget != budget)
+		PD._budget_override = budget
+	if(theme)
+		PD._theme_forced = theme
+	planet_template.load_new_z(gen_data = PD)
+	if(!daycycle)
+		SSdaycycle.remove_level(PD.get_linked_level_zs(), PD.daycycle_id)
+
+/client/proc/display_del_log()
+	set category = "Debug"
+	set name = "Display del() Log"
+	set desc = "Display del's log of everything that's passed through it."
+
+	if(!check_rights(R_DEBUG))
+		return
+
+	. = list("<B>List of things that have gone through qdel this round</B><BR><BR><ol>")
+	sortTim(SSgarbage.items, cmp = /proc/cmp_qdel_item_time, associative = TRUE)
+	for(var/path in SSgarbage.items)
+		var/datum/qdel_item/I = SSgarbage.items[path]
+		. += "<li><u>[path]</u><ul>"
+		if(I.failures)
+			. += "<li>Failures: [I.failures]</li>"
+		. += "<li>qdel() Count: [I.qdels]</li>"
+		if(I.early_destroy)
+			. += "<li>Early destroy count: [I.early_destroy]</li>"
+		if(I.qdels)
+			. += "<li>Average Destroy() Cost: [I.destroy_time / I.qdels]ms/call</li>"
+		. += "<li>Destroy() Cost: [I.destroy_time]ms</li>"
+		if(I.hard_deletes)
+			. += "<li>Total Hard Deletes [I.hard_deletes]</li>"
+			. += "<li>Time Spent Hard Deleting: [I.hard_delete_time]ms</li>"
+		if(I.slept_destroy)
+			. += "<li>Sleeps: [I.slept_destroy]</li>"
+		if(I.no_respect_force)
+			. += "<li>Ignored force: [I.no_respect_force]</li>"
+		if(I.no_hint)
+			. += "<li>No hint: [I.no_hint]</li>"
+		. += "</ul></li>"
+
+	. += "</ol>"
+
+	show_browser(usr, JOINTEXT(.), "window=dellog")
+
+/client/proc/toggle_browser_inspect()
+	set category = "Debug"
+	set name = "Toggle Browser Inspect"
+
+	#if DM_VERSION >= 516
+
+	var/browser_options = winget(src, null, "browser-options")
+
+	if(findtext(browser_options, "devtools"))
+		// Disable the dev tools.
+		winset(src, null, list("browser-options" = "-devtools"))
+		message_admins("[key_name_admin(usr)] has disabled Browser Inspection.")
+	else
+		// Enable the dev tools.
+		winset(src, null, list("browser-options" = "+devtools"))
+		message_admins("[key_name_admin(usr)] has enabled Browser Inspection.")
+
+	#else
+
+	alert("Browser Inspection is not supported in this version of BYOND, please update to 516 or later.")
+
+	#endif

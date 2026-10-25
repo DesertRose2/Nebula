@@ -1,38 +1,29 @@
-GLOBAL_LIST_EMPTY(latejoin_cryo_two)
-GLOBAL_LIST_EMPTY(latejoin_cryo_captain)
-
-/obj/effect/landmark/Initialize()
-	if(name == "JoinLateCryoTwo")
-		GLOB.latejoin_cryo_two += loc
-		delete_me = 1
-	if(name == "JoinLateCryoCaptain")
-		GLOB.latejoin_cryo_captain += loc
-		delete_me = 1
-	. = ..()
-
 /datum/map/tradeship
-	allowed_spawns = list("Port Cryogenic Storage", "Starboard Cryogenic Storage", "Robot Storage", "Captain Compartment")
-	default_spawn = "Port Cryogenic Storage"
+	allowed_latejoin_spawns = list(
+		/decl/spawnpoint/cryo,
+		/decl/spawnpoint/cryo/two,
+		/decl/spawnpoint/cyborg,
+	)
+	default_spawn = /decl/spawnpoint/cryo
 
-/datum/spawnpoint/cryo
-	display_name = "Port Cryogenic Storage"
-	msg = "has completed revival in the port cryogenics bay"
-	disallow_job = list("Robot")
+/decl/spawnpoint/cryo
+	name = "Port Cryogenic Storage"
+	spawn_announcement = "has completed revival in the port cryogenics bay"
+	disallow_job = list(/datum/job/standard/robot)
 
-/datum/spawnpoint/cryo/two
-	display_name = "Starboard Cryogenic Storage"
-	msg = "has completed revival in the starboard cryogenics bay"
-	disallow_job = list("Robot")
+/decl/spawnpoint/cryo/two
+	name = "Starboard Cryogenic Storage"
+	spawn_announcement = "has completed revival in the starboard cryogenics bay"
+	uid = "spawn_cryo_two"
 
-/datum/spawnpoint/cryo/two/New()
-	..()
-	turfs = GLOB.latejoin_cryo_two
+/obj/abstract/landmark/latejoin/cryo_two
+	spawn_decl = /decl/spawnpoint/cryo/two
 
-/datum/spawnpoint/cryo/captain
-	display_name = "Captain Compartment"
-	msg = "has completed revival in the captain compartment"
-	restrict_job = list("Captain")
+/decl/spawnpoint/cryo/captain
+	name = "Captain Compartment"
+	spawn_announcement = "has completed revival in the captain compartment"
+	restrict_job = list(/datum/job/standard/captain/tradeship)
+	uid = "spawn_cryo_captain"
 
-/datum/spawnpoint/cryo/captain/New()
-	..()
-	turfs = GLOB.latejoin_cryo_captain
+/obj/abstract/landmark/latejoin/cryo_captain
+	spawn_decl = /decl/spawnpoint/cryo/captain

@@ -59,15 +59,15 @@
 	for(var/i in 1 to round(crush_damage/AIRLOCK_CRUSH_INCREMENT, 1))
 		apply_damage(AIRLOCK_CRUSH_INCREMENT, BRUTE)
 
-	SetStunned(round(crush_damage / 8, 1))
-	SetWeakened(round(crush_damage / 8, 1))
+	set_status_condition(STAT_STUN, round(crush_damage / 8, 1))
+	set_status_condition(STAT_WEAK, round(crush_damage / 8, 1))
 
 	var/turf/T = loc
 	if(!istype(T))
 		return
 
 	var/list/valid_turfs = list()
-	for(var/dir_to_test in GLOB.cardinal)
+	for(var/dir_to_test in global.cardinal)
 		var/turf/new_turf = get_step(T, dir_to_test)
 		if(!new_turf.contains_dense_objects())
 			valid_turfs |= new_turf
@@ -79,10 +79,10 @@
 		if(src.Move(T))
 			return
 
-/mob/living/carbon/airlock_crush(var/crush_damage)
+/mob/living/human/airlock_crush(var/crush_damage)
 	. = ..()
 	if (can_feel_pain())
-		emote("scream")
+		emote(/decl/emote/audible/scream)
 
 /mob/living/silicon/robot/airlock_crush(var/crush_damage)
 	return ..(round(crush_damage / CYBORG_AIRLOCKCRUSH_RESISTANCE)) //TODO implement robot melee armour and remove this.

@@ -1,12 +1,46 @@
-GLOBAL_VAR_INIT(total_runtimes, 0)
-GLOBAL_VAR_INIT(total_runtimes_skipped, 0)
-GLOBAL_VAR_INIT(actual_error_file_line, new/regex("^%% (.*?),(.*?) %% "))
+var/global/total_runtimes = 0
+var/global/total_runtimes_skipped = 0
+var/global/regex/actual_error_file_line
 
 #ifdef DEBUG
 /world/Error(exception/E)
 	if(!istype(E)) //Something threw an unusual exception
 		log_world("\[[time_stamp()]] Uncaught exception: [E]")
 		return ..()
+
+	//this is snowflake because of a byond bug (ID:2306577), do not attempt to call non-builtin procs in this block OR BEFORE IT
+	if(copytext(E.name, 1, 32) == "Maximum recursion level reached")//32 == length() of that string + 1
+		var/list/proc_path_to_count = list()
+		var/crashed = FALSE
+		try
+			var/callee/stack_entry = caller
+			while(!isnull(stack_entry))
+				proc_path_to_count[stack_entry.proc] += 1
+				stack_entry = stack_entry.caller
+		catch
+			//union job. avoids crashing the stack again
+			//I just do not trust this construct to work reliably
+			crashed = TRUE
+
+		var/list/split = splittext(E.desc, "\n")
+		for (var/i in 1 to split.len)
+			if (split[i] != "" || copytext(split[1], 1, 2) != "  ")
+				split[i] = "  [split[i]]"
+		split += "--Stack Info [crashed ? "(Crashed, may be missing info)" : ""]:"
+		for(var/path in proc_path_to_count)
+			split += "  [path] = [proc_path_to_count[path]]"
+		E.desc = jointext(split, "\n")
+		// expanding the first line of log_world to avoid hitting the stack limit again
+		to_file(world.log, "\[[time2text(station_time_in_ticks, "hh:mm:ss")]] Runtime Error: [E.name]\n[E.desc]")
+		//log to world while intentionally triggering the byond bug. this does not DO anything, it just errors
+		//(seemingly because log_info_line is deep enough to hit the raised limit 516.1667 introduced)
+		log_world("runtime error: [E.name]\n[E.desc]\n[log_info_line(usr)]\n[log_info_line(src)]")
+		//if we got to here without silently ending, the byond bug has been fixed.
+		log_world("The \"bug\" with recursion runtimes has been fixed. Please remove the snowflake check from world/Error in [__FILE__]:[__LINE__]")
+		return //this will never happen.
+
+	if (!global.actual_error_file_line)
+		global.actual_error_file_line = regex("^%% (.*?),(.*?) %% ")
 
 	var/static/list/error_last_seen = list()
 	var/static/list/error_cooldown = list() /* Error_cooldown items will either be positive(cooldown time) or negative(silenced error)
@@ -15,12 +49,12 @@ GLOBAL_VAR_INIT(actual_error_file_line, new/regex("^%% (.*?),(.*?) %% "))
 	if(!error_last_seen) // A runtime is occurring too early in start-up initialization
 		return ..()
 
-	GLOB.total_runtimes++
+	global.total_runtimes++
 
 	var/efile = E.file
 	var/eline = E.line
 
-	var/regex/actual_error_file_line = GLOB.actual_error_file_line
+	var/regex/actual_error_file_line = global.actual_error_file_line
 	if(actual_error_file_line.Find(E.name))
 		efile = actual_error_file_line.group[1]
 		eline = actual_error_file_line.group[2]
@@ -36,22 +70,14 @@ GLOBAL_VAR_INIT(actual_error_file_line, new/regex("^%% (.*?),(.*?) %% "))
 
 	if(cooldown < 0)
 		error_cooldown[erroruid]-- //Used to keep track of skip count for this error
-		GLOB.total_runtimes_skipped++
+		global.total_runtimes_skipped++
 		return //Error is currently silenced, skip handling it
 	//Handle cooldowns and silencing spammy errors
 	var/silencing = FALSE
 
-	// We can runtime before config is initialized because BYOND initialize objs/map before a bunch of other stuff happens.
-	// This is a bunch of workaround code for that. Hooray!
-
-	var/configured_error_cooldown = initial(config.error_cooldown)
-	var/configured_error_limit = initial(config.error_limit)
-	var/configured_error_silence_time = initial(config.error_silence_time)
-	if(config)
-		configured_error_cooldown = config.error_cooldown
-		configured_error_limit = config.error_limit
-		configured_error_silence_time = config.error_silence_time
-
+	var/configured_error_cooldown     = get_config_value(/decl/config/num/debug_error_cooldown)
+	var/configured_error_limit        = get_config_value(/decl/config/num/debug_error_limit)
+	var/configured_error_silence_time = get_config_value(/decl/config/num/debug_error_silence_time)
 
 	//Each occurence of an unique error adds to its cooldown time...
 	cooldown = max(0, cooldown - (world.time - last_seen)) + configured_error_cooldown
@@ -66,7 +92,8 @@ GLOBAL_VAR_INIT(actual_error_file_line, new/regex("^%% (.*?),(.*?) %% "))
 			error_cooldown[erroruid] = 0
 			if(skipcount > 0)
 				to_world_log("\[[time_stamp()]] Skipped [skipcount] runtimes in [erroruid].")
-				GLOB.error_cache.log_error(E, skip_count = skipcount)
+				if(istype(global.error_cache))
+					global.error_cache.log_error(E, skip_count = skipcount)
 
 	error_last_seen[erroruid] = world.time
 	error_cooldown[erroruid] = cooldown
@@ -99,11 +126,13 @@ GLOBAL_VAR_INIT(actual_error_file_line, new/regex("^%% (.*?),(.*?) %% "))
 		desclines.Add(usrinfo)
 	if(silencing)
 		desclines += "  (This error will now be silenced for [configured_error_silence_time / 600] minutes)"
-	if(GLOB.error_cache)
-		GLOB.error_cache.log_error(E, desclines)
+	if(istype(global.error_cache)) // istype() rather than nullcheck to avoid new ordering weirdness
+		global.error_cache.log_error(E, desclines)
 
-	to_world_log("\[[time_stamp()]] Runtime in [erroruid]: [E]")
+	error_write_log("\[[time_stamp()]] Runtime in [erroruid]: [E]")
 	for(var/line in desclines)
-		to_world_log(line)
+		error_write_log(line)
 
+/proc/error_write_log(msg)
+	to_world_log(msg)
 #endif

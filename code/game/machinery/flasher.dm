@@ -5,12 +5,14 @@
 	desc = "A wall-mounted flashbulb device."
 	icon = 'icons/obj/machines/flash_mounted.dmi'
 	icon_state = "mflash1"
+	directional_offset = @'{"NORTH":{"y":-32}, "SOUTH":{"y":32}, "EAST":{"x":32}, "WEST":{"x":-32}}'
+	obj_flags = OBJ_FLAG_MOVES_UNSUPPORTED
 	var/range = 2 //this is roughly the size of brig cell
 	var/disable = 0
 	var/last_flash = 0 //Don't want it getting spammed like regular flashes
 	var/strength = 10 //How weakened targets are when flashed.
 	var/base_state = "mflash"
-	anchored = 1
+	anchored = TRUE
 	idle_power_usage = 2
 	movable_flags = MOVABLE_FLAG_PROXMOVE
 
@@ -33,16 +35,14 @@
 //		src.sd_SetLuminosity(0)
 
 //Don't want to render prison breaks impossible
-/obj/machinery/flasher/attackby(obj/item/W, mob/user)
-	if(isWirecutter(W))
-		add_fingerprint(user, 0, W)
-		src.disable = !src.disable
-		if (src.disable)
-			user.visible_message("<span class='warning'>[user] has disconnected the [src]'s flashbulb!</span>", "<span class='warning'>You disconnect the [src]'s flashbulb!</span>")
-		if (!src.disable)
-			user.visible_message("<span class='warning'>[user] has connected the [src]'s flashbulb!</span>", "<span class='warning'>You connect the [src]'s flashbulb!</span>")
+/obj/machinery/flasher/attackby(obj/item/used_item, mob/user)
+	if(IS_WIRECUTTER(used_item))
+		add_fingerprint(user, 0, used_item)
+		disable = !disable
+		user.visible_message(SPAN_WARNING("\The [user] has [disable ? "disconnected" : "reconnected"] \the [src]'s flashbulb!"), SPAN_WARNING("You [disable ? "disconnect" : "reconnect"] \the [src]'s flashbulb!"))
+		return TRUE
 	else
-		..()
+		return ..()
 
 //Let the AI trigger them directly.
 /obj/machinery/flasher/attack_ai()
@@ -52,7 +52,7 @@
 		return
 
 /obj/machinery/flasher/proc/flash()
-	if (!(powered()))
+	if (stat & NOPOWER)
 		return
 
 	if ((src.disable) || (src.last_flash && world.time < src.last_flash + 150))
@@ -63,35 +63,12 @@
 	src.last_flash = world.time
 	use_power_oneoff(1500)
 
-	for (var/mob/living/O in viewers(src, null))
-		if (get_dist(src, O) > src.range)
+	for (var/mob/living/viewer in viewers(src, null))
+		if (get_dist(src, viewer) > src.range)
 			continue
 
 		var/flash_time = strength
-		if(isliving(O))
-			if(O.eyecheck() > FLASH_PROTECTION_NONE)
-				continue
-			if(ishuman(O))
-				var/mob/living/carbon/human/H = O
-				flash_time = round(H.getFlashMod() * flash_time)
-				if(flash_time <= 0)
-					return
-				var/obj/item/organ/internal/eyes/E = H.internal_organs_by_name[H.species.vision_organ]
-				if(!E)
-					return
-				if(E.is_bruised() && prob(E.damage + 50))
-					H.flash_eyes()
-					E.damage += rand(1, 5)
-
-		if(!O.blinded)
-			do_flash(O, flash_time)
-
-/obj/machinery/flasher/proc/do_flash(var/mob/living/victim, var/flash_time)
-	victim.flash_eyes()
-	victim.eye_blurry += flash_time
-	victim.confused += (flash_time + 2)
-	victim.Stun(flash_time / 2)
-	victim.Weaken(3)
+		viewer.handle_flashed(flash_time)
 
 /obj/machinery/flasher/emp_act(severity)
 	if(stat & (BROKEN|NOPOWER))
@@ -106,27 +83,25 @@
 	desc = "A portable flashing device. Wrench to activate and deactivate. Cannot detect slow movements."
 	icon_state = "pflash1"
 	icon = 'icons/obj/machines/flash_portable.dmi'
+	directional_offset = @'{"NORTH":{"y":0}, "SOUTH":{"y":0}, "EAST":{"x":0}, "WEST":{"x":0}}'
 	strength = 8
-	anchored = 0
+	anchored = FALSE
 	base_state = "pflash"
-	density = 1
+	density = TRUE
 
 /obj/machinery/flasher/portable/HasProximity(atom/movable/AM)
-	if(!anchored || disable || last_flash && world.time < last_flash + 150)
+	. = ..()
+	if(!. || !anchored || disable || last_flash && world.time < last_flash + 150)
 		return
-
-	if(istype(AM, /mob/living/carbon))
-		var/mob/living/carbon/M = AM
+	if(isliving(AM))
+		var/mob/living/M = AM
 		if(!MOVING_DELIBERATELY(M))
 			flash()
 
-	if(isanimal(AM))
-		flash()
-
-/obj/machinery/flasher/portable/attackby(obj/item/W, mob/user)
-	if(isWrench(W))
+/obj/machinery/flasher/portable/attackby(obj/item/used_item, mob/user)
+	if(IS_WRENCH(used_item))
 		add_fingerprint(user)
-		src.anchored = !src.anchored
+		set_anchored(!anchored)
 
 		if (!src.anchored)
 			user.show_message(text("<span class='warning'>[src] can now be moved.</span>"))
@@ -135,6 +110,8 @@
 		else if (src.anchored)
 			user.show_message(text("<span class='warning'>[src] is now secured.</span>"))
 			src.overlays += "[base_state]-s"
+		return TRUE
+	return ..()
 
 /obj/machinery/button/flasher
 	name = "flasher button"
@@ -144,7 +121,7 @@
 /decl/public_access/public_method/flasher_flash
 	name = "flash"
 	desc = "Performs a flash, if possible."
-	call_proc = /obj/machinery/flasher/proc/flash
+	call_proc = TYPE_PROC_REF(/obj/machinery/flasher, flash)
 
 /decl/stock_part_preset/radio/receiver/flasher
 	frequency = BUTTON_FREQ

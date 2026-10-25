@@ -12,6 +12,13 @@
 	item_state = "multitool"
 	w_class = ITEM_SIZE_SMALL
 	action_button_name = "Toggle geiger counter"
+	material = /decl/material/solid/organic/plastic
+	matter = list(
+		/decl/material/solid/metal/copper    = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/silicon         = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/metal/aluminium = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/glass           = MATTER_AMOUNT_TRACE,
+	)
 	var/scanning = 0
 	var/radiation_count = 0
 	var/datum/sound_token/sound_token
@@ -24,7 +31,7 @@
 
 /obj/item/geiger/proc/update_sound(var/playing)
 	if(playing && !sound_token)
-		sound_token = GLOB.sound_player.PlayLoopingSound(src, sound_id, "sound/items/geiger.ogg", volume = geiger_volume, range = 4, falloff = 3, prefer_mute = TRUE)
+		sound_token = play_looping_sound(src, sound_id, "sound/items/geiger.ogg", volume = geiger_volume, range = 4, falloff = 3, prefer_mute = TRUE)
 	else if(!playing && sound_token)
 		QDEL_NULL(sound_token)
 
@@ -39,13 +46,13 @@
 	radiation_count = SSradiation.get_rads_at_turf(get_turf(src))
 	update_icon()
 
-/obj/item/geiger/examine(mob/user)
+/obj/item/geiger/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
 	var/msg = "[scanning ? "ambient" : "stored"] Radiation level: [radiation_count ? radiation_count : "0"] Roentgen."
 	if(radiation_count > RAD_LEVEL_LOW)
-		to_chat(user, "<span class='warning'>[msg]</span>")
+		. += SPAN_DANGER("[msg]")
 	else
-		to_chat(user, "<span class='notice'>[msg]</span>")
+		. += SPAN_NOTICE("[msg]")
 
 /obj/item/geiger/attack_self(var/mob/user)
 	scanning = !scanning
@@ -54,9 +61,10 @@
 	else
 		STOP_PROCESSING(SSobj, src)
 	update_icon()
-	to_chat(user, "<span class='notice'>\icon[src] You switch [scanning ? "on" : "off"] [src].</span>")
+	to_chat(user, "<span class='notice'>[html_icon(src)] You switch [scanning ? "on" : "off"] [src].</span>")
 
 /obj/item/geiger/on_update_icon()
+	. = ..()
 	if(!scanning)
 		icon_state = "geiger_off"
 		update_sound(0)

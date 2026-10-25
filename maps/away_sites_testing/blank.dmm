@@ -3,23 +3,21 @@
 /turf/space,
 /area/space)
 "b" = (
-/turf/simulated/wall,
+/turf/wall,
 /area/space)
 "c" = (
-/turf/simulated/floor/tiled,
+/turf/floor/tiled,
 /area/space)
 "d" = (
-/obj/effect/landmark/test/safe_turf,
-/turf/simulated/floor/tiled,
+/obj/abstract/landmark/latejoin/observer,
+/turf/space,
 /area/space)
 "e" = (
-/obj/effect/landmark/start{
-	name = "JoinLate"
-	},
-/turf/simulated/floor/tiled,
+/obj/abstract/landmark/latejoin,
+/turf/floor/tiled,
 /area/space)
-"f" = (
-/obj/effect/landmark/test/space_turf,
+"R" = (
+/obj/abstract/level_data_spawner/player,
 /turf/space,
 /area/space)
 
@@ -37,6 +35,7 @@ a
 "}
 (2,1,1) = {"
 a
+R
 a
 a
 a
@@ -44,7 +43,6 @@ a
 a
 a
 a
-f
 a
 "}
 (3,1,1) = {"
@@ -66,7 +64,7 @@ a
 a
 a
 a
-a
+d
 a
 a
 a
@@ -98,7 +96,7 @@ a
 (7,1,1) = {"
 b
 c
-d
+c
 c
 c
 b

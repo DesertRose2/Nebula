@@ -13,8 +13,8 @@
 	<br><br>---END OF TRANSMISSION---"
 
 /obj/effect/overmap/radio/proc/set_origin(obj/effect/overmap/origin)
-	GLOB.moved_event.register(origin, src, /obj/effect/overmap/radio/proc/follow)
-	GLOB.destroyed_event.register(origin, src, /datum/proc/qdel_self)
+	events_repository.register(/decl/observ/moved, origin, src, TYPE_PROC_REF(/obj/effect/overmap/radio, follow))
+	events_repository.register(/decl/observ/destroyed, origin, src, TYPE_PROC_REF(/datum, qdel_self))
 	forceMove(origin.loc)
 	source = origin
 	pixel_x = -(origin.bound_width - 6)
@@ -24,8 +24,8 @@
 	if(!QDELETED(src)) forceMove(new_loc)
 
 /obj/effect/overmap/radio/Destroy()
-	GLOB.destroyed_event.unregister(source, src)
-	GLOB.moved_event.unregister(source, src)
+	events_repository.unregister(/decl/observ/destroyed, source, src)
+	events_repository.unregister(/decl/observ/moved, source, src)
 	source = null
 	. = ..()
 
@@ -35,18 +35,18 @@
 	icon = 'icons/obj/items/device/radio/beacon.dmi'
 	icon_state = "beacon"
 
-	origin_tech = "{'magnets':2, 'programming':2}"
+	origin_tech = @'{"magnets":2, "programming":2}'
 	material = /decl/material/solid/metal/steel
 	matter = list(/decl/material/solid/metal/silver = MATTER_AMOUNT_TRACE, /decl/material/solid/metal/gold = MATTER_AMOUNT_REINFORCEMENT)
 
-	var/obj/effect/overmap/radio/signal	
+	var/obj/effect/overmap/radio/signal
 
 /obj/item/radio_beacon/attack_self(mob/user)
 	if(signal)
 		to_chat(user, SPAN_NOTICE("You deactivate \the [src], cutting short it's radio broadcast."))
 		QDEL_NULL(signal)
 		return
-	var/obj/effect/overmap/visitable/O = map_sectors["[get_z(src)]"]
+	var/obj/effect/overmap/visitable/O = global.overmap_sectors[get_z(src)]
 	if(!O)
 		to_chat(user, SPAN_WARNING("You cannot deploy \the [src] here."))
 		return
@@ -55,11 +55,10 @@
 		return
 
 	signal = new()
-	
+
 	signal.message = message
 	signal.set_origin(O)
 
 /obj/item/radio_beacon/Destroy()
 	QDEL_NULL(signal)
 	. = ..()
-	

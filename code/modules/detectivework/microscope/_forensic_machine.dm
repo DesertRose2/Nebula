@@ -3,8 +3,8 @@
 	desc = "A highly advanced microscope capable of analyzing any type of forensic evidence."
 	icon = 'icons/obj/forensics.dmi'
 	icon_state = "microscope"
-	anchored = 1
-	density = 1
+	anchored = TRUE
+	density = TRUE
 	base_type = /obj/machinery/forensic
 	construct_state = /decl/machine_construction/default/panel_closed
 	uncreated_component_parts = null
@@ -27,13 +27,13 @@
 /obj/machinery/forensic/proc/set_sample(var/obj/O)
 	if(O != sample && O)
 		clear_sample()
-		GLOB.destroyed_event.register(O, src, /obj/machinery/forensic/proc/clear_sample)
+		events_repository.register(/decl/observ/destroyed, O, src, TYPE_PROC_REF(/obj/machinery/forensic, clear_sample))
 		sample = O
 		update_icon()
 
 /obj/machinery/forensic/proc/clear_sample()
 	if(sample)
-		GLOB.destroyed_event.unregister(sample, src)
+		events_repository.unregister(/decl/observ/destroyed, sample, src)
 		sample = null
 		update_icon()
 
@@ -41,29 +41,31 @@
 	var/list/res = list("Use <b>harm</b> intent when manipulating with machine with tools.")
 	return res + ..()
 
-/obj/machinery/forensic/attackby(obj/item/W, mob/user)
-	if(user?.a_intent == I_HURT)
-		return ..()
+/obj/machinery/forensic/attackby(obj/item/used_item, mob/user)
+	if((. = component_attackby(used_item, user)))
+		return
+
+	if(user?.check_intent(I_FLAG_HARM))
+		return ..() // bash, bash!
 
 	if(sample)
-		to_chat(user, SPAN_WARNING("There is already a slide in \the [src]."))
-		return
+		to_chat(user, SPAN_WARNING("There is already a sample in \the [src]."))
+		return TRUE
 
-	if(istype(W))
-		if(istype(W, /obj/item/evidencebag))
-			var/obj/item/evidencebag/B = W
-			if(B.stored_item)
-				to_chat(user, SPAN_NOTICE("You insert \the [B.stored_item] from \the [B]."))
-				B.stored_item.forceMove(src)
-				set_sample(B.stored_item)
-				B.empty()
-				return
-		if(!user.unEquip(W, src))
-			return
-		to_chat(user, SPAN_NOTICE("You insert \the [W] into  \the [src]."))
-		set_sample(W)
-		update_icon()
-		return
+	if(istype(used_item, /obj/item/evidencebag))
+		var/obj/item/evidencebag/B = used_item
+		if(B.stored_item)
+			to_chat(user, SPAN_NOTICE("You insert \the [B.stored_item] from \the [B]."))
+			B.stored_item.forceMove(src)
+			set_sample(B.stored_item)
+			B.empty()
+			return TRUE
+	if(!user.try_unequip(used_item, src))
+		return TRUE
+	to_chat(user, SPAN_NOTICE("You insert \the [used_item] into  \the [src]."))
+	set_sample(used_item)
+	update_icon()
+	return TRUE
 
 /obj/machinery/forensic/proc/get_report()
 	if(!sample)
@@ -89,14 +91,13 @@
 			. += F.get_formatted_data()
 		else
 			. += "No [F.name] detected."
-	
+
 	. = jointext(., "<br>")
 
 /obj/machinery/forensic/proc/print_report()
-	var/obj/item/paper/report = new(get_turf(src), get_report(), "[src] report #[++report_num]: [sample.name]")
+	var/obj/item/paper/report = new(get_turf(src), null, get_report(), "[src] report #[++report_num]: [sample.name]")
 	playsound(loc, "sound/machines/dotprinter.ogg", 30, 1)
-	report.stamped = list(/obj/item/stamp)
-	report.update_icon()	
+	report.apply_custom_stamp('icons/obj/items/stamps/stamp_brig.dmi', "by \the [src]")
 
 /obj/machinery/forensic/proc/remove_sample(var/mob/living/remover)
 	if(!istype(remover) || remover.incapacitated() || !Adjacent(remover))
@@ -108,11 +109,21 @@
 	remover.put_in_hands(sample)
 	clear_sample()
 
-/obj/machinery/forensic/AltClick()
-	remove_sample(usr)
+/obj/machinery/forensic/handle_mouse_drop(atom/over, mob/user, params)
+	if(user == over)
+		remove_sample(user)
+		return TRUE
+	. = ..()
 
-/obj/machinery/forensic/MouseDrop(var/atom/other)
-	if(usr == other)
-		remove_sample(usr)
-	else
-		return ..()
+/obj/machinery/forensic/get_alt_interactions(var/mob/user)
+	. = ..()
+	LAZYADD(., /decl/interaction_handler/forensics_remove_sample)
+
+/decl/interaction_handler/forensics_remove_sample
+	name = "Remove Sample"
+	expected_target_type = /obj/machinery/forensic
+	examine_desc = "remove a sample"
+
+/decl/interaction_handler/forensics_remove_sample/invoked(atom/target, mob/user, obj/item/prop)
+	var/obj/machinery/forensic/F = target
+	F.remove_sample(user)

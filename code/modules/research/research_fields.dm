@@ -1,7 +1,9 @@
 /decl/research_field
+	abstract_type = /decl/research_field
 	var/name
 	var/desc
 	var/id
+	var/initial_tech_level = 1
 
 /decl/research_field/material
 	name = "Materials Science"
@@ -17,6 +19,7 @@
 	name = "Exotic Matter"
 	desc = "The study of wormholes, non-baryonic matter, and the manipulation of spacetime."
 	id = TECH_EXOTIC_MATTER
+	initial_tech_level = 0
 
 /decl/research_field/power
 	name = "Power Storage"
@@ -27,6 +30,7 @@
 	name = "Wormholes"
 	desc = "The study of the realm that lies beyond the singularity."
 	id = TECH_WORMHOLES
+	initial_tech_level = 0
 
 /decl/research_field/biotech
 	name = "Biotechnology"
@@ -37,6 +41,7 @@
 	name = "Weapon Development"
 	desc = "The study of new and more effective weapon systems."
 	id = TECH_COMBAT
+	initial_tech_level = 0
 
 /decl/research_field/magnets
 	name = "Magnetic Fields"
@@ -45,10 +50,11 @@
 
 /decl/research_field/programming
 	name = "Data Science"
-	desc = "The study of computer science, data manipuation and artificial intelligence."
+	desc = "The study of computer science, data manipulation and artificial intelligence."
 	id = TECH_DATA
 
 /decl/research_field/esoteria
 	name = "Esoteria"
 	desc = "The study of mysterious pseudoscientific anomalies."
 	id = TECH_ESOTERIC
+	initial_tech_level = 0

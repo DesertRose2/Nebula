@@ -2,7 +2,7 @@
 
 /decl/machine_construction/frame/unwrenched/state_is_valid(obj/machinery/machine)
 	return !machine.anchored
-	
+
 /decl/machine_construction/frame/unwrenched/validate_state(obj/machinery/constructable_frame/machine)
 	. = ..()
 	if(!.)
@@ -11,26 +11,26 @@
 		else
 			try_change_state(machine, /decl/machine_construction/frame/wrenched)
 
-/decl/machine_construction/frame/unwrenched/attackby(obj/item/I, mob/user, obj/machinery/machine)
-	if(isWrench(I))
+/decl/machine_construction/frame/unwrenched/attackby(obj/item/used_item, mob/user, obj/machinery/machine)
+	if(IS_WRENCH(used_item))
 		playsound(machine.loc, 'sound/items/Ratchet.ogg', 50, 1)
 		if(do_after(user, 20, machine))
 			TRANSFER_STATE(/decl/machine_construction/frame/wrenched)
 			to_chat(user, "<span class='notice'>You wrench \the [machine] into place.</span>")
-			machine.anchored = TRUE
-	if(isWelder(I))
-		var/obj/item/weldingtool/WT = I
-		if(!WT.remove_fuel(0, user))
-			to_chat(user, "The welding tool must be on to complete this task.")
+			machine.set_anchored(TRUE)
+	if(IS_WELDER(used_item))
+		var/obj/item/fuelled_tool/welding/welder = used_item
+		if(!welder.weld(0, user))
+			to_chat(user, "\The [welder] must be on to complete this task.")
 			return TRUE
 		playsound(machine.loc, 'sound/items/Welder.ogg', 50, 1)
 		if(do_after(user, 20, machine))
-			if(!WT.isOn())
+			if(!welder.tool_is_running())
 				return TRUE
 			TRANSFER_STATE(/decl/machine_construction/default/deconstructed)
 			to_chat(user, "<span class='notice'>You deconstruct \the [machine].</span>")
 			machine.dismantle()
-
+	return FALSE
 
 /decl/machine_construction/frame/unwrenched/mechanics_info()
 	. = list()
@@ -48,16 +48,16 @@
 		else
 			try_change_state(machine, /decl/machine_construction/frame/unwrenched)
 
-/decl/machine_construction/frame/wrenched/attackby(obj/item/I, mob/user, obj/machinery/machine)
-	if(isWrench(I))
+/decl/machine_construction/frame/wrenched/attackby(obj/item/used_item, mob/user, obj/machinery/machine)
+	if(IS_WRENCH(used_item))
 		playsound(machine.loc, 'sound/items/Ratchet.ogg', 50, 1)
 		if(do_after(user, 20, machine))
 			TRANSFER_STATE(/decl/machine_construction/frame/unwrenched)
 			to_chat(user, "<span class='notice'>You unfasten \the [machine].</span>")
-			machine.anchored = FALSE
-			return
-	if(isCoil(I))
-		var/obj/item/stack/cable_coil/C = I
+			machine.set_anchored(FALSE)
+		return TRUE
+	if(IS_COIL(used_item))
+		var/obj/item/stack/cable_coil/C = used_item
 		if(C.get_amount() < 5)
 			to_chat(user, "<span class='warning'>You need five lengths of cable to add them to \the [machine].</span>")
 			return TRUE
@@ -67,7 +67,7 @@
 			TRANSFER_STATE(/decl/machine_construction/frame/awaiting_circuit)
 			to_chat(user, "<span class='notice'>You add cables to the frame.</span>")
 		return TRUE
-
+	return FALSE
 
 /decl/machine_construction/frame/wrenched/mechanics_info()
 	. = list()
@@ -85,26 +85,26 @@
 		else
 			try_change_state(machine, /decl/machine_construction/frame/unwrenched)
 
-/decl/machine_construction/frame/awaiting_circuit/attackby(obj/item/I, mob/user, obj/machinery/constructable_frame/machine)
-	if(istype(I, /obj/item/stock_parts/circuitboard))
-		var/obj/item/stock_parts/circuitboard/circuit = I
+/decl/machine_construction/frame/awaiting_circuit/attackby(obj/item/used_item, mob/user, obj/machinery/constructable_frame/machine)
+	if(istype(used_item, /obj/item/stock_parts/circuitboard))
+		var/obj/item/stock_parts/circuitboard/circuit = used_item
 		if(circuit.board_type == machine.expected_machine_type)
-			if(!user.canUnEquip(I))
-				return FALSE
-			TRANSFER_STATE(/decl/machine_construction/frame/awaiting_parts)
-			user.unEquip(I, machine)
-			playsound(machine.loc, 'sound/items/Deconstruct.ogg', 50, 1)
-			to_chat(user, "<span class='notice'>You add the circuit board to \the [machine].</span>")
-			machine.circuit = I
-			return
+			if(user.can_unequip_item(used_item))
+				TRANSFER_STATE(/decl/machine_construction/frame/awaiting_parts)
+				user.try_unequip(used_item, machine)
+				playsound(machine.loc, 'sound/items/Deconstruct.ogg', 50, 1)
+				to_chat(user, "<span class='notice'>You add the circuit board to \the [machine].</span>")
+				machine.circuit = used_item
 		else
 			to_chat(user, "<span class='warning'>This frame does not accept circuit boards of this type!</span>")
-			return TRUE
-	if(isWirecutter(I))
+		return TRUE
+	if(IS_WIRECUTTER(used_item))
 		TRANSFER_STATE(/decl/machine_construction/frame/wrenched)
 		playsound(machine.loc, 'sound/items/Wirecutter.ogg', 50, 1)
 		to_chat(user, "<span class='notice'>You remove the cables.</span>")
 		new /obj/item/stack/cable_coil(machine.loc, 5)
+		return TRUE
+	return FALSE
 
 /decl/machine_construction/frame/awaiting_circuit/mechanics_info()
 	. = list()
@@ -122,15 +122,15 @@
 		else
 			try_change_state(machine, /decl/machine_construction/frame/unwrenched)
 
-/decl/machine_construction/frame/awaiting_parts/attackby(obj/item/I, mob/user, obj/machinery/constructable_frame/machine)
-	if(isCrowbar(I))
+/decl/machine_construction/frame/awaiting_parts/attackby(obj/item/used_item, mob/user, obj/machinery/constructable_frame/machine)
+	if(IS_CROWBAR(used_item))
 		TRANSFER_STATE(/decl/machine_construction/frame/awaiting_circuit)
 		playsound(machine.loc, 'sound/items/Crowbar.ogg', 50, 1)
 		machine.circuit.dropInto(machine.loc)
 		machine.circuit = null
 		to_chat(user, "<span class='notice'>You remove the circuit board.</span>")
-		return
-	if(isScrewdriver(I))
+		return TRUE
+	if(IS_SCREWDRIVER(used_item))
 		playsound(machine.loc, 'sound/items/Screwdriver.ogg', 50, 1)
 		var/obj/machinery/new_machine = new machine.circuit.build_path(machine.loc, machine.dir, FALSE)
 		machine.circuit.construct(new_machine)
@@ -140,9 +140,10 @@
 		if(new_machine.construct_state)
 			new_machine.construct_state.post_construct(new_machine)
 		else
-			crash_with("Machine of type [new_machine.type] was built from a circuit and frame, but had no construct state set.")
+			PRINT_STACK_TRACE("Machine of type [new_machine.type] was built from a circuit and frame, but had no construct state set.")
 		qdel(machine)
 		return TRUE
+	return FALSE
 
 /decl/machine_construction/frame/awaiting_parts/mechanics_info()
 	. = list()

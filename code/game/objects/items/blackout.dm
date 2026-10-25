@@ -9,10 +9,13 @@
 
 /obj/item/blackout
 	name = "blackout pulser"
-	desc = "A complicated eletronic device of unknown purpose"
+	desc = "A complicated electronic device of unknown purpose."
 	icon = 'icons/obj/items/blackout.dmi'
 	icon_state = "device_blackout-off"
-
+	max_health = ITEM_HEALTH_NO_DAMAGE
+	origin_tech = "{'magnets':2,'esoteric':2}"
+	material = /decl/material/solid/metal/aluminium
+	matter = list(/decl/material/solid/metal/uranium = MATTER_AMOUNT_TRACE)
 	var/severity = 2
 	var/shots = 1
 	var/last_use = 0
@@ -45,33 +48,34 @@
 		hacktheenergy(terminal, user)
 
 /obj/item/blackout/proc/hacktheenergy(obj/machinery/power/terminal/terminal_in, mob/user)
-	if(!istype(terminal_in) || !user) return
 
-	src.audible_message("<font color=Maroon><b>HackTheEnergy.exe Assistant</b></font> says, \
-	\"Starting. Connecting to the terminal.\"")
-	if(!do_after(user, 30, terminal_in)) return
+	if(!istype(terminal_in) || !user)
+		return
 
-	src.audible_message("<font color=Maroon><b>HackTheEnergy.exe Assistant</b></font> says, \
-	\"Successful connection to the terminal. Getting information about the powergrid...\"")
-	if(!do_after(user, 80, terminal_in)) return
+	var/display_name = SPAN_MAROON("<b>HackTheEnergy.exe Assistant</b>")
+	src.audible_message("[display_name] says, \"Starting. Connecting to the terminal.\"")
+	if(!do_after(user, 3 SECONDS, terminal_in))
+		return
 
-	src.audible_message("<font color=Maroon><b>HackTheEnergy.exe Assistant</b></font> says, \
-	\"Powernet scan succeeded. Beginning blackout pulse.\"")
+	src.audible_message("[display_name] says, \"Successful connection to the terminal. Getting information about the powergrid...\"")
+	if(!do_after(user, 8 SECONDS, terminal_in))
+		return
 
+	src.audible_message("[display_name] says, \"Powernet scan succeeded. Beginning blackout pulse.\"")
 	icon_state = "device_blackout-on"
 	playsound(src, 'sound/items/goggles_charge.ogg', 50, 1)
 
-	if(!do_after(user, 40, terminal_in)) return
-	src.audible_message("<font color=Maroon><b>HackTheEnergy.exe Assistant</b></font> says, \
-	\"Done. Pulsing is complete. We wish you a successful and productive mission.\"")
+	if(!do_after(user, 4 SECONDS, terminal_in))
+		return
+	src.audible_message("[display_name] says, \"Done. Pulsing is complete. We wish you a successful and productive mission.\"")
 
 	shots--
 	cooldown = world.time
 
 	var/datum/powernet/powernet = terminal_in.powernet
 	for(var/obj/machinery/power/terminal/terminal_out in powernet.nodes)
-		if(istype(terminal_out.master, /obj/machinery/power/apc))
-			var/obj/machinery/power/apc/A = terminal_out.master
+		if(istype(terminal_out.master, /obj/machinery/apc))
+			var/obj/machinery/apc/A = terminal_out.master
 			A.energy_fail(rand(30 * severity, 60 * severity))
 		if(istype(terminal_out.master, /obj/machinery/power/smes/buildable))
 			var/obj/machinery/power/smes/buildable/S = terminal_out.master

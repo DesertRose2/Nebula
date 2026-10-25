@@ -7,16 +7,18 @@
 	5. The gameticker is created.
 */
 
-var/global/datum/global_init/init = new ()
-
 /*
 	Pre-map initialization stuff should go here.
 */
+
+var/global/global_init = new /datum/global_init()
+
 /datum/global_init/New()
-	load_configuration()
-	callHook("global_init")
-	qdel(src) //we're done
+	SSconfiguration.load_all_configuration()
+	generate_game_id()
+	makeDatumRefLists()
+	QDEL_IN(src, 0) //we're done. give it some time to finish setting up though
 
 /datum/global_init/Destroy()
-	init = null
+	global.global_init = null
 	return ..()

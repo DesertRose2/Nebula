@@ -26,7 +26,7 @@
 	critical_parts = list(PART_CPU, PART_HDD, PART_NETWORK)
 
 /datum/extension/assembly/modular_computer/try_install_component(var/mob/living/user, var/obj/item/stock_parts/computer/P)
-	if(!(P.usage_flags & hardware_flag))
+	if(!istype(P) || !(P.usage_flags & hardware_flag))
 		to_chat(user, "This computer isn't compatible with [P].")
 		return
 	var/obj/item/stock_parts/computer/C = P
@@ -35,15 +35,13 @@
 		return
 	. = ..()
 	if(.)
-		if(istype(P, /obj/item/stock_parts/computer/scanner))
-			var/obj/item/stock_parts/computer/scanner/scanner = P
-			scanner.do_after_install(user, holder)
+		P.do_after_install(holder, !!user)
 		return TRUE
 
 /datum/extension/assembly/modular_computer/uninstall_component(var/mob/living/user, var/obj/item/stock_parts/P)
-	if(istype(P, /obj/item/stock_parts/computer/scanner))
-		var/obj/item/stock_parts/computer/scanner/scanner = P
-		scanner.do_before_uninstall()
+	if(istype(P, /obj/item/stock_parts/computer))
+		var/obj/item/stock_parts/computer/C = P
+		C.do_before_uninstall(holder, !!user)
 	return ..()
 
 /datum/extension/assembly/modular_computer/critical_shutdown()
@@ -54,11 +52,10 @@
 /datum/extension/assembly/modular_computer/power_failure(var/malfunction = 0)
 	var/atom/movable/H = holder
 	H.visible_message("<span class='danger'>\The [assembly_name]'s screen flickers briefly and then goes dark.</span>", range = 1)
-	var/datum/extension/interactive/ntos/os = get_extension(holder, /datum/extension/interactive/ntos)
+	var/datum/extension/interactive/os/os = get_extension(holder, /datum/extension/interactive/os)
 	if(os)
 		os.event_powerfailure()
-	shutdown_device()
-	return ..()
+	. = ..()
 
 /datum/extension/assembly/modular_computer/turn_on(var/mob/user)
 	if(bsod)
@@ -78,18 +75,18 @@
 			to_chat(user, SPAN_NOTICE("You send an activation signal to \the [assembly_name], turning it on."))
 		else
 			to_chat(user, SPAN_NOTICE("You press the power button and start up \the [assembly_name]."))
-		var/datum/extension/interactive/ntos/os = get_extension(holder, /datum/extension/interactive/ntos)
+		var/datum/extension/interactive/os/os = get_extension(holder, /datum/extension/interactive/os)
 		if(os)
 			os.system_boot()
 	else // Unpowered
 		if(force_synth || issynth)
 			to_chat(user, SPAN_WARNING("You send an activation signal to \the [assembly_name], but it does not respond."))
 		else
-			to_chat(user, SPAN_WARNING("You press the power button but \the [assembly_name], does not respond."))
+			to_chat(user, SPAN_WARNING("You press the power button but \the [assembly_name] does not respond."))
 		shutdown_device()
 
 /datum/extension/assembly/modular_computer/shutdown_device()
 	. = ..()
-	var/datum/extension/interactive/ntos/os = get_extension(holder, /datum/extension/interactive/ntos)
+	var/datum/extension/interactive/os/os = get_extension(holder, /datum/extension/interactive/os)
 	if(os)
 		os.system_shutdown()

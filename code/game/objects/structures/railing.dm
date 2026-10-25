@@ -2,32 +2,59 @@
 	name = "railing"
 	desc = "A simple bar railing designed to protect against careless trespass."
 	icon = 'icons/obj/structures/railing.dmi'
-	icon_state = "railing0-1"
-	density = 1
+	icon_state = "railing_preview"
+	density = TRUE
 	throwpass = 1
 	layer = OBJ_LAYER
 	climb_speed_mult = 0.25
 	anchored = FALSE
-	atom_flags = ATOM_FLAG_NO_TEMP_CHANGE | ATOM_FLAG_CHECKS_BORDER | ATOM_FLAG_CLIMBABLE
-	obj_flags = OBJ_FLAG_ROTATABLE
+	atom_flags = ATOM_FLAG_CHECKS_BORDER | ATOM_FLAG_CLIMBABLE
+	obj_flags = OBJ_FLAG_ROTATABLE | OBJ_FLAG_MOVES_UNSUPPORTED
 	material = DEFAULT_FURNITURE_MATERIAL
 	material_alteration = MAT_FLAG_ALTERATION_ALL
-	maxhealth = 100
+	max_health = 100
+	parts_amount = 2
+	parts_type = /obj/item/stack/material/rods
 
 	var/broken =    FALSE
 	var/neighbor_status = 0
 
-/obj/structure/railing/mapped
-	color = COLOR_GUNMETAL
-	anchored = TRUE
+/obj/structure/railing/should_have_alpha_mask()
+	return simulated && isturf(loc) && !(locate(/obj/structure/railing) in get_step(loc, SOUTH))
 
-/obj/structure/railing/mapped/Initialize()
-	. = ..()
-	color = COLOR_GUNMETAL // They're not painted!
+/obj/structure/railing/mapped
+	anchored = TRUE
+	color = COLOR_ORANGE
+	paint_color = COLOR_ORANGE
+
+/obj/structure/railing/mapped/grey
+	paint_color = COLOR_SILVER
 
 /obj/structure/railing/mapped/no_density
-	density = 0
+	density = FALSE
 
+/obj/structure/railing/mapped/wooden
+	material = /decl/material/solid/organic/wood/oak
+	parts_type = /obj/item/stack/material/plank
+	color = WOOD_COLOR_GENERIC
+	paint_color = null
+
+// Subtypes.
+#define WOOD_RAILING_SUBTYPE(material_name) \
+/obj/structure/railing/mapped/wooden/##material_name { \
+	material = /decl/material/solid/organic/wood/##material_name; \
+	color = /decl/material/solid/organic/wood/##material_name::color; \
+}
+
+WOOD_RAILING_SUBTYPE(fungal)
+WOOD_RAILING_SUBTYPE(ebony)
+WOOD_RAILING_SUBTYPE(walnut)
+WOOD_RAILING_SUBTYPE(maple)
+WOOD_RAILING_SUBTYPE(mahogany)
+WOOD_RAILING_SUBTYPE(bamboo)
+WOOD_RAILING_SUBTYPE(yew)
+
+#undef WOOD_RAILING_SUBTYPE
 
 /obj/structure/railing/Process()
 	if(!material || !material.radioactivity)
@@ -45,8 +72,9 @@
 		obj_flags |= OBJ_FLAG_CONDUCTIBLE
 	else
 		obj_flags &= (~OBJ_FLAG_CONDUCTIBLE)
-	if(anchored)
-		update_icon(FALSE)
+
+	update_connections()
+	update_icon()
 
 /obj/structure/railing/get_material_health_modifier()
 	. = 0.2
@@ -63,8 +91,8 @@
 	broken = TRUE
 	for(var/thing in RANGE_TURFS(src, 1))
 		var/turf/T = thing
-		for(var/obj/structure/railing/R in T.contents)
-			R.update_icon()
+		for(var/obj/structure/railing/rail in T.contents)
+			rail.update_icon()
 	. = ..()
 
 /obj/structure/railing/CanPass(atom/movable/mover, turf/target, height=0, air_group=0)
@@ -74,73 +102,68 @@
 		return !density
 	return TRUE
 
-/obj/structure/railing/examine(mob/user)
-	. = ..()
-	if(health < maxhealth)
-		switch(health / maxhealth)
-			if(0.0 to 0.5)
-				to_chat(user, "<span class='warning'>It looks severely damaged!</span>")
-			if(0.25 to 0.5)
-				to_chat(user, "<span class='warning'>It looks damaged!</span>")
-			if(0.5 to 1.0)
-				to_chat(user, "<span class='notice'>It has a few scrapes and dents.</span>")
-
-/obj/structure/railing/take_damage(amount)
-	health -= amount
-	if(health <= 0)
-		visible_message("<span class='danger'>\The [src] [material.destruction_desc]!</span>")
-		playsound(loc, 'sound/effects/grillehit.ogg', 50, 1)
-		material.place_shard(get_turf(usr))
-		qdel(src)
-
-/obj/structure/railing/proc/NeighborsCheck(var/UpdateNeighbors = 1)
+// TODO: Make railings use the normal structure smoothing system! This sucks!
+/obj/structure/railing/update_connections(propagate = FALSE)
 	neighbor_status = 0
-	var/Rturn = turn(src.dir, -90)
-	var/Lturn = turn(src.dir, 90)
+	var/Rturn = turn(dir, -90)
+	var/Lturn = turn(dir, 90)
 
-	for(var/obj/structure/railing/R in src.loc)
-		if ((R.dir == Lturn) && R.anchored)
+	for(var/obj/structure/railing/rail in loc)
+		if ((rail.dir == Lturn) && rail.anchored)
 			neighbor_status |= 32
-			if (UpdateNeighbors)
-				R.update_icon(0)
-		if ((R.dir == Rturn) && R.anchored)
+			if (propagate)
+				rail.update_connections()
+				rail.update_icon()
+		if ((rail.dir == Rturn) && rail.anchored)
 			neighbor_status |= 2
-			if (UpdateNeighbors)
-				R.update_icon(0)
-	for (var/obj/structure/railing/R in get_step(src, Lturn))
-		if ((R.dir == src.dir) && R.anchored)
+			if (propagate)
+				rail.update_connections()
+				rail.update_icon()
+	for (var/obj/structure/railing/rail in get_step(src, Lturn))
+		if ((rail.dir == dir) && rail.anchored)
 			neighbor_status |= 16
-			if (UpdateNeighbors)
-				R.update_icon(0)
-	for (var/obj/structure/railing/R in get_step(src, Rturn))
-		if ((R.dir == src.dir) && R.anchored)
+			if (propagate)
+				rail.update_connections()
+				rail.update_icon()
+	for (var/obj/structure/railing/rail in get_step(src, Rturn))
+		if ((rail.dir == dir) && rail.anchored)
 			neighbor_status |= 1
-			if (UpdateNeighbors)
-				R.update_icon(0)
-	for (var/obj/structure/railing/R in get_step(src, (Lturn + src.dir)))
-		if ((R.dir == Rturn) && R.anchored)
+			if (propagate)
+				rail.update_connections()
+				rail.update_icon()
+	for (var/obj/structure/railing/rail in get_step(src, (Lturn + dir)))
+		if ((rail.dir == Rturn) && rail.anchored)
 			neighbor_status |= 64
-			if (UpdateNeighbors)
-				R.update_icon(0)
-	for (var/obj/structure/railing/R in get_step(src, (Rturn + src.dir)))
-		if ((R.dir == Lturn) && R.anchored)
+			if (propagate)
+				rail.update_connections()
+				rail.update_icon()
+	for (var/obj/structure/railing/rail in get_step(src, (Rturn + dir)))
+		if ((rail.dir == Lturn) && rail.anchored)
 			neighbor_status |= 4
-			if (UpdateNeighbors)
-				R.update_icon(0)
+			if (propagate)
+				rail.update_connections()
+				rail.update_icon()
 
-/obj/structure/railing/on_update_icon(var/update_neighbors = TRUE)
-	NeighborsCheck(update_neighbors)
-	overlays.Cut()
+/obj/structure/railing/on_update_icon()
+	..()
 	if (!neighbor_status || !anchored)
 		icon_state = "railing0-[density]"
+		if (density)//walking over a railing which is above you is really weird, do not do this if density is 0
+			add_overlay(image(icon, "_railing0-1", layer = ABOVE_HUMAN_LAYER))
 	else
 		icon_state = "railing1-[density]"
+		if (density)
+			add_overlay(image(icon, "_railing1-1", layer = ABOVE_HUMAN_LAYER))
 		if (neighbor_status & 32)
-			overlays += image(icon, "corneroverlay[density]")
+			add_overlay(image(icon, "corneroverlay[density]"))
 		if ((neighbor_status & 16) || !(neighbor_status & 32) || (neighbor_status & 64))
-			overlays += image(icon, "frontoverlay_l[density]")
+			add_overlay(image(icon, "frontoverlay_l[density]"))
+			if (density)
+				add_overlay(image(icon, "_frontoverlay_l1", layer = ABOVE_HUMAN_LAYER))
 		if (!(neighbor_status & 2) || (neighbor_status & 1) || (neighbor_status & 4))
-			overlays += image(icon, "frontoverlay_r[density]")
+			add_overlay(image(icon, "frontoverlay_r[density]"))
+			if (density)
+				add_overlay(image(icon, "_frontoverlay_r1", layer = ABOVE_HUMAN_LAYER))
 			if(neighbor_status & 4)
 				var/pix_offset_x = 0
 				var/pix_offset_y = 0
@@ -153,8 +176,9 @@
 						pix_offset_y = -32
 					if(WEST)
 						pix_offset_y = 32
-				overlays += image(icon, "mcorneroverlay[density]", pixel_x = pix_offset_x, pixel_y = pix_offset_y)
-
+				add_overlay(image(icon, "mcorneroverlay[density]", pixel_x = pix_offset_x, pixel_y = pix_offset_y))
+				if (density)
+					add_overlay(image(icon, "_mcorneroverlay1", pixel_x = pix_offset_x, pixel_y = pix_offset_y, layer = ABOVE_HUMAN_LAYER))
 
 /obj/structure/railing/verb/flip() // This will help push railing to remote places, such as open space turfs
 	set name = "Flip Railing"
@@ -172,8 +196,9 @@
 		to_chat(usr, "<span class='warning'>You can't flip \the [src] - something is in the way.</span>")
 		return 0
 
-	forceMove(get_step(src, src.dir))
+	forceMove(get_step(src, dir))
 	set_dir(turn(dir, 180))
+	update_connections(TRUE)
 	update_icon()
 
 /obj/structure/railing/CheckExit(var/atom/movable/O, var/turf/target)
@@ -185,91 +210,106 @@
 		return 0
 	return 1
 
-/obj/structure/railing/attackby(var/obj/item/W, var/mob/user)
-	// Handle harm intent grabbing/tabling.
-	if(istype(W, /obj/item/grab) && get_dist(src,user)<2)
-		var/obj/item/grab/G = W
-		if(istype(G.affecting, /mob/living/carbon/human))
-			var/mob/living/carbon/human/H = G.get_affecting_mob()
-			var/obj/occupied = turf_is_crowded()
-			if(occupied)
-				to_chat(user, "<span class='danger'>There's \a [occupied] in the way.</span>")
-				return
+/obj/structure/railing/grab_attack(obj/item/grab/grab, mob/user)
+	var/mob/living/victim = grab.get_affecting_mob()
+	if(!istype(victim) || !istype(user))
+		return ..()
 
-			if(G.force_danger())
-				if(user.a_intent == I_HURT)
-					visible_message("<span class='danger'>[G.assailant] slams [H]'s face against \the [src]!</span>")
-					playsound(loc, 'sound/effects/grillehit.ogg', 50, 1)
-					var/blocked = H.get_blocked_ratio(BP_HEAD, BRUTE, damage = 8)
-					if (prob(30 * (1 - blocked)))
-						H.Weaken(5)
-					H.apply_damage(8, BRUTE, BP_HEAD)
-				else
-					if (get_turf(H) == get_turf(src))
-						H.forceMove(get_step(src, src.dir))
-					else
-						H.dropInto(loc)
-					H.Weaken(5)
-					visible_message("<span class='danger'>[G.assailant] throws \the [H] over \the [src].</span>")
-			else
-				to_chat(user, "<span class='danger'>You need a better grip to do that!</span>")
-			return
+	// We want to throw the mob over the railing if we or they are already on the railing turf.
+	var/turf/target_turf = get_turf(src)
+	if(victim.loc == target_turf || user.loc == target_turf)
+		target_turf = get_step_resolving_mimic(target_turf, dir)
 
+	if(!istype(target_turf) || target_turf.density)
+		return ..()
+
+	var/obj/occupied = target_turf.turf_is_crowded()
+	if(occupied)
+		to_chat(user, SPAN_WARNING("There's \a [occupied] in the way."))
+		return TRUE
+
+	if(!grab.force_danger())
+		to_chat(user, SPAN_WARNING("You need a better grip to do that!"))
+		return TRUE
+
+	if(user.check_intent(I_FLAG_HARM) && ishuman(victim))
+		visible_message(SPAN_DANGER("\The [user] slams \the [victim]'s face against \the [src]!"))
+		playsound(loc, 'sound/effects/grillehit.ogg', 50, 1)
+		var/blocked = victim.get_blocked_ratio(BP_HEAD, BRUTE, damage = 8)
+		if (prob(30 * (1 - blocked)))
+			SET_STATUS_MAX(victim, STAT_WEAK, 5)
+		victim.apply_damage(8, BRUTE, BP_HEAD)
+		return TRUE
+
+	if (get_turf(victim) == get_turf(src))
+		victim.forceMove(get_step(src, dir))
+	else
+		victim.dropInto(loc)
+	SET_STATUS_MAX(victim, STAT_WEAK, 5)
+	visible_message(SPAN_DANGER("\The [user] throws \the [victim] over \the [src]!"))
+	return TRUE
+
+// TODO: rewrite to use handle_default_wrench_attackby, bash, etc
+/obj/structure/railing/attackby(var/obj/item/used_item, var/mob/user)
 	// Dismantle
-	if(isWrench(W))
+	if(IS_WRENCH(used_item))
 		if(!anchored)
-			playsound(src.loc, 'sound/items/Ratchet.ogg', 50, 1)
-			if(do_after(user, 20, src))
+			playsound(loc, 'sound/items/Ratchet.ogg', 50, 1)
+			if(do_after(user, 2 SECONDS, src))
 				if(anchored)
-					return
+					return TRUE
 				user.visible_message("<span class='notice'>\The [user] dismantles \the [src].</span>", "<span class='notice'>You dismantle \the [src].</span>")
-				material.place_sheet(loc, 2)
+				material.create_object(loc, 2)
 				qdel(src)
-			return
+			return TRUE
 	// Wrench Open
 		else
-			playsound(src.loc, 'sound/items/Ratchet.ogg', 50, 1)
+			playsound(loc, 'sound/items/Ratchet.ogg', 50, 1)
 			if(density)
 				user.visible_message("<span class='notice'>\The [user] wrenches \the [src] open.</span>", "<span class='notice'>You wrench \the [src] open.</span>")
-				density = 0
+				density = FALSE
 			else
 				user.visible_message("<span class='notice'>\The [user] wrenches \the [src] closed.</span>", "<span class='notice'>You wrench \the [src] closed.</span>")
-				density = 1
+				density = TRUE
+			update_connections(TRUE)
 			update_icon()
-			return
+			return TRUE
 	// Repair
-	if(isWelder(W))
-		var/obj/item/weldingtool/F = W
-		if(F.isOn())
-			if(health >= maxhealth)
+	if(IS_WELDER(used_item))
+		var/obj/item/fuelled_tool/welding/F = used_item
+		if(F.tool_is_running())
+			var/current_max_health = get_max_health()
+			if(current_health >= current_max_health)
 				to_chat(user, "<span class='warning'>\The [src] does not need repairs.</span>")
-				return
-			playsound(src.loc, 'sound/items/Welder.ogg', 50, 1)
+				return TRUE
+			playsound(loc, 'sound/items/Welder.ogg', 50, 1)
 			if(do_after(user, 20, src))
-				if(health >= maxhealth)
-					return
+				if(current_health >= current_max_health)
+					return TRUE
 				user.visible_message("<span class='notice'>\The [user] repairs some damage to \the [src].</span>", "<span class='notice'>You repair some damage to \the [src].</span>")
-				health = min(health+(maxhealth/5), maxhealth)
-			return
+				current_health = min(current_health+(current_max_health/5), current_max_health)
+			return TRUE
 
 	// Install
-	if(isScrewdriver(W))
+	if(IS_SCREWDRIVER(used_item))
 		if(!density)
 			to_chat(user, "<span class='notice'>You need to wrench \the [src] from back into place first.</span>")
-			return
+			return TRUE
 		user.visible_message(anchored ? "<span class='notice'>\The [user] begins unscrew \the [src].</span>" : "<span class='notice'>\The [user] begins fasten \the [src].</span>" )
 		playsound(loc, 'sound/items/Screwdriver.ogg', 75, 1)
 		if(do_after(user, 10, src) && density)
 			to_chat(user, (anchored ? "<span class='notice'>You have unfastened \the [src] from the floor.</span>" : "<span class='notice'>You have fastened \the [src] to the floor.</span>"))
-			anchored = !anchored
+			set_anchored(!anchored)
+			update_connections(TRUE)
 			update_icon()
-		return
+		return TRUE
 
-	if(W.force && (W.damtype == "fire" || W.damtype == "brute"))
+	var/force = used_item.expend_attack_force(user)
+	if(force && (used_item.atom_damage_type == BURN || used_item.atom_damage_type == BRUTE))
 		user.setClickCooldown(DEFAULT_ATTACK_COOLDOWN)
-		visible_message("<span class='danger'>\The [src] has been [LAZYLEN(W.attack_verb) ? pick(W.attack_verb) : "attacked"] with \the [W] by \the [user]!</span>")
-		take_damage(W.force)
-		return
+		visible_message("<span class='danger'>\The [src] has been [used_item.pick_attack_verb()] with \the [used_item] by \the [user]!</span>")
+		take_damage(force, used_item.atom_damage_type)
+		return TRUE
 	. = ..()
 
 /obj/structure/railing/explosion_act(severity)
@@ -277,16 +317,18 @@
 	if(!QDELETED(src))
 		qdel(src)
 
-/obj/structure/railing/can_climb(var/mob/living/user, post_climb_check=0)
-	. = ..()
-	if(. && get_turf(user) == get_turf(src))
-		var/turf/T = get_step(src, src.dir)
+/obj/structure/railing/can_climb(mob/living/user, post_climb_check = FALSE, silent = FALSE)
+	if((. = ..()) && get_turf(user) == get_turf(src))
+		var/turf/T = get_step(src, dir)
 		if(T.turf_is_crowded(user))
-			to_chat(user, "<span class='warning'>You can't climb there, the way is blocked.</span>")
-			return 0
+			if(!silent)
+				to_chat(user, SPAN_WARNING("You can't climb there, the way is blocked."))
+			return FALSE
 
 /obj/structure/railing/do_climb(var/mob/living/user)
 	. = ..()
-	if(.)
-		if(!anchored || material.is_brittle())
-			take_damage(maxhealth) // Fatboy
+	if(. && (!anchored || material.is_brittle()))
+		take_damage(get_max_health())
+
+	user.jump_layer_shift()
+	addtimer(CALLBACK(user, TYPE_PROC_REF(/mob/living, jump_layer_shift_end)), 2)

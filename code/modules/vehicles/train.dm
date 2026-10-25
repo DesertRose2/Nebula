@@ -1,22 +1,22 @@
 /obj/vehicle/train
 	name = "train"
 	dir = EAST
-
-	move_delay = 1
-
-	health = 100
-	maxhealth = 100
+	vehicle_move_delay = 1
+	max_health = 100
 	fire_dam_coeff = 0.7
 	brute_dam_coeff = 0.5
+	layer = ABOVE_HUMAN_LAYER
 
 	var/passenger_allowed = 1
-
 	var/active_engines = 0
 	var/train_length = 0
-
 	var/obj/vehicle/train/lead
 	var/obj/vehicle/train/tow
 
+	var/static/list/all_throw_dirs = list(NORTH, SOUTH, EAST, WEST, NORTHWEST, NORTHEAST, SOUTHWEST, SOUTHEAST)
+
+/obj/vehicle/train/user_buckle_mob(mob/living/M, mob/user)
+	return load_onto_vehicle(M)
 
 //-------------------------------------------
 // Standard procs
@@ -24,7 +24,15 @@
 /obj/vehicle/train/Initialize()
 	. = ..()
 	for(var/obj/vehicle/train/T in orange(1, src))
-		latch(T)
+		if(T.lead || T.is_train_head())
+			latch(T)
+
+/obj/vehicle/train/get_examine_strings(mob/user, distance, infix, suffix)
+	. = ..()
+	if (lead)
+		. += SPAN_NOTICE("It is hitched to \the [lead].")
+	if (tow)
+		. += SPAN_NOTICE("It is towing \the [tow].")
 
 /obj/vehicle/train/Move()
 	var/old_loc = get_turf(src)
@@ -48,16 +56,16 @@
 			A.Move(T)	//bump things away when hit
 
 	if(emagged)
-		if(istype(A, /mob/living))
+		if(isliving(A))
 			var/mob/living/M = A
 			visible_message("<span class='warning'>[src] knocks over [M]!</span>")
 			var/def_zone = ran_zone()
 			M.apply_effects(5, 5)				//knock people down if you hit them
-			M.apply_damage(22 / move_delay, BRUTE, def_zone)	// and do damage according to how fast the train is going
-			if(istype(load, /mob/living/carbon/human))
+			M.apply_damage(22 / vehicle_move_delay, BRUTE, def_zone)	// and do damage according to how fast the train is going
+			if(ishuman(load))
 				var/mob/living/D = load
 				to_chat(D, "<span class='warning'>You hit [M]!</span>")
-				msg_admin_attack("[D.name] ([D.ckey]) hit [M.name] ([M.ckey]) with [src]. (<A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[src.x];Y=[src.y];Z=[src.z]'>JMP</a>)")
+				msg_admin_attack("[D.name] ([D.ckey]) hit [M.name] ([M.ckey]) with [src]. (<A HREF='byond://?_src_=holder;adminplayerobservecoodjump=1;X=[src.x];Y=[src.y];Z=[src.z]'>JMP</a>)")
 
 
 //-------------------------------------------
@@ -88,33 +96,36 @@
 			return 1
 		return 0
 
-	unload(user, direction)
+	unload_from_vehicle(user, direction)
 
 	to_chat(user, "<span class='notice'>You climb down from [src].</span>")
-
 	return 1
 
-/obj/vehicle/train/MouseDrop_T(var/atom/movable/C, mob/user)
-	if(!CanPhysicallyInteract(user) || !user.Adjacent(C) || !istype(C) || (user == C))
-		return
-	if(istype(C,/obj/vehicle/train))
-		latch(C, user)
-	else
-		if(!load(C))
-			to_chat(user, "<span class='warning'>You were unable to load [C] on [src].</span>")
+/obj/vehicle/train/handle_mouse_drop(atom/over, mob/user, params)
+	if(istype(over, /obj/vehicle/train))
+		var/obj/vehicle/train/beep = over
+		beep.latch(src, user)
+		return TRUE
+	. = ..()
+
+/obj/vehicle/train/receive_mouse_drop(atom/dropping, mob/user, params)
+	. = ..()
+	if(!. && istype(dropping, /atom/movable))
+		if(!load_onto_vehicle(dropping))
+			to_chat(user, SPAN_WARNING("You were unable to load \the [dropping] onto \the [src]."))
+		return TRUE
 
 /obj/vehicle/train/attack_hand(mob/user)
-	if(user.stat || user.restrained() || !Adjacent(user))
-		return 0
-
+	SHOULD_CALL_PARENT(FALSE)
+	if(!CanPhysicallyInteract(user))
+		return FALSE
 	if(user != load && (user in src))
-		user.forceMove(loc)			//for handling players stuck in src
+		user.forceMove(loc)
 	else if(load)
-		unload(user)			//unload if loaded
+		unload_from_vehicle(user)
 	else if(!load && !user.buckled)
-		load(user)				//else try climbing on board
-	else
-		return 0
+		load_onto_vehicle(user)
+	return TRUE
 
 /obj/vehicle/train/verb/unlatch_v()
 	set name = "Unlatch"
@@ -122,7 +133,7 @@
 	set category = "Object"
 	set src in view(1)
 
-	if(!istype(usr, /mob/living/carbon/human))
+	if(!ishuman(usr))
 		return
 
 	if(!CanPhysicallyInteract(usr))
@@ -186,12 +197,7 @@
 	if(!istype(T) || !Adjacent(T))
 		return 0
 
-	var/T_dir = get_dir(src, T)	//figure out where T is wrt src
-
-	if(dir == T_dir) 	//if car is ahead
-		src.attach_to(T, user)
-	else if(GLOB.reverse_dir[dir] == T_dir)	//else if car is behind
-		T.attach_to(src, user)
+	T.attach_to(src, user)
 
 //returns 1 if this is the lead car of the train
 /obj/vehicle/train/proc/is_train_head()
@@ -230,5 +236,7 @@
 		T.update_car(train_length, active_engines)
 		T = T.lead
 
-/obj/vehicle/train/proc/update_car(var/train_length, var/active_engines)
-	return
+/obj/vehicle/train/proc/update_car(var/_train_length, var/_active_engines)
+	SHOULD_CALL_PARENT(TRUE)
+	train_length = _train_length
+	active_engines = _active_engines

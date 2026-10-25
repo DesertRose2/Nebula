@@ -3,18 +3,19 @@
 
 /decl/communication_channel/dsay
 	name = "DSAY"
-	config_setting = "dsay_allowed"
+	config_setting = /decl/config/toggle/on/dsay_allowed
 	expected_communicator_type = /client
 	flags = COMMUNICATION_LOG_CHANNEL_NAME
 	log_proc = /proc/log_say
 	mute_setting = MUTE_DEADCHAT
 	show_preference_setting = /datum/client_preference/show_dsay
 
+// Changes the default speech_method kwarg.
 /decl/communication_channel/dsay/communicate(communicator, message, speech_method = /decl/dsay_communication/say)
-	..()
+	return ..()
 
 /decl/communication_channel/dsay/can_communicate(var/client/communicator, var/message, var/speech_method_type)
-	var/decl/dsay_communication/speech_method = decls_repository.get_decl(speech_method_type)
+	var/decl/dsay_communication/speech_method = GET_DECL(speech_method_type)
 	switch(speech_method.can_communicate(communicator, message))
 		if(DSAY_CAN_COMMUNICATE)
 			return TRUE
@@ -22,11 +23,11 @@
 			return ..()
 
 /decl/communication_channel/dsay/do_communicate(var/client/communicator, var/message, var/speech_method_type)
-	var/decl/dsay_communication/speech_method = decls_repository.get_decl(speech_method_type)
+	var/decl/dsay_communication/speech_method = GET_DECL(speech_method_type)
 
 	speech_method.adjust_channel(src)
 
-	for(var/mob/M in GLOB.player_list)
+	for(var/mob/M in global.player_list)
 		if(!speech_method.can_receive(communicator, M))
 			continue
 		var/sent_message = speech_method.get_message(communicator, M, message)
@@ -43,7 +44,7 @@
 /decl/dsay_communication/proc/can_receive(var/client/C, var/mob/M)
 	if(istype(C) && C.mob == M)
 		return TRUE
-	if(M.get_preference_value(/datum/client_preference/show_dsay) == GLOB.PREF_HIDE)
+	if(M.get_preference_value(/datum/client_preference/show_dsay) == PREF_HIDE)
 		return FALSE
 	if(istype(C) && M.is_key_ignored(C.key))
 		return FALSE
@@ -61,12 +62,8 @@
 
 	keyname = C.key
 	if(C.mob) //Most of the time this is the dead/observer mob; we can totally use him if there is no better name
-		var/mindname
+		var/mindname = C.mob.mind?.name // the mind's "original name"
 		var/realname = C.mob.real_name
-		if(C.mob.mind)
-			mindname = C.mob.mind.name
-			if(C.mob.mind.original && C.mob.mind.original.real_name)
-				realname = C.mob.mind.original.real_name
 		if(mindname && mindname != realname)
 			name = "[realname] died as [mindname]"
 		else
@@ -74,12 +71,13 @@
 
 	var/lname
 	var/mob/observer/ghost/DM
+	var/anon_say_pref = (C.get_preference_value(/datum/client_preference/anon_say) == PREF_YES)
 	if(isghost(C.mob))
 		DM = C.mob
 	if(M.client.holder) 							// What admins see
-		lname = "[keyname][(DM && DM.anonsay) ? "*" : (DM ? "" : "^")] ([name])"
+		lname = "[keyname][(DM && anon_say_pref) ? "*" : (DM ? "" : "^")] ([name])"
 	else
-		if(DM && DM.anonsay)						// If the person is actually observer they have the option to be anonymous
+		if(DM && anon_say_pref)						// If the person is actually observer they have the option to be anonymous
 			lname = "Ghost of [name]"
 		else if(DM)									// Non-anons
 			lname = "[keyname] ([name])"

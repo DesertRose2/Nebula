@@ -7,36 +7,25 @@
 	throwpass =  TRUE
 	anchored =   TRUE
 	atom_flags = ATOM_FLAG_CLIMBABLE | ATOM_FLAG_CHECKS_BORDER
-	can_buckle = TRUE
+	max_buckled_mobs = 1 // TODO: Is it actually... intended that you can buckle stuff to this?
 	material =   /decl/material/solid/metal/steel
 	material_alteration = MAT_FLAG_ALTERATION_DESC | MAT_FLAG_ALTERATION_NAME
-	maxhealth = 200
+	max_health = 200
+	hitsound = 'sound/effects/bang.ogg'
 	var/secured
 
 /obj/structure/defensive_barrier/Initialize()
 	. = ..()
 	update_icon()
-	GLOB.dir_set_event.register(src, src, .proc/update_layers)
+	events_repository.register(/decl/observ/dir_set, src, src, PROC_REF(update_layers))
 
-/obj/structure/defensive_barrier/show_examined_damage(mob/user, perc)
-	if(maxhealth == -1)
-		return
-	else if(perc >= 1)
-		to_chat(user, SPAN_NOTICE("It is undamaged."))
-	else if(perc < 0.7)
-		to_chat(user, SPAN_WARNING("It has a few small dents."))
-	else if(perc < 0.35)
-		to_chat(user, SPAN_WARNING("It has several large dents."))
-	else
-		to_chat(user, SPAN_DANGER("It is on the verge of breaking apart!"))
-
-/obj/structure/defensive_barrier/physically_destroyed()
+/obj/structure/defensive_barrier/physically_destroyed(var/skip_qdel)
 	visible_message(SPAN_DANGER("\The [src] was destroyed!"))
 	playsound(src, 'sound/effects/clang.ogg', 100, 1)
 	. = ..()
 
 /obj/structure/defensive_barrier/Destroy()
-	GLOB.dir_set_event.unregister(src, src, .proc/update_layers)
+	events_repository.unregister(/decl/observ/dir_set, src, src, PROC_REF(update_layers))
 	. = ..()
 
 /obj/structure/defensive_barrier/proc/update_layers()
@@ -64,11 +53,11 @@
 
 	if(istype(mover, /obj/item/projectile))
 		var/obj/item/projectile/proj = mover
-		if(Adjacent(proj?.firer))
+		if(Adjacent(proj?.firer_ref?.resolve()))
 			return TRUE
-		if(mover.dir != GLOB.reverse_dir[dir])
+		if(mover.dir != global.reverse_dir[dir])
 			return TRUE
-		if(get_dist(proj.starting, loc) <= 1)//allows to fire from 1 tile away of barrier
+		if(get_dist(proj.starting_ref?.resolve(), loc) <= 1)//allows to fire from 1 tile away of barrier
 			return TRUE
 		return check_cover(mover, target)
 
@@ -102,8 +91,8 @@
 	visible_message(SPAN_NOTICE("\The [user] packs up \the [src]."))
 	var/obj/item/defensive_barrier/B = new(get_turf(user), material?.type)
 	playsound(src, 'sound/items/Deconstruct.ogg', 100, 1)
-	B.stored_health = health
-	B.stored_max_health = maxhealth
+	B.stored_health = current_health
+	B.stored_max_health = get_max_health()
 	B.add_fingerprint(user)
 	qdel(src)
 	return TRUE
@@ -111,14 +100,17 @@
 /obj/structure/defensive_barrier/CtrlClick(mob/living/user)
 	try_pack_up(user)
 
-/obj/structure/defensive_barrier/attack_hand(mob/living/carbon/human/user)
+/obj/structure/defensive_barrier/attack_hand(mob/user)
 
-	if(ishuman(user) && user.species.can_shred(user) && user.a_intent == I_HURT)
+	if(!user.check_dexterity(DEXTERITY_HOLD_ITEM, TRUE))
+		return ..()
+
+	if(user.can_shred() && user.check_intent(I_FLAG_HARM))
 		take_damage(20)
 		user.setClickCooldown(DEFAULT_ATTACK_COOLDOWN)
 		return TRUE
 
-	if(user.a_intent == I_GRAB)
+	if(user.check_intent(I_FLAG_GRAB))
 		try_pack_up(user)
 		return TRUE
 
@@ -135,9 +127,9 @@
 	update_icon()
 	return TRUE
 
-/obj/structure/defensive_barrier/attackby(obj/item/W, mob/user)
+/obj/structure/defensive_barrier/attackby(obj/item/used_item, mob/user)
 
-	if(isScrewdriver(W) && density)
+	if(IS_SCREWDRIVER(used_item) && density)
 		user.visible_message(SPAN_NOTICE("\The [user] begins to [secured ? "secure" : "unsecure"] \the [src]..."))
 		playsound(src, 'sound/items/Screwdriver.ogg', 100, 1)
 		if(!do_after(user, 30, src))
@@ -149,12 +141,9 @@
 
 	. = ..()
 
-/obj/structure/defensive_barrier/take_damage(damage)
-	if(damage)
-		playsound(src.loc, 'sound/effects/bang.ogg', 75, 1)
-		damage = round(damage * 0.5)
-		if(damage)
-			..()
+/obj/structure/defensive_barrier/take_damage(damage, damage_type = BRUTE, damage_flags, inflicter, armor_pen = 0, silent, do_update_health)
+	damage = round(damage * 0.5)
+	return ..()
 
 /obj/structure/defensive_barrier/proc/check_cover(obj/item/projectile/P, turf/from)
 	var/turf/cover = get_turf(src)
@@ -205,32 +194,19 @@
 	playsound(src, 'sound/effects/extout.ogg', 100, 1)
 	var/obj/structure/defensive_barrier/B = new(get_turf(user), material?.type)
 	B.set_dir(user.dir)
-	B.health = stored_health
+	B.current_health = stored_health
 	if(loc == user)
 		user.drop_from_inventory(src)
 	qdel(src)
 
-/obj/item/defensive_barrier/attackby(obj/item/W, mob/user)
-
-	if(stored_health < stored_max_health && isWelder(W))
-		var/obj/item/weldingtool/WT = W
-		if(!WT.isOn())
-			to_chat(user, SPAN_WARNING("Turn \the [W] on first."))
-			return TRUE
-
-		if(!WT.remove_fuel(0,user))
-			to_chat(user, SPAN_WARNING("You need more welding fuel to complete this task."))
-			return TRUE
-
-		to_chat(user, SPAN_WARNING("You start repairing the damage to \the [src]."))
-		playsound(src, 'sound/items/Welder.ogg', 100, 1)
-
-		if(!do_after(user, max(5, round((stored_max_health-stored_health) / 5)), src) || !WT?.isOn() || QDELETED(src))
-			return TRUE
-
-		to_chat(user, SPAN_NOTICE("You finish repairing the damage to \the [src]."))
-		playsound(src, 'sound/items/Welder2.ogg', 100, 1)
-		stored_health = stored_max_health
+/obj/item/defensive_barrier/attackby(obj/item/used_item, mob/user)
+	if(stored_health < stored_max_health && IS_WELDER(used_item))
+		if(used_item.do_tool_interaction(TOOL_WELDER, user, src,        \
+		  max(5, round((stored_max_health-stored_health) / 5)), \
+		  "repairing the damage to", "repairing the damage to", \
+		  "You fail to patch the damage to \the [src].",        \
+		  fuel_expenditure = 1
+		))
+			stored_health = stored_max_health
 		return TRUE
-
 	. = ..()

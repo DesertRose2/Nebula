@@ -16,8 +16,20 @@
 	var/pellet_loss = round((distance - 1)/range_step) //pellets lost due to distance
 	return max(pellets - pellet_loss, 1)
 
-/obj/item/projectile/bullet/pellet/attack_mob(var/mob/living/target_mob, var/distance, var/miss_modifier)
-	if (pellets < 0) return 1
+/obj/item/projectile/bullet/pellet/fire(angle, atom/direct_target)
+	if(direct_target)
+		for (var/i in 1 to pellets)
+			var/old_zone = def_zone
+			def_zone = ran_zone(def_zone, base_spread, direct_target)
+			direct_target.bullet_act(src, def_zone)
+			def_zone = old_zone
+		return
+	..()
+
+/obj/item/projectile/bullet/pellet/attack_mob(var/mob/target_mob, var/distance, var/miss_modifier)
+	SHOULD_CALL_PARENT(FALSE)
+	if (pellets < 0)
+		return 1
 
 	var/total_pellets = get_pellets(distance)
 	var/spread = max(base_spread - (spread_step*distance), 0)
@@ -29,23 +41,25 @@
 
 	var/hits = 0
 	for (var/i in 1 to total_pellets)
-		if(target_mob.lying && target_mob != original && prob(prone_chance))
+		if(target_mob.current_posture.prone && target_mob != original_ref?.resolve() && prob(prone_chance))
 			continue
 
 		//pellet hits spread out across different zones, but 'aim at' the targeted zone with higher probability
 		//whether the pellet actually hits the def_zone or a different zone should still be determined by the parent using get_zone_with_miss_chance().
 		var/old_zone = def_zone
-		def_zone = ran_zone(def_zone, spread)
+		def_zone = ran_zone(def_zone, spread, target_mob)
 		if (..()) hits++
 		def_zone = old_zone //restore the original zone the projectile was aimed at
 
-	pellets -= hits //each hit reduces the number of pellets left
+	if(hits > 0)
+		pellets -= hits //each hit reduces the number of pellets left
+
 	if (hits >= total_pellets || pellets <= 0)
 		return 1
 	return 0
 
 /obj/item/projectile/bullet/pellet/get_structure_damage()
-	var/distance = get_dist(loc, starting)
+	var/distance = get_dist(loc, starting_ref?.resolve())
 	return ..() * get_pellets(distance)
 
 /obj/item/projectile/bullet/pellet/Move()
@@ -54,7 +68,7 @@
 	//If this is a shrapnel explosion, allow mobs that are prone to get hit, too
 	if(. && !base_spread && isturf(loc))
 		for(var/mob/living/M in loc)
-			if(M.lying || !M.CanPass(src, loc, 0.5, 0)) //Bump if lying or if we would normally Bump.
+			if(M.current_posture.prone || !M.CanPass(src, loc, 0.5, 0)) //Bump if lying or if we would normally Bump.
 				if(Bump(M)) //Bump will make sure we don't hit a mob multiple times
 					return
 

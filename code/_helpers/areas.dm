@@ -20,21 +20,10 @@
 		if(!predicates || all_predicates_true(list(T), predicates))
 			. += T
 
-/proc/get_subarea_turfs(var/area/A, var/list/predicates)
-	. = new/list()
-	A = istype(A) ? A.type : A
-	if(!ispath(A))
-		return
-	for(var/sub_area_type in typesof(A))
-		var/area/sub_area = locate(sub_area_type)
-		for(var/turf/T in sub_area.contents)
-			if(!predicates || all_predicates_true(list(T), predicates))
-				. += T
-
 /proc/group_areas_by_name(var/list/predicates)
 	. = list()
 	for(var/area/A in get_filtered_areas(predicates))
-		group_by(., A.name, A)
+		group_by(., A.proper_name, A)
 
 /proc/group_areas_by_z_level(var/list/predicates)
 	. = list()
@@ -45,20 +34,31 @@
 /*
 	Pick helpers
 */
-/proc/pick_subarea_turf(var/areatype, var/list/predicates)
-	var/list/turfs = get_subarea_turfs(areatype, predicates)
-	if(LAZYLEN(turfs))
-		return pick(turfs)
+/proc/pick_area_turf_by_flag(var/area_flags, var/list/predicates)
+	var/list/turfs
+	var/list/valid_areas = list()
+	for(var/area/candidate_area as anything in global.areas)
+		if(!(candidate_area.area_flags & area_flags))
+			continue
+		valid_areas[candidate_area] = TRUE
+	if(!length(valid_areas)) // no turfs at all have that flag
+		return null
+	// Each area contents loop is an in-world loop, so we just do one here.
+	for(var/turf/turf_candidate in world)
+		var/area/candidate_area = get_area(turf_candidate)
+		if(!valid_areas[candidate_area])
+			continue
+		if(!predicates || all_predicates_true(list(turf_candidate), predicates))
+			LAZYADD(turfs, turf_candidate)
+	return SAFEPICK(turfs)
 
 /proc/pick_area_turf(var/areatype, var/list/predicates)
 	var/list/turfs = get_area_turfs(areatype, predicates)
-	if(turfs && turfs.len)
-		return pick(turfs)
+	return SAFEPICK(turfs)
 
 /proc/pick_area(var/list/predicates)
 	var/list/areas = get_filtered_areas(predicates)
-	if(LAZYLEN(areas))
-		. = pick(areas)
+	return SAFEPICK(areas)
 
 /proc/pick_area_and_turf(var/list/area_predicates, var/list/turf_predicates)
 	var/list/areas = get_filtered_areas(area_predicates)
@@ -70,7 +70,7 @@
 /proc/pick_area_turf_in_connected_z_levels(var/list/area_predicates, var/list/turf_predicates, var/z_level)
 	area_predicates = area_predicates.Copy()
 
-	var/z_levels = GetConnectedZlevels(z_level)
+	var/z_levels = SSmapping.get_connected_levels(z_level)
 	area_predicates[/proc/area_belongs_to_zlevels] = z_levels
 	return pick_area_and_turf(area_predicates, turf_predicates)
 
@@ -81,52 +81,56 @@
 	. = (A.z in z_levels)
 
 /proc/is_station_area(var/area/A)
-	. = isStationLevel(A.z)
+	if(istype(A))
+		. = isStationLevel(A.z)
 
 /proc/is_contact_area(var/area/A)
-	. = isContactLevel(A.z)
+	if(istype(A))
+		. = isContactLevel(A.z)
 
 /proc/is_player_area(var/area/A)
-	. = isPlayerLevel(A.z)
+	if(istype(A))
+		. = isPlayerLevel(A.z)
 
 /proc/is_not_space_area(var/area/A)
 	. = !istype(A,/area/space)
 
 /proc/is_not_shuttle_area(var/area/A)
-	. = !istype(A,/area/shuttle)
+	. = !istype(A) || !(A.area_flags & AREA_FLAG_SHUTTLE)
 
 /proc/is_area_with_turf(var/area/A)
-	. = isnum(A.x)
+	if(istype(A))
+		. = isnum(A.x)
 
 /proc/is_area_without_turf(var/area/A)
 	. = !is_area_with_turf(A)
 
 /proc/is_maint_area(var/area/A)
-	. = istype(A,/area/maintenance)
+	. = !istype(A) || !(A.area_flags & AREA_FLAG_MAINTENANCE)
 
 /proc/is_not_maint_area(var/area/A)
 	. = !is_maint_area(A)
 
 /proc/is_coherent_area(var/area/A)
-	return !is_type_in_list(A, GLOB.using_map.area_coherency_test_exempt_areas)
+	return !is_type_in_list(A, global.using_map.area_coherency_test_exempt_areas)
 
-GLOBAL_LIST_INIT(is_station_but_not_space_or_shuttle_area, list(/proc/is_station_area, /proc/is_not_space_area, /proc/is_not_shuttle_area))
+var/global/list/is_station_but_not_space_or_shuttle_area = list(/proc/is_station_area, /proc/is_not_space_area, /proc/is_not_shuttle_area)
 
-GLOBAL_LIST_INIT(is_contact_but_not_space_or_shuttle_area, list(/proc/is_contact_area, /proc/is_not_space_area, /proc/is_not_shuttle_area))
+var/global/list/is_contact_but_not_space_or_shuttle_area = list(/proc/is_contact_area, /proc/is_not_space_area, /proc/is_not_shuttle_area)
 
-GLOBAL_LIST_INIT(is_player_but_not_space_or_shuttle_area, list(/proc/is_player_area, /proc/is_not_space_area, /proc/is_not_shuttle_area))
+var/global/list/is_player_but_not_space_or_shuttle_area = list(/proc/is_player_area, /proc/is_not_space_area, /proc/is_not_shuttle_area)
 
-GLOBAL_LIST_INIT(is_station_area, list(/proc/is_station_area))
+var/global/list/is_station_area = list(/proc/is_station_area)
 
-GLOBAL_LIST_INIT(is_station_and_maint_area, list(/proc/is_station_area, /proc/is_maint_area))
+var/global/list/is_station_and_maint_area = list(/proc/is_station_area, /proc/is_maint_area)
 
-GLOBAL_LIST_INIT(is_station_but_not_maint_area, list(/proc/is_station_area, /proc/is_not_maint_area))
+var/global/list/is_station_but_not_maint_area = list(/proc/is_station_area, /proc/is_not_maint_area)
 
 /*
 	Misc Helpers
 */
-#define teleportlocs area_repository.get_areas_by_name_and_coords(GLOB.is_player_but_not_space_or_shuttle_area)
-#define stationlocs area_repository.get_areas_by_name(GLOB.is_player_but_not_space_or_shuttle_area)
-#define wizteleportlocs area_repository.get_areas_by_name(GLOB.is_station_area)
-#define maintlocs area_repository.get_areas_by_name(GLOB.is_station_and_maint_area)
-#define wizportallocs area_repository.get_areas_by_name(GLOB.is_station_but_not_space_or_shuttle_area)
+#define teleportlocs area_repository.get_areas_by_name_and_coords(global.is_player_but_not_space_or_shuttle_area)
+#define stationlocs area_repository.get_areas_by_name(global.is_player_but_not_space_or_shuttle_area)
+#define wizteleportlocs area_repository.get_areas_by_name(global.is_station_area)
+#define maintlocs area_repository.get_areas_by_name(global.is_station_and_maint_area)
+#define wizportallocs area_repository.get_areas_by_name(global.is_station_but_not_space_or_shuttle_area)

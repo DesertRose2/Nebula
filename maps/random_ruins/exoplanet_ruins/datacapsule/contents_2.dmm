@@ -1,19 +1,10 @@
 //MAP CONVERTED BY dmm2tgm.py THIS HEADER COMMENT PREVENTS RECONVERSION, DO NOT REMOVE
 "a" = (
-/obj/machinery/telecomms/server,
 /obj/structure/foamedmetal,
 /turf/template_noop,
 /area/template_noop)
 "b" = (
 /mob/living/simple_animal/hostile/viscerator,
-/turf/template_noop,
-/area/template_noop)
-"c" = (
-/obj/structure/foamedmetal,
-/turf/template_noop,
-/area/template_noop)
-"d" = (
-/obj/structure/foamedmetal,
 /turf/template_noop,
 /area/template_noop)
 "e" = (
@@ -41,13 +32,13 @@ f
 h
 "}
 (2,1,1) = {"
-c
-c
-c
+a
+a
+a
 b
 "}
 (3,1,1) = {"
-d
+a
 e
 f
 h

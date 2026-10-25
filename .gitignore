@@ -1,5 +1,4 @@
 # ignore misc BYOND files
-Thumbs.db
 *.log
 *.int
 *.rsc
@@ -7,8 +6,10 @@ Thumbs.db
 *.lk
 *.backup
 *.before
-data/
-cfg/
+/codex/
+/data/
+/dmdoc/
+/cfg/
 build_log.txt
 use_map
 stopserver
@@ -16,13 +17,22 @@ reboot_called
 atupdate
 
 # ignore config, but not subdirs
-!config/*/
-config/*
-sql/test_db
+/!config/*/
+/config/*
+/sql/test_db
+
+# misc OS garbage
+Thumbs.db
+Thumbs.db:encryptable
+.DS_Store
 
 # vscode
-.vscode/*
+/.vscode/*
+*.code-workspace
 .history
+
+# git/kdiff4
+*.orig
 
 # swap
 [._]*.s[a-v][a-z]
@@ -39,12 +49,15 @@ Session.vim
 
 # auto-generated tag files
 tags
-nebula.code-workspace
 
 # ignore built libs
 lib/*.dll
 lib/*.so
+/prof.dll
 
 # python
 *.pyc
 __pycache__
+
+# Running OpenDream locally
+nebula.json

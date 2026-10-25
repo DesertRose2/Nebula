@@ -1,3 +1,8 @@
+var/global/list/localhost_addresses = list(
+	"127.0.0.1" = TRUE,
+	"::1" = TRUE
+)
+
 	////////////
 	//SECURITY//
 	////////////
@@ -60,16 +65,6 @@
 		cmd_admin_pm(C, null, ticket)
 		return
 
-	if(href_list["irc_msg"])
-		if(!holder && received_irc_pm < world.time - 6000) //Worse they can do is spam IRC for 10 minutes
-			to_chat(usr, "<span class='warning'>You are no longer able to use this, it's been more then 10 minutes since an admin on IRC has responded to you</span>")
-			return
-		if(mute_irc)
-			to_chat(usr, "<span class='warning'You cannot use this as your client has been muted from sending messages to the admins on IRC</span>")
-			return
-		cmd_admin_irc_pm(href_list["irc_msg"])
-		return
-
 	if(href_list["close_ticket"])
 		var/datum/ticket/ticket = locate(href_list["close_ticket"])
 
@@ -79,8 +74,8 @@
 		ticket.close(client_repository.get_lite_client(usr.client))
 
 	//Logs all hrefs
-	if(config && config.log_hrefs && GLOB.world_href_log)
-		WRITE_FILE(GLOB.world_href_log, "<small>[time2text(world.timeofday,"hh:mm")] [src] (usr:[usr])</small> || [hsrc ? "[hsrc] " : ""][href]<br>")
+	if(get_config_value(/decl/config/toggle/log_hrefs) && global.world_href_log)
+		to_file(global.world_href_log, "<small>[time2text(world.timeofday,"hh:mm")] [src] (usr:[usr])</small> || [hsrc ? "[hsrc] " : ""][href]<br>")
 
 	switch(href_list["_src_"])
 		if("holder")	hsrc = holder
@@ -95,6 +90,11 @@
 		debug_variables(locate(href_list["SDQL_select"]))
 		return
 
+	//byond bug ID:2694120
+	if(href_list["reset_macros"])
+		reset_macros(TRUE)
+		return
+
 	..()	//redirect to hsrc.Topic()
 
 //This stops files larger than UPLOAD_LIMIT being sent from client to server via input(), client.Import() etc.
@@ -102,15 +102,8 @@
 	if(!user_acted(src))
 		return 0
 	if(filelength > UPLOAD_LIMIT)
-		to_chat(src, "<font color='red'>Error: AllowUpload(): File Upload too large. Upload Limit: [UPLOAD_LIMIT/1024]KiB.</font>")
+		to_chat(src, SPAN_WARNING("Error: AllowUpload(): File Upload too large. Upload Limit: [UPLOAD_LIMIT/1024]KiB."))
 		return 0
-/*	//Don't need this at the moment. But it's here if it's needed later.
-	//Helps prevent multiple files being uploaded at once. Or right after eachother.
-	var/time_to_wait = fileaccess_timer - world.time
-	if(time_to_wait > 0)
-		to_chat(src, "<font color='red'>Error: AllowUpload(): Spam prevention. Please wait [round(time_to_wait/10)] seconds.</font>")
-		return 0
-	fileaccess_timer = world.time + FTPDELAY	*/
 	return 1
 
 
@@ -122,70 +115,93 @@
 
 	switch (connection)
 		if ("seeker", "web") // check for invalid connection type. do nothing if valid
+			pass()
 		else return null
-	#if DM_VERSION >= 512
-	var/bad_version = config.minimum_byond_version && byond_version < config.minimum_byond_version
-	var/bad_build = config.minimum_byond_build && byond_build < config.minimum_byond_build
+
+	deactivate_darkmode(clear_chat = FALSE) // Overwritten if the pref is set later.
+
+	var/bad_version = byond_version < get_config_value(/decl/config/num/minimum_byond_version)
+	var/bad_build   = byond_build < get_config_value(/decl/config/num/minimum_byond_build)
+
 	if (bad_build || bad_version)
-		to_chat(src, "You are attempting to connect with a out of date version of BYOND. Please update to the latest version at http://www.byond.com/ before trying again.")
+		to_chat(src, "You are attempting to connect with an out-of-date version of BYOND. Please update to the latest version at http://www.byond.com/ before trying again.")
 		qdel(src)
 		return
 
-	if("[byond_version].[byond_build]" in config.forbidden_versions)
+	if("[byond_version].[byond_build]" in get_config_value(/decl/config/lists/forbidden_versions))
 		_DB_staffwarn_record(ckey, "Tried to connect with broken and possibly exploitable BYOND build.")
 		to_chat(src, "You are attempting to connect with a broken and possibly exploitable BYOND build. Please update to the latest version at http://www.byond.com/ before trying again.")
 		qdel(src)
 		return
 
-	#endif
-
-	if(!config.guests_allowed && IsGuestKey(key))
-		alert(src,"This server doesn't allow guest accounts to play. Please go to http://www.byond.com/ and register for a key.","Guest","OK")
-		qdel(src)
-		return
-
-	if(config.player_limit != 0)
-		if((GLOB.clients.len >= config.player_limit) && !(ckey in admin_datums))
+	var/local_connection = (get_config_value(/decl/config/toggle/on/auto_local_admin) && (isnull(address) || global.localhost_addresses[address]))
+	if(!local_connection)
+		if(!get_config_value(/decl/config/toggle/guests_allowed) && IsGuestKey(key))
+			alert(src,"This server doesn't allow guest accounts to play. Please go to http://www.byond.com/ and register for a key.","Guest","OK")
+			qdel(src)
+			return
+		var/player_limit = get_config_value(/decl/config/num/player_limit)
+		if(player_limit != 0 && global.clients.len >= player_limit && !(ckey in admin_datums))
 			alert(src,"This server is currently full and not accepting new connections.","Server Full","OK")
-			log_admin("[ckey] tried to join and was turned away due to the server being full (player_limit=[config.player_limit])")
+			log_admin("[ckey] tried to join and was turned away due to the server being full (player_limit=[player_limit])")
 			qdel(src)
 			return
 
 	// Change the way they should download resources.
-	if(config.resource_urls && config.resource_urls.len)
-		src.preload_rsc = pick(config.resource_urls)
-	else src.preload_rsc = 1 // If config.resource_urls is not set, preload like normal.
+	var/list/resource_urls = get_config_value(/decl/config/lists/resource_urls)
+	if(length(resource_urls))
+		src.preload_rsc = pick(resource_urls)
+	else src.preload_rsc = 1 // If resource_urls is not set, preload like normal.
 
-	if(byond_version < DM_VERSION)
-		to_chat(src, "<span class='warning'>You are running an older version of BYOND than the server and may experience issues.</span>")
-		to_chat(src, "<span class='warning'>It is recommended that you update to at least [DM_VERSION] at http://www.byond.com/download/.</span>")
-	to_chat(src, "<span class='warning'>If the title screen is black, resources are still downloading. Please be patient until the title screen appears.</span>")
-	GLOB.clients += src
-	GLOB.ckey_directory[ckey] = src
+	global.clients += src
+	global.ckey_directory[ckey] = src
+
+	set_right_click_menu_mode(TRUE)
+
+	// Automatic admin rights for people connecting locally.
+	// Concept stolen from /tg/ with deepest gratitude.
+	if(local_connection && !admin_datums[ckey])
+		new /datum/admins("Local Host", R_EVERYTHING, ckey)
 
 	//Admin Authorisation
 	holder = admin_datums[ckey]
 	if(holder)
-		GLOB.admins += src
+		global.admins += src
 		holder.owner = src
 		handle_staff_login()
 
-	//preferences datum - also holds some persistant data for the client (because we may as well keep these datums to a minimum)
+	//preferences datum - also holds some persistent data for the client (because we may as well keep these datums to a minimum)
 	prefs = SScharacter_setup.preferences_datums[ckey]
 	if(!prefs)
 		prefs = new /datum/preferences(src)
-	prefs.last_ip = address				//these are gonna be used for banning
-	prefs.last_id = computer_id			//these are gonna be used for banning
+
+	if(get_preference_value(/datum/client_preference/chat_color_mode) == PREF_DARKMODE)
+		activate_darkmode(clear_chat = FALSE)
+
+	// These are after pref loading so that they have the proper CSS.
+	if(byond_version < DM_VERSION)
+		to_chat(src, "<span class='warning'>You are running an older version of BYOND than the server and may experience issues.</span>")
+		to_chat(src, "<span class='warning'>It is recommended that you update to at least [DM_VERSION] at http://www.byond.com/download/.</span>")
+	to_chat(src, "<span class='warning'>If the title screen is black, resources are still downloading. Please be patient until the title screen appears.</span>")
+
+	// these are gonna be used for banning
+	prefs.last_ip = address
+	prefs.last_id = computer_id
 	apply_fps(prefs.clientfps)
+
+	var/lock_x = get_config_value(/decl/config/num/clients/lock_client_view_x)
+	var/lock_y = get_config_value(/decl/config/num/clients/lock_client_view_y)
+	if(lock_x > 0 && lock_y > 0)
+		view = "[lock_x]x[lock_y]"
 
 	. = ..()	//calls mob.Login()
 
-	GLOB.using_map.map_info(src)
+	global.using_map.map_info(src)
 
-	if(custom_event_msg && custom_event_msg != "")
+	if(global.custom_event_msg)
 		to_chat(src, "<h1 class='alert'>Custom Event</h1>")
 		to_chat(src, "<h2 class='alert'>A custom event is taking place. OOC Info:</h2>")
-		to_chat(src, "<span class='alert'>[custom_event_msg]</span>")
+		to_chat(src, "<span class='alert'>[global.custom_event_msg]</span>")
 		to_chat(src, "<br>")
 
 	if(holder)
@@ -204,16 +220,6 @@
 
 	send_resources()
 
-	if(prefs.lastchangelog != changelog_hash) //bolds the changelog button on the interface so we know there are updates.
-		to_chat(src, "<span class='info'>You have unread updates in the changelog.</span>")
-		winset(src, "rpane.changelog", "background-color=#eaeaea;font-style=bold")
-		if(config.aggressive_changelog)
-			src.changes()
-
-	if(isnum(player_age) && player_age < 7)
-		src.lore_splash()
-		to_chat(src, "<span class = 'notice'>Greetings, and welcome to the server! A link to the beginner's lore page has been opened, please read through it! This window will stop automatically opening once your account here is greater than 7 days old.</span>")
-
 	if(!winexists(src, "asset_cache_browser")) // The client is using a custom skin, tell them.
 		to_chat(src, "<span class='warning'>Unable to access asset cache browser, if you are using a custom skin file, please allow DS to download the updated version, if you are not, then make a bug report. This is not a critical issue but can cause issues with resource downloading, as it is impossible to know when extra resources arrived to you.</span>")
 
@@ -222,6 +228,16 @@
 
 	if(holder)
 		src.control_freak = 0 //Devs need 0 for profiler access
+
+	if(prefs && !istype(mob, world.mob))
+		prefs.apply_post_login_preferences()
+
+	if(SSinput.initialized)
+		set_macros()
+
+	// If the map has a special logo, modify the server logo.
+	if(global.using_map.window_icon)
+		winset(src, "mainwindow", "icon=[global.using_map.window_icon]")
 
 	//////////////
 	//DISCONNECT//
@@ -233,9 +249,9 @@
 	if(holder)
 		handle_staff_logout()
 		holder.owner = null
-		GLOB.admins -= src
-	GLOB.ckey_directory -= ckey
-	GLOB.clients -= src
+		global.admins -= src
+	global.ckey_directory -= ckey
+	global.clients -= src
 	return ..()
 
 /client/Destroy()
@@ -311,7 +327,7 @@
 	var/admin_rank = "Player"
 	if(src.holder)
 		admin_rank = src.holder.rank
-		for(var/client/C in GLOB.clients)
+		for(var/client/C in global.clients)
 			if(C.staffwarn)
 				C.mob.send_staffwarn(src, "is connected", 0)
 
@@ -319,6 +335,13 @@
 	var/sql_computerid = sql_sanitize_text(src.computer_id)
 	var/sql_admin_rank = sql_sanitize_text(admin_rank)
 
+	if ((player_age <= 0) && !(ckey in global.panic_bunker_bypass)) //first connection
+		if (get_config_value(/decl/config/toggle/panic_bunker) && !holder && !deadmin_holder)
+			log_adminwarn("Failed Login: [key] - New account attempting to connect during panic bunker")
+			message_admins("<span class='adminnotice'>Failed Login: [key] - New account attempting to connect during panic bunker</span>")
+			to_chat(src, get_config_value(/decl/config/text/panic_bunker_message))
+			qdel(src)
+			return 0
 
 	if(sql_id)
 		//Player already identified previously, we need to just update the 'lastseen', 'ip' and 'computer_id' variables
@@ -344,11 +367,11 @@
 /client/proc/handle_staff_logout()
 	if(admin_datums[ckey] && GAME_STATE == RUNLEVEL_GAME) //Only report this stuff if we are currently playing.
 		message_staff("\[[holder.rank]\] [key_name(src)] logged out.")
-		if(!GLOB.admins.len) //Apparently the admin logging out is no longer an admin at this point, so we have to check this towards 0 and not towards 1. Awell.
-			send2adminirc("[key_name(src)] logged out - no more staff online.")
-			if(config.delist_when_no_admins && GLOB.visibility_pref)
-				world.update_hub_visibility()
-				send2adminirc("Toggled hub visibility. The server is now invisible ([GLOB.visibility_pref]).")
+		if(!global.admins.len) //Apparently the admin logging out is no longer an admin at this point, so we have to check this towards 0 and not towards 1. Awell.
+			SSwebhooks.send(WEBHOOK_AHELP_SENT, list("name" = "Admin Logout (Game ID: [game_id])", "body" = "[key_name(src)] logged out - no more staff online."))
+			if(get_config_value(/decl/config/toggle/delist_when_no_admins) && get_config_value(/decl/config/toggle/hub_visibility))
+				toggle_config_value(/decl/config/toggle/hub_visibility)
+				SSwebhooks.send(WEBHOOK_AHELP_SENT, list("name" = "Automatic Hub Visibility Toggle (Game ID: [game_id])", "body" = "Toggled hub visibility. The server is now invisible."))
 
 //checks if a client is afk
 //3000 frames = 5 minutes
@@ -382,45 +405,53 @@
 		'html/images/talisman.png'
 		)
 
-	var/decl/asset_cache/asset_cache = decls_repository.get_decl(/decl/asset_cache)
+	var/decl/asset_cache/asset_cache = GET_DECL(/decl/asset_cache)
 	spawn (10) //removing this spawn causes all clients to not get verbs.
 		//Precache the client with all other assets slowly, so as to not block other browse() calls
 		getFilesSlow(src, asset_cache.cache, register_asset = FALSE)
 
-mob/proc/MayRespawn()
+/mob/proc/MayRespawn()
 	return 0
 
-client/proc/MayRespawn()
+/client/proc/MayRespawn()
 	if(mob)
 		return mob.MayRespawn()
 
 	// Something went wrong, client is usually kicked or transfered to a new mob at this point
 	return 0
 
-client/verb/character_setup()
+/client/verb/character_setup()
 	set name = "Character Setup"
 	set category = "OOC"
 	if(prefs)
-		prefs.ShowChoices(usr)
+		prefs.open_setup_window(usr)
 
 /client/proc/apply_fps(var/client_fps)
 	if(world.byond_version >= 511 && byond_version >= 511 && client_fps >= CLIENT_MIN_FPS && client_fps <= CLIENT_MAX_FPS)
-		vars["fps"] = prefs.clientfps
+		vars["fps"] = client_fps
 
-/client/MouseDrag(src_object, over_object, src_location, over_location, src_control, over_control, params)
+/client/MouseUp(object, location, control, params)
+	. = ..()
+	if(mob?.on_mouse_up())
+		_block_next_click = TRUE
+
+/client/MouseDown(object, location, control, params)
 	. = ..()
 	var/mob/living/M = mob
-	if(istype(M))
-		M.OnMouseDrag(src_object, over_object, src_location, over_location, src_control, over_control, params)
+	if(istype(M) && !M.in_throw_mode)
+		M.on_mouse_down(object, location, control, params)
 
 /client/verb/SetWindowIconSize(var/val as num|text)
 	set hidden = 1
 	winset(src, "mapwindow.map", "icon-size=[val]")
+	if(prefs && val != prefs.icon_size)
+		prefs.icon_size = val
+		SScharacter_setup.queue_preferences_save(prefs)
 	OnResize()
 
 /client
-	var/last_view_x_dim = 7
-	var/last_view_y_dim = 7
+	var/last_view_x_dim = 15
+	var/last_view_y_dim = 15
 
 /client/verb/force_onresize_view_update()
 	set name = "Force Client View Update"
@@ -441,119 +472,104 @@ client/verb/character_setup()
 	to_chat(usr, "xDim: [round(text2num(winsize_string) / divisor)]")
 	to_chat(usr, "yDim: [round(text2num(copytext(winsize_string,findtext(winsize_string,"x")+1,0)) / divisor)]")
 
+var/global/const/MIN_VIEW = 15
+var/global/const/MAX_VIEW = 41
 /client/verb/OnResize()
 	set hidden = 1
-	handle_resize(src)
 
-/proc/handle_resize(client/C)
-	if (!C)
-		return
-	var/divisor = text2num(winget(C, "mapwindow.map", "icon-size")) || world.icon_size
-	var/winsize_string = winget(C, "mapwindow.map", "size")
-	C.last_view_x_dim = Clamp(ceil(text2num(winsize_string) / divisor), 15, 41)
-	C.last_view_y_dim = Clamp(ceil(text2num(copytext(winsize_string,findtext(winsize_string,"x")+1,0)) / divisor), 15, 41)
-	if(C.last_view_x_dim % 2 == 0) C.last_view_x_dim++
-	if(C.last_view_y_dim % 2 == 0) C.last_view_y_dim++
-	C.view = "[C.last_view_x_dim]x[C.last_view_y_dim]"
+	var/divisor = text2num(winget(src, "mapwindow.map", "icon-size")) || world.icon_size
+	var/list/view_components = splittext(winget(src, "mapwindow.map", "size"), "x")
+
+	if(!divisor || !isnum(divisor) || !islist(view_components) || length(view_components) < 2)
+		return // Some kind of malformed winget(), do not proceed.
+
+	// Rescale as needed.
+	var/res_x =    get_config_value(/decl/config/num/clients/lock_client_view_x) || ceil(text2num(view_components[1]) / divisor)
+	var/res_y =    get_config_value(/decl/config/num/clients/lock_client_view_y) || ceil(text2num(view_components[2]) / divisor)
+	var/max_view = get_config_value(/decl/config/num/clients/max_client_view_x)  || MAX_VIEW
+
+	last_view_x_dim = clamp(res_x, MIN_VIEW, max_view)
+	last_view_y_dim = clamp(res_y, MIN_VIEW, max_view)
+
+	// Ensure we can actually center our view on our eye.
+	if(last_view_x_dim % 2 == 0)
+		last_view_x_dim++
+	if(last_view_y_dim % 2 == 0)
+		last_view_y_dim++
+
+	for(var/check_icon_size in global.valid_icon_sizes)
+		winset(src, "menu.icon[check_icon_size]", "is-checked=false")
+	winset(src, "menu.icon[divisor]", "is-checked=true")
+
+	view = "[last_view_x_dim]x[last_view_y_dim]"
 
 	// Reset eye/perspective
-	var/last_perspective = C.perspective
-	C.perspective = MOB_PERSPECTIVE
-	if(C.perspective != last_perspective)
-		C.perspective = last_perspective
-	var/last_eye = C.eye
-	C.eye = C.mob
-	if(C.eye != last_eye)
-		C.eye = last_eye
+	reset_click_catchers()
+	var/last_perspective = perspective
+	perspective = MOB_PERSPECTIVE
+	if(perspective != last_perspective)
+		perspective = last_perspective
+	var/last_eye = eye
+	eye = mob
+	if(eye != last_eye)
+		eye = last_eye
 
 	// Recenter skybox and lighting.
-	C.set_skybox_offsets(C.last_view_x_dim, C.last_view_y_dim)
-	if(C.mob)
-		if(C.mob.l_general)
-			C.mob.l_general.fit_to_client_view(C.last_view_x_dim, C.last_view_y_dim)
-		C.mob.reload_fullscreen()
-
-/client/proc/update_chat_position(use_alternative)
-	var/input_height = 0
-	// Hell
-	if(use_alternative == TRUE)
-		input_height = winget(src, "input", "size")
-		input_height = text2num(splittext(input_height, "x")[2])
-
-		winset(src, "input_alt", "is-visible=true;is-disabled=false;is-default=true")
-		winset(src, "hotkey_toggle_alt", "is-visible=true;is-disabled=false;is-default=true")
-		winset(src, "saybutton_alt", "is-visible=true;is-disabled=false;is-default=true")
-
-		winset(src, "input", "is-visible=false;is-disabled=true;is-default=false")
-		winset(src, "hotkey_toggle", "is-visible=false;is-disabled=true;is-default=false")
-		winset(src, "saybutton", "is-visible=false;is-disabled=true;is-default=false")
-
-		var/current_size = splittext(winget(src, "outputwindow.output", "size"), "x")
-		var/new_size = "[current_size[1]]x[text2num(current_size[2]) - input_height]"
-		winset(src, "outputwindow.output", "size=[new_size]")
-		winset(src, "outputwindow.browseroutput", "size=[new_size]")
-
-		current_size = splittext(winget(src, "mainwindow.mainvsplit", "size"), "x")
-		new_size = "[current_size[1]]x[text2num(current_size[2]) + input_height]"
-		winset(src, "mainwindow.mainvsplit", "size=[new_size]")
-	else
-		input_height = winget(src, "input_alt", "size")
-		input_height = text2num(splittext(input_height, "x")[2])
-
-		winset(src, "input_alt", "is-visible=false;is-disabled=true;is-default=false")
-		winset(src, "hotkey_toggle_alt", "is-visible=false;is-disabled=true;is-default=false")
-		winset(src, "saybutton_alt", "is-visible=false;is-disabled=true;is-default=false")
-
-		winset(src, "input", "is-visible=true;is-disabled=false;is-default=true")
-		winset(src, "hotkey_toggle", "is-visible=true;is-disabled=false;is-default=true")
-		winset(src, "saybutton", "is-visible=true;is-disabled=false;is-default=true")
-
-		var/current_size = splittext(winget(src, "outputwindow.output", "size"), "x")
-		var/new_size = "[current_size[1]]x[text2num(current_size[2]) + input_height]"
-		winset(src, "outputwindow.output", "size=[new_size]")
-		winset(src, "outputwindow.browseroutput", "size=[new_size]")
-
-		current_size = splittext(winget(src, "mainwindow.mainvsplit", "size"), "x")
-		new_size = "[current_size[1]]x[text2num(current_size[2]) - input_height]"
-		winset(src, "mainwindow.mainvsplit", "size=[new_size]")
+	set_skybox_offsets(last_view_x_dim, last_view_y_dim)
+	if(mob)
+		mob.reload_fullscreen()
 
 /client/proc/toggle_fullscreen(new_value)
-	if((new_value == GLOB.PREF_BASIC) || (new_value == GLOB.PREF_FULL))
-		winset(src, "mainwindow", "is-maximized=false;can-resize=false;titlebar=false")
-		if(new_value == GLOB.PREF_FULL)
-			winset(src, "mainwindow", "menu=null;statusbar=false")
-		winset(src, "mainwindow.mainvsplit", "pos=0x0")
-	else
-		winset(src, "mainwindow", "is-maximized=false;can-resize=true;titlebar=true")
-		winset(src, "mainwindow", "menu=menu;statusbar=true")
-		winset(src, "mainwindow.mainvsplit", "pos=3x0")
+	switch(new_value)
+		if(PREF_BASIC)
+			winset(src, "mainwindow", "is-maximized=false;can-resize=false;titlebar=false")
+		if(PREF_FULL)
+			winset(src, "mainwindow", "is-maximized=false;can-resize=false;titlebar=false;menu=null")
+		else
+			winset(src, "mainwindow", "is-maximized=false;can-resize=true;titlebar=true;menu=menu")
 	winset(src, "mainwindow", "is-maximized=true")
 
 /client/verb/fit_viewport()
 	set name = "Fit Viewport"
-	set category = "OOC"
 	set desc = "Fit the width of the map window to match the viewport"
+	set category = "OOC"
+	set waitfor = FALSE
 
 	// Fetch aspect ratio
 	var/view_size = getviewsize(view)
 	var/aspect_ratio = view_size[1] / view_size[2]
 
 	// Calculate desired pixel width using window size and aspect ratio
-	var/sizes = params2list(winget(src, "mainwindow.mainvsplit;mapwindow", "size"))
-	var/map_size = splittext(sizes["mapwindow.size"], "x")
+	var/list/sizes = params2list(winget(src, "mainwindow.split;mapwindow", "size"))
+
+	// Client closed the window? Some other error? This is unexpected behaviour, let's
+	// CRASH with some info.
+	if(!sizes["mapwindow.size"])
+		CRASH("sizes does not contain mapwindow.size key. This means a winget failed to return what we wanted. --- sizes var: [sizes] --- sizes length: [length(sizes)]")
+
+	var/list/map_size = splittext(sizes["mapwindow.size"], "x")
+
+	// Looks like we expect mapwindow.size to be "ixj" where i and j are numbers.
+	// If we don't get our expected 2 outputs, let's give some useful error info.
+	if(length(map_size) != 2)
+		CRASH("map_size of incorrect length --- map_size var: [map_size] --- map_size length: [length(map_size)]")
+
 	var/height = text2num(map_size[2])
 	var/desired_width = round(height * aspect_ratio)
 	if (text2num(map_size[1]) == desired_width)
 		// Nothing to do
 		return
 
-	var/split_size = splittext(sizes["mainwindow.mainvsplit.size"], "x")
+	var/split_size = splittext(sizes["mainwindow.split.size"], "x")
 	var/split_width = text2num(split_size[1])
+
+	// Avoid auto-resizing the statpanel and chat into nothing.
+	desired_width = min(desired_width, split_width - 300)
 
 	// Calculate and apply a best estimate
 	// +4 pixels are for the width of the splitter's handle
 	var/pct = 100 * (desired_width + 4) / split_width
-	winset(src, "mainwindow.mainvsplit", "splitter=[pct]")
+	winset(src, "mainwindow.split", "splitter=[pct]")
 
 	// Apply an ever-lowering offset until we finish or fail
 	var/delta
@@ -573,15 +589,97 @@ client/verb/character_setup()
 			delta = -delta/2
 
 		pct += delta
-		winset(src, "mainwindow.mainvsplit", "splitter=[pct]")
-	addtimer(CALLBACK(src, .proc/update_initial_icon_size), 0)
+		winset(src, "mainwindow.split", "splitter=[pct]")
 
-/client/proc/update_initial_icon_size()
-	set waitfor = 0
-	var/set_initial_window_size = 48
-	for(var/check_icon_size in list(32, 48, 64, 96, 128))
-		if(winget(src, "menu.icon[check_icon_size]", "is-checked") == "true")
-			set_initial_window_size = check_icon_size
-			break
-	winset(src, "menu.icon[set_initial_window_size]", "is-checked=true")
-	SetWindowIconSize(set_initial_window_size)
+/client/Click(atom/A)
+
+	// Mouse drag safeguard against a trailing Click() called after MouseUp().
+	if(_block_next_click)
+		_block_next_click = FALSE
+		return
+
+	if(!user_acted(src))
+		return
+
+	if(holder && holder.callproc && holder.callproc.waiting_for_click)
+		if(alert("Do you want to select \the [A] as the [holder.callproc.arguments.len+1]\th argument?",, "Yes", "No") == "Yes")
+			holder.callproc.arguments += A
+
+		holder.callproc.waiting_for_click = 0
+		verbs -= /client/proc/cancel_callproc_select
+		holder.callproc.do_args()
+		return
+
+	if (prefs.hotkeys)
+		// If hotkey mode is enabled, then clicking the map will automatically
+		// unfocus the text bar. This removes the red color from the text bar
+		// so that the visual focus indicator matches reality.
+		winset(src, null, "outputwindow.input.background-color=[COLOR_INPUT_DISABLED]")
+	else
+		winset(src, null, "outputwindow.input.focus=true input.background-color=[COLOR_INPUT_ENABLED]")
+
+	return ..()
+
+/**
+ * Updates the keybinds for special keys
+ *
+ * Handles adding macros for the keys that need it
+ * And adding movement keys to the clients movement_keys list
+ * At the time of writing this, communication(OOC, LOOC, Say, Me) require macros
+ * Arguments:
+ * * direct_prefs - the preference we're going to get keybinds from
+ */
+/client/proc/update_special_keybinds(datum/preferences/direct_prefs)
+	var/datum/preferences/D = prefs || direct_prefs
+	if(!D?.key_bindings)
+		return
+	movement_keys = list()
+	var/list/communication_hotkeys = list()
+	for(var/key in D.key_bindings)
+		for(var/kb_name in D.key_bindings[key])
+			if(!prefs.hotkeys && !SSinput.unprintables_cache[key])
+				continue
+			switch(kb_name)
+				if("north")
+					movement_keys[key] = NORTH
+				if("east")
+					movement_keys[key] = EAST
+				if("west")
+					movement_keys[key] = WEST
+				if("south")
+					movement_keys[key] = SOUTH
+				if("admin_help")
+					winset(src, "default-\ref[key]", "parent=default;name=[key];command=adminhelp")
+					communication_hotkeys += key
+				if("ooc")
+					winset(src, "default-\ref[key]", "parent=default;name=[key];command=ooc")
+					communication_hotkeys += key
+				if("looc")
+					winset(src, "default-\ref[key]", "parent=default;name=[key];command=looc")
+					communication_hotkeys += key
+				if("say")
+					winset(src, "default-\ref[key]", "parent=default;name=[key];command=.say")
+					communication_hotkeys += key
+				if("me")
+					winset(src, "default-\ref[key]", "parent=default;name=[key];command=.me")
+					communication_hotkeys += key
+
+/client/proc/get_byond_membership()
+	return prefs?.is_byond_member || IsByondMember()
+
+/client/proc/set_right_click_menu_mode(shift_only)
+	if(shift_only)
+		winset(src, "mapwindow.map", "right-click=true")
+		winset(src, "default.PROTECTED-Shift", "command=\".winset :map.right-click=false\nKeyDown Shift\"")
+		winset(src, "default.PROTECTED-ShiftUp", "command=\".winset :map.right-click=true\nKeyUp Shift\"")
+	else
+		winset(src, "mapwindow.map", "right-click=false")
+		winset(src, "default.PROTECTED-Shift", "command=\"KeyDown Shift\"")
+		winset(src, "default.PROTECTED-ShiftUp", "command=\"KeyUp Shift\"")
+
+/client/verb/drop_item()
+	set hidden = 1
+	if(!isrobot(mob) && mob.stat == CONSCIOUS && isturf(mob.loc))
+		var/obj/item/I = mob.get_active_held_item()
+		if(I && I.can_be_dropped_by_client(mob))
+			mob.drop_item()

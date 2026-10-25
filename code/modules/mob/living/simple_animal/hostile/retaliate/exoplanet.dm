@@ -1,222 +1,200 @@
+/mob/living/simple_animal/hostile/beast
+	ai = /datum/mob_controller/aggressive/beast
+	abstract_type = /mob/living/simple_animal/hostile/beast
+	nutrition = 300
 
-/mob/living/simple_animal/hostile/retaliate/beast
-	var/hunger = 0
-	var/list/prey = list()
+/mob/living/simple_animal/hostile/beast/get_nutrition()
+	return nutrition
 
-/mob/living/simple_animal/hostile/retaliate/beast/ListTargets(var/dist = 7)
-	var/list/see = ..()
-	if(see.len)
-		return see
-	if(prey.len)
-		. = list()
-		for(var/weakref/W in prey)
-			var/mob/M = W.resolve()
-			if(M)
-				. += M
-		return
-	if(hunger > 500) //time to look for some food
-		for(var/mob/living/L in view(src, dist))
-			if(!attack_same && L.faction != faction)
-				prey |= weakref(L)
+/mob/living/simple_animal/hostile/beast/get_satiated_nutrition()
+	return 250
 
-/mob/living/simple_animal/hostile/retaliate/beast/Life()
-	. = ..()
-	if(!.)
-		return FALSE
-	hunger++
-	if(hunger < 100) //stop hunting when satiated
-		prey.Cut()
-	else
-		for(var/mob/living/simple_animal/S in range(src,1))
-			if(S.stat == DEAD)
-				visible_message("[src] consumes \the body of [S]!")
-				var/turf/T = get_turf(S)
-				var/obj/item/remains/xeno/X = new(T)
-				X.desc += "These look like they belong to \a [S.name]."
-				hunger = max(0, hunger - 5*S.maxHealth)
-				if(prob(5))
-					S.gib()
-				else
-					qdel(S)
+/mob/living/simple_animal/hostile/beast/get_max_nutrition()
+	return 300
 
 /mob/living/simple_animal/proc/name_species()
 	set name = "Name Alien Species"
-	set category = "Exploration"
+	set category = "IC"
 	set src in view()
 
-	if(!GLOB.using_map.use_overmap)
+	if(!global.overmaps_by_name[OVERMAP_ID_SPACE])
 		return
-	if(!CanInteract(usr, GLOB.conscious_state))
+	if(!CanInteract(usr, global.conscious_topic_state))
 		return
-
-	for(var/obj/effect/overmap/visitable/sector/exoplanet/E)
-		if(src in E.animals)
+	for(var/planet_id in SSmapping.planetoid_data_by_id)
+		var/datum/planetoid_data/E = SSmapping.planetoid_data_by_id[planet_id]
+		if(istype(E) && (src in E.fauna.live_fauna))
 			var/newname = input("What do you want to name this species?", "Species naming", E.get_random_species_name()) as text|null
-			newname = sanitizeName(newname, allow_numbers = TRUE, force_first_letter_uppercase = FALSE)
-			if(newname && CanInteract(usr, GLOB.conscious_state))
+			newname = sanitize_name(newname, allow_numbers = TRUE, force_first_letter_uppercase = FALSE)
+			if(newname && CanInteract(usr, global.conscious_topic_state))
 				if(E.rename_species(type, newname))
-					to_chat(usr,"<span class='notice'>This species will be known from now on as '[newname]'.</span>")
+					to_chat(usr, SPAN_NOTICE("This species will be known from now on as '[newname]'."))
 				else
-					to_chat(usr,"<span class='warning'>This species has already been named!</span>")
+					to_chat(usr, SPAN_WARNING("This species has already been named!"))
 			return
 
-/mob/living/simple_animal/hostile/retaliate/beast/samak
+/mob/living/simple_animal/hostile/beast/samak
 	name = "samak"
 	desc = "A fast, armoured predator accustomed to hiding and ambushing in cold terrain."
 	faction = "samak"
-	icon_state = "samak"
-	icon_living = "samak"
-	icon_dead = "samak_dead"
-	move_to_delay = 2
-	maxHealth = 125
-	health = 125
-	speed = 2
+	icon = 'icons/mob/simple_animal/samak.dmi'
+	move_intents = list(
+		/decl/move_intent/walk/animal_fast,
+		/decl/move_intent/run/animal_fast
+	)
+	max_health = 125
 	natural_weapon = /obj/item/natural_weapon/claws
 	cold_damage_per_tick = 0
-	speak_chance = 5
-	speak = list("Hruuugh!","Hrunnph")
-	emote_see = list("paws the ground","shakes its mane","stomps")
-	emote_hear = list("snuffles")
+	ai = /datum/mob_controller/aggressive/beast/samak
 	natural_armor = list(
-		melee = ARMOR_MELEE_KNIVES
-		)
+		ARMOR_MELEE = ARMOR_MELEE_KNIVES
+	)
+	base_movement_delay = 2
 
-/mob/living/simple_animal/hostile/retaliate/beast/samak/alt
+/datum/mob_controller/aggressive/beast/samak
+	speak_chance = 1.25
+	emote_speech = list("Hruuugh!","Hrunnph")
+	emote_see    = list("paws the ground","shakes its mane","stomps")
+	emote_hear   = list("snuffles")
+
+/mob/living/simple_animal/hostile/beast/samak/alt
 	desc = "A fast, armoured predator accustomed to hiding and ambushing."
-	icon_state = "samak-alt"
-	icon_living = "samak-alt"
-	icon_dead = "samak-alt_dead"
+	icon = 'icons/mob/simple_animal/samak_alt.dmi'
 
-/mob/living/simple_animal/hostile/retaliate/beast/diyaab
+/mob/living/simple_animal/hostile/beast/diyaab
 	name = "diyaab"
 	desc = "A small pack animal. Although omnivorous, it will hunt meat on occasion."
 	faction = "diyaab"
-	icon_state = "diyaab"
-	icon_living = "diyaab"
-	icon_dead = "diyaab_dead"
-	move_to_delay = 1
-	maxHealth = 25
-	health = 25
-	speed = 1
+	icon = 'icons/mob/simple_animal/diyaab.dmi'
+	move_intents = list(
+		/decl/move_intent/walk/animal,
+		/decl/move_intent/run/animal
+	)
+	max_health = 25
 	natural_weapon = /obj/item/natural_weapon/claws/weak
 	cold_damage_per_tick = 0
-	speak_chance = 5
-	speak = list("Awrr?","Aowrl!","Worrl")
-	emote_see = list("sniffs the air cautiously","looks around")
-	emote_hear = list("snuffles")
 	mob_size = MOB_SIZE_SMALL
+	ai = /datum/mob_controller/aggressive/beast/diyaab
+	base_movement_delay = 1
 
-/mob/living/simple_animal/hostile/retaliate/beast/shantak
+/mob/living/simple_animal/hostile/beast/diyaab/Initialize()
+	. = ..()
+	set_extension(src, /datum/extension/shearable, /decl/material/solid/organic/cloth/wool/diyaab)
+
+/datum/mob_controller/aggressive/beast/diyaab
+	speak_chance = 1.25
+	emote_speech = list("Awrr?","Aowrl!","Worrl")
+	emote_see    = list("sniffs the air cautiously","looks around")
+	emote_hear   = list("snuffles")
+
+/mob/living/simple_animal/hostile/beast/shantak
 	name = "shantak"
-	desc = "A piglike creature with a bright iridiscent mane that sparkles as though lit by an inner light. Don't be fooled by its beauty though."
+	desc = "A piglike creature with a bright iridescent mane that sparkles as though lit by an inner light. Don't be fooled by its beauty though."
 	faction = "shantak"
-	icon_state = "shantak"
-	icon_living = "shantak"
-	icon_dead = "shantak_dead"
-	move_to_delay = 1
-	maxHealth = 75
-	health = 75
-	speed = 1
+	icon = 'icons/mob/simple_animal/shantak.dmi'
+	move_intents = list(
+		/decl/move_intent/walk/animal,
+		/decl/move_intent/run/animal
+	)
+	max_health = 75
 	natural_weapon = /obj/item/natural_weapon/claws
 	cold_damage_per_tick = 0
-	speak_chance = 2
-	speak = list("Shuhn","Shrunnph?","Shunpf")
-	emote_see = list("scratches the ground","shakes out its mane","tinkles gently")
+	ai = /datum/mob_controller/aggressive/beast/shantak
 
-/mob/living/simple_animal/hostile/retaliate/beast/shantak/alt
+/datum/mob_controller/aggressive/beast/shantak
+	speak_chance = 0.5
+	emote_speech = list("Shuhn","Shrunnph?","Shunpf")
+	emote_see    = list("scratches the ground","shakes out its mane","tinkles gently")
+
+/mob/living/simple_animal/hostile/beast/shantak/alt
 	desc = "A piglike creature with a long and graceful mane. Don't be fooled by its beauty."
-	icon_state = "shantak-alt"
-	icon_living = "shantak-alt"
-	icon_dead = "shantak-alt_dead"
-	emote_see = list("scratches the ground","shakes out it's mane","rustles softly")
+	icon = 'icons/mob/simple_animal/shantak_alt.dmi'
+	ai = /datum/mob_controller/aggressive/beast/shantak/alt
+
+/datum/mob_controller/aggressive/beast/shantak/alt
+	emote_see = list("scratches the ground","shakes out its mane","rustles softly")
 
 /mob/living/simple_animal/yithian
 	name = "yithian"
 	desc = "A friendly creature vaguely resembling an oversized snail without a shell."
-	icon_state = "yithian"
-	icon_living = "yithian"
-	icon_dead = "yithian_dead"
+	icon = 'icons/mob/simple_animal/yithian.dmi'
 	mob_size = MOB_SIZE_TINY
 
 /mob/living/simple_animal/tindalos
 	name = "tindalos"
 	desc = "It looks like a large, flightless grasshopper."
-	icon_state = "tindalos"
-	icon_living = "tindalos"
-	icon_dead = "tindalos_dead"
+	icon = 'icons/mob/simple_animal/tindalos.dmi'
 	mob_size = MOB_SIZE_TINY
 
 /mob/living/simple_animal/thinbug
 	name = "taki"
 	desc = "It looks like a bunch of legs."
-	icon_state = "thinbug"
-	icon_living = "thinbug"
-	icon_dead = "thinbug_dead"
-	speak_chance = 1
-	emote_hear = list("scratches the ground","chitters")
+	icon = 'icons/mob/simple_animal/bug.dmi'
+	ai = /datum/mob_controller/thinbug
 	mob_size = MOB_SIZE_MINISCULE
 
-/mob/living/simple_animal/hostile/retaliate/royalcrab
+/datum/mob_controller/thinbug
+	speak_chance = 0.25
+	emote_hear = list("scratches the ground","chitters")
+
+/mob/living/simple_animal/hostile/royalcrab
 	name = "cragenoy"
 	desc = "It looks like a crustacean with an exceedingly hard carapace. Watch the pinchers!"
 	faction = "crab"
-	icon_state = "royalcrab"
-	icon_living = "royalcrab"
-	icon_dead = "royalcrab_dead"
-	move_to_delay = 3
-	maxHealth = 150
-	health = 150
-	speed = 1
+	icon = 'icons/mob/simple_animal/royalcrab.dmi'
+	move_intents = list(
+		/decl/move_intent/walk/animal,
+		/decl/move_intent/run/animal
+	)
+	max_health = 150
 	natural_weapon = /obj/item/natural_weapon/pincers
-	speak_chance = 1
-	emote_see = list("skitters","oozes liquid from its mouth", "scratches at the ground", "clicks its claws")
+	ai = /datum/mob_controller/aggressive/thinbug
 	natural_armor = list(
-		melee = ARMOR_MELEE_RESISTANT
-		)
-	
-/mob/living/simple_animal/hostile/retaliate/beast/charbaby
+		ARMOR_MELEE = ARMOR_MELEE_RESISTANT
+	)
+	base_movement_delay = 1
+
+/datum/mob_controller/aggressive/thinbug
+	speak_chance = 0.25
+	emote_see = list("skitters","oozes liquid from its mouth", "scratches at the ground", "clicks its claws")
+	only_attack_enemies = TRUE
+
+/mob/living/simple_animal/hostile/beast/charbaby
 	name = "charbaby"
 	desc = "A huge grubby creature."
-	icon_state = "char"
-	icon_living = "char"
-	icon_dead = "char_dead"
+	icon = 'icons/mob/simple_animal/char.dmi'
 	mob_size = MOB_SIZE_LARGE
-	health = 45
-	maxHealth = 45
+	max_health = 45
 	natural_weapon = /obj/item/natural_weapon/charbaby
-	speed = 2
-	response_help =  "pats briefly"
-	response_disarm = "gently pushes"
-	response_harm = "strikes"
 	return_damage_min = 2
 	return_damage_max = 3
 	harm_intent_damage = 1
 	blood_color = COLOR_NT_RED
 	natural_armor = list(
-		laser = ARMOR_LASER_HANDGUNS
-		)
+		ARMOR_LASER = ARMOR_LASER_HANDGUNS
+	)
+	base_movement_delay = 2
 
 /obj/item/natural_weapon/charbaby
 	name = "scalding hide"
-	damtype = BURN
-	force = 5
-	attack_verb = list("singed")
+	atom_damage_type =  BURN
+	attack_verb = "singed"
 
-/mob/living/simple_animal/hostile/retaliate/beast/charbaby/attack_hand(mob/living/carbon/human/H)
+/mob/living/simple_animal/hostile/beast/charbaby/default_hurt_interaction(mob/user)
 	. = ..()
-	reflect_unarmed_damage(H, BURN, "amorphous mass")
+	if(. && ishuman(user))
+		reflect_unarmed_damage(user, BURN, "amorphous mass")
 
-/mob/living/simple_animal/hostile/retaliate/beast/charbaby/AttackingTarget()
+/mob/living/simple_animal/hostile/beast/charbaby/apply_attack_effects(mob/living/target)
 	. = ..()
-	if(isliving(target_mob) && prob(25))
-		var/mob/living/L = target_mob
-		if(prob(10))
-			L.adjust_fire_stacks(1)
-			L.IgniteMob()
+	if(prob(10))
+		target.adjust_fire_intensity(1)
+		target.ignite_fire()
 
-/mob/living/simple_animal/hostile/retaliate/beast/shantak/lava
+/mob/living/simple_animal/hostile/beast/shantak/lava
 	desc = "A vaguely canine looking beast. It looks as though its fur is made of stone wool."
-	icon_state = "lavadog"
-	icon_living = "lavadog"
-	icon_dead = "lavadog_dead"
-	speak = list("Karuph","Karump")
+	icon = 'icons/mob/simple_animal/lavadog.dmi'
+	ai = /datum/mob_controller/aggressive/beast/shantak/lava
+
+/datum/mob_controller/aggressive/beast/shantak/lava
+	emote_speech = list("Karuph","Karump")

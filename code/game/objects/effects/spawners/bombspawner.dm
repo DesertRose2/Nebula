@@ -20,7 +20,7 @@
 
 /obj/effect/spawner/newbomb
 	name = "TTV bomb"
-	icon = 'icons/mob/screen1.dmi'
+	icon = 'icons/effects/markers.dmi'
 	icon_state = "x"
 
 	var/filler_type =          /decl/material/gas/carbon_dioxide
@@ -75,7 +75,7 @@
 	OT.master = V
 
 	PT.valve_welded = TRUE
-	PT.air_contents.gas = list()
+	PT.air_contents.gas = alist()
 	PT.air_contents.gas[accelerant_type] = accelerant_amount
 	PT.air_contents.gas[filler_type] = filler_amount
 	PT.air_contents.total_moles = accelerant_amount + filler_amount
@@ -83,7 +83,7 @@
 	PT.air_contents.update_values()
 
 	OT.valve_welded = TRUE
-	OT.air_contents.gas = list()
+	OT.air_contents.gas = alist()
 	OT.air_contents.gas[oxidizer_type] = oxidizer_amount
 	OT.air_contents.total_moles = oxidizer_amount
 	OT.air_contents.temperature = FLAMMABLE_GAS_MINIMUM_BURN_TEMPERATURE+1
@@ -102,14 +102,8 @@
 
 /obj/effect/spawner/onetankbomb
 	name = "Single-tank bomb"
-	icon = 'icons/mob/screen1.dmi'
+	icon = 'icons/effects/markers.dmi'
 	icon_state = "x"
-
-//	var/assembly_type = /obj/item/assembly/signaler
-
-	//Note that the maximum amount of gas you can put in a 70L air tank at 1013.25 kPa and 519K is 16.44 mol.
-	var/accelerant_amount = 0
-	var/oxidizer_amount = 0
 
 /obj/effect/spawner/onetankbomb/Initialize()
 	..()

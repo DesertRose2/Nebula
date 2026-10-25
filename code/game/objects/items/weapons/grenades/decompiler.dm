@@ -1,10 +1,8 @@
 /obj/item/grenade/decompiler
 	desc = "It is set to detonate in 5 seconds. It will create an unstable singularity that will break nearby objects down into purified matter cubes."
 	name = "decompiler grenade"
-	icon = 'icons/obj/grenade.dmi'
-	icon_state = "delivery"
-	item_state = "flashbang"
-	origin_tech = "{'materials':3,'magnets':2,'exoticmatter':3}"
+	icon = 'icons/obj/items/grenades/delivery.dmi'
+	origin_tech = @'{"materials":3,"magnets":2,"exoticmatter":3}'
 	matter = list(
 		/decl/material/solid/exotic_matter = MATTER_AMOUNT_TRACE
 	)
@@ -28,9 +26,11 @@
 	var/lifetime = 10 SECONDS
 	var/expiry_time
 	var/list/decompiled_matter
-	
+
 /obj/effect/decompiler/Initialize()
 	. = ..()
+	if(!loc)
+		return INITIALIZE_HINT_QDEL
 	expiry_time = world.time + lifetime
 	START_PROCESSING(SSobj, src)
 	decompiled_matter = list()
@@ -39,7 +39,7 @@
 /obj/effect/decompiler/proc/fade_in()
 	visible_message(SPAN_DANGER("\A [src] forms, reaching out hungrily!"))
 	playsound(loc, 'sound/magic/ethereal_enter.ogg', 75, FALSE)
-	set_light(0.8, 0, 4.5, l_color = LIGHT_COLOR_PURPLE)
+	set_light(4.5, 0.8, LIGHT_COLOR_PURPLE)
 	var/matrix/M = matrix()
 	M.Scale(0.01)
 	transform = M
@@ -56,7 +56,7 @@
 	if(dump_cubes)
 		visible_message(SPAN_DANGER("\The [src] collapses!"))
 		for(var/mat in decompiled_matter)
-			var/sheet_amount = Floor(decompiled_matter[mat]/SHEET_MATERIAL_AMOUNT)
+			var/sheet_amount = floor(decompiled_matter[mat]/SHEET_MATERIAL_AMOUNT)
 			if(sheet_amount > 0)
 				while(sheet_amount > 100)
 					var/obj/item/stack/material/cubes/cubes = new (dump_cubes, 100, mat)
@@ -82,16 +82,14 @@
 	playsound(loc, 'sound/magic/lightningshock.ogg', 30, FALSE)
 
 	var/list/eaten
-	for(var/eat_turf in RANGE_TURFS(loc, eat_range))
-
-		var/turf/T = eat_turf
-		var/list/eating = T.contents?.Copy()
+	for(var/turf/eat_turf as anything in RANGE_TURFS(loc, eat_range))
+		var/list/eating = eat_turf.get_contained_external_atoms()
 
 		while(length(eating))
 			var/atom/movable/thing = pick_n_take(eating)
-			if(QDELETED(thing) || !istype(thing) || !thing.simulated || thing.anchored || prob(15))
+			if(QDELETED(thing) || (thing == src) || thing.anchored || prob(15))
 				continue
-			
+
 			if(prob(30))
 
 				if(ismob(thing) && prob(50))
@@ -101,42 +99,30 @@
 						thing = pick(options)
 
 				if(ishuman(thing))
-					var/mob/living/carbon/human/H = thing
-					for(var/obj/item/organ/external/limb in H.organs)
-						if(BP_IS_PROSTHETIC(limb) && !limb.is_stump() && !length(limb.children))
-							limb.droplimb()
+					var/mob/living/human/H = thing
+					for(var/obj/item/organ/external/limb in H.get_external_organs())
+						if(BP_IS_PROSTHETIC(limb) && !length(limb.children))
+							limb.dismember()
 							limb.forceMove(src)
 							thing = limb
 							break
-						
-			if(isitem(thing))
-				var/obj/item/eating_obj = thing
-				for(var/mat in eating_obj.matter)
-					decompiled_matter[mat] += eating_obj.matter[mat]
+
+			if(isobj(thing))
+				var/obj/eating_obj = thing
+				// some loose objects fall out and evade getting eaten this time
+				for(var/obj/recursive_obj in eating_obj.get_contained_external_atoms())
+					if(prob(15))
+						recursive_obj.dropInto(eating_obj.loc)
+					else
+						LAZYADD(eaten, recursive_obj)
+				// whatever's left is cubified
+				decompiled_matter = MERGE_ASSOCS_WITH_NUM_VALUES(decompiled_matter, eating_obj.get_contained_matter())
 				LAZYADD(eaten, eating_obj)
 
 	if(length(eaten))
-		playsound(loc, 'sound/magic/magic_missile.ogg', Clamp(length(eaten) * 10, 10, 50), FALSE)
+		playsound(loc, 'sound/magic/magic_missile.ogg', clamp(length(eaten) * 10, 10, 50), FALSE)
 		QDEL_NULL_LIST(eaten)
 
 /obj/effect/decompiler/Destroy()
 	STOP_PROCESSING(SSobj, src)
 	. = ..()
-
-/obj/item/stack/material/cubes
-	name = "cube"
-	desc = "Some featureless cubes."
-	singular_name = "cube"
-	plural_name = "cubes"
-	icon_state = "cube"
-	plural_icon_state = "cube-mult"
-	max_icon_state = "cube-max"
-	max_amount = 100
-	attack_verb = list("cubed")
-	material_flags = USE_MATERIAL_COLOR | USE_MATERIAL_SINGULAR_NAME
-	stacktype = /obj/item/stack/material/cubes
-
-/obj/item/stack/material/cubes/update_strings()
-	. = ..()
-	singular_name = initial(singular_name)
-	plural_name = initial(plural_name)

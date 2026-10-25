@@ -1,26 +1,5 @@
-// Movement relayed to self handling
-/datum/movement_handler/mob/relayed_movement
-	var/prevent_host_move = FALSE
-	var/list/allowed_movers
-
-/datum/movement_handler/mob/relayed_movement/MayMove(var/mob/mover, var/is_external)
-	if(is_external)
-		return MOVEMENT_PROCEED
-	if(mover == mob && !(prevent_host_move && LAZYLEN(allowed_movers) && !LAZYISIN(allowed_movers, mover)))
-		return MOVEMENT_PROCEED
-	if(LAZYISIN(allowed_movers, mover))
-		return MOVEMENT_PROCEED
-
-	return MOVEMENT_STOP
-
-/datum/movement_handler/mob/relayed_movement/proc/AddAllowedMover(var/mover)
-	LAZYDISTINCTADD(allowed_movers, mover)
-
-/datum/movement_handler/mob/relayed_movement/proc/RemoveAllowedMover(var/mover)
-	LAZYREMOVE(allowed_movers, mover)
-
 // Admin object possession
-/datum/movement_handler/mob/admin_possess/DoMove(var/direction)
+/datum/movement_handler/mob/admin_possess/DoMove(direction, mob/mover, is_external)
 	if(QDELETED(mob.control_object))
 		return MOVEMENT_REMOVE
 
@@ -34,18 +13,22 @@
 		control_object.set_dir(direction)
 
 // Death handling
-/datum/movement_handler/mob/death/DoMove()
-	if(mob.stat != DEAD)
+/datum/movement_handler/mob/death/DoMove(direction, mob/mover, is_external)
+	if(mob != mover || mob.stat != DEAD)
 		return
+
 	. = MOVEMENT_HANDLED
+
 	if(!mob.client)
 		return
+
 	mob.ghostize()
 
 // Incorporeal/Ghost movement
-/datum/movement_handler/mob/incorporeal/DoMove(var/direction)
+/datum/movement_handler/mob/incorporeal/DoMove(direction, mob/mover, is_external)
 	. = MOVEMENT_HANDLED
-	direction = mob.AdjustMovementDirection(direction)
+	direction = mob.AdjustMovementDirection(direction, mover)
+	mob.set_glide_size(0)
 
 	var/turf/T = get_step(mob, direction)
 	if(!mob.MayEnterTurf(T))
@@ -61,7 +44,7 @@
 	return
 
 // Eye movement
-/datum/movement_handler/mob/eye/DoMove(var/direction, var/mob/mover)
+/datum/movement_handler/mob/eye/DoMove(direction, mob/mover, is_external)
 	if(IS_NOT_SELF(mover)) // We only care about direct movement
 		return
 	if(!mob.eyeobj)
@@ -69,7 +52,7 @@
 	mob.eyeobj.EyeMove(direction)
 	return MOVEMENT_HANDLED
 
-/datum/movement_handler/mob/eye/MayMove(var/mob/mover, var/is_external)
+/datum/movement_handler/mob/eye/MayMove(mob/mover, is_external)
 	if(IS_NOT_SELF(mover))
 		return MOVEMENT_PROCEED
 	if(is_external)
@@ -79,53 +62,36 @@
 	return (MOVEMENT_PROCEED|MOVEMENT_HANDLED)
 
 /datum/movement_handler/mob/space
-	var/allow_move
+	var/last_space_move_result
+
+// Notes on space movement chain:
+// - owning mob calls MayMove() via normal movement handler chain
+// - MayMove() sets last_space_move_result based on is_space_movement_permitted() (checks for footing, magboots, etc)
+// - last_space_move_result is checked in DoMove() and passed to try_space_move() as a param, which returns TRUE/FALSE
+// - if the original move result was forbidden, or try_space_move() fails, the handler prevents movement.
+// - Otherwise it goes ahead and lets the mob move.
 
 // Space movement
-/datum/movement_handler/mob/space/DoMove(var/direction, var/mob/mover)
-	if(!mob.has_gravity())
-		if(!allow_move)
-			return MOVEMENT_HANDLED
-		if(!mob.space_do_move(allow_move, direction))
-			return MOVEMENT_HANDLED
+/datum/movement_handler/mob/space/DoMove(direction, mob/mover, is_external)
+	if(mob.has_gravity() || (IS_NOT_SELF(mover) && is_external))
+		return
+	if(last_space_move_result == SPACE_MOVE_FORBIDDEN || !mob.try_space_move(last_space_move_result, direction))
+		return MOVEMENT_HANDLED
 
-/datum/movement_handler/mob/space/MayMove(var/mob/mover, var/is_external)
+/datum/movement_handler/mob/space/MayMove(mob/mover, is_external)
 	if(IS_NOT_SELF(mover) && is_external)
 		return MOVEMENT_PROCEED
-
 	if(!mob.has_gravity())
-		allow_move = mob.Process_Spacemove(1)
-		if(!allow_move)
+		last_space_move_result = mob.is_space_movement_permitted(allow_movement = TRUE)
+		if(last_space_move_result == SPACE_MOVE_FORBIDDEN)
 			return MOVEMENT_STOP
-
 	return MOVEMENT_PROCEED
 
 // Buckle movement
-/datum/movement_handler/mob/buckle_relay/DoMove(var/direction, var/mover)
-	// TODO: Datumlize buckle-handling
-	if(istype(mob.buckled, /obj/vehicle))
-		//drunk driving
-		if(mob.confused && prob(20)) //vehicles tend to keep moving in the same direction
-			direction = turn(direction, pick(90, -90))
-		mob.buckled.relaymove(mob, direction)
-		return MOVEMENT_HANDLED
+/datum/movement_handler/mob/buckle_relay/DoMove(direction, mob/mover, is_external)
+	return mob?.buckled?.handle_buckled_relaymove(src, mob, direction, mover)
 
-	if(mob.buckled) // Wheelchair driving!
-		if(istype(mob.loc, /turf/space))
-			return // No wheelchair driving in space
-		if(istype(mob.buckled, /obj/structure/bed/chair/wheelchair))
-			. = MOVEMENT_HANDLED
-			if(ishuman(mob))
-				var/mob/living/carbon/human/driver = mob
-				var/obj/item/organ/external/l_hand = driver.get_organ(BP_L_HAND)
-				var/obj/item/organ/external/r_hand = driver.get_organ(BP_R_HAND)
-				if((!l_hand || l_hand.is_stump()) && (!r_hand || r_hand.is_stump()))
-					return // No hands to drive your chair? Tough luck!
-			//drunk wheelchair driving
-			direction = mob.AdjustMovementDirection(direction)
-			mob.buckled.DoMove(direction, mob)
-
-/datum/movement_handler/mob/buckle_relay/MayMove(var/mover)
+/datum/movement_handler/mob/buckle_relay/MayMove(mob/mover, is_external)
 	if(mob.buckled)
 		return mob.buckled.MayMove(mover, FALSE) ? (MOVEMENT_PROCEED|MOVEMENT_HANDLED) : MOVEMENT_STOP
 	return MOVEMENT_PROCEED
@@ -135,11 +101,14 @@
 	var/next_move
 
 /datum/movement_handler/mob/delay/DoMove(var/direction, var/mover, var/is_external)
-	if(is_external)
-		return
-	next_move = world.time + max(1, mob.movement_delay())
+	if(!is_external)
+		var/delay = max(1, mob.get_movement_delay(direction))
+		if(direction & (direction - 1)) //moved diagonally successfully
+			delay *= sqrt(2)
+		next_move = world.time + delay
+		mob.set_glide_size(delay)
 
-/datum/movement_handler/mob/delay/MayMove(var/mover, var/is_external)
+/datum/movement_handler/mob/delay/MayMove(mob/mover, is_external)
 	if(IS_NOT_SELF(mover) && is_external)
 		return MOVEMENT_PROCEED
 	return ((mover && mover != mob) ||  world.time >= next_move) ? MOVEMENT_PROCEED : MOVEMENT_STOP
@@ -151,39 +120,43 @@
 	next_move += max(0, delay)
 
 // Stop effect
-/datum/movement_handler/mob/stop_effect/DoMove()
-	if(MayMove() == MOVEMENT_STOP)
+/datum/movement_handler/mob/stop_effect/DoMove(direction, mob/mover, is_external)
+	if(MayMove(mover, is_external) == MOVEMENT_STOP)
 		return MOVEMENT_HANDLED
 
-/datum/movement_handler/mob/stop_effect/MayMove()
+/datum/movement_handler/mob/stop_effect/MayMove(mob/mover, is_external)
 	for(var/obj/effect/stop/S in mob.loc)
 		if(S.victim == mob)
 			return MOVEMENT_STOP
 	return MOVEMENT_PROCEED
 
 // Transformation
-/datum/movement_handler/mob/transformation/MayMove()
+/datum/movement_handler/mob/transformation/MayMove(mob/mover, is_external)
 	return MOVEMENT_STOP
 
 // Consciousness - Is the entity trying to conduct the move conscious?
-/datum/movement_handler/mob/conscious/MayMove(var/mob/mover)
+/datum/movement_handler/mob/conscious/MayMove(mob/mover, is_external)
 	return (mover ? mover.stat == CONSCIOUS : mob.stat == CONSCIOUS) ? MOVEMENT_PROCEED : MOVEMENT_STOP
 
 // Along with more physical checks
-/datum/movement_handler/mob/physically_capable/MayMove(var/mob/mover)
+/datum/movement_handler/mob/physically_capable/MayMove(mob/mover, is_external)
 	// We only check physical capability if the host mob tried to do the moving
-	return ((mover && mover != mob) || !mob.incapacitated(INCAPACITATION_DISABLED & ~INCAPACITATION_FORCELYING)) ? MOVEMENT_PROCEED : MOVEMENT_STOP
+	if(mover && mover != mob)
+		return MOVEMENT_PROCEED
+	if(mob.incapacitated(INCAPACITATION_DISABLED & ~INCAPACITATION_FORCELYING))
+		return MOVEMENT_STOP
+	return MOVEMENT_PROCEED
 
 // Is anything physically preventing movement?
-/datum/movement_handler/mob/physically_restrained/MayMove(var/mob/mover)
-	if(mob.anchored)
-		if(mover == mob)
-			to_chat(mob, SPAN_WARNING("You're anchored down!"))
-		return MOVEMENT_STOP
-
+/datum/movement_handler/mob/physically_restrained/MayMove(mob/mover, is_external)
 	if(istype(mob.buckled) && !mob.buckled.buckle_movable)
 		if(mover == mob)
 			to_chat(mob, SPAN_WARNING("You're buckled to \the [mob.buckled]!"))
+		return MOVEMENT_STOP
+
+	if(mob.anchored)
+		if(mover == mob)
+			to_chat(mob, SPAN_WARNING("You're anchored down!"))
 		return MOVEMENT_STOP
 
 	if(LAZYLEN(mob.pinned))
@@ -191,8 +164,8 @@
 			to_chat(mob, SPAN_WARNING("You're pinned down by \a [mob.pinned[1]]!"))
 		return MOVEMENT_STOP
 
-	for(var/obj/item/grab/G in mob.grabbed_by)
-		if(G.assailant != mob && (mob.restrained() || G.stop_move()))
+	for(var/obj/item/grab/grab as anything in mob.grabbed_by)
+		if(grab.assailant != mob && grab.assailant != mover && (mob.restrained() || grab.stop_move()))
 			if(mover == mob)
 				to_chat(mob, SPAN_WARNING("You're restrained and cannot move!"))
 			mob.ProcessGrabs()
@@ -200,11 +173,11 @@
 
 	return MOVEMENT_PROCEED
 
-// Finally.. the last of the mob movement junk
-/datum/movement_handler/mob/movement/DoMove(var/direction, var/mob/mover)
+// Finally... the last of the mob movement junk
+/datum/movement_handler/mob/movement/DoMove(direction, mob/mover, is_external)
 	. = MOVEMENT_HANDLED
 
-	if(mob.moving)
+	if(!mob || mob.moving)
 		return
 
 	if(!mob.lastarea)
@@ -213,100 +186,83 @@
 	//We are now going to move
 	mob.moving = 1
 
-	direction = mob.AdjustMovementDirection(direction)
+	if(mover == mob)
+		direction = mob.AdjustMovementDirection(direction, mover)
+
 	var/turf/old_turf = get_turf(mob)
 	step(mob, direction)
 
-	// Something with dragging things
-	var/extra_delay = HandleGrabs(direction, old_turf)
-
-	if(QDELETED(mob)) // No idea why, but this was causing null check runtimes on live.
+	if(!mob)
+		return // If the mob gets deleted on move (e.g. Entered, whatever), it wipes this reference on us in Destroy (and we should be aborting all action anyway).
+	if(mob.loc == old_turf) // Did not move for whatever reason.
+		mob.moving = FALSE
 		return
 
-	mob.ExtraMoveCooldown(extra_delay)
+	mob.handle_footsteps()
 
-	for (var/obj/item/grab/G in mob)
-		if (G.assailant_reverse_facing())
-			mob.set_dir(GLOB.reverse_dir[direction])
-		G.assailant_moved()
-	for (var/obj/item/grab/G in mob.grabbed_by)
-		G.adjust_position()
-
-	if(direction & (UP|DOWN))
-		var/txt_dir = (direction & UP) ? "upwards" : "downwards"
-		old_turf.visible_message(SPAN_NOTICE("[mob] moves [txt_dir]."))
-		for(var/obj/item/grab/G in mob.get_active_grabs())
-			if(!G.affecting)
-				continue
-			var/turf/start = G.affecting.loc
-			var/turf/destination = (direction == UP) ? GetAbove(G.affecting) : GetBelow(G.affecting)
-			if(!start.CanZPass(G.affecting, direction))
-				to_chat(mob, SPAN_WARNING("\The [start] blocked your pulled object!"))
-				qdel(G)
-				continue
-			if(!destination.CanZPass(G.affecting, direction))
-				to_chat(mob, SPAN_WARNING("The [G.affecting] you were pulling bumps up against \the [destination]."))
-				qdel(G)
-				continue
-			for(var/atom/A in destination)
-				if(!A.CanMoveOnto(G.affecting, start, 1.5, direction))
-					to_chat(mob, SPAN_WARNING("\The [A] blocks the [G.affecting] you were pulling."))
-					qdel(G)
-					continue
-			G.affecting.forceMove(destination)
-			continue
+	// Sprinting uses up stamina and causes exertion effects.
+	if(MOVING_QUICKLY(mob))
+		mob.last_quick_move_time = world.time
+		mob.adjust_stamina(-(mob.get_stamina_used_per_step() * (1+mob.encumbrance())))
+		if(ishuman(mob))
+			var/decl/species/species = mob.get_species()
+			if(species)
+				species.handle_exertion(mob)
 
 	//Moving with objects stuck in you can cause bad times.
-	if(get_turf(mob) != old_turf)
-		if(MOVING_QUICKLY(mob))
-			mob.last_quick_move_time = world.time
-			mob.adjust_stamina(-(mob.get_stamina_used_per_step() * (1+mob.encumbrance())))
-		mob.handle_embedded_and_stomach_objects()
+	mob.handle_embedded_and_stomach_objects()
+	mob.moving = FALSE
 
-	mob.moving = 0
-
-/datum/movement_handler/mob/movement/MayMove(var/mob/mover)
-	return IS_SELF(mover) &&  mob.moving ? MOVEMENT_STOP : MOVEMENT_PROCEED
+/datum/movement_handler/mob/movement/MayMove(mob/mover, is_external)
+	return IS_SELF(mover) && mob.moving ? MOVEMENT_STOP : MOVEMENT_PROCEED
 
 /mob/proc/get_stamina_used_per_step()
 	return 1
 
-/mob/living/carbon/human/get_stamina_used_per_step()
+/mob/proc/get_stamina_skill_mod()
+	return 1
+
+/mob/living/human/get_stamina_skill_mod()
 	var/mod = (1-((get_skill_value(SKILL_HAULING) - SKILL_MIN)/(SKILL_MAX - SKILL_MIN)))
 	if(species && (species.species_flags & SPECIES_FLAG_LOW_GRAV_ADAPTED))
 		if(has_gravity())
 			mod *= 1.2
 		else
 			mod *= 0.8
+	return mod
 
-	return config.minimum_sprint_cost + (config.skill_sprint_cost_range * mod)
-
-/datum/movement_handler/mob/movement/proc/HandleGrabs(var/direction, var/old_turf)
-	. = 0
-	// TODO: Look into making grabs use movement events instead, this is a mess.
-	for(var/obj/item/grab/G in mob?.get_active_grabs())
-		if(G.assailant == G.affecting)
-			return
-		if(G.affecting.anchored)
-			return
-		. = max(., G.grab_slowdown())
-		if(isturf(mob.loc) && mob.loc != old_turf)
-			for(var/atom/movable/M in (mob.ret_grab()-mob))
-				if(isturf(M.loc) && M.loc != mob.loc && get_dist(old_turf, M) <= 1)
-					step(M, get_dir(M.loc, old_turf))
-		G.adjust_position()
+/mob/living/human/get_stamina_used_per_step()
+	return get_config_value(/decl/config/num/movement_min_sprint_cost) + get_config_value(/decl/config/num/movement_skill_sprint_cost_range) * get_stamina_skill_mod()
 
 // Misc. helpers
 /mob/proc/MayEnterTurf(var/turf/T)
 	return T && !((mob_flags & MOB_FLAG_HOLY_BAD) && check_is_holy_turf(T))
 
-/mob/proc/AdjustMovementDirection(var/direction)
+/**
+ * This proc adjusts movement direction for mobs with STAT_CONFUSE.
+ *
+ * Returns a direction, randomly adjusted if the mob had STAT_CONFUSE.
+ *
+ * Arguments:
+ * * direction: The direction, mob was going to move before adjustment
+ * * mover: The initiator of movement
+ */
+/mob/proc/AdjustMovementDirection(var/direction, var/mob/mover)
+
+	if(!direction || !isnum(direction))
+		return 0
+
 	. = direction
-	if(!confused)
+
+	// If we are moved not on our own, we don't get move debuff
+	if(src != mover)
+		return
+
+	if(!HAS_STATUS(src, STAT_CONFUSE))
 		return
 
 	var/stability = MOVING_DELIBERATELY(src) ? 75 : 25
 	if(prob(stability))
 		return
 
-	return prob(50) ? GLOB.cw_dir[.] : GLOB.ccw_dir[.]
+	return prob(50) ? global.cw_dir[.] : global.ccw_dir[.]

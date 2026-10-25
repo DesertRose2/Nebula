@@ -6,9 +6,10 @@
 	program_key_state = "rd_key"
 	program_menu_icon = "power"
 	extended_desc = "This program allows remote control of power distribution systems. This program can not be run on tablet computers."
-	required_access = access_engine
+	read_access = list(access_engine)
 	network_destination = "RCON remote control system"
-	requires_network_feature = NETWORK_SYSTEMCONTROL
+	requires_network = 1
+	requires_network_feature = NET_FEATURE_SYSTEMCONTROL
 	usage_flags = PROGRAM_LAPTOP | PROGRAM_CONSOLE
 	size = 19
 	category = PROG_ENG
@@ -22,7 +23,7 @@
 	var/hide_SMES_details = 0
 	var/hide_breakers = 0
 
-/datum/nano_module/program/rcon/ui_interact(mob/user, ui_key = "rcon", datum/nanoui/ui=null, force_open=1, var/datum/topic_state/state = GLOB.default_state)
+/datum/nano_module/program/rcon/ui_interact(mob/user, ui_key = "rcon", datum/nanoui/ui=null, force_open=1, var/datum/topic_state/state = global.default_topic_state)
 	FindDevices() // Update our devices list
 	var/list/data = host.initial_data()
 
@@ -39,12 +40,11 @@
 		"output_load" = round(SMES.output_used/1000, 0.1),
 		"RCON_tag" = SMES.RCon_tag
 		)))
-
-	data["smes_info"] = sortByKey(smeslist, "RCON_tag")
+	data["smes_info"] = smeslist
 
 	// BREAKER DATA (simplified view)
 	var/list/breakerlist[0]
-	for(var/obj/machinery/power/breakerbox/BR in known_breakers)
+	for(var/obj/machinery/breakerbox/BR in known_breakers)
 		breakerlist.Add(list(list(
 		"RCON_tag" = BR.RCon_tag,
 		"enabled" = BR.on
@@ -90,12 +90,12 @@
 			SMES.set_output(outputset)
 
 	if(href_list["toggle_breaker"])
-		var/obj/machinery/power/breakerbox/toggle = null
-		for(var/obj/machinery/power/breakerbox/breaker in known_breakers)
+		var/obj/machinery/breakerbox/toggle = null
+		for(var/obj/machinery/breakerbox/breaker in known_breakers)
 			if(breaker.RCon_tag == href_list["toggle_breaker"])
 				toggle = breaker
 		if(toggle)
-			if(toggle.update_locked)
+			if(toggle.lock_time > world.time)
 				to_chat(usr, "The breaker box was recently toggled. Please wait before toggling it again.")
 			else
 				toggle.auto_toggle()
@@ -122,13 +122,14 @@
 // Parameters: None
 // Description: Refreshes local list of known devices.
 /datum/nano_module/program/rcon/proc/FindDevices()
-	known_SMESs = new /list()
+	known_SMESs = list()
 	for(var/obj/machinery/power/smes/buildable/SMES in SSmachines.machinery)
 		if(can_connect_to(SMES))
 			known_SMESs.Add(SMES)
+	known_SMESs = sortTim(known_SMESs, /proc/cmp_rcon_tag_asc)
 
 	known_breakers = new /list()
-	for(var/obj/machinery/power/breakerbox/breaker in SSmachines.machinery)
+	for(var/obj/machinery/breakerbox/breaker in SSmachines.machinery)
 		if(can_connect_to(breaker))
 			known_breakers.Add(breaker)
 
@@ -137,13 +138,13 @@
 	if(!network)
 		return FALSE
 
-	if(!ARE_Z_CONNECTED(network.get_router_z(), get_z(M)))
+	if(!LEVELS_ARE_Z_CONNECTED(network.get_router_z(), get_z(M)))
 		return FALSE
-	
+
 	if(istype(M, /obj/machinery/power/smes))
 		var/obj/machinery/power/smes/buildable/SMES = M
 		return SMES.RCon_tag && SMES.RCon_tag != "NO_TAG" && SMES.RCon
 
-	if(istype(M, /obj/machinery/power/breakerbox))
-		var/obj/machinery/power/breakerbox/breaker = M
+	if(istype(M, /obj/machinery/breakerbox))
+		var/obj/machinery/breakerbox/breaker = M
 		return breaker.RCon_tag != "NO_TAG"

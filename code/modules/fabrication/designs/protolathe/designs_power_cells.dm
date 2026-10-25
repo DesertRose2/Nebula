@@ -6,10 +6,10 @@
 		FABRICATOR_CLASS_ROBOTICS
 	)
 
-/datum/fabricator_recipe/protolathe/cell/build(var/turf/location, var/amount = 1)
+/datum/fabricator_recipe/protolathe/cell/build()
 	. = ..()
-	for(var/obj/item/cell/C in .)
-		C.charge = 0
+	for(var/obj/item/cell/cell in .)
+		cell.charge = 0
 
 /datum/fabricator_recipe/protolathe/cell/get_product_name()
 	. = "power cell model ([..()])"

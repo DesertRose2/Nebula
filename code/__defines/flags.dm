@@ -1,63 +1,109 @@
-GLOBAL_LIST_INIT(bitflags, list(1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768))
+#define CLOSET_HAS_LOCK                     BITFLAG(0)
+#define CLOSET_CAN_BE_WELDED                BITFLAG(1)
 
-#define CLOSET_HAS_LOCK  1
-#define CLOSET_CAN_BE_WELDED 2
+#define CLOSET_STORAGE_MISC                 BITFLAG(0)
+#define CLOSET_STORAGE_ITEMS                BITFLAG(1)
+#define CLOSET_STORAGE_MOBS                 BITFLAG(2)
+#define CLOSET_STORAGE_STRUCTURES           BITFLAG(3)
+#define CLOSET_STORAGE_ALL                  (~0)
 
-#define CLOSET_STORAGE_MISC       1
-#define CLOSET_STORAGE_ITEMS      2
-#define CLOSET_STORAGE_MOBS       4
-#define CLOSET_STORAGE_STRUCTURES 8
-#define CLOSET_STORAGE_ALL   (~0)
+/* Bitflags for flag variables.
+These are used instead of separate boolean vars to reduce the overall number of variables,
+especially on common types like /atom or /atom/movable.
 
-// Flags bitmasks.
+- FLAG SETTING
+// When setting default flags on type definitions, they are combined with bitwise OR:
+// atom_flags = ATOM_FLAG_CLIMBABLE | ATOM_FLAG_OPEN_CONTAINER
+// Be mindful of flags set on parent types, as setting flags on a child type will override the parent flags.
+// Flags are also set at runtime with bitwise OR:
+// atom_flags |= ATOM_FLAG_CLIMBABLE
+// Flags are removed with bitwise AND NOT:
+// atom_flags &= ~ATOM_FLAG_CLIMBABLE
+// Flags can be toggled with bitwise XOR:
+// atom_flags ^= ATOM_FLAG_CLIMBABLE
 
-#define ATOM_FLAG_CHECKS_BORDER           0x0001 // If a dense atom (potentially) only blocks movements from a given direction, i.e. window panes
-#define ATOM_FLAG_CLIMBABLE               0x0002 // This object can be climbed on
-#define ATOM_FLAG_NO_BLOOD                0x0004 // Used for items if they don't want to get a blood overlay.
-#define ATOM_FLAG_NO_REACT                0x0008 // Reagents don't react inside this container.
-#define ATOM_FLAG_CONTAINER               0x0010 // Is a container for chemistry purposes.
-#define ATOM_FLAG_OPEN_CONTAINER          0x0020 // Is an open container for chemistry purposes.
-#define ATOM_FLAG_INITIALIZED             0x0040 // Has this atom been initialized
-#define ATOM_FLAG_NO_TEMP_CHANGE          0x0080 // Reagents do not cool or heat to ambient temperature in this container.
-#define ATOM_FLAG_SHOW_REAGENT_NAME       0x0100 // Reagent presentation name is attached to the atom name
+- FLAG CHECKING
+Flags can be tested with bitwise AND:
+	if (atom_flags & ATOM_FLAG_CLIMBABLE)
+		to_world_log("[src] is climbable!")
+- To test if a flag is not present, use:
+	if (!(atom_flags & ATOM_FLAG_CLIMBABLE))
+rather than
+	if ((!atom_flags & ATOM_FLAG_CLIMBABLE))
+The latter will result in a linter warning and will not work correctly.
+*/
 
-#define ATOM_IS_CONTAINER(A)              (A.atom_flags & ATOM_FLAG_CONTAINER)
-#define ATOM_IS_OPEN_CONTAINER(A)         (A.atom_flags & ATOM_FLAG_OPEN_CONTAINER)
+// Atom-level flags (/atom/var/atom_flags)
+#define ATOM_FLAG_CHECKS_BORDER             BITFLAG(0)  // If a dense atom (potentially) only blocks movements from a given direction, i.e. window panes
+#define ATOM_FLAG_CLIMBABLE                 BITFLAG(1)  // This object can be climbed on
+#define ATOM_FLAG_NO_BLOOD                  BITFLAG(2)  // Used for items if they don't want to get a blood overlay.
+#define ATOM_FLAG_NO_REACT                  BITFLAG(3)  // Reagents don't react inside this container.
+#define ATOM_FLAG_OPEN_CONTAINER            BITFLAG(4)  // Is an open container for chemistry purposes.
+#define ATOM_FLAG_INITIALIZED               BITFLAG(5)  // Has this atom been initialized
+#define ATOM_FLAG_CAN_BE_PAINTED            BITFLAG(6)  // Can be painted using a paint sprayer or similar.
+#define ATOM_FLAG_SHIELD_CONTENTS           BITFLAG(7)  // Protects contents from some global effects (Solar storms)
+#define ATOM_FLAG_ADJACENT_EXCEPTION        BITFLAG(8)  // Skips adjacent checks for atoms that should always be reachable in window tiles
+#define ATOM_FLAG_NO_DISSOLVE               BITFLAG(9)  // Bypasses solvent reactions in the container.
+#define ATOM_FLAG_NO_PHASE_CHANGE           BITFLAG(10) // Bypasses heating and cooling product reactions in the container.
+#define ATOM_FLAG_BLOCK_DIAGONAL_FACING     BITFLAG(11) // Atom cannot face non-cardinal directions.
 
-#define MOVABLE_FLAG_PROXMOVE             0x0001 // Does this object require proximity checking in Enter()?
-#define MOVABLE_FLAG_Z_INTERACT           0x0002 // Should attackby and attack_hand be relayed through ladders and open spaces?
-#define MOVABLE_FLAG_EFFECTMOVE           0x0004 // Is this an effect that should move?
-#define MOVABLE_FLAG_DEL_SHUTTLE          0x0008 // Shuttle transistion will delete this.
-#define MOVABLE_FLAG_NONDENSE_COLLISION   0x0010 // Used for non-dense movables that should be capable of colliding when attempting to move onto dense atoms
+#define ATOM_FLAG_NO_CHEM_CHANGE            (ATOM_FLAG_NO_REACT | ATOM_FLAG_NO_DISSOLVE | ATOM_FLAG_NO_PHASE_CHANGE)
 
-#define OBJ_FLAG_ANCHORABLE               0x0001 // This object can be stuck in place with a tool
-#define OBJ_FLAG_CONDUCTIBLE              0x0002 // Conducts electricity. (metal etc.)
-#define OBJ_FLAG_ROTATABLE                0x0004 // Can be rotated with alt-click
-#define OBJ_FLAG_NOFALL                   0x0008 // Will prevent mobs from falling
+#define ATOM_IS_OPEN_CONTAINER(A)           (A.atom_flags & ATOM_FLAG_OPEN_CONTAINER)
 
-//Flags for items (equipment)
-#define ITEM_FLAG_NO_BLUDGEON             0x0001 // When an item has this it produces no "X has been hit by Y with Z" message with the default handler.
-#define ITEM_FLAG_NO_CONTAMINATION        0x0002 // Does not get contaminated.
-#define ITEM_FLAG_NO_PRINT                0x0004 // This object does not leave the user's prints/fibres when using it
-#define ITEM_FLAG_INVALID_FOR_CHAMELEON   0x0008 // Chameleon items cannot mimick this.
-#define ITEM_FLAG_THICKMATERIAL           0x0010 // Prevents syringes, reagent pens, and hyposprays if equiped to slot_suit or slot_head.
-#define ITEM_FLAG_AIRTIGHT                0x0040 // Functions with internals.
-#define ITEM_FLAG_NOSLIP                  0x0080 // Prevents from slipping on wet floors, in space, etc.
-#define ITEM_FLAG_BLOCK_GAS_SMOKE_EFFECT  0x0100 // Blocks the effect that chemical clouds would have on a mob -- glasses, mask and helmets ONLY! (NOTE: flag shared with ONESIZEFITSALL)
-#define ITEM_FLAG_FLEXIBLEMATERIAL        0x0200 // At the moment, masks with this flag will not prevent eating even if they are covering your face.
-#define ITEM_FLAG_IS_BELT                 0x0400 // Items that can be worn on the belt slot, even with no undersuit equipped
-#define ITEM_FLAG_SILENT                  0x0800 // sneaky shoes
-#define ITEM_FLAG_NOCUFFS                 0x1000 // Gloves that have this flag prevent cuffs being applied
-#define ITEM_FLAG_CAN_HIDE_IN_SHOES       0x2000 // Items that can be hidden in shoes that permit it
-#define ITEM_FLAG_PADDED                 0x4000 // When set on gloves, will act like pulling punches in unarmed combat.
+// Movable-level flags (/atom/movable/movable_flags)
+#define MOVABLE_FLAG_PROXMOVE               BITFLAG(0)  // Does this object require proximity checking in Enter()?
+#define MOVABLE_FLAG_Z_INTERACT             BITFLAG(1)  // Should attackby and attack_hand be relayed through ladders and open spaces?
+#define MOVABLE_FLAG_ALWAYS_SHUTTLEMOVE     BITFLAG(2)  // Is this an effect that should move?
+#define MOVABLE_FLAG_DEL_SHUTTLE            BITFLAG(3)  // Shuttle transistion will delete this.
+#define MOVABLE_FLAG_WHEELED                BITFLAG(4)  // Movable has reduced stamina cost/speed reduction when pulled.
 
-// Flags for pass_flags.
-#define PASS_FLAG_TABLE                   0x1
-#define PASS_FLAG_GLASS                   0x2
-#define PASS_FLAG_GRILLE                  0x4
+// Object-level flags (/obj/obj_flags)
+#define OBJ_FLAG_ANCHORABLE                 BITFLAG(0)  // This object can be stuck in place with a tool
+#define OBJ_FLAG_CONDUCTIBLE                BITFLAG(1)  // Conducts electricity. (metal etc.)
+#define OBJ_FLAG_ROTATABLE                  BITFLAG(2)  // Can be rotated with alt-click
+#define OBJ_FLAG_NOFALL                     BITFLAG(3)  // Will prevent mobs from falling
+#define OBJ_FLAG_MOVES_UNSUPPORTED          BITFLAG(4)  // Object moves with shuttle transition even if turf below is a background turf.
+#define OBJ_FLAG_HOLLOW                     BITFLAG(5)  // Modifies initial matter values to be lower than w_class normally sets.
+#define OBJ_FLAG_SUPPORT_MOB                BITFLAG(6)  // Object can be used to prop up a mob with stance damage (broken legs)
+#define OBJ_FLAG_INSULATED_HANDLE           BITFLAG(7)  // Object skips burn checks when held by unprotected hands.
+#define OBJ_FLAG_NO_STORAGE                 BITFLAG(8)  // Object cannot be placed into storage.
 
-// Sector Flags.
-#define OVERMAP_SECTOR_BASE              0x0001 // Whether or not this sector is a starting sector. Z levels contained in this sector are added to station_levels
-#define OVERMAP_SECTOR_KNOWN             0x0002 // Makes the sector show up on nav computers
-#define OVERMAP_SECTOR_IN_SPACE          0x0004 // If the sector can be accessed by drifting off the map edge
-#define OVERMAP_SECTOR_UNTARGETABLE      0x0008 // If the sector is untargetable by missiles.
+// Item-level flags (/obj/item/item_flags)
+#define ITEM_FLAG_NO_BLUDGEON               BITFLAG(0)  // When an item has this it produces no "X has been hit by Y with Z" message with the default handler.
+#define ITEM_FLAG_NO_CONTAMINATION          BITFLAG(1)  // Does not get contaminated.
+#define ITEM_FLAG_NO_PRINT                  BITFLAG(2)  // This object does not leave the user's prints/fibres when using it
+#define ITEM_FLAG_INVALID_FOR_CHAMELEON     BITFLAG(3)  // Chameleon items cannot mimick this.
+#define ITEM_FLAG_THICKMATERIAL             BITFLAG(4)  // Prevents syringes, reagent pens, and hyposprays if equiped to slot_suit or slot_head_str.
+#define ITEM_FLAG_AIRTIGHT                  BITFLAG(5)  // Functions with internals.
+#define ITEM_FLAG_NOSLIP                    BITFLAG(6)  // Prevents from slipping on wet floors, in space, etc.
+#define ITEM_FLAG_BLOCK_GAS_SMOKE_EFFECT    BITFLAG(7)  // Blocks the effect that chemical clouds would have on a mob -- glasses, mask and helmets ONLY! (NOTE: flag shared with ONESIZEFITSALL)
+#define ITEM_FLAG_FLEXIBLEMATERIAL          BITFLAG(8)  // At the moment, masks with this flag will not prevent eating even if they are covering your face.
+#define ITEM_FLAG_IS_BELT                   BITFLAG(9)  // Items that can be worn on the belt slot, even with no undersuit equipped
+#define ITEM_FLAG_SILENT                    BITFLAG(10) // sneaky shoes
+#define ITEM_FLAG_NOCUFFS                   BITFLAG(11) // Gloves that have this flag prevent cuffs being applied
+#define ITEM_FLAG_CAN_HIDE_IN_SHOES         BITFLAG(12) // Items that can be hidden in shoes that permit it
+#define ITEM_FLAG_PADDED                    BITFLAG(13) // When set on gloves, will act like pulling punches in unarmed combat.
+#define ITEM_FLAG_CAN_TAPE                  BITFLAG(14) // Whether the item can be taped onto something using tape
+#define ITEM_FLAG_IS_WEAPON                 BITFLAG(15) // Item is considered a weapon. Currently only used for force-based worth calculation.
+#define ITEM_FLAG_MAGNETISED                BITFLAG(16) // When worn on feet and standing on an appropriate spot, will prevent slipping.
+
+// Flags for pass_flags (/atom/var/pass_flags)
+#define PASS_FLAG_TABLE                     BITFLAG(0)
+#define PASS_FLAG_GLASS                     BITFLAG(1)
+#define PASS_FLAG_GRILLE                    BITFLAG(2)
+#define PASS_FLAG_MOB                       BITFLAG(3)
+
+// Overmap sector flags (/obj/effect/overmap/visitable/var/sector_flags)
+#define OVERMAP_SECTOR_BASE                 BITFLAG(0)  // Whether or not this sector is a starting sector. Z levels contained in this sector are added to station_levels
+#define OVERMAP_SECTOR_KNOWN                BITFLAG(1)  // Makes the sector show up on nav computers
+#define OVERMAP_SECTOR_IN_SPACE             BITFLAG(2)  // If the sector can be accessed by drifting off the map edge
+#define OVERMAP_SECTOR_UNTARGETABLE         BITFLAG(3)  // If the sector is untargetable by missiles.
+
+// Flags for reagent presentation (/obj/item/chems/var/presentation_flags)
+#define PRESENTATION_FLAG_NAME              BITFLAG(0)  // This chems subtype presents the name of its main reagent/cocktail.
+#define PRESENTATION_FLAG_DESC              BITFLAG(1)  // This chems subtype presents the description of its main reagent/cocktail.
+
+// Decl-level flags (/decl/var/decl_flags)
+#define DECL_FLAG_ALLOW_ABSTRACT_INIT       BITFLAG(0)  // Abstract subtypes without this set will CRASH() if fetched with GET_DECL().
+#define DECL_FLAG_MANDATORY_UID             BITFLAG(1)  // Requires uid to be non-null.

@@ -1,7 +1,5 @@
 //Skill-related mob verbs that require skill checks to be satisfied to be added.
 
-GLOBAL_LIST_INIT(skill_verbs, init_subtypes(/datum/skill_verb))
-
 /datum/skillset/proc/fetch_verb_datum(given_type)
 	for(var/datum/skill_verb/SV in skill_verbs)
 		if(SV.type == given_type)
@@ -14,8 +12,10 @@ GLOBAL_LIST_INIT(skill_verbs, init_subtypes(/datum/skill_verb))
 /datum/skill_verb
 	var/datum/skillset/skillset   //Owner, if any.
 	var/the_verb                  //The verb to keep track of. Should be a mob verb.
-	var/cooldown                  //How long the verb cools down for after use. null = has no cooldown.
-	var/cooling_down = 0          //Whether it's currently cooling down.
+	/// The minimum time between uses of the verb. null = no wait between uses.
+	var/cooldown
+	/// If TRUE, the verb is currently unavailable.
+	var/cooling_down = FALSE
 
 /datum/skill_verb/Destroy()
 	skillset = null
@@ -39,19 +39,19 @@ GLOBAL_LIST_INIT(skill_verbs, init_subtypes(/datum/skill_verb))
 
 /datum/skill_verb/proc/should_see_verb()
 	if(cooling_down)
-		return
-	return 1
+		return FALSE
+	return TRUE
 
 /datum/skill_verb/proc/remove_cooldown()
-	cooling_down = 0
+	cooling_down = FALSE
 	update_verb()
 
 /datum/skill_verb/proc/set_cooldown()
 	if(!cooldown)
 		return
-	cooling_down = 1
+	cooling_down = TRUE
 	update_verb()
-	addtimer(CALLBACK(src, .proc/remove_cooldown), cooldown)
+	addtimer(CALLBACK(src, PROC_REF(remove_cooldown)), cooldown)
 /*
 The Instruct verb. buffs untrained -> basic and requires skill in the skill training as well as leadership.
 Robots and antags can instruct.
@@ -61,76 +61,79 @@ Robots and antags can instruct.
 	cooldown = 15 MINUTES
 
 /datum/skill_verb/instruct/should_have_verb(datum/skillset/given_skillset)
-	if(!..())
+	. = FALSE
+	if(!(. = ..()))
 		return
 	if(!isliving(given_skillset.owner))
-		return
-	return 1
+		return FALSE
+	return TRUE
 
 /datum/skill_verb/instruct/should_see_verb()
-	if(!..())
+	if(!(. = ..()))
 		return
-	for(var/decl/hierarchy/skill/S in GLOB.skills)
+	for(var/decl/skill/S in global.using_map.get_available_skills())
 		if(skillset.owner.skill_check(S.type, SKILL_EXPERT))
-			return 1
+			return TRUE
 
-/mob/proc/instruct(mob/living/carbon/human/target as mob in oview(2))
-	set category = "IC"
-	set name = "Instruct"
-	set src = usr
+/mob/proc/can_instruct(mob/living/human/target, var/get_options = FALSE)
 
 	var/datum/skill_verb/instruct/SV = skillset.fetch_verb_datum(/datum/skill_verb/instruct)
 	if(!SV || !istype(target))
 		return
 	if(src == target)
-		to_chat(src, "<span class='notice'>Cannot instruct yourself.</span>")
+		to_chat(src, SPAN_WARNING("You cannot instruct yourself, except maybe in philosophy."))
 		return
-	if(incapacitated() || target.incapacitated())
-		to_chat(src, "<span class='notice'>[incapacitated() ? "You are in no state to teach right now!" : "\the [target] is in no state to be taught right now!"]</span>")
+	if(incapacitated())
+		to_chat(src, SPAN_WARNING("You are in no state to teach right now!"))
 		return
-
+	if(target.incapacitated())
+		to_chat(src, SPAN_WARNING("\The [target] is in no state to be taught right now!"))
+		return
 	if(target.too_many_buffs(/datum/skill_buff/instruct))
-		to_chat(src, "<span class='notice'>\The [target] exhausted from all the training \he recieved.</span>")
+		var/decl/pronouns/pronouns = target.get_pronouns(ignore_coverings = TRUE)
+		to_chat(src, SPAN_WARNING("\The [target] [pronouns.is] exhausted from all the training [pronouns.he] received."))
 		return
 
-	var/options = list()
-	for(var/decl/hierarchy/skill/S in GLOB.skills)
-		if(!target.skill_check(S.type, SKILL_BASIC) && skill_check(S.type, SKILL_EXPERT))
-			options[S.name] = S
+	if(!get_options)
+		. = TRUE
+	else
+		for(var/decl/skill/S in global.using_map.get_available_skills())
+			if(!target.skill_check(S.type, SKILL_BASIC) && skill_check(S.type, SKILL_EXPERT))
+				LAZYSET(., S.name, S)
+
+/mob/proc/instruct(mob/living/human/target as mob in oview(2))
+
+	set category = "IC"
+	set name = "Instruct"
+	set src = usr
+
+	var/list/options = can_instruct(target, get_options = TRUE)
 	if(!length(options))
-		to_chat(src, "<span class='notice'>There is nothing you can teach \the [target].</span>")
+		to_chat(src, SPAN_WARNING("There is nothing you can teach \the [target]."))
+		return
+
 	var/choice = input(src, "Select skill to instruct \the [target] in:", "Skill select") as null|anything in options
 	if(!(choice in options) || !(target in view(2)))
 		return
-	var/decl/hierarchy/skill/skill = options[choice]
 
-	if(!do_skilled(6 SECONDS, skill.type, target))
-		return
-	if(incapacitated() || target.incapacitated())
-		to_chat(src, "<span class='notice'>[incapacitated() ? "You are in no state to teach right now!" : "\the [target] is in no state to be taught right now!"]</span>")
-		return
-	if(target.too_many_buffs(/datum/skill_buff/instruct))
-		to_chat(src, "<span class='notice'>\The [target] exhausted from all the training \he recieved.</span>")
-		return
-	if(target.skill_check(skill.type, SKILL_BASIC))
-		to_chat(src, "<span class='notice'>\The [target] is too skilled to gain any benefit from a short lesson.</span>")
-		return
-	if(!skill_check(skill.type, SKILL_EXPERT))
+	var/decl/skill/skill = options[choice]
+	if(!do_skilled(6 SECONDS, skill.type, target) || !can_instruct(target) || !skill_check(skill.type, SKILL_EXPERT))
 		return
 
 	target.buff_skill(list(skill.type = 1), buff_type = /datum/skill_buff/instruct)
-	visible_message("<span class='notice'>\The [src] trained \the [target] in the basics of \the [skill.name].</span>")
+	visible_message(SPAN_NOTICE("\The [src] trains \the [target] in the basics of [skill.name]."))
+	var/datum/skill_verb/instruct/SV = skillset.fetch_verb_datum(/datum/skill_verb/instruct)
 	SV.set_cooldown()
 
-/datum/skill_buff/instruct/
+/datum/skill_buff/instruct
 	limit = 3
 
 /datum/skill_buff/motivate/can_buff(mob/target)
 	if(!..())
-		return
+		return FALSE
 	if(!ishuman(target))
-		return
-	return 1
+		return FALSE
+	return TRUE
 /*
 The Appraise verb. Used on objects to estimate their value.
 */
@@ -138,18 +141,18 @@ The Appraise verb. Used on objects to estimate their value.
 	the_verb = /mob/proc/appraise
 
 /datum/skill_verb/appraise/should_have_verb(datum/skillset/given_skillset)
-	if(!..())
+	if(!(. = ..()))
 		return
 	if(!isliving(given_skillset.owner))
-		return
-	return 1
+		return FALSE
+	return TRUE
 
 /datum/skill_verb/appraise/should_see_verb()
-	if(!..())
+	if(!(. = ..()))
 		return
 	if(!skillset.owner.skill_check(SKILL_FINANCE, SKILL_BASIC))
-		return
-	return 1
+		return FALSE
+	return TRUE
 
 /mob/proc/appraise(obj/item as obj in get_equipped_items(1))
 	set category = "IC"
@@ -174,7 +177,7 @@ The Appraise verb. Used on objects to estimate their value.
 			var/high = low + level
 			if(!low && multiple >= 2)
 				low = 10 ** (multiple - 1) //Adjusts the lowball estimate away from 0 if the item has a high upper estimate.
-			var/decl/currency/cur = decls_repository.get_decl(GLOB.using_map.default_currency)
+			var/decl/currency/cur = GET_DECL(global.using_map.default_currency)
 			message = "You appraise the item to be worth between [low] and [high] [cur.name]."
 	to_chat(src, message)
 
@@ -200,11 +203,11 @@ The Appraise verb. Used on objects to estimate their value.
 	return 1
 
 /datum/skill_verb/noirvision/should_see_verb()
-	if(!..())
+	if(!(. = ..()))
 		return
 	if(!skillset.owner.skill_check(SKILL_FORENSICS, SKILL_PROF))
-		return
-	return 1
+		return FALSE
+	return TRUE
 
 /mob/proc/noirvision()
 	set category = "IC"

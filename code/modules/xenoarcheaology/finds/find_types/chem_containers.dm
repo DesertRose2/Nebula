@@ -6,7 +6,7 @@
 		/obj/item/chems/glass/replenishing,
 		/obj/item/chems/glass/beaker = 2
 		)
-	new_icon_state = "bowl"
+	new_icon = 'icons/obj/items/chem/mixingbowl.dmi'
 
 /decl/archaeological_find/bowl/get_additional_description()
 	if(prob(20))
@@ -14,6 +14,7 @@
 
 /decl/archaeological_find/bowl/urn
 	item_type = "urn"
+	new_icon = 'icons/obj/items/urn.dmi'
 	new_icon_state = "urn"
 
 /decl/archaeological_find/bowl/urn/get_additional_description()
@@ -23,21 +24,25 @@
 //endless reagents!
 
 /obj/item/chems/glass/replenishing
+	material = /decl/material/solid/stone/ceramic
 	var/spawning_id
+
+/obj/item/chems/glass/replenishing/can_lid()
+	return FALSE
 
 /obj/item/chems/glass/replenishing/Initialize()
 	. = ..()
-	spawning_id = pick(
-		/decl/material/liquid/blood,     \
-		/decl/material/liquid/lube,      \
-		/decl/material/liquid/sedatives, \
-		/decl/material/liquid/ethanol,   \
-		/decl/material/liquid/water,   \
-		/decl/material/solid/ice,  \
-		/decl/material/liquid/fuel,      \
-		/decl/material/liquid/cleaner    \
-	)
+	spawning_id = pick(list(
+		/decl/material/liquid/blood,
+		/decl/material/liquid/lube,
+		/decl/material/liquid/sedatives,
+		/decl/material/liquid/alcohol/ethanol,
+		/decl/material/liquid/water,
+		/decl/material/solid/ice,
+		/decl/material/liquid/fuel,
+		/decl/material/liquid/cleaner
+	))
 	START_PROCESSING(SSobj, src)
 
 /obj/item/chems/glass/replenishing/Process()
-	reagents.add_reagent(spawning_id, 0.3)
+	add_to_reagents(spawning_id, 0.3)

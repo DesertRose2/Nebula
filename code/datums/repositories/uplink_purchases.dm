@@ -1,4 +1,4 @@
-var/repository/uplink_purchases/uplink_purchase_repository = new()
+var/global/repository/uplink_purchases/uplink_purchase_repository = new()
 
 /repository/uplink_purchases
 	var/list/purchases_by_mind
@@ -26,10 +26,6 @@ var/repository/uplink_purchases/uplink_purchase_repository = new()
 		for(var/datum/uplink_item/UI in upe.purchased_items)
 			pur_log += "[upe.purchased_items[UI]]x[UI.log_icon()][UI.name]"
 		to_world(english_list(pur_log, nothing_text = ""))
-
-
-/proc/debug_print()
-	uplink_purchase_repository.print_entries()
 
 /uplink_purchase_entry
 	var/total_cost

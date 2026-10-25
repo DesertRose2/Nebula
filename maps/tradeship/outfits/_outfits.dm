@@ -1,20 +1,24 @@
 // OUTFITS
-#define TRADESHIP_OUTFIT_JOB_NAME(job_name) ("Tradeship - Job - " + job_name)
-
-/decl/hierarchy/outfit/job/tradeship
-	hierarchy_type = /decl/hierarchy/outfit/job/tradeship
+/decl/outfit/job/tradeship
+	abstract_type = /decl/outfit/job/tradeship
 	pda_type = /obj/item/modular_computer/pda
-	pda_slot = slot_l_store
+	pda_slot = slot_l_store_str
 	l_ear = null
 	r_ear = null
 
-/decl/hierarchy/outfit/job/tradeship/hand
-	name = TRADESHIP_OUTFIT_JOB_NAME("Deck Hand")
+/decl/outfit/job/tradeship/hand
+	name = "Tradeship - Job - Deck Hand"
 
-/decl/hierarchy/outfit/job/tradeship/hand/pre_equip(mob/living/carbon/human/H)
+/decl/outfit/job/tradeship/hand/pre_equip(mob/living/wearer)
 	..()
-	uniform = pick(list(/obj/item/clothing/under/overalls, /obj/item/clothing/under/hazard, /obj/item/clothing/under/rank/cargotech, /obj/item/clothing/under/color/black, /obj/item/clothing/under/color/grey, /obj/item/clothing/under/casual_pants/track))
+	uniform = pick(list(
+		/obj/item/clothing/pants/mustard/overalls,
+		/obj/item/clothing/jumpsuit/hazard,
+		/obj/item/clothing/jumpsuit/cargotech,
+		/obj/item/clothing/jumpsuit/black,
+		/obj/item/clothing/jumpsuit/grey
+	))
 
-/decl/hierarchy/outfit/job/tradeship/hand/cook
-	name = TRADESHIP_OUTFIT_JOB_NAME("Cook")
+/decl/outfit/job/tradeship/hand/cook
+	name = "Tradeship - Job - Cook"
 	head = /obj/item/clothing/head/chefhat

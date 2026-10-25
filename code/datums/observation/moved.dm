@@ -8,18 +8,24 @@
 //			/atom/old_loc: The loc before the move.
 //			/atom/new_loc: The loc after the move.
 
-GLOBAL_DATUM_INIT(moved_event, /decl/observ/moved, new)
-
 /decl/observ/moved
 	name = "Moved"
 	expected_type = /atom/movable
+	flags = OBSERVATION_NO_GLOBAL_REGISTRATIONS
 
 /decl/observ/moved/register(var/atom/movable/mover, var/datum/listener, var/proc_call)
 	. = ..()
 
 	// Listen to the parent if possible.
 	if(. && istype(mover.loc, expected_type))
-		register(mover.loc, mover, /atom/movable/proc/recursive_move)
+		register(mover.loc, mover, TYPE_PROC_REF(/atom/movable, recursive_move))
+
+/decl/observ/moved/unregister(var/atom/movable/mover, var/datum/listener, var/proc_call)
+	. = ..()
+
+	// Unregister from the parent if possible.
+	if(. && istype(mover.loc, expected_type))
+		unregister(mover.loc, mover, TYPE_PROC_REF(/atom/movable, recursive_move))
 
 /********************
 * Movement Handling *
@@ -27,13 +33,15 @@ GLOBAL_DATUM_INIT(moved_event, /decl/observ/moved, new)
 
 /atom/Entered(var/atom/movable/am, var/atom/old_loc)
 	. = ..()
-	GLOB.moved_event.raise_event(am, old_loc, am.loc)
+	if(am.event_listeners?[/decl/observ/moved])
+		am.raise_event_non_global(/decl/observ/moved, old_loc, am.loc)
 
 /atom/movable/Entered(var/atom/movable/am, atom/old_loc)
 	. = ..()
-	if(GLOB.moved_event.has_listeners(am))
-		GLOB.moved_event.register(src, am, /atom/movable/proc/recursive_move)
+	// We inline and simplify has_listeners here since we know this event can never have global registrations.
+	if(am.event_listeners?[/decl/observ/moved])
+		events_repository.register(/decl/observ/moved, src, am, TYPE_PROC_REF(/atom/movable, recursive_move))
 
 /atom/movable/Exited(var/atom/movable/am, atom/new_loc)
 	. = ..()
-	GLOB.moved_event.unregister(src, am, /atom/movable/proc/recursive_move)
+	events_repository.unregister(/decl/observ/moved, src, am, TYPE_PROC_REF(/atom/movable, recursive_move))

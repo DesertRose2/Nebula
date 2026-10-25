@@ -3,7 +3,9 @@
 //--------------------------------------------
 /obj/machinery/atmospherics/omni/mixer
 	name = "omni gas mixer"
+	desc = "A device that combines two or more gases to produce a mix with a specific ratio."
 	icon_state = "map_mixer"
+	core_icon = "mixer"
 
 	idle_power_usage = 150		//internal circuitry, friction losses and stuff
 	power_rating = 15000			// 15000 W ~ 20 HP
@@ -52,7 +54,7 @@
 						con += max(0, tag_west_con)
 
 	for(var/datum/omni_port/P in ports)
-		P.air.volume = ATMOS_DEFAULT_VOLUME_MIXER
+		P.air.total_volume = ATMOS_DEFAULT_VOLUME_MIXER
 
 /obj/machinery/atmospherics/omni/mixer/Destroy()
 	inputs.Cut()
@@ -78,7 +80,7 @@
 			P.concentration = 1 / max(1, inputs.len)
 
 	if(output)
-		output.air.volume = ATMOS_DEFAULT_VOLUME_MIXER * 0.75 * inputs.len
+		output.air.total_volume = ATMOS_DEFAULT_VOLUME_MIXER * 0.75 * inputs.len
 		output.concentration = 1
 
 	rebuild_mixing_inputs()
@@ -109,15 +111,15 @@
 	//Figure out the amount of moles to transfer
 	var/transfer_moles = 0
 	var/datum/gas_mixture/output_gas = output.air
-	var/delta = between(0, (output_gas ? (max_output_pressure - output_gas.return_pressure()) : 0), max_output_pressure)
+	var/delta = clamp(0, (output_gas ? (max_output_pressure - output_gas.return_pressure()) : 0), max_output_pressure)
 	var/transfer_moles_max = INFINITY
 
 	for (var/datum/omni_port/P in inputs)
 		if(!P.concentration)
 			continue
-		transfer_moles += (set_flow_rate*P.concentration/P.air.volume)*P.air.total_moles
-		transfer_moles_max = min(transfer_moles_max, calculate_transfer_moles(P.air, output.air, delta, (output && output.network && output.network.volume) ? output.network.volume : 0))
-	transfer_moles = between(0, transfer_moles, transfer_moles_max)
+		transfer_moles += (set_flow_rate*P.concentration/P.air.total_volume)*P.air.total_moles
+		transfer_moles_max = min(transfer_moles_max, calculate_transfer_moles(P.air, output.air, delta, (output && output.network && output.network.total_volume) ? output.network.total_volume : 0))
+	transfer_moles = clamp(0, transfer_moles, transfer_moles_max)
 
 	var/power_draw = -1
 	if (transfer_moles > MINIMUM_MOLES_TO_FILTER)
@@ -184,16 +186,19 @@
 
 	return data
 
-/obj/machinery/atmospherics/omni/mixer/Topic(href, href_list)
-	if(..()) return 1
+/obj/machinery/atmospherics/omni/mixer/OnTopic(mob/user, href_list)
+	if((. = ..()))
+		return
 
 	switch(href_list["command"])
 		if("power")
+			. = TOPIC_REFRESH
 			if(!configuring)
 				update_use_power(!use_power)
 			else
 				update_use_power(POWER_USE_OFF)
 		if("configure")
+			. = TOPIC_REFRESH
 			configuring = !configuring
 			if(configuring)
 				update_use_power(POWER_USE_OFF)
@@ -202,18 +207,18 @@
 	if(configuring && !use_power)
 		switch(href_list["command"])
 			if("set_flow_rate")
-				var/new_flow_rate = input(usr,"Enter new flow rate limit (0-[max_flow_rate]L/s)","Flow Rate Control",set_flow_rate) as num
-				set_flow_rate = between(0, new_flow_rate, max_flow_rate)
+				var/new_flow_rate = input(user, "Enter new flow rate limit (0-[max_flow_rate]L/s)", "Flow Rate Control", set_flow_rate) as num
+				set_flow_rate = clamp(0, new_flow_rate, max_flow_rate)
+				. = TOPIC_REFRESH
 			if("switch_mode")
 				switch_mode(dir_flag(href_list["dir"]), href_list["mode"])
+				. = TOPIC_REFRESH
 			if("switch_con")
 				change_concentration(dir_flag(href_list["dir"]))
+				. = TOPIC_REFRESH
 			if("switch_conlock")
 				con_lock(dir_flag(href_list["dir"]))
-
-	update_icon()
-	SSnano.update_uis(src)
-	return
+				. = TOPIC_REFRESH
 
 /obj/machinery/atmospherics/omni/mixer/proc/switch_mode(var/port = NORTH, var/mode = ATM_NONE)
 	if(mode != ATM_INPUT && mode != ATM_OUTPUT)
@@ -280,7 +285,7 @@
 	var/new_con = (input(usr,"Enter a new concentration (0-[round(remain_con * 100, 0.5)])%","Concentration control", min(remain_con, old_con)*100) as num) / 100
 
 	//cap it between 0 and the max remaining concentration
-	new_con = between(0, new_con, remain_con)
+	new_con = clamp(0, new_con, remain_con)
 
 	//new_con = min(remain_con, new_con)
 

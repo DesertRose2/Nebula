@@ -1,7 +1,11 @@
 /datum/map
-	var/const/NO_APC = 1
-	var/const/NO_VENT = 2
-	var/const/NO_SCRUBBER = 4
+	var/const/NO_APC         = BITFLAG(0)
+	var/const/NO_VENT        = BITFLAG(1)
+	var/const/NO_SCRUBBER    = BITFLAG(2)
+	var/const/SKIP_ALL_TESTS = BITFLAG(3)
+
+	/// Defines the expected result of the atmospherics shuttle unit test for atmosphere.
+	var/shuttle_atmos_expectation = UT_NORMAL
 
 	// Unit test vars
 	var/list/apc_test_exempt_areas = list(
@@ -19,42 +23,20 @@
 
 	// These areas are used specifically by code and need to be broken out somehow
 	var/list/area_usage_test_exempted_areas = list(
-		/area/beach,
-		/area/ship,
-		/area/centcom,
-		/area/centcom/holding,
-		/area/centcom/specops,
-		/area/chapel,
-		/area/hallway,
-		/area/maintenance,
-		/area/medical,
-		/area/medical/virology,
-		/area/medical/virologyaccess,
 		/area/overmap,
-		/area/rnd,
-		/area/rnd/xenobiology,
-		/area/rnd/xenobiology/xenoflora,
-		/area/rnd/xenobiology/xenoflora_storage,
-		/area/security,
-		/area/security/prison,
-		/area/security/brig,
-		/area/shuttle,
-		/area/shuttle/escape,
-		/area/shuttle/escape/centcom,
-		/area/shuttle/specops,
-		/area/shuttle/specops/centcom,
-		/area/shuttle/syndicate_elite,
-		/area/shuttle/syndicate_elite/mothership,
-		/area/shuttle/syndicate_elite/station,
-		/area/turbolift,
-		/area/supply,
-		/area/syndicate_elite_squad,
 		/area/template_noop
 	)
 
 	var/list/area_usage_test_exempted_root_areas = list(
 		/area/map_template,
-		/area/exoplanet
+		/area/exoplanet,
 	)
 
 	var/list/area_purity_test_exempt_areas = list()
+
+	/// A list of disposals tags (sort_type var) that aren't expected to have outputs.
+	var/list/disconnected_disposals_tags = list()
+
+	/// A list of lists, of the format ((x, y, z, dir),).
+	var/list/disconnected_wires_test_exempt_turfs = list()
+

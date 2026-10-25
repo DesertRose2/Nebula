@@ -7,11 +7,10 @@
   *
  **/
 
-//This is the ABSOLUTE ONLY THING that should init globally like this
-GLOBAL_REAL(Master, /datum/controller/master) = new
+var/global/datum/controller/master/Master = new
 
 //THIS IS THE INIT ORDER
-//Master -> SSPreInit -> GLOB -> world -> config -> SSInit -> Failsafe
+//Master -> SSPreInit -> world -> config -> SSInit -> Failsafe
 //GOT IT MEMORIZED?
 
 /datum/controller/master
@@ -76,9 +75,6 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 			for(var/I in subsytem_types)
 				_subsystems += new I
 		Master = src
-
-	if(!GLOB)
-		new /datum/controller/global_vars
 
 /datum/controller/master/Destroy()
 	..()
@@ -145,7 +141,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 				msg = "The [BadBoy.name] subsystem seems to be destabilizing the MC and will be offlined."
 				BadBoy.flags |= SS_NO_FIRE
 		if(msg)
-			to_chat(GLOB.admins, "<span class='boldannounce'>[msg]</span>")
+			to_chat(global.admins, "<span class='boldannounce'>[msg]</span>")
 			log_world(msg)
 
 	if (istype(Master.subsystems))
@@ -161,7 +157,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 
 
 // Please don't stuff random bullshit here,
-// 	Make a subsystem, give it the SS_NO_FIRE flag, and do your work in it's Initialize()
+// 	Make a subsystem, give it the SS_NO_FIRE flag, and do your work in its Initialize()
 /datum/controller/master/Initialize(delay, init_sss)
 	set waitfor = 0
 
@@ -180,7 +176,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 
 	var/start_timeofday = REALTIMEOFDAY
 	// Initialize subsystems.
-	current_ticklimit = config.tick_limit_mc_init
+	current_ticklimit = get_config_value(/decl/config/num/tick_limit_mc_init)
 	for (var/datum/controller/subsystem/SS in subsystems)
 		if (SS.flags & SS_NO_INIT)
 			continue
@@ -191,7 +187,6 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 
 	var/msg = "Initializations complete within [time] second\s!"
 	report_progress(msg)
-	log_world(msg)
 
 	initializing = FALSE
 
@@ -206,7 +201,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 #else
 	world.sleep_offline = TRUE
 #endif
-	world.fps = config.fps
+	world.fps = get_config_value(/decl/config/num/fps)
 	var/initialized_tod = REALTIMEOFDAY
 
 	initializations_finished_with_no_players_logged_in = initialized_tod < REALTIMEOFDAY - 10
@@ -224,12 +219,17 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		CRASH("Attempted to set invalid runlevel: [new_runlevel]")
 
 // Starts the mc, and sticks around to restart it if the loop ever ends.
+var/global/_announced_start = FALSE
 /datum/controller/master/proc/StartProcessing(delay)
 	set waitfor = 0
 	if(delay)
 		sleep(delay)
 	report_progress("Master starting processing")
-	SSwebhooks.send(WEBHOOK_ROUNDPREP, list("map" = station_name(), "url" = get_world_url()))
+
+	if(!global._announced_start) // Only announce roundstart once.
+		SSwebhooks.send(WEBHOOK_ROUNDPREP, list("map" = station_name(), "url" = get_world_url()))
+		global._announced_start = TRUE
+
 	var/rtn = Loop()
 	if (rtn > 0 || processing < 0)
 		return //this was suppose to happen.
@@ -243,6 +243,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		Failsafe.defcon = 2
 
 // Main loop.
+#define RUNLEVEL_MAX 16
 /datum/controller/master/proc/Loop()
 	. = -1
 	//Prep the loop (most of this is because we want MC restarts to reset as much state as we can, and because
@@ -262,17 +263,17 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		SS.state = SS_IDLE
 		if (SS.flags & SS_TICKER)
 			tickersubsystems += SS
-			timer += world.tick_lag * rand(1, 5)
+			timer += world.tick_lag * rand(0,1)
 			SS.next_fire = timer
 			continue
 
 		var/ss_runlevels = SS.runlevels
 		var/added_to_any = FALSE
-		for(var/I in 1 to GLOB.bitflags.len)
-			if(ss_runlevels & GLOB.bitflags[I])
-				while(runlevel_sorted_subsystems.len < I)
+		for(var/i in 1 to RUNLEVEL_MAX)
+			if(ss_runlevels & BITFLAG(i-1))
+				while(runlevel_sorted_subsystems.len < i)
 					runlevel_sorted_subsystems += list(list())
-				runlevel_sorted_subsystems[I] += SS
+				runlevel_sorted_subsystems[i] += SS
 				added_to_any = TRUE
 		if(!added_to_any)
 			WARNING("[SS.name] subsystem is not SS_NO_FIRE but also does not have any runlevels set!")
@@ -283,7 +284,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 	//(higher subsystems will be sooner in the queue, adding them later in the loop means we don't have to loop thru them next queue add)
 	sortTim(tickersubsystems, /proc/cmp_subsystem_priority)
 	for(var/I in runlevel_sorted_subsystems)
-		sortTim(runlevel_sorted_subsystems, /proc/cmp_subsystem_priority)
+		sortTim(I, /proc/cmp_subsystem_priority)
 		I += tickersubsystems
 
 	var/cached_runlevel = current_runlevel
@@ -316,7 +317,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 			continue
 
 		//Byond resumed us late. assume it might have to do the same next tick
-		if (last_run + CEILING(world.tick_lag * (processing * sleep_delta), world.tick_lag) < world.time)
+		if (last_run + NONUNIT_CEILING(world.tick_lag * (processing * sleep_delta), world.tick_lag) < world.time)
 			sleep_delta += 1
 
 		sleep_delta = MC_AVERAGE_FAST(sleep_delta, 1) //decay sleep_delta
@@ -337,14 +338,16 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 			var/checking_runlevel = current_runlevel
 			if(cached_runlevel != checking_runlevel)
 				//resechedule subsystems
+				var/list/old_subsystems = current_runlevel_subsystems
 				cached_runlevel = checking_runlevel
 				current_runlevel_subsystems = runlevel_sorted_subsystems[cached_runlevel]
-				var/stagger = world.time
-				for(var/I in current_runlevel_subsystems)
-					var/datum/controller/subsystem/SS = I
-					if(SS.next_fire <= world.time)
-						stagger += world.tick_lag * rand(1, 5)
-						SS.next_fire = stagger
+
+				//now we'll go through all the subsystems we want to offset and give them a next_fire
+				for(var/datum/controller/subsystem/SS as anything in current_runlevel_subsystems)
+					//we only want to offset it if it's new and also behind
+					if(SS.next_fire > world.time || (SS in old_subsystems))
+						continue
+					SS.next_fire = world.time + world.tick_lag * rand(0, DS2TICKS(min(SS.wait, 2 SECONDS)))
 
 			subsystems_to_check = current_runlevel_subsystems
 		else
@@ -384,7 +387,7 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 		if (processing * sleep_delta <= world.tick_lag)
 			current_ticklimit -= (TICK_LIMIT_RUNNING * 0.25) //reserve the tail 1/4 of the next tick for the mc if we plan on running next tick
 		sleep(world.tick_lag * (processing * sleep_delta))
-
+#undef RUNLEVEL_MAX
 
 
 
@@ -590,8 +593,43 @@ GLOBAL_REAL(Master, /datum/controller/master) = new
 	if(!statclick)
 		statclick = new/obj/effect/statclick/debug(null, "Initializing...", src)
 
-	stat("Byond:", "(FPS:[world.fps]) (TickCount:[world.time/world.tick_lag]) (TickDrift:[round(Master.tickdrift,1)]([round((Master.tickdrift/(world.time/world.tick_lag))*100,0.1)]%))")
+	stat("Byond:", "(FPS:[world.fps]) (TickCount:[world.time/world.tick_lag]) (TickDrift:[round(Master.tickdrift,1)]([round((Master.tickdrift/(world.time/world.tick_lag))*100,0.1)]%)) (Internal Tick Usage: [round(MAPTICK_LAST_INTERNAL_TICK_USAGE,0.1)]%)")
 	stat("Master Controller:", statclick.update("(TickRate:[Master.processing]) (Iteration:[Master.iteration])"))
+
+/// Colors cpu number before output.
+/datum/controller/master/proc/format_color_cpu()
+	switch(world.cpu)
+		// 0-80 = green
+		if(0 to 80)
+			. = "<font color='#32a852'>[world.cpu]</font>"
+		// 80-90 = orange
+		if(80 to 90)
+			. = "<font color='#fcba03'>[world.cpu]</font>"
+		// 90-100 = red
+		if(90 to 100)
+			. = "<font color='#eb4034'>[world.cpu]</font>"
+		// >100 = bold red
+		if(100 to INFINITY)
+			. = "<font color='#eb4034'><b>[world.cpu]</b></font>"
+
+/// Colors map cpu number before output.
+/// Same as before, but specially for map cpu.
+/// It uses same colors, but need different number range.
+/datum/controller/master/proc/format_color_cpu_map()
+	var/current_map_cpu = MAPTICK_LAST_INTERNAL_TICK_USAGE
+	switch(current_map_cpu)
+		// 0-30 = green
+		if(0 to 30)
+			. = "<font color='#32a852'>[current_map_cpu]</font>"
+		// 30-60 = orange
+		if(30 to 60)
+			. = "<font color='#fcba03'>[current_map_cpu]</font>"
+		// 60-80 = red
+		if(60 to 80)
+			. = "<font color='#eb4034'>[current_map_cpu]</font>"
+		// >100 = bold red
+		if(80 to INFINITY)
+			. = "<font color='#eb4034'><b>[current_map_cpu]</b></font>"
 
 /datum/controller/master/StartLoadingMap()
 	//disallow more than one map to load at once, multithreading it will just cause race conditions

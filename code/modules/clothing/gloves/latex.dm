@@ -5,8 +5,9 @@
 	permeability_coefficient = 0.01
 	germ_level = 0
 	icon_state = ICON_STATE_WORLD
-	sprite_sheets = null
 	anomaly_shielding = 0.1
+	material = /decl/material/solid/organic/plastic //todo: latex
+	replaced_in_loadout = LOADOUT_CONFLICT_STORAGE
 
 /obj/item/clothing/gloves/latex/nitrile
 	name = "nitrile gloves"

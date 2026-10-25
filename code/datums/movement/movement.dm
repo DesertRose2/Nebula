@@ -1,8 +1,7 @@
-var/const/MOVEMENT_HANDLED = 0x0001 // If no further movement handling should occur after this
-var/const/MOVEMENT_REMOVE  = 0x0002
-
-var/const/MOVEMENT_PROCEED = 0x0004
-var/const/MOVEMENT_STOP    = 0x0008
+var/global/const/MOVEMENT_HANDLED = BITFLAG(0) // If no further movement handling should occur after this
+var/global/const/MOVEMENT_REMOVE  = BITFLAG(1)
+var/global/const/MOVEMENT_PROCEED = BITFLAG(2)
+var/global/const/MOVEMENT_STOP    = BITFLAG(3)
 
 #define INIT_MOVEMENT_HANDLERS \
 if(LAZYLEN(movement_handlers) && ispath(movement_handlers[1])) { \
@@ -27,9 +26,8 @@ if(LAZYLEN(movement_handlers) && ispath(movement_handlers[1])) { \
 	if(ispath(movement_handlers[1]))
 		return (handler_path in movement_handlers)
 	else
-		for(var/mh in movement_handlers)
-			var/datum/MH = mh
-			if(MH.type == handler_path)
+		for(var/datum/movement_handler/movement_handler as anything in movement_handlers)
+			if(movement_handler.type == handler_path)
 				return TRUE
 	return FALSE
 
@@ -79,15 +77,25 @@ if(LAZYLEN(movement_handlers) && ispath(movement_handlers[1])) { \
 #define SET_MOVER(X) X = X || src
 #define SET_IS_EXTERNAL(X) is_external = isnull(is_external) ? (mover != src) : is_external
 
-/atom/movable/proc/DoMove(var/direction, var/mob/mover, var/is_external)
+/atom/movable/proc/DoMove(direction, mob/mover, is_external)
+
+	if(!direction || !isnum(direction))
+		return MOVEMENT_STOP
+
 	INIT_MOVEMENT_HANDLERS
 	SET_MOVER(mover)
 	SET_IS_EXTERNAL(mover)
 
-	for(var/mh in movement_handlers)
-		var/datum/movement_handler/movement_handler = mh
+	if(!length(movement_handlers) && is_external && isturf(loc))
+		var/oldloc = loc
+		var/turf/T = get_step(loc, direction)
+		if(istype(T))
+			step(src, direction)
+		return loc != oldloc
+
+	for(var/datum/movement_handler/movement_handler as anything in movement_handlers)
 		if(movement_handler.MayMove(mover, is_external) & MOVEMENT_STOP)
-			return MOVEMENT_HANDLED
+			return MOVEMENT_STOP
 
 		. = movement_handler.DoMove(direction, mover, is_external)
 		if(. & MOVEMENT_REMOVE)
@@ -97,13 +105,12 @@ if(LAZYLEN(movement_handlers) && ispath(movement_handlers[1])) { \
 
 // is_external means that something else (not inside us) is asking if we may move
 // This for example includes mobs bumping into each other
-/atom/movable/proc/MayMove(var/mob/mover, var/is_external)
+/atom/movable/proc/MayMove(mob/mover, is_external)
 	INIT_MOVEMENT_HANDLERS
 	SET_MOVER(mover)
 	SET_IS_EXTERNAL(mover)
 
-	for(var/mh in movement_handlers)
-		var/datum/movement_handler/movement_handler = mh
+	for(var/datum/movement_handler/movement_handler as anything in movement_handlers)
 		var/may_move = movement_handler.MayMove(mover, is_external)
 		if(may_move & MOVEMENT_STOP)
 			return FALSE
@@ -129,11 +136,11 @@ if(LAZYLEN(movement_handlers) && ispath(movement_handlers[1])) { \
 	host = null
 	. = ..()
 
-/datum/movement_handler/proc/DoMove(var/direction, var/mob/mover, var/is_external)
+/datum/movement_handler/proc/DoMove(direction, mob/mover, is_external)
 	return
 
 // Asks the handlers if the mob may move, ignoring destination, if attempting a DoMove()
-/datum/movement_handler/proc/MayMove(var/mob/mover, var/is_external)
+/datum/movement_handler/proc/MayMove(mob/mover, is_external)
 	return MOVEMENT_PROCEED
 
 /*******

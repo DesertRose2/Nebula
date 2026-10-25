@@ -1,16 +1,5 @@
-var/list/combatlog = list()
-var/list/IClog     = list()
-var/list/OOClog    = list()
-var/list/adminlog  = list()
+var/global/diary = null
 
-var/datum/configuration/config      = null
-var/list/jobMax        = list()
-
-var/diary               = null
-
-GLOBAL_VAR(log_directory)
-GLOBAL_PROTECT(log_directory)
-GLOBAL_VAR(world_qdel_log)
-GLOBAL_PROTECT(world_qdel_log)
-GLOBAL_VAR(world_href_log)
-GLOBAL_PROTECT(world_href_log)
+GLOBAL_PROTECTED_UNTYPED(log_directory, null)
+GLOBAL_PROTECTED_UNTYPED(world_qdel_log, null)
+GLOBAL_PROTECTED_UNTYPED(world_href_log, null)

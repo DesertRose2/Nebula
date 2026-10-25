@@ -28,7 +28,12 @@
 	completion_message = "Ahh, that was just what you needed."
 
 /datum/goal/achievement/specific_object/food/New()
-	possible_objects = subtypesof(/obj/item/chems/food/snacks)
+	possible_objects = subtypesof(/obj/item/food)
+	blacklisted_objects = blacklisted_objects || list()
+	blacklisted_objects |= typesof(/obj/item/food/amanita_pie)
+	blacklisted_objects |= typesof(/obj/item/food/amanitajelly)
+	blacklisted_objects |= typesof(/obj/item/food/can/caviar/true)
+	blacklisted_objects |= typesof(/obj/item/food/old)
 	..()
 
 /datum/goal/achievement/specific_object/food/update_strings()
@@ -40,7 +45,7 @@
 	completion_message = "Ahh, that hit the spot!"
 
 /datum/goal/achievement/specific_object/drink/New()
-	possible_objects = subtypesof(/decl/material/liquid/drink)
+	possible_objects = decls_repository.get_decl_paths_of_subtype(/decl/material/liquid/drink)
 	..()
 
 /datum/goal/achievement/specific_object/drink/update_strings()
@@ -54,10 +59,10 @@
 /datum/goal/achievement/specific_object/pet
 	possible_objects = list(
 		/mob/living/simple_animal/corgi,
-		/mob/living/simple_animal/cat
+		/mob/living/simple_animal/passive/cat
 	)
 
 /datum/goal/achievement/specific_object/pet/update_strings()
 	..()
 	var/mob/animal = object_path
-	description = "Pet \a [initial(animal.name)]."
+	description = "Pet \a [initial(animal.name)]." // probably best not to use the atom info repository for this, lest we get 'Pet a monkey (666).'

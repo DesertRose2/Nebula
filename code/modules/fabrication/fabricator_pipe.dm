@@ -7,18 +7,19 @@
 	base_type = /obj/machinery/fabricator/pipe
 	stat_immune = NOSCREEN//Doesn't need screen, just input for the parts wanted
 	power_channel = EQUIP
-	anchored = 0
+	anchored = FALSE
 	use_power = POWER_USE_OFF
 	color_selectable = TRUE
 
 /obj/machinery/fabricator/pipe/on_update_icon()
+	return // no icons
 
 /obj/machinery/fabricator/pipe/CanUseTopic(mob/user)
 	if(!anchored)
 		return STATUS_CLOSE
 	return ..()
-	
-/obj/machinery/fabricator/pipe/wrench_floor_bolts()
+
+/obj/machinery/fabricator/pipe/wrench_floor_bolts(mob/user, delay = 2 SECONDS, obj/item/tool)
 	..()
 	update_use_power(anchored ? POWER_USE_IDLE : POWER_USE_OFF)
 
@@ -32,10 +33,15 @@
 	// Pipe objects do not contain matter, and will not provide a refund on materials used to make them, but can be recycled to prevent clutter.
 	if(istype(thing, /obj/item/pipe) && (. == SUBSTANCE_TAKEN_NONE))
 		return SUBSTANCE_TAKEN_ALL
-	
-/obj/machinery/fabricator/pipe/do_build(var/datum/fabricator_recipe/recipe, var/amount)
-	. = recipe.build(get_turf(src), amount, pipe_colors[selected_color])
-	use_power_oneoff(500 * amount)
+
+/obj/machinery/fabricator/pipe/make_order(datum/fabricator_recipe/recipe, multiplier)
+	var/datum/fabricator_build_order/order = ..()
+	order.set_data("selected_color", selected_color)
+	return order
+
+/obj/machinery/fabricator/pipe/do_build(datum/fabricator_build_order/order)
+	. = order.target_recipe.build(get_turf(src), order)
+	use_power_oneoff(500 * order.multiplier)
 
 /obj/machinery/fabricator/pipe/disposal
 	name = "disposal pipe dispenser"
@@ -45,14 +51,8 @@
 	base_type = /obj/machinery/fabricator/pipe/disposal
 
 //Allow you to drag-drop disposal pipes into it
-/obj/machinery/fabricator/pipe/disposal/MouseDrop_T(var/obj/structure/disposalconstruct/pipe, mob/user)
-	if(!CanPhysicallyInteract(user))
-		return
-
-	if (!istype(pipe) || get_dist(src,pipe) > 1 )
-		return
-
-	if (pipe.anchored)
-		return
-
-	qdel(pipe)
+/obj/machinery/fabricator/pipe/disposal/receive_mouse_drop(atom/dropping, mob/user, params)
+	. = ..()
+	if(!. && istype(dropping, /obj/structure/disposalconstruct))
+		qdel(dropping)
+		return TRUE

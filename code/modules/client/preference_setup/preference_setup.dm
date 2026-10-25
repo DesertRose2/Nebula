@@ -1,17 +1,22 @@
-#define TOPIC_UPDATE_PREVIEW 4
-#define TOPIC_REFRESH_UPDATE_PREVIEW (TOPIC_REFRESH|TOPIC_UPDATE_PREVIEW)
+var/global/const/CHARACTER_PREFERENCE_INPUT_TITLE = "Character Preference"
 
-var/const/CHARACTER_PREFERENCE_INPUT_TITLE = "Character Preference"
-
-/datum/category_group/player_setup_category/physical_preferences
-	name = "Physical"
-	sort_order = 1
-	category_item_type = /datum/category_item/player_setup_item/physical
+/datum/category_group/player_setup_category
+	abstract_type = /datum/category_group/player_setup_category
 
 /datum/category_group/player_setup_category/background_preferences
 	name = "Background"
-	sort_order = 2
+	sort_order = 1 // must go first because species
 	category_item_type = /datum/category_item/player_setup_item/background
+
+/datum/category_group/player_setup_category/physical_preferences
+	name = "Physical"
+	sort_order = 2
+	category_item_type = /datum/category_item/player_setup_item/physical
+
+/datum/category_group/player_setup_category/trait_preferences
+	name = "Traits"
+	sort_order = 3
+	category_item_type = /datum/category_item/player_setup_item/traits
 
 /datum/category_group/player_setup_category/background_preferences/content(var/mob/user)
 	. = ""
@@ -20,33 +25,33 @@ var/const/CHARACTER_PREFERENCE_INPUT_TITLE = "Character Preference"
 
 /datum/category_group/player_setup_category/occupation_preferences
 	name = "Occupation"
-	sort_order = 3
+	sort_order = 4
 	category_item_type = /datum/category_item/player_setup_item/occupation
+
+/datum/category_group/player_setup_category/record_preferences
+	name = "Records"
+	sort_order = 5
+	category_item_type = /datum/category_item/player_setup_item/records
 
 /datum/category_group/player_setup_category/appearance_preferences
 	name = "Roles"
-	sort_order = 4
+	sort_order = 6
 	category_item_type = /datum/category_item/player_setup_item/antagonism
 
-/datum/category_group/player_setup_category/relations_preferences
-	name = "Matchmaking"
-	sort_order = 5
-	category_item_type = /datum/category_item/player_setup_item/relations
-
 /datum/category_group/player_setup_category/loadout_preferences
-	name = "Loadout"
-	sort_order = 6
+	name = "Equipment"
+	sort_order = 7
 	category_item_type = /datum/category_item/player_setup_item/loadout
+
+/datum/category_group/player_setup_category/controls
+	name = "Controls"
+	sort_order = 8
+	category_item_type = /datum/category_item/player_setup_item/controls
 
 /datum/category_group/player_setup_category/global_preferences
 	name = "Global"
-	sort_order = 7
+	sort_order = 9
 	category_item_type = /datum/category_item/player_setup_item/player_global
-
-/datum/category_group/player_setup_category/law_pref
-	name = "Laws"
-	sort_order = 8
-	category_item_type = /datum/category_item/player_setup_item/law_pref
 
 
 /****************************
@@ -71,25 +76,36 @@ var/const/CHARACTER_PREFERENCE_INPUT_TITLE = "Character Preference"
 	for(var/datum/category_group/player_setup_category/PS in categories)
 		PS.sanitize_setup()
 
-/datum/category_collection/player_setup_collection/proc/load_character(var/savefile/S)
+/datum/category_collection/player_setup_collection/proc/load_character(datum/pref_record_reader/R)
 	for(var/datum/category_group/player_setup_category/PS in categories)
-		PS.load_character(S)
+		PS.preload_character(R)
+	for(var/datum/category_group/player_setup_category/PS in categories)
+		PS.load_character(R)
 
-/datum/category_collection/player_setup_collection/proc/save_character(var/savefile/S)
+/datum/category_collection/player_setup_collection/proc/save_character(datum/pref_record_writer/writer)
 	for(var/datum/category_group/player_setup_category/PS in categories)
-		PS.save_character(S)
+		PS.save_character(writer)
 
-/datum/category_collection/player_setup_collection/proc/load_preferences(var/savefile/S)
+/datum/category_collection/player_setup_collection/proc/load_preferences(datum/pref_record_reader/R)
 	for(var/datum/category_group/player_setup_category/PS in categories)
-		PS.load_preferences(S)
+		PS.load_preferences(R)
 
-/datum/category_collection/player_setup_collection/proc/save_preferences(var/savefile/S)
+/datum/category_collection/player_setup_collection/proc/save_preferences(datum/pref_record_writer/writer)
 	for(var/datum/category_group/player_setup_category/PS in categories)
-		PS.save_preferences(S)
+		PS.save_preferences(writer)
 
-/datum/category_collection/player_setup_collection/proc/update_setup(var/savefile/preferences, var/savefile/character)
+/datum/category_collection/player_setup_collection/proc/apply_snapshot_to_mob(mob/living/human/character, is_preview_copy = FALSE)
+	// Assumes a character has already been loaded.
 	for(var/datum/category_group/player_setup_category/PS in categories)
-		. = PS.update_setup(preferences, character) || .
+		PS.apply_snapshot_to_mob(character, is_preview_copy)
+
+/datum/category_collection/player_setup_collection/proc/apply_post_snapshot_preferences(mob/living/human/character, is_preview_copy = FALSE)
+	for(var/datum/category_group/player_setup_category/PS in categories)
+		PS.apply_post_snapshot_preferences(character, is_preview_copy)
+
+/datum/category_collection/player_setup_collection/proc/populate_mob_snapshot(datum/mob_snapshot/snapshot, is_preview_copy = FALSE)
+	for(var/datum/category_group/player_setup_category/PG in categories)
+		PG.populate_mob_snapshot(snapshot, is_preview_copy)
 
 /datum/category_collection/player_setup_collection/proc/header()
 	var/dat = ""
@@ -97,7 +113,7 @@ var/const/CHARACTER_PREFERENCE_INPUT_TITLE = "Character Preference"
 		if(PS == selected_category)
 			dat += "[PS.name] "	// TODO: Check how to properly mark a href/button selected in a classic browser window
 		else
-			dat += "<a href='?src=\ref[src];category=\ref[PS]'>[PS.name]</a> "
+			dat += "<a href='byond://?src=\ref[src];category=\ref[PS]'>[PS.name]</a> "
 	return dat
 
 /datum/category_collection/player_setup_collection/proc/content(var/mob/user)
@@ -118,47 +134,62 @@ var/const/CHARACTER_PREFERENCE_INPUT_TITLE = "Character Preference"
 		. = 1
 
 	if(.)
-		user.client.prefs.ShowChoices(user)
+		user.client.prefs.update_setup_window(user)
 
 /**************************
 * Category Category Setup *
 **************************/
-/datum/category_group/player_setup_category
-	var/sort_order = 0
-
-/datum/category_group/player_setup_category/dd_SortValue()
-	return sort_order
-
 /datum/category_group/player_setup_category/proc/sanitize_setup()
 	for(var/datum/category_item/player_setup_item/PI in items)
 		PI.sanitize_preferences()
 	for(var/datum/category_item/player_setup_item/PI in items)
 		PI.sanitize_character()
-
-/datum/category_group/player_setup_category/proc/load_character(var/savefile/S)
 	for(var/datum/category_item/player_setup_item/PI in items)
-		PI.load_character(S)
+		PI.finalize_character()
 
-/datum/category_group/player_setup_category/proc/save_character(var/savefile/S)
+/datum/category_group/player_setup_category/proc/preload_character(datum/pref_record_reader/R)
+	for(var/datum/category_item/player_setup_item/PI in items)
+		PI.preload_character(R)
+
+/datum/category_group/player_setup_category/proc/load_character(datum/pref_record_reader/R)
+	for(var/datum/category_item/player_setup_item/PI in items)
+		PI.load_character(R)
+	for(var/datum/category_item/player_setup_item/PI in items)
+		PI.sanitize_character()
+	for(var/datum/category_item/player_setup_item/PI in items)
+		PI.finalize_character()
+
+/datum/category_group/player_setup_category/proc/save_character(datum/pref_record_writer/writer)
 	// Sanitize all data, then save it
 	for(var/datum/category_item/player_setup_item/PI in items)
 		PI.sanitize_character()
 	for(var/datum/category_item/player_setup_item/PI in items)
-		PI.save_character(S)
-
-/datum/category_group/player_setup_category/proc/load_preferences(var/savefile/S)
+		PI.finalize_character()
 	for(var/datum/category_item/player_setup_item/PI in items)
-		PI.load_preferences(S)
+		PI.save_character(writer)
 
-/datum/category_group/player_setup_category/proc/save_preferences(var/savefile/S)
+/datum/category_group/player_setup_category/proc/load_preferences(datum/pref_record_reader/R)
+	for(var/datum/category_item/player_setup_item/PI in items)
+		PI.load_preferences(R)
+
+/datum/category_group/player_setup_category/proc/save_preferences(datum/pref_record_writer/writer)
 	for(var/datum/category_item/player_setup_item/PI in items)
 		PI.sanitize_preferences()
 	for(var/datum/category_item/player_setup_item/PI in items)
-		PI.save_preferences(S)
+		PI.save_preferences(writer)
 
-/datum/category_group/player_setup_category/proc/update_setup(var/savefile/preferences, var/savefile/character)
+/datum/category_group/player_setup_category/proc/apply_snapshot_to_mob(mob/living/human/character, is_preview_copy = FALSE)
+	// Assumes a character has already been loaded.
 	for(var/datum/category_item/player_setup_item/PI in items)
-		. = PI.update_setup(preferences, character) || .
+		PI.apply_snapshot_to_mob(character, is_preview_copy)
+
+/datum/category_group/player_setup_category/proc/apply_post_snapshot_preferences(mob/living/human/character, is_preview_copy = FALSE)
+	for(var/datum/category_item/player_setup_item/PI in items)
+		PI.apply_post_snapshot_preferences(character, is_preview_copy)
+
+/datum/category_group/player_setup_category/proc/populate_mob_snapshot(datum/mob_snapshot/snapshot, is_preview_copy = FALSE)
+	for(var/datum/category_item/player_setup_item/PI in items)
+		PI.populate_mob_snapshot(snapshot, is_preview_copy)
 
 /datum/category_group/player_setup_category/proc/content(var/mob/user)
 	. = "<table style='width:100%'><tr style='vertical-align:top'><td style='width:50%'>"
@@ -179,6 +210,7 @@ var/const/CHARACTER_PREFERENCE_INPUT_TITLE = "Character Preference"
 * Category Item Setup *
 **********************/
 /datum/category_item/player_setup_item
+	abstract_type = /datum/category_item/player_setup_item
 	var/sort_order = 0
 	var/datum/preferences/pref
 
@@ -195,39 +227,64 @@ var/const/CHARACTER_PREFERENCE_INPUT_TITLE = "Character Preference"
 	return sort_order
 
 /*
+* Called when the item is asked to load per character settings, prior to load_character()
+*/
+/datum/category_item/player_setup_item/proc/preload_character(datum/pref_record_reader/R)
+	return
+
+/*
 * Called when the item is asked to load per character settings
 */
-/datum/category_item/player_setup_item/proc/load_character(var/savefile/S)
+/datum/category_item/player_setup_item/proc/load_character(datum/pref_record_reader/R)
 	return
 
 /*
 * Called when the item is asked to save per character settings
 */
-/datum/category_item/player_setup_item/proc/save_character(var/savefile/S)
+/datum/category_item/player_setup_item/proc/save_character(datum/pref_record_writer/writer)
 	return
 
 /*
 * Called when the item is asked to load user/global settings
 */
-/datum/category_item/player_setup_item/proc/load_preferences(var/savefile/S)
+/datum/category_item/player_setup_item/proc/load_preferences(datum/pref_record_reader/R)
 	return
 
 /*
 * Called when the item is asked to save user/global settings
 */
-/datum/category_item/player_setup_item/proc/save_preferences(var/savefile/S)
+/datum/category_item/player_setup_item/proc/save_preferences(datum/pref_record_writer/writer)
 	return
 
 /*
-* Called when the item is asked to update user/global settings
+* Called when actually populating a character based on character creation preferences
 */
-/datum/category_item/player_setup_item/proc/update_setup(var/savefile/preferences, var/savefile/character)
-	return 0
+/datum/category_item/player_setup_item/proc/apply_snapshot_to_mob(mob/living/human/character, is_preview_copy = FALSE)
+	return // Note that the prefs-level call will apply anything already done in populate_mob_snapshot
+
+/datum/category_item/player_setup_item/proc/apply_post_snapshot_preferences(mob/living/human/character, is_preview_copy = FALSE)
+	return
+
+/* need overrides for:
+- name (done)
+- eye colour (done)
+- blood type (done)
+- skin colour/tone (done)
+- species (done)
+- bodytype (done)
+- sprite accessories (done)
+- maybe genetic conditions from traits?
+*/
+/datum/category_item/player_setup_item/proc/populate_mob_snapshot(datum/mob_snapshot/snapshot, is_preview_copy = FALSE)
+	return
 
 /datum/category_item/player_setup_item/proc/content()
 	return
 
 /datum/category_item/player_setup_item/proc/sanitize_character()
+	return
+
+/datum/category_item/player_setup_item/proc/finalize_character()
 	return
 
 /datum/category_item/player_setup_item/proc/sanitize_preferences()
@@ -249,11 +306,22 @@ var/const/CHARACTER_PREFERENCE_INPUT_TITLE = "Character Preference"
 	pref_mob = preference_mob()
 	if(!pref_mob || !pref_mob.client)
 		return 1
-
 	if(. & TOPIC_UPDATE_PREVIEW)
-		pref_mob.client.prefs.preview_icon = null
+		pref_mob.client.prefs.update_preview_icon()
+
+	// And again: above operation is slow/may sleep, clients disappear whenever.
+	pref_mob = preference_mob()
+	if(!pref_mob || !pref_mob.client)
+		return 1
+	if(. & TOPIC_HARD_REFRESH)
+		pref_mob.client.prefs.open_setup_window(usr)
+
+	// And again again: above operation is slow/may sleep, clients disappear whenever.
+	pref_mob = preference_mob()
+	if(!pref_mob || !pref_mob.client)
+		return 1
 	if(. & TOPIC_REFRESH)
-		pref_mob.client.prefs.ShowChoices(usr)
+		pref_mob.client.prefs.update_setup_window(usr)
 
 /datum/category_item/player_setup_item/CanUseTopic(var/mob/user)
 	return 1
@@ -270,6 +338,3 @@ var/const/CHARACTER_PREFERENCE_INPUT_TITLE = "Character Preference"
 
 	if(pref.client)
 		return pref.client.mob
-
-/datum/category_item/player_setup_item/proc/preference_species()
-	return get_species_by_key(pref.species || GLOB.using_map.default_species)

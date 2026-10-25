@@ -7,8 +7,9 @@
 	name = "window grille spawner"
 	icon = 'icons/obj/structures/grille.dmi'
 	icon_state = "wingrille"
-	density = 1
-	anchored = 1.0
+	density = TRUE
+	anchored = TRUE
+	atmos_canpass = CANPASS_NEVER
 	var/win_path = /obj/structure/window/basic
 	var/activated = FALSE
 	var/fulltile = FALSE
@@ -18,7 +19,9 @@
 	return 0
 
 /obj/effect/wingrille_spawn/attack_hand()
+	SHOULD_CALL_PARENT(FALSE)
 	activate()
+	return TRUE
 
 /obj/effect/wingrille_spawn/attack_ghost()
 	activate()
@@ -37,38 +40,39 @@
 	if(locate(/obj/structure/window) in loc)
 		warning("Window Spawner: A window structure already exists at [loc.x]-[loc.y]-[loc.z]")
 
-	if(locate(/obj/structure/grille) in loc)
-		warning("Window Spawner: A grille already exists at [loc.x]-[loc.y]-[loc.z]")
-	else
-		var/obj/structure/grille/G = new /obj/structure/grille(loc)
-		handle_grille_spawn(G)
-
 	var/list/neighbours = list()
 	if(fulltile)
 		var/obj/structure/window/new_win = new win_path(loc)
 		handle_window_spawn(new_win)
 	else
-		for (var/dir in GLOB.cardinal)
+		for (var/dir in global.cardinal)
 			var/turf/T = get_step(src, dir)
 			var/obj/effect/wingrille_spawn/other = locate(type) in T
 			if(!other)
 				var/found_connection
 				if(locate(/obj/structure/grille) in T)
-					for(var/obj/structure/window/W in T)
-						if(W.type == win_path && W.dir == get_dir(T,src))
+					for(var/obj/structure/window/window in T)
+						if(window.type == win_path && window.dir == get_dir(T,src))
 							found_connection = 1
-							qdel(W)
+							qdel(window)
 				if(!found_connection)
 					var/obj/structure/window/new_win = new win_path(loc)
 					new_win.set_dir(dir)
 					handle_window_spawn(new_win)
 			else
 				neighbours |= other
+
+	if(locate(/obj/structure/grille) in loc)
+		warning("Window Spawner: A grille already exists at [loc.x]-[loc.y]-[loc.z]")
+	else
+		var/obj/structure/grille/G = new /obj/structure/grille(loc)
+		handle_grille_spawn(G)
+
 	activated = 1
 	for(var/obj/effect/wingrille_spawn/other in neighbours)
 		if(!other.activated) other.activate()
 
-/obj/effect/wingrille_spawn/proc/handle_window_spawn(var/obj/structure/window/W)
+/obj/effect/wingrille_spawn/proc/handle_window_spawn(var/obj/structure/window/window)
 	return
 
 // Currently unused, could be useful for pre-wired electrified windows.

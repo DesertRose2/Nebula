@@ -2,109 +2,124 @@
 	name = "opossum"
 	real_name = "opossum"
 	desc = "It's an opossum, a small scavenging marsupial."
-	icon_state = "possum"
-	item_state = "possum"
-	icon_living = "possum"
-	icon_dead = "possum_dead"
 	icon = 'icons/mob/simple_animal/possum.dmi'
-	speak = list("Hiss!","Aaa!","Aaa?")
-	speak_emote = list("hisses")
-	emote_hear = list("hisses")
-	emote_see = list("forages for trash", "lounges")
+	speak_emote  = list("hisses")
 	pass_flags = PASS_FLAG_TABLE
-	speak_chance = 1
-	turns_per_move = 3
 	see_in_dark = 6
-	maxHealth = 50
-	health = 50
-	response_help = "pets"
-	response_disarm = "gently pushes aside"
+	max_health = 50
 	response_harm = "stamps on"
-	density = 0
+	density = FALSE
 	minbodytemp = 223
 	maxbodytemp = 323
 	universal_speak = FALSE
 	universal_understand = TRUE
 	mob_size = MOB_SIZE_SMALL
-	possession_candidate = 1
-	can_escape = TRUE
+	possession_candidate = TRUE
 	can_pull_size = ITEM_SIZE_SMALL
 	can_pull_mobs = MOB_PULL_SMALLER
-	var/is_angry = FALSE 
+	holder_type = /obj/item/holder
+	ai = /datum/mob_controller/opossum
+	butchery_data = /decl/butchery_data/animal/opossum
+	var/is_angry = FALSE
+	var/playing_dead_time
+	var/const/PLAY_DEAD_LENGTH = 20 SECONDS
 
-/mob/living/simple_animal/opossum/Life()
-	. = ..()
-	if(. && !ckey && stat != DEAD && prob(1))
-		resting = (stat == UNCONSCIOUS)
-		if(!resting)
-			wander = initial(wander)
-			speak_chance = initial(speak_chance)
-			set_stat(CONSCIOUS)
-			if(prob(10))
-				is_angry = TRUE
-		else
-			wander = FALSE
-			speak_chance = 0
-			set_stat(UNCONSCIOUS)
-			is_angry = FALSE
-		update_icon()
+/datum/mob_controller/opossum
+	emote_speech = list("Hiss!","Aaa!","Aaa?")
+	emote_hear   = list("hisses")
+	emote_see    = list("forages for trash", "lounges")
+	speak_chance = 0.25
+	turns_per_wander = 6
+	expected_type = /mob/living/simple_animal/opossum
+	can_escape_buckles = TRUE
 
-/mob/living/simple_animal/opossum/adjustBruteLoss(damage)
+/datum/mob_controller/opossum/proc/is_playing_dead()
+	var/mob/living/simple_animal/opossum/poss = body
+	return !isnull(poss.playing_dead_time) && (poss.playing_dead_time > world.time)
+
+/datum/mob_controller/opossum/try_wander()
+	if(is_playing_dead())
+		return // playing dead!
+	return ..()
+
+/datum/mob_controller/opossum/do_process(time_elapsed)
+
+	if(!(. = ..()) || body.stat == DEAD || !prob(0.5))
+		return
+
+	var/mob/living/simple_animal/opossum/poss = body
+	if(poss.stat == CONSCIOUS)
+		stop_wander = TRUE
+		speak_chance = 0
+		poss.set_posture(/decl/posture/lying)
+		poss.set_stat(UNCONSCIOUS)
+		poss.is_angry = FALSE
+	else if(poss.stat == UNCONSCIOUS)
+		stop_wander = FALSE
+		speak_chance = initial(speak_chance)
+		poss.set_posture(/decl/posture/standing)
+		poss.set_stat(CONSCIOUS)
+		if(prob(10))
+			poss.is_angry = TRUE // woke up on the wrong side of the bed
+
+/mob/living/simple_animal/opossum/adjustBruteLoss(damage, do_update_health = FALSE)
 	. = ..()
 	if(damage >= 3)
 		respond_to_damage()
 
-/mob/living/simple_animal/opossum/adjustFireLoss(damage)
+/mob/living/simple_animal/opossum/adjustFireLoss(damage, do_update_health = TRUE)
 	. = ..()
 	if(damage >= 3)
 		respond_to_damage()
 
-/mob/living/simple_animal/opossum/lay_down()
+/mob/living/simple_animal/opossum/lay_down(block_posture as null)
 	. = ..()
 	update_icon()
 
 /mob/living/simple_animal/opossum/proc/respond_to_damage()
-	if(!resting && stat == CONSCIOUS)
+	if(!current_posture.prone && stat == CONSCIOUS)
 		if(!is_angry)
 			is_angry = TRUE
 			custom_emote(src, "hisses!")
 		else
-			resting = TRUE
+			set_posture(/decl/posture/lying/deliberate)
 			custom_emote(src, "dies!")
+			playing_dead_time = world.time + PLAY_DEAD_LENGTH
 		update_icon()
 
 /mob/living/simple_animal/opossum/on_update_icon()
-	
-	if(stat == DEAD || (resting && is_angry))
-		icon_state = icon_dead
-	else if(resting || stat == UNCONSCIOUS)
-		icon_state = "[icon_living]_sleep"
-	else if(is_angry)
-		icon_state = "[icon_living]_aaa"
-	else
-		icon_state = icon_living
+	..()
+	if(stat == CONSCIOUS && is_angry)
+		if(current_posture.prone)
+			icon_state = "world-dead"
+		else
+			icon_state = "world-aaa"
 
 /mob/living/simple_animal/opossum/Initialize()
 	. = ..()
-	verbs += /mob/living/proc/ventcrawl
 	verbs += /mob/living/proc/hide
 
 /mob/living/simple_animal/opossum/poppy
 	name = "Poppy the Safety Possum"
 	desc = "It's an opossum, a small scavenging marsupial. It's wearing appropriate personal protective equipment, though."
 	icon = 'icons/mob/simple_animal/poppy_possum.dmi'
+	max_buckled_mobs = 1
 	var/aaa_words = list("delaminat", "meteor", "fire", "breach")
 
-/mob/living/simple_animal/opossum/poppy/hear_broadcast(decl/language/language, mob/speaker, speaker_name, message)
-	. = ..()
-	addtimer(CALLBACK(src, .proc/check_keywords, message), rand(1 SECOND, 3 SECONDS))
+/mob/living/simple_animal/opossum/poppy/is_tagging_suitable()
+	return FALSE
 
-/mob/living/simple_animal/opossum/poppy/hear_say(var/message, var/verb = "says", var/decl/language/language = null, var/alt_name = "",var/italics = 0, var/mob/speaker = null, var/sound/speech_sound, var/sound_vol)
+// Poppy is omnilingual apparently.
+/mob/living/simple_animal/opossum/poppy/hear_broadcast(mob/speaker, speaker_name, datum/speech/phrases)
 	. = ..()
-	addtimer(CALLBACK(src, .proc/check_keywords, message), rand(1 SECOND, 3 SECONDS))
+	addtimer(CALLBACK(src, PROC_REF(check_keywords), phrases.unformatted_message), rand(1 SECOND, 3 SECONDS))
+
+/mob/living/simple_animal/opossum/poppy/hear_say(datum/speech/phrases, verb = "says", italics = 0, mob/speaker = null, sound/speech_sound, sound_vol, stars = FALSE, atom/relayed_by)
+	. = ..()
+	addtimer(CALLBACK(src, PROC_REF(check_keywords), phrases.unformatted_message), rand(1 SECOND, 3 SECONDS))
 
 /mob/living/simple_animal/opossum/poppy/proc/check_keywords(var/message)
-	if(!client && stat == CONSCIOUS)
+	if(!client && istype(ai) && stat == CONSCIOUS)
 		message = lowertext(message)
 		for(var/aaa in aaa_words)
 			if(findtext(message, aaa))

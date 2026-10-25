@@ -5,57 +5,63 @@
 #define BG_EMPTY 4
 
 /obj/machinery/biogenerator
-	name = "Biogenerator"
+	name = "biogenerator"
 	desc = ""
 	icon = 'icons/obj/biogenerator.dmi'
 	icon_state = "biogen-stand"
-	density = 1
-	anchored = 1
+	density = TRUE
+	anchored = TRUE
 	idle_power_usage = 40
 	base_type = /obj/machinery/biogenerator
 	construct_state = /decl/machine_construction/default/panel_closed
 	uncreated_component_parts = null
 	stat_immune = 0
+	chem_volume = 1000
+
 	var/processing = 0
 	var/obj/item/chems/glass/beaker = null
 	var/points = 0
 	var/state = BG_READY
-	var/denied = 0
 	var/build_eff = 1
 	var/eat_eff = 1
 	var/ingredients = 0 //How many processable ingredients are stored inside.
 	var/capacity = 10   //How many ingredients can we store?
 	var/list/products = list(
 		"Food" = list(
-			/obj/item/chems/food/drinks/milk/smallcarton = 30,
-			/obj/item/chems/food/drinks/milk = 50,
-			/obj/item/chems/food/snacks/meat/syntiflesh = 50,
-			/obj/item/storage/fancy/egg_box = 300),
+			/obj/item/chems/drinks/milk/smallcarton = 30,
+			/obj/item/chems/drinks/milk = 50,
+			/obj/item/food/butchery/meat/syntiflesh = 50,
+			/obj/item/box/fancy/egg_box = 300),
 		"Nutrients" = list(
 			/obj/item/chems/glass/bottle/eznutrient = 60,
 			/obj/item/chems/glass/bottle/left4zed = 120,
 			/obj/item/chems/glass/bottle/robustharvest = 120),
 		"Leather" = list(
-			/obj/item/storage/wallet/leather = 100,
+			/obj/item/wallet/leather = 100,
 			/obj/item/clothing/gloves/thick/botany = 250,
-			/obj/item/storage/belt/utility = 300,
-			/obj/item/storage/backpack/satchel = 400,
-			/obj/item/storage/bag/cash = 400,
+			/obj/item/belt/utility = 300,
+			/obj/item/backpack/satchel = 400,
+			/obj/item/bag/cash = 400,
 			/obj/item/clothing/shoes/workboots = 400,
 			/obj/item/clothing/shoes/craftable = 400,
 			/obj/item/clothing/shoes/dress = 400,
 			/obj/item/clothing/suit/leathercoat = 500,
-			/obj/item/clothing/suit/storage/toggle/brown_jacket = 500,
-			/obj/item/clothing/suit/storage/toggle/bomber = 500,
-			/obj/item/clothing/suit/storage/hooded/wintercoat = 500))
+			/obj/item/clothing/suit/jacket/brown = 500,
+			/obj/item/clothing/suit/jacket/bomber = 500,
+			/obj/item/clothing/suit/jacket/winter = 500,
+			/obj/item/stack/material/bolt/mapped/cloth/ten = 300,
+			/obj/item/stack/material/bolt/mapped/cloth = 30,
+			/obj/item/stack/material/skin/mapped/leather/ten = 300,
+			/obj/item/stack/material/skin/mapped/leather = 30,
+			/obj/item/stack/material/skin/mapped/synthleather =30))
 
 /obj/machinery/biogenerator/Initialize()
-	create_reagents(1000)
 	beaker = new /obj/item/chems/glass/bottle(src)
 	. = ..()
 
 /obj/machinery/biogenerator/on_reagent_change()			//When the reagents change, change the icon as well.
-	update_icon()
+	if((. = ..()))
+		update_icon()
 
 /obj/machinery/biogenerator/on_update_icon()
 	if(state == BG_NO_BEAKER)
@@ -74,46 +80,56 @@
 		return SPAN_NOTICE("You must turn \the [src] off first.")
 	return ..()
 
-/obj/machinery/biogenerator/attackby(var/obj/item/O, var/mob/user)
-	if((. = component_attackby(O, user)))
-		return
+/obj/machinery/biogenerator/attackby(var/obj/item/used_item, var/mob/user)
+
+	if(panel_open || IS_SCREWDRIVER(used_item))
+		return ..()
+
 	if(processing)
-		to_chat(user, "<span class='notice'>\The [src] is currently processing.</span>")
-	if(istype(O, /obj/item/chems/glass))
+		if((. = component_attackby(used_item, user)))
+			return
+		to_chat(user, SPAN_WARNING("\The [src] is currently processing."))
+		return TRUE
+
+	if(istype(used_item, /obj/item/chems/glass))
 		if(beaker)
-			to_chat(user, "<span class='notice'>]The [src] is already loaded.</span>")
-			return TRUE
-		else if(user.unEquip(O, src))
-			beaker = O
+			to_chat(user, SPAN_NOTICE("\The [src] is already loaded."))
+		else if(user.try_unequip(used_item, src))
+			beaker = used_item
 			state = BG_READY
 			updateUsrDialog()
-			return TRUE
+		return TRUE
 
 	if(ingredients >= capacity)
-		to_chat(user, "<span class='notice'>\The [src] is already full! Activate it.</span>")
-	else if(istype(O, /obj/item/storage/plants))
-		var/obj/item/storage/plants/P = O
-		var/hadPlants = 0
-		for(var/obj/item/chems/food/snacks/grown/G in P.contents)
-			hadPlants = 1
-			P.remove_from_storage(G, src, 1) //No UI updates until we are all done.
+		to_chat(user, SPAN_NOTICE("\The [src] is already full! Activate it."))
+		return TRUE
+
+	if(used_item.storage)
+		var/added_plants = FALSE
+		for(var/obj/item/food/grown/G in used_item.storage.get_contents())
+			added_plants = TRUE
+			used_item.storage.remove_from_storage(user, G, src, TRUE)
 			ingredients++
 			if(ingredients >= capacity)
-				to_chat(user, "<span class='notice'>You fill \the [src] to its capacity.</span>")
+				to_chat(user, SPAN_NOTICE("You fill \the [src] to its capacity."))
 				break
-		P.finish_bulk_removal() //Now do the UI stuff once.
-		if(!hadPlants)
-			to_chat(user, "<span class='notice'>\The [P] has no produce inside.</span>")
+		used_item.storage.finish_bulk_removal() //Now do the UI stuff once.
+		if(!added_plants)
+			to_chat(user, SPAN_WARNING("\The [used_item] has no produce inside."))
 		else if(ingredients < capacity)
-			to_chat(user, "<span class='notice'>You empty \the [P] into \the [src].</span>")
+			to_chat(user, SPAN_NOTICE("You empty \the [used_item] into \the [src]."))
+		return TRUE
 
+	if(!istype(used_item, /obj/item/food/grown))
+		to_chat(user, SPAN_WARNING("You cannot put this in \the [src]."))
+		return TRUE
 
-	else if(!istype(O, /obj/item/chems/food/snacks/grown))
-		to_chat(user, "<span class='notice'>You cannot put this in \the [src].</span>")
-	else if(user.unEquip(O, src))
+	if(user.try_unequip(used_item, src))
 		ingredients++
-		to_chat(user, "<span class='notice'>You put \the [O] in \the [src]</span>")
-	update_icon()
+		to_chat(user, SPAN_NOTICE("You put \the [used_item] in \the [src]"))
+		return TRUE
+
+	return ..()
 
 /**
  *  Display the NanoUI window for the vending machine.
@@ -124,7 +140,7 @@
 	user.set_machine(src)
 	var/list/data = list()
 	data["state"] = state
-	var/name
+	var/product_name
 	var/cost
 	var/type_name
 	var/path
@@ -137,12 +153,11 @@
 			var/list/listed_products = list()
 			for(var/c_product =1 to current_content.len)
 				path = current_content[c_product]
-				var/atom/A = path
-				name = initial(A.name)
+				product_name = atom_info_repository.get_name_for(path)
 				cost = current_content[path]
 				listed_products.Add(list(list(
 					"product_index" = c_product,
-					"name" = name,
+					"name" = product_name,
 					"cost" = cost)))
 			listed_types.Add(list(list(
 				"type_name" = type_name,
@@ -157,7 +172,7 @@
 /obj/machinery/biogenerator/OnTopic(user, href_list)
 	switch (href_list["action"])
 		if("activate")
-			activate()
+			activate(user)
 		if("detach")
 			if(beaker)
 				beaker.dropInto(src.loc)
@@ -183,20 +198,20 @@
 	ui_interact(user)
 	return TRUE
 
-/obj/machinery/biogenerator/proc/activate()
-	if (usr.stat)
+/obj/machinery/biogenerator/proc/activate(mob/user)
+	if (user.incapacitated())
 		return
 	if (stat) //NOPOWER etc
 		return
 
 	var/S = 0
-	for(var/obj/item/chems/food/snacks/grown/I in contents)
+	for(var/obj/item/food/grown/I in contents)
 		S += 5
 		ingredients--
 		var/amt = REAGENT_VOLUME(I.reagents, /decl/material/liquid/nutriment)
 		if(amt < 0.1)
 			points += 1
-		else 
+		else
 			points += amt * 10 * eat_eff
 		qdel(I)
 	if(S)
@@ -229,5 +244,5 @@
 
 /obj/machinery/biogenerator/RefreshParts()
 	..()
-	build_eff = Clamp(total_component_rating_of_type(/obj/item/stock_parts/manipulator), 1, 10)
-	eat_eff = Clamp(total_component_rating_of_type(/obj/item/stock_parts/matter_bin), 1, 10)
+	build_eff = clamp(total_component_rating_of_type(/obj/item/stock_parts/manipulator), 1, 10)
+	eat_eff = clamp(total_component_rating_of_type(/obj/item/stock_parts/matter_bin), 1, 10)

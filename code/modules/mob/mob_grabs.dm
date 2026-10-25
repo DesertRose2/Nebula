@@ -1,14 +1,11 @@
 // Casting stubs for grabs, check /mob/living for full definition.
-/mob/proc/apply_damage(var/damage = 0,var/damagetype = BRUTE, var/def_zone = null, var/damage_flags = 0, var/used_weapon = null, var/armor_pen, var/silent = FALSE)
+/mob/proc/apply_damage(damage = 0, damagetype = BRUTE, def_zone, damage_flags = 0, obj/used_weapon, armor_pen, silent = FALSE, obj/item/organ/external/given_organ)
 	return
 /mob/proc/get_blocked_ratio(def_zone, damage_type, damage_flags, armor_pen, damage)
 	return
 /mob/proc/standard_weapon_hit_effects(obj/item/I, mob/living/user, var/effective_force, var/hit_zone)
 	return
 /mob/proc/apply_effect(var/effect = 0,var/effecttype = STUN, var/blocked = 0)
-	return
-// See /mob/living/carbon/human for this one.
-/mob/proc/get_organ(var/zone)
 	return
 // End grab casting stubs.
 
@@ -24,14 +21,16 @@
 		if((grabber.mob_size == mob_size) && grabber.can_pull_mobs == MOB_PULL_SMALLER)
 			to_chat(grabber, SPAN_WARNING("\The [src] is too large for you to move!"))
 			return FALSE
+		if(isliving(grabber))
+			last_handled_by_mob = weakref(grabber)
 
 /mob/proc/handle_grab_damage()
-	set waitfor = 0
+	set waitfor = FALSE
 
-/mob/proc/handle_grabs_after_move()
-	set waitfor = 0
+/mob/proc/handle_grabs_after_move(var/turf/old_loc, var/direction)
+	set waitfor = FALSE
 
-/mob/proc/add_grab(var/obj/item/grab/grab)
+/mob/proc/add_grab(var/obj/item/grab/grab, var/defer_hand = FALSE)
 	return FALSE
 
 /mob/proc/ProcessGrabs()
@@ -41,3 +40,6 @@
 	. = list()
 	for(var/obj/item/grab/grab in contents)
 		. += grab
+
+/mob/get_object_size()
+	return mob_size

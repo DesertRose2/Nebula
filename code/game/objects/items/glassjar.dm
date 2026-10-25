@@ -5,11 +5,14 @@
 	icon_state = "jar"
 	w_class = ITEM_SIZE_SMALL
 	material = /decl/material/solid/glass
-	material_force_multiplier = 0.1
 	item_flags = ITEM_FLAG_NO_BLUDGEON
+	obj_flags = OBJ_FLAG_HOLLOW
+	drop_sound = 'sound/foley/bottledrop1.ogg'
+	pickup_sound = 'sound/foley/bottlepickup1.ogg'
+
 	var/list/accept_mobs = list(
 		/mob/living/simple_animal/lizard,
-		/mob/living/simple_animal/mouse
+		/mob/living/simple_animal/passive/mouse
 	)
 	var/contains = 0 // 0 = nothing, 1 = money, 2 = animal, 3 = spiderling
 
@@ -20,7 +23,7 @@
 /obj/item/glass_jar/afterattack(var/atom/A, var/mob/user, var/proximity)
 	if(!proximity || contains)
 		return
-	if(istype(A, /mob))
+	if(ismob(A, /mob))
 		var/accept = 0
 		for(var/D in accept_mobs)
 			if(istype(A, D))
@@ -34,14 +37,7 @@
 		contains = 2
 		update_icon()
 		return
-	else if(istype(A, /obj/effect/spider/spiderling))
-		var/obj/effect/spider/spiderling/S = A
-		user.visible_message("<span class='notice'>[user] scoops [S] into \the [src].</span>", "<span class='notice'>You scoop [S] into \the [src].</span>")
-		S.forceMove(src)
-		STOP_PROCESSING(SSobj, S) // No growing inside jars
-		contains = 3
-		update_icon()
-		return
+	return ..()
 
 /obj/item/glass_jar/attack_self(var/mob/user)
 	switch(contains)
@@ -59,30 +55,25 @@
 			contains = 0
 			update_icon()
 			return
-		if(3)
-			for(var/obj/effect/spider/spiderling/S in src)
-				S.dropInto(user.loc)
-				user.visible_message("<span class='notice'>[user] releases [S] from \the [src].</span>", "<span class='notice'>You release [S] from \the [src].</span>")
-				START_PROCESSING(SSobj, S) // They can grow after being let out though
-			contains = 0
-			update_icon()
-			return
+	return ..()
 
-/obj/item/glass_jar/attackby(var/obj/item/W, var/mob/user)
-	if(istype(W, /obj/item/cash))
+/obj/item/glass_jar/attackby(var/obj/item/used_item, var/mob/user)
+	if(istype(used_item, /obj/item/cash))
 		if(contains == 0)
 			contains = 1
 		if(contains != 1)
-			return
-		if(!user.unEquip(W, src))
-			return
-		var/obj/item/cash/S = W
+			return TRUE
+		if(!user.try_unequip(used_item, src))
+			return TRUE
+		var/obj/item/cash/S = used_item
 		user.visible_message("<span class='notice'>[user] puts \the [S] into \the [src].</span>")
 		update_icon()
+		return TRUE
+	return ..()
 
 /obj/item/glass_jar/on_update_icon() // Also updates name and desc
+	. = ..()
 	underlays.Cut()
-	overlays.Cut()
 	switch(contains)
 		if(0)
 			SetName(initial(name))
@@ -108,10 +99,3 @@
 				underlays += victim
 				SetName("glass jar with [M]")
 				desc = "A small jar with [M] inside."
-		if(3)
-			for(var/obj/effect/spider/spiderling/S in src)
-				var/image/victim = image(S.icon, S.icon_state)
-				underlays += victim
-				SetName("glass jar with [S]")
-				desc = "A small jar with [S] inside."
-	return

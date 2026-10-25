@@ -5,14 +5,14 @@
 	name = "Pressure Tank"
 	desc = "A large vessel containing pressurized gas."
 
-	var/volume = 10000 //in liters, 1 meters by 1 meters by 2 meters ~tweaked it a little to simulate a pressure tank without needing to recode them yet
-	var/start_pressure = 25*ONE_ATMOSPHERE
+	var/gas_volume = 10000 //in liters, 1 meters by 1 meters by 2 meters ~tweaked it a little to simulate a pressure tank without needing to recode them yet
+	var/start_pressure = 25 ATM
 	var/filling // list of gas ratios to use.
 
-	level = 1
+	level = LEVEL_BELOW_PLATING
 	dir = SOUTH
 	initialize_directions = 2
-	density = 1
+	density = TRUE
 	connect_types = CONNECT_TYPE_REGULAR|CONNECT_TYPE_SUPPLY|CONNECT_TYPE_SCRUBBER|CONNECT_TYPE_FUEL
 	pipe_class = PIPE_CLASS_UNARY
 
@@ -25,36 +25,31 @@
 
 /obj/machinery/atmospherics/unary/tank/Initialize()
 	. = ..()
-	if(filling)
-		air_contents.volume = volume
-		air_contents.temperature = T20C
+	air_contents.total_volume = gas_volume
+	air_contents.temperature = T20C
 
-		var/list/gases = list()
+	if(filling)
 		for(var/gas in filling)
-			gases += gas
-			gases += start_pressure * filling[gas] * (air_contents.volume)/(R_IDEAL_GAS_EQUATION*air_contents.temperature)
-		air_contents.adjust_multi(arglist(gases))
+			air_contents.adjust_gas(gas, start_pressure * filling[gas] * (air_contents.total_volume)/(R_IDEAL_GAS_EQUATION*air_contents.temperature), FALSE)
+		air_contents.update_values()
 		update_icon()
 
 /obj/machinery/atmospherics/unary/tank/set_initial_level()
-	level = 1 // Always on top, apparently.
+	// This effectively does nothing, it's ignored due to hide() being overwritten
+	// and probably needs to be reworked.
+	level = LEVEL_BELOW_PLATING
 
-/obj/machinery/atmospherics/unary/tank/update_underlays()
-	if(..())
-		underlays.Cut()
-		var/turf/T = get_turf(src)
-		if(!istype(T))
-			return
-		add_underlay(T, node, dir)
+/obj/machinery/atmospherics/unary/tank/on_update_icon()
+	build_device_underlays(FALSE)
 
 /obj/machinery/atmospherics/unary/tank/hide()
-	update_underlays()
+	update_icon()
 
 /obj/machinery/atmospherics/unary/tank/return_air()
 	return air_contents
 
 /obj/machinery/atmospherics/unary/tank/deconstruction_pressure_check()
-	if (air_contents.return_pressure() > 2*ONE_ATMOSPHERE)
+	if (air_contents.return_pressure() > (2 ATM))
 		return FALSE
 	return TRUE
 
@@ -94,9 +89,10 @@
 	name =  "Pressure Tank"
 	desc = "A large vessel containing pressurized gas."
 	color =  PIPE_COLOR_WHITE
-	connect_types = CONNECT_TYPE_REGULAR|CONNECT_TYPE_REGULAR|CONNECT_TYPE_SCRUBBER|CONNECT_TYPE_FUEL	
-	w_class = ITEM_SIZE_HUGE
-	level = 1
+	connect_types = CONNECT_TYPE_REGULAR|CONNECT_TYPE_REGULAR|CONNECT_TYPE_SCRUBBER|CONNECT_TYPE_FUEL
+	w_class = ITEM_SIZE_STRUCTURE
+	density = TRUE
+	level = LEVEL_BELOW_PLATING
 	dir = SOUTH
 	constructed_path = /obj/machinery/atmospherics/unary/tank
 	pipe_class = PIPE_CLASS_UNARY

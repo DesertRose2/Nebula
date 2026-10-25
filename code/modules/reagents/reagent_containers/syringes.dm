@@ -7,37 +7,47 @@
 
 /obj/item/chems/syringe
 	name = "syringe"
+	base_name = "syringe"
 	desc = "A syringe."
 	icon = 'icons/obj/syringe.dmi'
-	item_state = "rg0"
-	icon_state = "rg"
+	icon_state = ICON_STATE_WORLD
 	material = /decl/material/solid/glass
 	amount_per_transfer_from_this = 5
 	possible_transfer_amounts = @"[1,2,5]"
-	volume = 15
+	chem_volume = 15
 	w_class = ITEM_SIZE_TINY
 	slot_flags = SLOT_EARS
-	sharp = 1
-	unacidable = 1 //glass
+	sharp = TRUE
 	item_flags = ITEM_FLAG_NO_BLUDGEON
+
 	var/mode = SYRINGE_DRAW
-	var/image/filling //holds a reference to the current filling overlay
 	var/visible_name = "a syringe"
 	var/time = 30
+	var/autolabel = TRUE // if set, will add label with the name of the first initial reagent
+	var/can_stab = TRUE
 
 /obj/item/chems/syringe/Initialize(var/mapload)
 	. = ..()
 	update_icon()
 
-/obj/item/chems/syringe/on_reagent_change()
-	update_icon()
+/obj/item/chems/syringe/populate_reagents()
+	SHOULD_CALL_PARENT(TRUE)
+	. = ..()
+	if(REAGENT_TOTAL_VOLUME(reagents) > 0 && autolabel && !label_text) // don't override preset labels
+		label_text = reagents.get_primary_reagent_name()
+		update_name()
 
-/obj/item/chems/syringe/pickup(mob/user)
-	..()
+
+/obj/item/chems/syringe/on_reagent_change()
+	if((. = ..()))
+		update_icon()
+
+/obj/item/chems/syringe/on_picked_up(mob/user, atom/old_loc)
+	. = ..()
 	update_icon()
 
 /obj/item/chems/syringe/dropped(mob/user)
-	..()
+	. = ..()
 	update_icon()
 
 /obj/item/chems/syringe/attack_self(mob/user)
@@ -51,18 +61,18 @@
 	update_icon()
 
 /obj/item/chems/syringe/attack_hand()
-	..()
+	. = ..()
 	update_icon()
 
-/obj/item/chems/syringe/attackby(obj/item/I, mob/user)
-	return
+/obj/item/chems/syringe/attackby(obj/item/used_item, mob/user)
+	return FALSE // allow afterattack to proceed
 
 /obj/item/chems/syringe/afterattack(obj/target, mob/user, proximity)
 	if(!proximity)
 		return
 
 	if(mode == SYRINGE_BROKEN)
-		to_chat(user, "<span class='warning'>This syringe is broken.</span>")
+		to_chat(user, SPAN_WARNING("This syringe is broken."))
 		return
 
 	if(istype(target, /obj/structure/closet/body_bag))
@@ -72,40 +82,32 @@
 	if(!target.reagents)
 		return
 
-	if((user.a_intent == I_HURT) && ismob(target))
-		syringestab(target, user)
+	if((user.check_intent(I_FLAG_HARM)) && ismob(target))
+		if(can_stab)
+			syringestab(target, user)
+		else
+			to_chat(user, SPAN_WARNING("This syringe is too big to stab someone with it."))
 		return
 
 	handleTarget(target, user)
 
 /obj/item/chems/syringe/on_update_icon()
-	overlays.Cut()
+	. = ..()
 	underlays.Cut()
-
+	icon_state = get_world_inventory_state()
 	if(mode == SYRINGE_BROKEN)
-		icon_state = "broken"
+		icon_state = "[icon_state]_broken"
 		return
-
-	var/rounded_vol = Clamp(round((reagents.total_volume / volume * 15),5), 5, 15)
-	if (reagents.total_volume == 0)
-		rounded_vol = 0
+	var/rounded_vol = 0
+	if (REAGENT_TOTAL_VOLUME(reagents) > 0)
+		rounded_vol = clamp(round((REAGENT_TOTAL_VOLUME(reagents) / max(1, REAGENT_MAXIMUM_VOLUME(reagents) * 15)),5), 5, 15)
 	if(ismob(loc))
-		var/injoverlay
-		switch(mode)
-			if (SYRINGE_DRAW)
-				injoverlay = "draw"
-			if (SYRINGE_INJECT)
-				injoverlay = "inject"
-		overlays += injoverlay
-	icon_state = "[initial(icon_state)][rounded_vol]"
-	item_state = "syringe_[rounded_vol]"
-
-	if(reagents.total_volume)
-		filling = image('icons/obj/reagentfillings.dmi', src, "syringe10")
-
-		filling.icon_state = "syringe[rounded_vol]"
-
+		add_overlay((mode == SYRINGE_DRAW)? "[icon_state]_draw" : "[icon_state]_inject")
+	icon_state = "[icon_state]_[rounded_vol]"
+	if(REAGENT_TOTAL_VOLUME(reagents))
+		var/image/filling = image(icon, "[icon_state]_underlay")
 		filling.color = reagents.get_color()
+		filling.appearance_flags |= RESET_COLOR
 		underlays += filling
 
 /obj/item/chems/syringe/proc/handleTarget(var/atom/target, var/mob/user)
@@ -118,27 +120,22 @@
 
 /obj/item/chems/syringe/proc/drawReagents(var/atom/target, var/mob/user)
 	if(!REAGENTS_FREE_SPACE(reagents))
-		to_chat(user, "<span class='warning'>The syringe is full.</span>")
+		to_chat(user, SPAN_WARNING("The syringe is full."))
 		mode = SYRINGE_INJECT
 		return
 
 	if(ismob(target))//Blood!
-		if(reagents.total_volume)
-			to_chat(user, "<span class='notice'>There is already a blood sample in this syringe.</span>")
+		if(REAGENT_TOTAL_VOLUME(reagents))
+			to_chat(user, SPAN_NOTICE("There is already a blood sample in this syringe."))
 			return
-		if(istype(target, /mob/living/carbon))
-			if(istype(target, /mob/living/carbon/slime))
-				to_chat(user, "<span class='warning'>You are unable to locate any blood.</span>")
-				return
+		if(ishuman(target))
 			var/amount = REAGENTS_FREE_SPACE(reagents)
-			var/mob/living/carbon/T = target
-			if(!T.dna)
-				to_chat(user, "<span class='warning'>You are unable to locate any blood.</span>")
-				if(istype(target, /mob/living/carbon/human))
-					CRASH("[T] \[[T.type]\] was missing their dna datum!")
+			var/mob/living/human/T = target
+			if(!REAGENT_TOTAL_VOLUME(T.vessel))
+				to_chat(user, SPAN_WARNING("You are unable to locate any blood."))
 				return
 
-			var/allow = T.can_inject(user, check_zone(user.zone_sel.selecting))
+			var/allow = T.can_inject(user, check_zone(user.get_target_zone(), T))
 			if(!allow)
 				return
 
@@ -156,8 +153,8 @@
 				to_chat(user, SPAN_NOTICE("You start trying to take a blood sample from yourself."))
 
 			if(prob(user.skill_fail_chance(SKILL_MEDICAL, 60, SKILL_BASIC)))
-				to_chat(user, "<span class='warning'>You miss the vein!</span>")
-				var/target_zone = check_zone(user.zone_sel.selecting)
+				to_chat(user, SPAN_WARNING("You miss the vein!"))
+				var/target_zone = check_zone(user.get_target_zone(), T)
 				T.apply_damage(3, BRUTE, target_zone, damage_flags=DAM_SHARP)
 				return
 
@@ -171,16 +168,16 @@
 			user.visible_message(SPAN_NOTICE("\The [user] takes a blood sample from \the [target]."))
 
 	else //if not mob
-		if(!target.reagents.total_volume)
-			to_chat(user, "<span class='notice'>[target] is empty.</span>")
+		if(!REAGENT_TOTAL_VOLUME(target.reagents))
+			to_chat(user, SPAN_NOTICE("[target] is empty."))
 			return
 
-		if(!ATOM_IS_OPEN_CONTAINER(target) && !istype(target, /obj/structure/reagent_dispensers) && !istype(target, /obj/item/slime_extract))
-			to_chat(user, "<span class='notice'>You cannot directly remove reagents from this object.</span>")
+		if(!ATOM_IS_OPEN_CONTAINER(target) && !istype(target, /obj/structure/reagent_dispensers))
+			to_chat(user, SPAN_NOTICE("You cannot directly remove reagents from this object."))
 			return
 
 		var/trans = target.reagents.trans_to_obj(src, amount_per_transfer_from_this)
-		to_chat(user, "<span class='notice'>You fill the syringe with [trans] units of the solution.</span>")
+		to_chat(user, SPAN_NOTICE("You fill the syringe with [trans] units of the solution."))
 		update_icon()
 
 	if(!REAGENTS_FREE_SPACE(reagents))
@@ -188,21 +185,25 @@
 		update_icon()
 
 /obj/item/chems/syringe/proc/injectReagents(var/atom/target, var/mob/user)
-	if(ismob(target) && !user.skill_check(SKILL_MEDICAL, SKILL_BASIC))
-		syringestab(target, user)
 
-	if(!reagents.total_volume)
-		to_chat(user, "<span class='notice'>The syringe is empty.</span>")
+	if(ismob(target) && !user.skill_check(SKILL_MEDICAL, SKILL_BASIC) && (can_stab == TRUE))
+		syringestab(target, user)
+		return
+
+	if(!REAGENT_TOTAL_VOLUME(reagents))
+		to_chat(user, SPAN_NOTICE("The syringe is empty."))
 		mode = SYRINGE_DRAW
 		return
-	if(istype(target, /obj/item/implantcase/chem))
+
+	if(!user.Adjacent(target))
 		return
 
-	if(!ATOM_IS_OPEN_CONTAINER(target) && !ismob(target) && !istype(target, /obj/item/chems/food) && !istype(target, /obj/item/slime_extract) && !istype(target, /obj/item/clothing/mask/smokable/cigarette) && !istype(target, /obj/item/storage/fancy/cigarettes))
-		to_chat(user, "<span class='notice'>You cannot directly fill this object.</span>")
+	if(!ismob(target) && (!target.reagents || !target.can_be_injected_by(src)))
+		to_chat(user, SPAN_NOTICE("You cannot directly fill this object."))
 		return
+
 	if(!REAGENTS_FREE_SPACE(target.reagents))
-		to_chat(user, "<span class='notice'>[target] is full.</span>")
+		to_chat(user, SPAN_NOTICE("[target] is full."))
 		return
 
 	if(isliving(target))
@@ -210,12 +211,12 @@
 		return
 
 	var/trans = reagents.trans_to(target, amount_per_transfer_from_this)
-	to_chat(user, "<span class='notice'>You inject \the [target] with [trans] units of the solution. \The [src] now contains [src.reagents.total_volume] units.</span>")
-	if(reagents.total_volume <= 0 && mode == SYRINGE_INJECT)
+	to_chat(user, SPAN_NOTICE("You inject \the [target] with [trans] units of the solution. \The [src] now contains [REAGENT_TOTAL_VOLUME(src.reagents)] units."))
+	if(REAGENT_TOTAL_VOLUME(reagents) <= 0 && mode == SYRINGE_INJECT)
 		mode = SYRINGE_DRAW
 		update_icon()
 
-/obj/item/chems/syringe/proc/handleBodyBag(var/obj/structure/closet/body_bag/bag, var/mob/living/carbon/user)
+/obj/item/chems/syringe/proc/handleBodyBag(var/obj/structure/closet/body_bag/bag, var/mob/living/user)
 	if(bag.opened || !bag.contains_body)
 		return
 
@@ -223,11 +224,11 @@
 	if(L)
 		injectMob(L, user, bag)
 
-/obj/item/chems/syringe/proc/injectMob(var/mob/living/carbon/target, var/mob/living/carbon/user, var/atom/trackTarget)
+/obj/item/chems/syringe/proc/injectMob(var/mob/living/target, var/mob/living/user, var/atom/trackTarget)
 	if(!trackTarget)
 		trackTarget = target
 
-	var/allow = target.can_inject(user, check_zone(user.zone_sel.selecting))
+	var/allow = target.can_inject(user, check_zone(user.get_target_zone(), target))
 	if(!allow)
 		return
 
@@ -256,55 +257,54 @@
 	var/trans = reagents.trans_to_mob(target, amount_per_transfer_from_this, CHEM_INJECT)
 
 	if(target != user)
-		user.visible_message("<span class='warning'>\the [user] injects \the [target] with [visible_name]!</span>", "<span class='notice'>You inject \the [target] with [trans] units of the solution. \The [src] now contains [src.reagents.total_volume] units.</span>")
+		user.visible_message(SPAN_WARNING("\the [user] injects \the [target] with [visible_name]!"), SPAN_NOTICE("You inject \the [target] with [trans] units of the solution. \The [src] now contains [REAGENT_TOTAL_VOLUME(src.reagents)] units."))
 	else
-		to_chat(user, "<span class='notice'>You inject yourself with [trans] units of the solution. \The [src] now contains [src.reagents.total_volume] units.</span>")
+		to_chat(user, SPAN_NOTICE("You inject yourself with [trans] units of the solution. \The [src] now contains [REAGENT_TOTAL_VOLUME(src.reagents)] units."))
 
-	if(reagents.total_volume <= 0 && mode == SYRINGE_INJECT)
+	if(REAGENT_TOTAL_VOLUME(reagents) <= 0 && mode == SYRINGE_INJECT)
 		mode = SYRINGE_DRAW
 		update_icon()
 
-/obj/item/chems/syringe/proc/syringestab(var/mob/living/carbon/target, var/mob/living/carbon/user)
+/obj/item/chems/syringe/proc/syringestab(var/mob/living/target, var/mob/living/user)
 
-	if(istype(target, /mob/living/carbon/human))
+	if(ishuman(target))
 
-		var/mob/living/carbon/human/H = target
+		var/mob/living/human/H = target
 
-		var/target_zone = check_zone(user.zone_sel.selecting)
-		var/obj/item/organ/external/affecting = H.get_organ(target_zone)
+		var/target_zone = check_zone(user.get_target_zone(), H)
+		var/obj/item/organ/external/affecting = GET_EXTERNAL_ORGAN(H, target_zone)
 
-		if (!affecting || affecting.is_stump())
-			to_chat(user, "<span class='danger'>They are missing that limb!</span>")
+		if (!affecting)
+			to_chat(user, SPAN_DANGER("They are missing that limb!"))
 			return
 
 		var/hit_area = affecting.name
 
-		if((user != target) && H.check_shields(7, src, user, "\the [src]"))
+		if((user != target) && H.check_shields(7, src, user, target_zone, src))
 			return
 
 		if (target != user && H.get_blocked_ratio(target_zone, BRUTE, damage_flags=DAM_SHARP) > 0.1 && prob(50))
-			for(var/mob/O in viewers(world.view, user))
-				O.show_message(text("<span class='danger'>[user] tries to stab [target] in \the [hit_area] with [src.name], but the attack is deflected by armor!</span>"), 1)
+			user.visible_message(SPAN_WARNING("\The [user] tries to stab \the [target] in \the [hit_area] with \the [src], but the attack is deflected by armor!"))
 			qdel(src)
 
 			admin_attack_log(user, target, "Attacked using \a [src]", "Was attacked with \a [src]", "used \a [src] to attack")
 			return
 
-		user.visible_message("<span class='danger'>[user] stabs [target] in \the [hit_area] with [src.name]!</span>")
+		user.visible_message(SPAN_DANGER("[user] stabs [target] in \the [hit_area] with [src.name]!"))
 		target.apply_damage(3, BRUTE, target_zone, damage_flags=DAM_SHARP)
 
 	else
-		user.visible_message("<span class='danger'>[user] stabs [target] with [src.name]!</span>")
+		user.visible_message(SPAN_DANGER("[user] stabs [target] with [src.name]!"))
 		target.apply_damage(3, BRUTE)
 
-	var/syringestab_amount_transferred = rand(0, (reagents.total_volume - 5)) //nerfed by popular demand
+	var/syringestab_amount_transferred = rand(0, (REAGENT_TOTAL_VOLUME(reagents) - 5)) //nerfed by popular demand
 	var/contained_reagents = reagents.get_reagents()
 	var/trans = reagents.trans_to_mob(target, syringestab_amount_transferred, CHEM_INJECT)
 	if(isnull(trans)) trans = 0
 	admin_inject_log(user, target, src, contained_reagents, trans, violent=1)
 	break_syringe(target, user)
 
-/obj/item/chems/syringe/proc/break_syringe(mob/living/carbon/target, mob/living/carbon/user)
+/obj/item/chems/syringe/proc/break_syringe(mob/living/human/target, mob/living/user)
 	desc += " It is broken."
 	mode = SYRINGE_BROKEN
 	if(target)
@@ -314,84 +314,82 @@
 	update_icon()
 
 /obj/item/chems/syringe/ld50_syringe
-	name = "Lethal Injection Syringe"
+	name = "lethal injection syringe"
 	desc = "A syringe used for lethal injections."
 	amount_per_transfer_from_this = 60
-	volume = 60
+	chem_volume = 60
 	visible_name = "a giant syringe"
-	time = 300
+	time = 30 SECONDS
+	mode = SYRINGE_INJECT
+	autolabel = FALSE
+	can_stab = FALSE
 
-/obj/item/chems/syringe/ld50_syringe/syringestab(var/mob/living/carbon/target, var/mob/living/carbon/user)
-	to_chat(user, "<span class='notice'>This syringe is too big to stab someone with it.</span>")
-	return // No instant injecting
+/obj/item/chems/syringe/ld50_syringe/populate_reagents()
+	SHOULD_CALL_PARENT(FALSE)
+	add_to_reagents(/decl/material/liquid/heartstopper, REAGENT_MAXIMUM_VOLUME(reagents))
 
 /obj/item/chems/syringe/ld50_syringe/drawReagents(var/target, var/mob/user)
 	if(ismob(target)) // No drawing 60 units of blood at once
-		to_chat(user, "<span class='notice'>This needle isn't designed for drawing blood.</span>")
+		to_chat(user, SPAN_NOTICE("This needle isn't designed for drawing blood."))
 		return
 	..()
-
-/obj/item/chems/syringe/ld50_syringe/Initialize()
-	. = ..()
-	reagents.add_reagent(/decl/material/liquid/heartstopper, 60)
-	mode = SYRINGE_INJECT
-	update_icon()
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Syringes. END
 ////////////////////////////////////////////////////////////////////////////////
 
 /obj/item/chems/syringe/stabilizer
-	name = "Syringe (stabilizer)"
 	desc = "Contains stabilizer - for patients in danger of brain damage."
-
-/obj/item/chems/syringe/stabilizer/Initialize()
-	. = ..()
-	reagents.add_reagent(/decl/material/liquid/stabilizer, 15)
 	mode = SYRINGE_INJECT
-	update_icon()
+
+/obj/item/chems/syringe/stabilizer/populate_reagents()
+	add_to_reagents(/decl/material/liquid/stabilizer, REAGENT_MAXIMUM_VOLUME(reagents))
+	return ..()
 
 /obj/item/chems/syringe/antitoxin
-	name = "Syringe (anti-toxin)"
 	desc = "Contains anti-toxins."
-
-/obj/item/chems/syringe/antitoxin/Initialize()
-	. = ..()
-	reagents.add_reagent(/decl/material/liquid/antitoxins, 15)
 	mode = SYRINGE_INJECT
-	update_icon()
+
+/obj/item/chems/syringe/antitoxin/populate_reagents()
+	add_to_reagents(/decl/material/liquid/antitoxins, REAGENT_MAXIMUM_VOLUME(reagents))
+	return ..()
 
 /obj/item/chems/syringe/antibiotic
-	name = "Syringe (antibiotics)"
 	desc = "Contains antibiotic agents."
-
-/obj/item/chems/syringe/antibiotic/Initialize()
-	. = ..()
-	reagents.add_reagent(/decl/material/liquid/antibiotics, 15)
 	mode = SYRINGE_INJECT
-	update_icon()
+
+/obj/item/chems/syringe/antibiotic/populate_reagents()
+	add_to_reagents(/decl/material/liquid/antibiotics, REAGENT_MAXIMUM_VOLUME(reagents))
+	return ..()
 
 /obj/item/chems/syringe/drugs
-	name = "Syringe (drugs)"
 	desc = "Contains aggressive drugs meant for torture."
-
-/obj/item/chems/syringe/drugs/Initialize()
-	. = ..()
-	reagents.add_reagent(/decl/material/liquid/psychoactives, 5)
-	reagents.add_reagent(/decl/material/liquid/hallucinogenics, 5)
-	reagents.add_reagent(/decl/material/liquid/presyncopics, 5)
 	mode = SYRINGE_INJECT
-	update_icon()
+
+/obj/item/chems/syringe/drugs/populate_reagents()
+	var/vol_each = round(REAGENT_MAXIMUM_VOLUME(reagents) / 3)
+	add_to_reagents(/decl/material/liquid/psychoactives,   vol_each)
+	add_to_reagents(/decl/material/liquid/hallucinogenics, vol_each)
+	add_to_reagents(/decl/material/liquid/presyncopics,    vol_each)
+	return ..()
 
 /obj/item/chems/syringe/steroid
-	name = "Syringe (anabolic steroids)"
 	desc = "Contains drugs for muscle growth."
+	mode = SYRINGE_INJECT
 
-/obj/item/chems/syringe/steroid/Initialize()
-	. = ..()
-	reagents.add_reagent(/decl/material/liquid/adrenaline, 5)
-	reagents.add_reagent(/decl/material/liquid/amphetamines, 10)
+/obj/item/chems/syringe/steroid/populate_reagents()
+	var/vol_third = round(REAGENT_MAXIMUM_VOLUME(reagents)/3)
+	add_to_reagents(/decl/material/liquid/adrenaline,   vol_third)
+	add_to_reagents(/decl/material/liquid/amphetamines, 2 * vol_third)
+	return ..()
 
+/obj/item/chems/syringe/brute_meds
+	desc = "Contains drugs for treating brute trauma."
+	mode = SYRINGE_INJECT
+
+/obj/item/chems/syringe/brute_meds/populate_reagents()
+	add_to_reagents(/decl/material/liquid/brute_meds, REAGENT_MAXIMUM_VOLUME(reagents))
+	return ..()
 
 // TG ports
 
@@ -399,22 +397,24 @@
 	name = "advanced syringe"
 	desc = "An advanced syringe that can hold 60 units of chemicals."
 	amount_per_transfer_from_this = 20
-	volume = 60
-	icon_state = "bs"
+	chem_volume = 60
+	icon = 'icons/obj/syringe_advanced.dmi'
 	material = /decl/material/solid/glass
 	matter = list(
 		/decl/material/solid/metal/uranium = MATTER_AMOUNT_TRACE,
 		/decl/material/solid/gemstone/diamond = MATTER_AMOUNT_TRACE
 	)
+	origin_tech = @'{"biotech":3,"materials":4,"exoticmatter":2}'
 
 /obj/item/chems/syringe/noreact
 	name = "cryostasis syringe"
 	desc = "An advanced syringe that stops reagents inside from reacting. It can hold up to 20 units."
-	volume = 20
-	atom_flags = ATOM_FLAG_NO_TEMP_CHANGE | ATOM_FLAG_NO_REACT
-	icon_state = "cs"
+	chem_volume = 20
+	atom_flags = ATOM_FLAG_NO_CHEM_CHANGE
+	icon = 'icons/obj/syringe_cryo.dmi'
 	material = /decl/material/solid/glass
 	matter = list(
 		/decl/material/solid/metal/gold = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/plastic = MATTER_AMOUNT_TRACE
+		/decl/material/solid/organic/plastic = MATTER_AMOUNT_TRACE
 	)
+	origin_tech = @'{"biotech":4,"materials":4}'

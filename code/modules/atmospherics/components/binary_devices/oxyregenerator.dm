@@ -3,8 +3,7 @@
 	desc = "A machine for breaking bonds in carbon dioxide and releasing pure oxygen."
 	icon = 'icons/atmos/oxyregenerator.dmi'
 	icon_state = "off"
-	level = 1
-	density = 1
+	density = TRUE
 	use_power = POWER_USE_OFF
 	idle_power_usage = 200		//internal circuitry, friction losses and stuff
 	power_rating = 10000
@@ -13,9 +12,9 @@
 	uncreated_component_parts = null
 	stat_immune = 0
 	obj_flags = OBJ_FLAG_ANCHORABLE | OBJ_FLAG_ROTATABLE
+	layer = STRUCTURE_LAYER
 
-	var/target_pressure = 10*ONE_ATMOSPHERE
-	var/id = null
+	var/target_pressure = 10 ATM
 	var/power_setting = 1 //power consumption setting, 1 through five
 	var/carbon_stored = 0
 	var/carbon_efficiency = 0.5
@@ -23,31 +22,30 @@
 	var/const/carbon_moles_per_piece = 50 //One 12g per mole * 50 = 600 g chunk of coal
 	var/phase = "filling"//"filling", "processing", "releasing"
 	var/datum/gas_mixture/inner_tank = new
-	var/tank_volume = 400//Litres
 
 /obj/machinery/atmospherics/binary/oxyregenerator/RefreshParts()
 	carbon_efficiency = initial(carbon_efficiency)
 	carbon_efficiency += 0.25 * total_component_rating_of_type(/obj/item/stock_parts/matter_bin)
 	carbon_efficiency -= 0.25 * number_of_components(/obj/item/stock_parts/matter_bin)
-	carbon_efficiency = Clamp(carbon_efficiency, initial(carbon_efficiency), 5)
+	carbon_efficiency = clamp(carbon_efficiency, initial(carbon_efficiency), 5)
 
 	intake_power_efficiency = initial(intake_power_efficiency)
 	intake_power_efficiency -= 0.1 * total_component_rating_of_type(/obj/item/stock_parts/manipulator)
 	intake_power_efficiency += 0.1 * number_of_components(/obj/item/stock_parts/manipulator)
-	intake_power_efficiency = Clamp(intake_power_efficiency, 0.1, initial(intake_power_efficiency))
+	intake_power_efficiency = clamp(intake_power_efficiency, 0.1, initial(intake_power_efficiency))
 
 	power_rating = 1
 	power_rating -= 0.05 * total_component_rating_of_type(/obj/item/stock_parts/micro_laser)
 	power_rating += 0.05 * number_of_components(/obj/item/stock_parts/micro_laser)
-	power_rating = Clamp(power_rating, 0.1, 1)
+	power_rating = clamp(power_rating, 0.1, 1)
 	power_rating *= initial(power_rating)
 	..()
 
-/obj/machinery/atmospherics/binary/oxyregenerator/examine(user)
+/obj/machinery/atmospherics/binary/oxyregenerator/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
-	to_chat(user,"Its outlet port is to the [dir2text(dir)]")
+	. += "Its outlet port is to the [dir2text(dir)]."
 
-/obj/machinery/atmospherics/binary/oxyregenerator/Process(var/delay)
+/obj/machinery/atmospherics/binary/oxyregenerator/Process(wait, tick)
 	..()
 	if((stat & (NOPOWER|BROKEN)) || !use_power)
 		return
@@ -63,14 +61,14 @@
 			if (power_draw >= 0)
 				last_power_draw = power_draw
 				use_power_oneoff(power_draw)
-			if(network1 && (transfer_moles > 0))
-				network1.update = 1
-		if (air1.return_pressure() < 0.1 * ONE_ATMOSPHERE || inner_tank.return_pressure() >= target_pressure * 0.95)//if pipe is good as empty or tank is full
+			if(transfer_moles > 0)
+				update_networks(turn(dir, 180))
+		if (air1.return_pressure() < (0.1 ATM) || inner_tank.return_pressure() >= target_pressure * 0.95)//if pipe is good as empty or tank is full
 			phase = "processing"
 
 	if (phase == "processing")//processing CO2 in tank
 		if (inner_tank.gas[/decl/material/gas/carbon_dioxide])
-			var/co2_intake = between(0, inner_tank.gas[/decl/material/gas/carbon_dioxide], power_setting*delay/10)
+			var/co2_intake = clamp(inner_tank.gas[/decl/material/gas/carbon_dioxide], 0, power_setting*wait/10)
 			last_flow_rate = co2_intake
 			inner_tank.adjust_gas(/decl/material/gas/carbon_dioxide, -co2_intake, 1)
 			var/datum/gas_mixture/new_oxygen = new
@@ -80,8 +78,7 @@
 			carbon_stored += co2_intake * carbon_efficiency
 			while (carbon_stored >= carbon_moles_per_piece)
 				carbon_stored -= carbon_moles_per_piece
-				var/decl/material/M = decls_repository.get_decl(/decl/material/solid/mineral/graphite)
-				M.place_sheet(get_turf(src), 1, M.type)
+				SSmaterials.create_object(/decl/material/solid/graphite, get_turf(src), 1)
 			power_draw = power_rating * co2_intake
 			last_power_draw = power_draw
 			use_power_oneoff(power_draw)
@@ -92,13 +89,14 @@
 		power_draw = -1
 		var/pressure_delta = target_pressure - air2.return_pressure()
 		if (pressure_delta > 0.01 && inner_tank.temperature > 0)
-			var/transfer_moles = calculate_transfer_moles(inner_tank, air2, pressure_delta, (network2)? network2.volume : 0)
+			var/datum/pipe_network/output = network_in_dir(dir)
+			var/transfer_moles = calculate_transfer_moles(inner_tank, air2, pressure_delta, output?.total_volume)
 			power_draw = pump_gas(src, inner_tank, air2, transfer_moles, power_rating*power_setting)
 			if (power_draw >= 0)
 				last_power_draw = power_draw
 				use_power_oneoff(power_draw)
-			if(network2 && (transfer_moles > 0))
-				network2.update = 1
+			if(transfer_moles > 0)
+				update_networks(dir)
 		else//can't push outside harder than target pressure. Device is not intended to be used as a pump after all
 			phase = "filling"
 		if (inner_tank.return_pressure() <= 0.1)
@@ -138,13 +136,12 @@
 		ui.open()
 		ui.set_auto_update(1)
 
-/obj/machinery/atmospherics/binary/oxyregenerator/Topic(href, href_list)
-	if(..())
-		return 1
+/obj/machinery/atmospherics/binary/oxyregenerator/OnTopic(mob/user, href_list)
+	if((. = ..()))
+		return
 	if(href_list["toggleStatus"])
 		update_use_power(!use_power)
-		update_icon()
-		return 1
+		return TOPIC_REFRESH
 	if(href_list["setPower"]) //setting power to 0 is redundant anyways
-		power_setting = between(1, text2num(href_list["setPower"]), 5)
-		return 1
+		power_setting = clamp(text2num(href_list["setPower"]), 1, 5)
+		return TOPIC_REFRESH

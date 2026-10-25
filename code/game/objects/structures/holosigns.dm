@@ -18,16 +18,17 @@
 		projector = null
 	return ..()
 
-/obj/structure/holosign/attack_hand(mob/living/user)
+/obj/structure/holosign/attack_hand(mob/user)
 	. =  ..()
-	if(.)
-		return
-	visible_message(SPAN_NOTICE("\The [user] waves through \the [src], causing it to dissipate."))
-	deactivate(user)
+	if(!.)
+		visible_message(SPAN_NOTICE("\The [user] waves through \the [src], causing it to dissipate."))
+		deactivate(user)
+		return TRUE
 
-/obj/structure/holosign/attackby(obj/W, mob/living/user)
-	visible_message(SPAN_NOTICE("\The [user] waves \a [W] through \the [src], causing it to dissipate."))
+/obj/structure/holosign/attackby(obj/item/used_item, mob/user)
+	visible_message(SPAN_NOTICE("\The [user] waves \a [used_item] through \the [src], causing it to dissipate."))
 	deactivate(user)
+	return TRUE
 
 /obj/structure/holosign/proc/deactivate(mob/living/user)
 	user.setClickCooldown(DEFAULT_ATTACK_COOLDOWN)

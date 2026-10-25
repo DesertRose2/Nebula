@@ -24,13 +24,18 @@
 
 #define CELSIUS + T0C
 
+#define ATM *ONE_ATMOSPHERE
+
 #define ATMOS_PRECISION 0.0001
-#define QUANTIZE(variable) (round(variable, ATMOS_PRECISION))
+#define QUANTIZE(variable) (NONUNIT_FLOOR(variable, ATMOS_PRECISION))
 
 #define INFINITY	1.#INF
 
 #define TICKS_IN_DAY 		24*60*60*10
 #define TICKS_IN_SECOND 	10
 
-#define SIMPLE_SIGN(X) ((X) < 0 ? -1 : 1)
-#define SIGN(X)        ((X) ? SIMPLE_SIGN(X) : 0)
+#if DM_VERSION < 516
+#define SIGN(X) ( (X) ? ( (X) < 0 ? -1 : 1 ) : 0 )
+#else
+#define SIGN(X) sign(X)
+#endif

@@ -1,9 +1,9 @@
 /obj/machinery/suspension_gen
 	name = "suspension field generator"
-	desc = "Multi-phase mobile suspension field generator MK II \"Steadfast\". It has stubby legs bolted up against it's body for stabilising."
+	desc = "Multi-phase mobile suspension field generator MK II \"Steadfast\". It has stubby legs bolted up against its body for stabilising."
 	icon = 'icons/obj/xenoarchaeology.dmi'
 	icon_state = "suspension2"
-	density = 1
+	density = TRUE
 	obj_flags = OBJ_FLAG_ANCHORABLE | OBJ_FLAG_ROTATABLE
 	construct_state = /decl/machine_construction/default/panel_closed
 	uncreated_component_parts = null
@@ -80,14 +80,12 @@
 /obj/machinery/suspension_gen/proc/activate()
 	var/turf/T = get_turf(get_step(src,dir))
 	suspension_field = new(T)
-	visible_message(SPAN_NOTICE("\icon[src] [src] activates with a low hum."))
-	update_icon()
+	visible_message(SPAN_NOTICE("[html_icon(src)] [src] activates with a low hum."))
 	update_use_power(POWER_USE_ACTIVE)
 
 /obj/machinery/suspension_gen/proc/deactivate()
 	visible_message(SPAN_NOTICE("[src] deactivates with a gentle shudder."))
 	QDEL_NULL(suspension_field)
-	update_icon()
 	update_use_power(POWER_USE_IDLE)
 
 /obj/machinery/suspension_gen/on_update_icon()
@@ -95,7 +93,7 @@
 		icon_state = "suspension3"
 	else
 		icon_state = "suspension2"
-	
+
 /obj/machinery/suspension_gen/Destroy()
 	deactivate()
 	return ..()
@@ -103,21 +101,21 @@
 /obj/effect/suspension_field
 	name = "energy field"
 	icon = 'icons/effects/effects.dmi'
-	anchored = 1
-	density = 1
+	anchored = TRUE
+	density = TRUE
 	var/victim_number  //number of mobs it affected, needed for generator powerdraw calc
 
-/obj/effect/suspension_field/examine(mob/user)
+/obj/effect/suspension_field/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
-	if(.)
-		to_chat(user, SPAN_NOTICE("You can see something floating inside it:"))
-		to_chat(user, SPAN_NOTICE(english_list(contents)))
+	if(distance <= 1)
+		. += SPAN_NOTICE("You can see something floating inside it:")
+		. += SPAN_NOTICE(english_list(contents))
 
 /obj/effect/suspension_field/Initialize()
 	. = ..()
 	suspend_things()
 	START_PROCESSING(SSobj, src)
-	
+
 /obj/effect/suspension_field/Destroy()
 	for(var/mob/living/M in loc)
 		to_chat(M, SPAN_NOTICE("You no longer feel like floating."))
@@ -128,24 +126,25 @@
 
 /obj/effect/suspension_field/Process()
 	suspend_things()
-	
+
 /obj/effect/suspension_field/proc/suspend_things()
 	victim_number = 0
 	var/turf/T = get_turf(src)
-	for(var/mob/living/M in T)
-		M.weakened = max(M.weakened, 3)
-		victim_number++
-		if(prob(5))
-			to_chat(M, SPAN_WARNING("[pick("You feel tingly","You feel like floating","It is hard to speak","You can barely move")]."))
-	for(var/obj/item/I in T)
-		if(!I.anchored && I.simulated)
-			I.forceMove(src)
+	if(T)
+		for(var/mob/living/M in T)
+			SET_STATUS_MAX(M, STAT_WEAK, 3)
+			victim_number++
+			if(prob(5))
+				to_chat(M, SPAN_WARNING("[pick("You feel tingly","You feel like floating","It is hard to speak","You can barely move")]."))
+		for(var/obj/item/I in T)
+			if(!I.anchored && I.simulated)
+				I.forceMove(src)
 	update_icon()
 
 /obj/effect/suspension_field/on_update_icon()
 	overlays.Cut()
 	var/turf/T = get_turf(src)
-	if(T.is_wall())
+	if(T?.is_wall())
 		icon_state = "shieldsparkles"
 	else
 		icon_state = "shield2"

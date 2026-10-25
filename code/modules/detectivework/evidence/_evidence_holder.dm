@@ -30,3 +30,22 @@
 	temp.add_from_atom(arglist(args.Copy(2)))
 	for(var/item in temp.data)
 		add_data(evidence_type, item)
+
+/datum/extension/forensic_evidence/proc/check_spotting(mob/detective)
+	. = FALSE
+	if(get_dist(detective, holder) > (detective.get_skill_value(SKILL_FORENSICS) - SKILL_ADEPT))
+		return FALSE
+	for(var/T in evidence)
+		var/datum/forensics/F = evidence[T]
+		if(F.can_spot(detective, holder))
+			F.spot_message(detective, holder)
+			. |= TRUE
+
+/datum/extension/forensic_evidence/PopulateClone(datum/extension/forensic_evidence/clone)
+	var/datum/extension/forensic_evidence/populated_clone = ..()
+	for(var/evtype in evidence)
+		var/datum/forensics/F = evidence[evtype]
+		if(isnull(F))
+			continue
+		LAZYSET(populated_clone.evidence, F.type, F.Clone())
+	return populated_clone

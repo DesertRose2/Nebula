@@ -1,19 +1,17 @@
 /obj/machinery/recharge_station
 	name = "robot recharging station"
-	desc = "A heavy duty rapid charging system, designed to quickly recharge autonomous system power reserves."
+	desc = "A heavy-duty rapid charging system, designed to quickly recharge autonomous system power reserves."
 	icon = 'icons/obj/objects.dmi'
 	icon_state = "borgcharger0"
-	density = 1
-	anchored = 1
+	density = TRUE
+	anchored = TRUE
 	idle_power_usage = 50
 	base_type = /obj/machinery/recharge_station
 	uncreated_component_parts = null
-	stat_immune = 0
 	construct_state = /decl/machine_construction/default/panel_closed
 
 	var/overlay_icon = 'icons/obj/objects.dmi'
 	var/mob/living/occupant = null
-	var/charging = 0
 	var/last_overlay_state
 
 	var/charging_power			// W. Power rating used for charging the cyborg. 120 kW if un-upgraded
@@ -27,16 +25,22 @@
 	. = ..()
 	update_icon()
 
-/obj/machinery/recharge_station/MouseDrop_T(var/mob/living/target, var/mob/user)
-	if(!CanMouseDrop(target, user) || !istype(target))
-		return FALSE
-	user.visible_message(SPAN_NOTICE("\The [user] begins placing \the [target] into \the [src]."), SPAN_NOTICE("You start placing \the [target] into \the [src]."))
-	if(!do_after(user, 30, src))
-		return
-	if(target.buckled)
-		to_chat(user, SPAN_WARNING("Unbuckle the subject before attempting to move them."))
-		return FALSE	
-	go_in(target)
+/obj/machinery/recharge_station/receive_mouse_drop(atom/dropping, mob/user, params)
+	. = ..()
+	if(!. && isliving(dropping))
+		var/mob/living/M = dropping
+		if(M.anchored)
+			return FALSE
+		user.visible_message( \
+			SPAN_NOTICE("\The [user] begins placing \the [dropping] into \the [src]."), \
+			SPAN_NOTICE("You start placing \the [dropping] into \the [src]."))
+		if(do_after(user, 30, src))
+			var/mob/living/target = dropping
+			if(target.buckled)
+				to_chat(user, SPAN_WARNING("Unbuckle the subject before attempting to move them."))
+			else
+				go_in(target)
+		return TRUE
 
 /obj/machinery/recharge_station/Process()
 	if(stat & (BROKEN | NOPOWER))
@@ -56,48 +60,47 @@
 		return
 
 	// If we have repair capabilities, repair any damage.
-	if(weld_rate && occupant.getBruteLoss())
+	if(weld_rate && occupant.get_damage(BRUTE))
 		var/repair = weld_rate - use_power_oneoff(weld_power_use * weld_rate, LOCAL) / weld_power_use
-		occupant.adjustBruteLoss(-repair)
-	if(wire_rate && occupant.getFireLoss())
+		occupant.heal_damage(BRUTE, repair)
+	if(wire_rate && occupant.get_damage(BURN))
 		var/repair = wire_rate - use_power_oneoff(wire_power_use * wire_rate, LOCAL) / wire_power_use
-		occupant.adjustFireLoss(-repair)
+		occupant.heal_damage(BURN, repair)
 
 	var/obj/item/cell/target
 	if(isrobot(occupant))
-		var/mob/living/silicon/robot/R = occupant
-		target = R.cell
-		if(R.module)
-			R.module.respawn_consumable(R, charging_power * CELLRATE / 250) //consumables are magical, apparently
+		var/mob/living/silicon/robot/robot = occupant
+		target = robot.cell
+		if(robot.module)
+			robot.module.respawn_consumable(robot, charging_power * CELLRATE / 250) //consumables are magical, apparently
 		// If we are capable of repairing damage, reboot destroyed components and allow them to be repaired for very large power spike.
-		var/list/damaged = R.get_damaged_components(1,1,1)
+		var/list/damaged = robot.get_damaged_components(1,1,1)
 		if(damaged.len && wire_rate && weld_rate)
 			for(var/datum/robot_component/C in damaged)
 				if((C.installed == -1) && use_power_oneoff(100 KILOWATTS, LOCAL) <= 0)
 					C.repair()
 
 	if(ishuman(occupant))
-		var/mob/living/carbon/human/H = occupant
-		var/obj/item/organ/internal/cell/potato = H.internal_organs_by_name[BP_CELL]
+		var/mob/living/human/H = occupant
+		var/obj/item/organ/internal/cell/potato = H.get_organ(BP_CELL, /obj/item/organ/internal/cell)
 		if(potato)
 			target = potato.cell
-		if((!target || target.percent() > 95) && istype(H.back,/obj/item/rig))
-			var/obj/item/rig/R = H.back
-			if(R.cell && !R.cell.fully_charged())
-				target = R.cell
+		var/obj/item/rig/rig = H.get_rig()
+		if((!target || target.percent() > 95) && rig && rig.cell && !rig.cell.fully_charged())
+			target = rig.cell
 
 	if(target && !target.fully_charged())
 		var/diff = min(target.maxcharge - target.charge, charging_power * CELLRATE) // Capped by charging_power / tick
 		var/charge_used = diff - use_power_oneoff(diff / CELLRATE, LOCAL) * CELLRATE
 		target.give(charge_used)
 
-/obj/machinery/recharge_station/examine(mob/user)
+/obj/machinery/recharge_station/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
 	var/obj/item/cell/cell = get_cell()
 	if(cell)
-		to_chat(user, "The charge meter reads: [cell.percent()]%")
+		. += "The charge meter reads: [cell.percent()]%."
 	else
-		to_chat(user, "The indicator shows that the cell is missing.")
+		. += "The indicator shows that the cell is missing."
 
 /obj/machinery/recharge_station/relaymove(mob/user)
 	if(user.stat)
@@ -123,8 +126,8 @@
 
 /obj/machinery/recharge_station/RefreshParts()
 	..()
-	var/man_rating = Clamp(total_component_rating_of_type(/obj/item/stock_parts/manipulator), 0, 10)
-	var/cap_rating = Clamp(total_component_rating_of_type(/obj/item/stock_parts/capacitor), 0, 10)
+	var/man_rating = clamp(total_component_rating_of_type(/obj/item/stock_parts/manipulator), 0, 10)
+	var/cap_rating = clamp(total_component_rating_of_type(/obj/item/stock_parts/capacitor), 0, 10)
 
 	charging_power = 40000 + 40000 * cap_rating
 	weld_rate = max(0, man_rating - 3)
@@ -170,15 +173,12 @@
 	last_overlay_state = overlay_state()
 	overlays = list(image(overlay_icon, overlay_state()))
 
-/obj/machinery/recharge_station/Bumped(var/mob/living/silicon/robot/R)
-	go_in(R)
+/obj/machinery/recharge_station/Bumped(var/mob/living/silicon/robot/robot)
+	addtimer(CALLBACK(src, PROC_REF(go_in), robot), 1)
 
 /obj/machinery/recharge_station/proc/go_in(var/mob/M)
 
-	if(occupant)
-		return
-
-	if(!hascell(M))
+	if(occupant || M.anchored || !hascell(M))
 		return
 
 	add_fingerprint(M)
@@ -190,16 +190,16 @@
 
 /obj/machinery/recharge_station/proc/hascell(var/mob/M)
 	if(isrobot(M))
-		var/mob/living/silicon/robot/R = M
-		return (R.cell)
+		var/mob/living/silicon/robot/robot = M
+		return (robot.cell)
 	if(ishuman(M))
-		var/mob/living/carbon/human/H = M		
+		var/mob/living/human/H = M
 		if(H.isSynthetic())
 			return 1
-		if(istype(H.back,/obj/item/rig))
-			var/obj/item/rig/R = H.back
-			return R.cell
-		return H.internal_organs_by_name["cell"]
+		var/obj/item/rig/rig = H.get_rig()
+		if(rig)
+			return rig.cell
+		return GET_INTERNAL_ORGAN(H, BP_CELL)
 	return 0
 
 /obj/machinery/recharge_station/proc/go_out()

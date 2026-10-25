@@ -1,22 +1,22 @@
-/mob/get_base_value()
+/mob/get_single_monetary_worth()
 	. = 0.5 * mob_size
 	if(stat != DEAD)
 		. *= 1.5
 	. = max(round(.), mob_size)
 
-/mob/living/carbon/human/get_base_value()
-	. = round(..() * species.rarity_value)
-
-/mob/living/get_base_value()
+/mob/living/get_single_monetary_worth()
+	if(worthless)
+		return 0
 	. = ..()
-	if(meat_type)
-		. += atom_info_repository.get_combined_worth_for(meat_type) * meat_amount
-	if(skin_material)
-		var/decl/material/M = decls_repository.get_decl(skin_material)
-		. += skin_amount * M.value * 10
-	if(bone_material)
-		var/decl/material/M = decls_repository.get_decl(bone_material)
-		. += bone_amount * M.value * 10
-	if(skull_type)
-		.+= atom_info_repository.get_combined_worth_for(skull_type)
+	for(var/atom/movable/organ in get_organs())
+		. += organ.get_combined_monetary_worth()
+	if(butchery_data)
+		var/decl/butchery_data/butchery_decl = GET_DECL(butchery_data)
+		. += butchery_decl.get_monetary_worth(src)
 	. = round(.)
+
+/mob/living/get_value_multiplier()
+	if(worthless)
+		return 0
+	var/decl/species/my_species = get_species()
+	. = my_species ? my_species.rarity_value : 1

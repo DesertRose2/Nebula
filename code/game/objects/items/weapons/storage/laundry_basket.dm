@@ -1,88 +1,40 @@
-// -----------------------------
-//        Laundry Basket
-// -----------------------------
-// An item designed for hauling the belongings of a character.
-// So this cannot be abused for other uses, we make it two-handed and inable to have its storage looked into.
-/obj/item/storage/laundry_basket
+/obj/item/laundry_basket
 	name = "laundry basket"
-	icon = 'icons/obj/janitor.dmi'
-	icon_state = "laundry-empty"
-	item_state = "laundry"
+	icon = 'icons/obj/items/storage/laundry.dmi'
+	icon_state = ICON_STATE_WORLD
 	desc = "The peak of thousands of years of laundry evolution."
-
 	w_class = ITEM_SIZE_GARGANTUAN
-	max_w_class = ITEM_SIZE_HUGE
-	max_storage_space = DEFAULT_BACKPACK_STORAGE //20 for clothes + a bit of additional space for non-clothing items that were worn on body
-	storage_slots = 14
-	use_to_pickup = 1
-	allow_quick_empty = 1
-	allow_quick_gather = 1
-	collection_mode = 1
-	var/linked
+	storage = /datum/storage/laundry_basket
+	material = /decl/material/solid/organic/plastic
+	obj_flags = OBJ_FLAG_HOLLOW
+	paint_color = COLOR_NAVY_BLUE
 
-
-/obj/item/storage/laundry_basket/attack_hand(mob/user)
-	if(ishuman(user))
-		var/mob/living/carbon/human/H = user
-		var/obj/item/organ/external/temp = H.get_organ(BP_R_HAND)
-		if (user.hand)
-			temp = H.get_organ(BP_L_HAND)
-		if(!temp)
-			to_chat(user, "<span class='warning'>You need two hands to pick this up!</span>")
-			return
-
-	if(user.get_inactive_hand())
-		to_chat(user, "<span class='warning'>You need your other hand to be empty</span>")
-		return
+/obj/item/laundry_basket/attack_self(mob/user)
+	var/turf/dump_loc = get_turf(user)
+	if(length(contents) && dump_loc)
+		to_chat(user, SPAN_NOTICE("You dump \the [src]'s contents onto \the [dump_loc]."))
+		for(var/atom/movable/thing as anything in get_contained_external_atoms())
+			thing.dropInto(dump_loc)
+		return TRUE
 	return ..()
 
-/obj/item/storage/laundry_basket/attack_self(mob/user)
-	var/turf/T = get_turf(user)
-	to_chat(user, "<span class='notice'>You dump the [src]'s contents onto \the [T].</span>")
-	return ..()
+/obj/item/laundry_basket/Entered(atom/movable/atom, atom/old_loc)
+	. = ..()
+	update_clothing_icon()
 
-/obj/item/storage/laundry_basket/pickup(mob/user)
-	var/obj/item/storage/laundry_basket/offhand/O = new(user)
-	O.SetName("[name] - second hand")
-	O.desc = "Your second grip on the [name]."
-	O.linked = src
-	user.put_in_inactive_hand(O)
-	linked = O
-	return
+/obj/item/laundry_basket/Exited(atom/movable/atom, atom/old_loc)
+	. = ..()
+	update_clothing_icon()
 
-/obj/item/storage/laundry_basket/on_update_icon()
-	if(contents.len)
-		icon_state = "laundry-full"
-	else
-		icon_state = "laundry-empty"
-	return
+/obj/item/laundry_basket/on_update_icon()
+	. = ..()
+	icon_state = get_world_inventory_state()
+	cut_overlays()
+	if(length(contents))
+		add_overlay(overlay_image(icon, "[icon_state]-full", COLOR_WHITE, RESET_COLOR))
 
-
-/obj/item/storage/laundry_basket/MouseDrop(obj/over_object)
-	if(over_object == usr)
-		return
-	else
-		return ..()
-
-/obj/item/storage/laundry_basket/dropped(mob/user)
-	qdel(linked)
-	return ..()
-
-/obj/item/storage/laundry_basket/show_to(mob/user)
-	return
-
-/obj/item/storage/laundry_basket/open(mob/user)
-
-
-//Offhand
-/obj/item/storage/laundry_basket/offhand
-	icon = 'icons/mob/offhand.dmi'
-	icon_state = "offhand"
-	name = "second hand"
-	use_to_pickup = 0
-
-/obj/item/storage/laundry_basket/offhand/dropped(mob/user)
-	..()
-	user.drop_from_inventory(linked)
-	return
-
+/obj/item/laundry_basket/get_mob_overlay(mob/user_mob, slot, bodypart, use_fallback_if_icon_missing, skip_adjustment)
+	var/image/res = ..()
+	if(length(contents))
+		res.overlays += overlay_image(res.icon, "[res.icon_state]-full", COLOR_WHITE, RESET_COLOR)
+	return res

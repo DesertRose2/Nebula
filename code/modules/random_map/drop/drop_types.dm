@@ -22,12 +22,6 @@ var/global/list/datum/supply_drop_loot/supply_drop
 /datum/supply_drop_loot/dd_SortValue()
 	return name
 
-/datum/supply_drop_loot/supermatter
-	name = "Supermatter"
-/datum/supply_drop_loot/supermatter/New()
-	..()
-	contents = list(/obj/machinery/power/supermatter)
-
 /datum/supply_drop_loot/lasers
 	name = "Lasers"
 	container = /obj/structure/largecrate
@@ -38,18 +32,6 @@ var/global/list/datum/supply_drop_loot/supply_drop
 		/obj/item/gun/energy/laser,
 		/obj/item/gun/energy/sniperrifle,
 		/obj/item/gun/energy/ionrifle)
-
-/datum/supply_drop_loot/ballistics
-	name = "Ballistics"
-	container = /obj/structure/largecrate
-/datum/supply_drop_loot/ballistics/New()
-	..()
-	contents = list(
-		/obj/item/gun/projectile/pistol,
-		/obj/item/gun/projectile/shotgun/doublebarrel,
-		/obj/item/gun/projectile/shotgun/pump,
-		/obj/item/gun/projectile/automatic/smg,
-		/obj/item/gun/projectile/automatic/assault_rifle)
 
 /datum/supply_drop_loot/ballistics
 	name = "Ballistics"
@@ -92,16 +74,19 @@ var/global/list/datum/supply_drop_loot/supply_drop
 /datum/supply_drop_loot/food/New()
 	..()
 	contents = list(
-		/obj/item/chems/food/condiment/flour,
-		/obj/item/chems/food/condiment/flour,
-		/obj/item/chems/food/condiment/flour,
-		/obj/item/chems/food/drinks/milk,
-		/obj/item/chems/food/drinks/milk,
-		/obj/item/storage/fancy/egg_box,
-		/obj/item/chems/food/snacks/tofu,
-		/obj/item/chems/food/snacks/tofu,
-		/obj/item/chems/food/snacks/meat,
-		/obj/item/chems/food/snacks/meat)
+		/obj/item/chems/condiment/spices,
+		/obj/item/chems/condiment/yeast,
+		/obj/item/chems/condiment/flour,
+		/obj/item/chems/condiment/flour,
+		/obj/item/chems/condiment/flour,
+		/obj/item/chems/drinks/milk,
+		/obj/item/chems/drinks/milk,
+		/obj/item/food/dairy/butter/stick,
+		/obj/item/box/fancy/egg_box,
+		/obj/item/food/tofu,
+		/obj/item/food/tofu,
+		/obj/item/food/butchery/meat,
+		/obj/item/food/butchery/meat)
 
 /datum/supply_drop_loot/armour
 	name = "Armour"
@@ -128,15 +113,15 @@ var/global/list/datum/supply_drop_loot/supply_drop
 /datum/supply_drop_loot/materials/New()
 	..()
 	contents = list(
-		/obj/item/stack/material/steel,
-		/obj/item/stack/material/steel,
-		/obj/item/stack/material/steel,
-		/obj/item/stack/material/glass,
-		/obj/item/stack/material/glass,
-		/obj/item/stack/material/wood,
-		/obj/item/stack/material/plastic,
-		/obj/item/stack/material/glass/reinforced,
-		/obj/item/stack/material/plasteel)
+		/obj/item/stack/material/sheet/mapped/steel,
+		/obj/item/stack/material/sheet/mapped/steel,
+		/obj/item/stack/material/sheet/mapped/steel,
+		/obj/item/stack/material/pane/mapped/glass,
+		/obj/item/stack/material/pane/mapped/glass,
+		/obj/item/stack/material/plank/mapped/wood,
+		/obj/item/stack/material/panel/mapped/plastic,
+		/obj/item/stack/material/pane/mapped/rglass,
+		/obj/item/stack/material/sheet/reinforced/mapped/plasteel)
 
 /datum/supply_drop_loot/medical
 	name = "Medical"
@@ -144,33 +129,33 @@ var/global/list/datum/supply_drop_loot/supply_drop
 /datum/supply_drop_loot/medical/New()
 	..()
 	contents = list(
-		/obj/item/storage/firstaid/regular,
-		/obj/item/storage/firstaid/trauma,
-		/obj/item/storage/firstaid/fire,
-		/obj/item/storage/firstaid/toxin,
-		/obj/item/storage/firstaid/o2,
-		/obj/item/storage/firstaid/adv,
+		/obj/item/firstaid/regular,
+		/obj/item/firstaid/trauma,
+		/obj/item/firstaid/fire,
+		/obj/item/firstaid/toxin,
+		/obj/item/firstaid/o2,
+		/obj/item/firstaid/adv,
 		/obj/item/chems/glass/bottle/antitoxin,
 		/obj/item/chems/glass/bottle/stabilizer,
 		/obj/item/chems/glass/bottle/sedatives,
-		/obj/item/storage/box/syringes,
-		/obj/item/storage/box/autoinjectors)
+		/obj/item/box/syringes,
+		/obj/item/box/autoinjectors)
 
-/datum/supply_drop_loot/power
-	name = "Power"
+/datum/supply_drop_loot/materials
+	name = "Materials"
 	container = /obj/structure/largecrate
-/datum/supply_drop_loot/power/New()
+/datum/supply_drop_loot/materials/New()
 	..()
 	contents = list(
-		/obj/item/stack/material/steel,
-		/obj/item/stack/material/steel,
-		/obj/item/stack/material/steel,
-		/obj/item/stack/material/glass,
-		/obj/item/stack/material/glass,
-		/obj/item/stack/material/wood,
-		/obj/item/stack/material/plastic,
-		/obj/item/stack/material/glass/reinforced,
-		/obj/item/stack/material/plasteel)
+		/obj/item/stack/material/sheet/mapped/steel,
+		/obj/item/stack/material/sheet/mapped/steel,
+		/obj/item/stack/material/sheet/mapped/steel,
+		/obj/item/stack/material/pane/mapped/glass,
+		/obj/item/stack/material/pane/mapped/glass,
+		/obj/item/stack/material/plank/mapped/wood,
+		/obj/item/stack/material/panel/mapped/plastic,
+		/obj/item/stack/material/pane/mapped/rglass,
+		/obj/item/stack/material/sheet/reinforced/mapped/plasteel)
 
 /datum/supply_drop_loot/hydroponics
 	name = "Hydroponics"
@@ -188,9 +173,9 @@ var/global/list/datum/supply_drop_loot/supply_drop
 /datum/supply_drop_loot/power/New()
 	..()
 	contents = list(
-		/obj/machinery/power/port_gen/pacman,
-		/obj/machinery/power/port_gen/pacman/super,
-		/obj/machinery/power/port_gen/pacman/mrs)
+		/obj/machinery/port_gen/pacman,
+		/obj/machinery/port_gen/pacman/super,
+		/obj/machinery/port_gen/pacman/mrs)
 
 /datum/supply_drop_loot/power/contents()
 	return list(pick(contents))

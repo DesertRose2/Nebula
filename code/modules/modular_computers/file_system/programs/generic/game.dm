@@ -7,7 +7,7 @@
 	filedesc = "Unknown Game"				// User-Friendly name. In this case, we will generate a random name in constructor.
 	program_icon_state = "game"				// Icon state of this program's screen.
 	program_menu_icon = "script"
-	extended_desc = "Fun for the whole family! Probably not an AAA title, but at least you can download it on the corporate network.."		// A nice description.
+	extended_desc = "Fun for the whole family! Probably not an AAA title, but at least you can download it on the corporate network."		// A nice description.
 	size = 5								// Size in GQ. Integers only. Smaller sizes should be used for utility/low use programs (like this one), while large sizes are for important programs.
 	available_on_network = 1					// ... but we want it to be available for download.
 	nanomodule_path = /datum/nano_module/arcade_classic/	// Path of relevant nano module. The nano module is defined further in the file.
@@ -27,10 +27,10 @@
 	filedesc = "Defeat [picked_enemy_name]"
 
 // Important in order to ensure that copied versions will have the same enemy name.
-/datum/computer_file/program/game/clone()
-	var/datum/computer_file/program/game/G = ..()
-	G.picked_enemy_name = picked_enemy_name
-	return G
+/datum/computer_file/program/game/PopulateClone(datum/computer_file/program/game/clone)
+	clone = ..()
+	clone.picked_enemy_name = picked_enemy_name
+	return clone
 
 // When running the program, we also want to pass our enemy name to the nano module.
 /datum/computer_file/program/game/on_startup()
@@ -59,7 +59,7 @@
 
 // ui_interact handles transfer of data to NanoUI. Keep in mind that data you pass from here is actually sent to the client. In other words, don't send anything you don't want a client
 // to see, and don't send unnecessarily large amounts of data (due to laginess).
-/datum/nano_module/arcade_classic/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = GLOB.default_state)
+/datum/nano_module/arcade_classic/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = global.default_topic_state)
 	var/list/data = host.initial_data()
 
 	data["player_health"] = player_health

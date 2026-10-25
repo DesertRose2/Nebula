@@ -29,10 +29,6 @@
 		to_chat(joining, SPAN_WARNING("You are banned from playing offstation roles."))
 		return FALSE
 
-	if(job.is_semi_antagonist && jobban_isbanned(joining, MODE_MISC_AGITATOR))
-		to_chat(joining, SPAN_WARNING("You are banned from playing semi-antagonist roles."))
-		return FALSE
-
 	if(job.is_restricted(joining.client.prefs, joining))
 		return FALSE
 
@@ -47,17 +43,14 @@
 		to_chat(joining, "<span class='warning'>There are no available spawn points for that job.</span>")
 
 	var/turf/spawn_turf = get_turf(pick(job.spawnpoints))
-	if(!SSjobs.check_unsafe_spawn(joining, spawn_turf))
+	if(!job.no_warn_unsafe && !SSjobs.check_unsafe_spawn(joining, spawn_turf))
 		return
 
 	// check_unsafe_spawn() has an input() call, check blockers again.
 	if(!check_general_join_blockers(joining, job))
 		return
 
-	log_debug("Player: [joining] is now offsite rank: [job.title] ([name]), JCP:[job.current_positions], JPL:[job.total_positions]")
-	if(joining.mind)
-		joining.mind.assigned_job = job
-		joining.mind.assigned_role = job.title
+	log_debug("Player: [joining] is now offsite job: [job.title] ([name]), JCP:[job.current_positions], JPL:[job.total_positions]")
 	joining.faction = name
 	job.current_positions++
 
@@ -68,28 +61,30 @@
 		if(istype(other_mob))
 			character = other_mob
 
-		var/mob/living/carbon/human/user_human
+		var/mob/living/human/user_human
 		if(ishuman(character))
 			user_human = character
-			if(job.branch && mil_branches)
-				user_human.char_branch = mil_branches.get_branch(job.branch)
-				user_human.char_rank =   mil_branches.get_rank(job.branch, job.rank)
+			if(job.branch && (global.using_map.flags & MAP_HAS_BRANCH))
+				user_human.char_branch = global.using_map.get_branch(job.branch)
+				user_human.char_rank =   global.using_map.get_rank(job.branch, job.rank)
 
 			// We need to make sure to use the abstract instance here; it's not the same as the one we were passed.
 			character.skillset.obtain_from_client(SSjobs.get_by_path(job.type), character.client)
-			job.equip(character, "")
+			job.equip_job(character)
 			job.apply_fingerprints(character)
 			var/list/spawn_in_storage = SSjobs.equip_custom_loadout(character, job)
 			if(spawn_in_storage)
-				for(var/datum/gear/G in spawn_in_storage)
-					G.spawn_in_storage_or_drop(user_human, user_human.client.prefs.Gear()[G.display_name])
+				for(var/decl/loadout_option/gear in spawn_in_storage)
+					gear.spawn_in_storage_or_drop(user_human, user_human.client.prefs.Gear()[gear.uid])
 			SScustomitems.equip_custom_items(user_human)
 
 		character.job = job.title
-		if(character.mind)
-			character.mind.assigned_job = job
-			character.mind.assigned_role = character.job
+		if(!character.mind)
+			character.mind_initialize()
+		character.mind.assigned_job = job
+		character.mind.assigned_role = character.job
 
+		job.create_cash_on_hand(character)
 		to_chat(character, "<B>You are [job.total_positions == 1 ? "the" : "a"] [job.title] of the [name].</B>")
 
 		if(job.supervisors)
@@ -98,21 +93,24 @@
 		if(istype(ojob) && ojob.info)
 			to_chat(character, ojob.info)
 
-		if(user_human && user_human.disabilities & NEARSIGHTED)
-			var/equipped = user_human.equip_to_slot_or_del(new /obj/item/clothing/glasses/prescription(user_human), slot_glasses)
+		if(user_human && user_human.has_genetic_condition(GENE_COND_NEARSIGHTED)) // is this even necessary with the new aspects system?
+			var/equipped = user_human.equip_to_slot_or_del(new /obj/item/clothing/glasses/prescription(user_human), slot_glasses_str)
 			if(equipped)
-				var/obj/item/clothing/glasses/G = user_human.glasses
-				G.prescription = 7
+				var/obj/item/clothing/glasses/glasses = user_human.get_equipped_item(slot_glasses_str)
+				if(istype(glasses))
+					glasses.prescription = 7
 
 		BITSET(character.hud_updateflag, ID_HUD)
 		BITSET(character.hud_updateflag, IMPLOYAL_HUD)
 		BITSET(character.hud_updateflag, SPECIALROLE_HUD)
 
 		SSticker.mode.handle_offsite_latejoin(character)
-		GLOB.universe.OnPlayerLatejoin(character)
+		global.universe.OnPlayerLatejoin(character)
 		log_and_message_admins("has joined the round as offsite role [character.mind.assigned_role].", character)
-		if(character.cannot_stand()) equip_wheelchair(character)
-		job.post_equip_rank(character, job.title)
+		RAISE_EVENT(/decl/observ/submap_join, src, character, job)
+		if(character.cannot_stand())
+			equip_wheelchair(character)
+		job.post_equip_job_title(character, job.title)
 		qdel(joining)
 
 	return character

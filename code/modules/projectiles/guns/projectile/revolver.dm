@@ -5,7 +5,7 @@
 	icon_state = ICON_STATE_WORLD
 	safety_icon = "safety"
 	caliber = CALIBER_PISTOL_MAGNUM
-	origin_tech = "{'combat':2,'materials':2}"
+	origin_tech = @'{"combat":2,"materials":2}'
 	handle_casings = CYCLE_CASINGS
 	max_shells = 6
 	fire_delay = 12 //Revolvers are naturally slower-firing
@@ -17,10 +17,6 @@
 	accuracy_power = 8
 	one_hand_penalty = 2
 	bulk = 3
-
-/obj/item/gun/projectile/revolver/AltClick()
-	if(CanPhysicallyInteract(usr))
-		spin_cylinder()
 
 /obj/item/gun/projectile/revolver/verb/spin_cylinder()
 	set name = "Spin cylinder"
@@ -45,25 +41,41 @@
 	chamber_offset = 0
 	return ..()
 
+/obj/item/gun/projectile/revolver/stun
+	ammo_type = /obj/item/ammo_casing/pistol/magnum/stun
+
 /obj/item/gun/projectile/revolver/capgun
 	name = "cap gun"
 	desc = "Looks almost like the real thing! Ages 8 and up."
 	caliber = CALIBER_CAPS
-	origin_tech = "{'combat':1,'materials':1}"
+	origin_tech = @'{"combat":1,"materials":1}'
 	ammo_type = /obj/item/ammo_casing/cap
 	var/cap = TRUE
 
 /obj/item/gun/projectile/revolver/capgun/on_update_icon()
 	. = ..()
 	if(cap)
-		overlays += image(icon, "[icon_state]-toy")
+		add_overlay("[icon_state]-toy")
 
-/obj/item/gun/projectile/revolver/capgun/attackby(obj/item/wirecutters/W, mob/user)
-	if(!istype(W) || !cap)
+/obj/item/gun/projectile/revolver/capgun/attackby(obj/item/used_item, mob/user)
+	if(!IS_WIRECUTTER(used_item) || !cap)
 		return ..()
-	to_chat(user, "<span class='notice'>You snip off the toy markings off the [src].</span>")
+	to_chat(user, "<span class='notice'>You snip off the toy markings off \the [src].</span>")
 	name = "revolver"
 	desc += " Someone snipped off the barrel's toy mark. How dastardly."
 	cap = FALSE
 	update_icon()
 	return 1
+
+/obj/item/gun/projectile/revolver/get_alt_interactions(var/mob/user)
+	. = ..()
+	LAZYADD(., /decl/interaction_handler/revolver_spin_cylinder)
+
+/decl/interaction_handler/revolver_spin_cylinder
+	name = "Spin Cylinder"
+	expected_target_type = /obj/item/gun/projectile/revolver
+	examine_desc = "spin the cylinder"
+
+/decl/interaction_handler/revolver_spin_cylinder/invoked(atom/target, mob/user, obj/item/prop)
+	var/obj/item/gun/projectile/revolver/R = target
+	R.spin_cylinder()

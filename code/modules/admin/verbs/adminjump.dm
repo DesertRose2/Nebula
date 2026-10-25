@@ -11,13 +11,13 @@
 	set category = "Admin"
 	if(!check_rights(R_ADMIN|R_MOD|R_DEBUG))
 		return
-	if(!config.allow_admin_jump)
+	if(!get_config_value(/decl/config/toggle/on/admin_jump))
 		return alert("Admin jumping disabled")
 
 	var/list/areas = area_repository.get_areas_by_z_level()
 	var/area/A = areas[selected_area]
 	mob.jumpTo(pick(get_area_turfs(A)))
-	log_and_message_admins("jumped to [A]")
+	log_and_message_admins("jumped to [A.proper_name]")
 	SSstatistics.add_field_details("admin_verb","JA") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
 
 /client/proc/jumptoturf(var/turf/T)
@@ -25,7 +25,7 @@
 	set category = "Admin"
 	if(!check_rights(R_ADMIN|R_MOD|R_DEBUG))
 		return
-	if(!config.allow_admin_jump)
+	if(!get_config_value(/decl/config/toggle/on/admin_jump))
 		return alert("Admin jumping disabled")
 
 	log_and_message_admins("jumped to [T.x],[T.y],[T.z] in [T.loc]")
@@ -39,7 +39,7 @@
 	if(!check_rights(R_ADMIN|R_MOD|R_DEBUG))
 		return
 
-	if(config.allow_admin_jump)
+	if(get_config_value(/decl/config/toggle/on/admin_jump))
 		log_and_message_admins("jumped to [key_name(M)]")
 		if(mob)
 			var/turf/T = get_turf(M)
@@ -58,7 +58,7 @@
 	if(!check_rights(R_ADMIN|R_MOD|R_DEBUG))
 		return
 
-	if(!config.allow_admin_jump)
+	if(!get_config_value(/decl/config/toggle/on/admin_jump))
 		alert("Admin jumping disabled")
 		return
 	if(!mob)
@@ -73,7 +73,7 @@
 	log_and_message_admins("jumped to coordinates [tx], [ty], [tz]")
 
 /proc/sorted_client_keys()
-	return sortKey(GLOB.clients.Copy())
+	return sortKey(global.clients.Copy())
 
 /client/proc/jumptokey(client/C in sorted_client_keys())
 	set category = "Admin"
@@ -82,7 +82,7 @@
 	if(!check_rights(R_ADMIN|R_MOD|R_DEBUG))
 		return
 
-	if(config.allow_admin_jump)
+	if(get_config_value(/decl/config/toggle/on/admin_jump))
 		if(!istype(C))
 			to_chat(usr, "[C] is not a client, somehow.")
 			return
@@ -100,7 +100,7 @@
 	set desc = "Mob to teleport"
 	if(!check_rights(R_ADMIN|R_MOD|R_DEBUG))
 		return
-	if(config.allow_admin_jump)
+	if(get_config_value(/decl/config/toggle/on/admin_jump))
 		log_and_message_admins("teleported [key_name(M)] to self.")
 		M.jumpTo(get_turf(mob))
 		SSstatistics.add_field_details("admin_verb","GM") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
@@ -115,14 +115,14 @@
 	if(!check_rights(R_ADMIN|R_MOD|R_DEBUG))
 		return
 
-	if(config.allow_admin_jump)
-		var/list/keys = list()
-		for(var/mob/M in GLOB.player_list)
+	if(get_config_value(/decl/config/toggle/on/admin_jump))
+		var/list/client/keys = list()
+		for(var/mob/M in global.player_list) // excludes /mob/new_player
 			keys += M.client
-		var/selection = input("Please, select a player!", "Admin Jumping", null, null) as null|anything in sortKey(keys)
+		var/client/selection = input("Please, select a player!", "Admin Jumping", null, null) as null|anything in sortKey(keys)
 		if(!selection)
 			return
-		var/mob/M = selection:mob
+		var/mob/M = selection.mob
 
 		if(!M)
 			return
@@ -133,12 +133,12 @@
 	else
 		alert("Admin jumping disabled")
 
-/client/proc/sendmob(var/mob/M in sortmobs())
+/client/proc/sendmob(var/mob/M in get_sorted_mob_list())
 	set category = "Admin"
 	set name = "Send Mob"
 	if(!check_rights(R_ADMIN|R_MOD|R_DEBUG))
 		return
-	if(!config.allow_admin_jump)
+	if(!get_config_value(/decl/config/toggle/on/admin_jump))
 		alert("Admin jumping disabled")
 		return
 
@@ -148,5 +148,5 @@
 	if(A)
 		M.jumpTo(pick(get_area_turfs(A)))
 		SSstatistics.add_field_details("admin_verb","SMOB") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
-		log_and_message_admins("teleported [key_name(M)] to [A].")
+		log_and_message_admins("teleported [key_name(M)] to [A.proper_name].")
 

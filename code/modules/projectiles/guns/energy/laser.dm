@@ -3,14 +3,18 @@
 	desc = "A G40E carbine, designed to kill with concentrated energy blasts."
 	icon = 'icons/obj/guns/laser_carbine.dmi'
 	icon_state = ICON_STATE_WORLD
-	slot_flags = SLOT_BELT|SLOT_BACK
+	slot_flags = SLOT_LOWER_BODY|SLOT_BACK
 	w_class = ITEM_SIZE_LARGE
-	force = 10
+	_base_attack_force = 10
 	one_hand_penalty = 2
 	bulk = GUN_BULK_RIFLE
-	origin_tech = "{'combat':3,'magnets':2}"
+	origin_tech = @'{"combat":3,"magnets":2}'
 	material = /decl/material/solid/metal/steel
 	projectile_type = /obj/item/projectile/beam/midlaser
+	matter = list(
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/metal/silver = MATTER_AMOUNT_REINFORCEMENT
+	)
 
 /obj/item/gun/energy/laser/mounted
 	self_recharge = 1
@@ -26,7 +30,7 @@
 
 /obj/item/gun/energy/laser/practice/on_update_icon()
 	. = ..()
-	overlays += get_mutable_overlay(icon, "[icon_state]_stripe", COLOR_ORANGE)
+	add_overlay(mutable_appearance(icon, "[icon_state]_stripe", COLOR_ORANGE))
 
 /obj/item/gun/energy/laser/practice/proc/hacked()
 	return projectile_type != /obj/item/projectile/beam/practice
@@ -34,44 +38,53 @@
 /obj/item/gun/energy/laser/practice/emag_act(var/remaining_charges, var/mob/user, var/emag_source)
 	if(hacked())
 		return NO_EMAG_ACT
-	to_chat(user, "<span class='warning'>You disable the safeties on [src] and crank the output to the lethal levels.</span>")
+	to_chat(user, SPAN_WARNING("You disable the safeties on [src] and crank the output to the lethal levels."))
 	desc += " Its safeties are disabled and output is set to dangerous levels."
 	projectile_type = /obj/item/projectile/beam/midlaser
 	charge_cost = 20
 	max_shots = rand(3,6) //will melt down after those
 	return 1
 
-/obj/item/gun/energy/laser/practice/handle_post_fire(mob/user, atom/target, var/pointblank=0, var/reflex=0)
+/obj/item/gun/energy/laser/practice/handle_post_fire(atom/movable/firer, atom/target, var/pointblank=0, var/reflex=0)
 	..()
 	if(hacked())
 		max_shots--
 		if(!max_shots) //uh hoh gig is up
-			to_chat(user, "<span class='danger'>\The [src] sizzles in your hands, acrid smoke rising from the firing end!</span>")
+			to_chat(firer, SPAN_DANGER("\The [src] sizzles in your hands, acrid smoke rising from the firing end!"))
 			desc += " The optical pathway is melted and useless."
 			projectile_type = null
 
-/obj/item/gun/energy/captain
-	name = "antique laser gun"
+/obj/item/gun/energy/retro
+	name = "retro laser pistol"
 	icon = 'icons/obj/guns/caplaser.dmi'
+	desc = "A now-obsolete handheld laser weapon, still popular with some for ease of maintenance."
 	icon_state = ICON_STATE_WORLD
-	desc = "A rare weapon, handcrafted by a now defunct specialty manufacturer on Luna for a small fortune. It's certainly aged well."
-	force = 5
-	slot_flags = SLOT_BELT //too unusually shaped to fit in a holster
 	w_class = ITEM_SIZE_NORMAL
 	projectile_type = /obj/item/projectile/beam
 	origin_tech = null
 	max_shots = 5 //to compensate a bit for self-recharging
 	one_hand_penalty = 1 //a little bulky
+
+/obj/item/gun/energy/retro/empty/Initialize(ml, material_key)
+	. = ..()
+	var/obj/item/cell/cell = get_cell()
+	if(cell)
+		cell.charge = 0
+		update_icon()
+
+/obj/item/gun/energy/retro/captain
+	name = "antique laser gun"
+	desc = "A rare weapon, handcrafted by a now defunct specialty manufacturer on Luna for a small fortune. It's certainly aged well."
 	self_recharge = 1
+	slot_flags = SLOT_LOWER_BODY //too unusually shaped to fit in a holster
 
 /obj/item/gun/energy/lasercannon
 	name = "laser cannon"
 	desc = "With the laser cannon, the lasing medium is enclosed in a tube lined with uranium-235 and subjected to high neutron flux in a nuclear reactor core. This incredible technology may help YOU achieve high excitation rates with small laser volumes!"
-	icon_state = "lasercannon"
 	icon = 'icons/obj/guns/laser_cannon.dmi'
 	icon_state = ICON_STATE_WORLD
-	origin_tech = "{'combat':4,'materials':3,'powerstorage':3}"
-	slot_flags = SLOT_BELT|SLOT_BACK
+	origin_tech = @'{"combat":4,"materials":3,"powerstorage":3}'
+	slot_flags = SLOT_LOWER_BODY|SLOT_BACK
 	one_hand_penalty = 6 //large and heavy
 	w_class = ITEM_SIZE_HUGE
 	projectile_type = /obj/item/projectile/beam/heavylaser
@@ -81,7 +94,7 @@
 	fire_delay = 20
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
 		/decl/material/solid/gemstone/diamond = MATTER_AMOUNT_TRACE
 	)
 
@@ -93,3 +106,10 @@
 	accuracy = 0 //mounted laser cannons don't need any help, thanks
 	one_hand_penalty = 0
 	has_safety = FALSE
+
+/obj/item/gun/energy/laser/reloadable
+	name = "reloadable laser carbine"
+	desc = "A G40E carbine, designed to kill with concentrated energy blasts. Uses removable energy cells."
+
+/obj/item/gun/energy/laser/reloadable/setup_power_supply(loaded_cell_type, accepted_cell_type, power_supply_extension_type, charge_value)
+	return ..(/obj/item/cell/gun, /obj/item/cell/gun, /datum/extension/loaded_cell, charge_value)

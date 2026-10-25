@@ -7,9 +7,21 @@
 //Checks if all high bits in req_mask are set in bitfield
 #define BIT_TEST_ALL(bitfield, req_mask) ((~(bitfield) & (req_mask)) == 0)
 
-//Returns the middle-most value
-/proc/dd_range(var/low, var/high, var/num)
-	return max(low,min(high,num))
+/proc/get_projectile_angle(atom/source, atom/target)
+	var/sx = source.x * world.icon_size
+	var/sy = source.y * world.icon_size
+	var/tx = target.x * world.icon_size
+	var/ty = target.y * world.icon_size
+	var/atom/movable/AM
+	if(ismovable(source))
+		AM = source
+		sx += AM.step_x
+		sy += AM.step_y
+	if(ismovable(target))
+		AM = target
+		tx += AM.step_x
+		ty += AM.step_y
+	return SIMPLIFY_DEGREES(arctan(ty - sy, tx - sx))
 
 /proc/Get_Angle(atom/movable/start,atom/movable/end)//For beams.
 	if(!start || !end) return 0
@@ -26,7 +38,7 @@
 		.+=360
 
 //Returns location. Returns null if no location was found.
-/proc/get_teleport_loc(turf/location,mob/target,distance = 1, density = 0, errorx = 0, errory = 0, eoffsetx = 0, eoffsety = 0)
+/proc/get_teleport_loc(turf/location,mob/target,distance = 1, density = FALSE, errorx = 0, errory = 0, eoffsetx = 0, eoffsety = 0)
 /*
 Location where the teleport begins, target that will teleport, distance to go, density checking 0/1(yes/no).
 Random error in tile placement x, error in tile placement y, and block offset.
@@ -101,7 +113,7 @@ Turf and target are seperate in case you want to teleport some distance from a t
 			var/turf/center = locate((destination.x+xoffset),(destination.y+yoffset),location.z)//So now, find the new center.
 
 			//Now to find a box from center location and make that our destination.
-			for(var/turf/T in block(locate(center.x+b1xerror,center.y+b1yerror,location.z), locate(center.x+b2xerror,center.y+b2yerror,location.z) ))
+			for(var/turf/T as anything in block(center.x+b1xerror, center.y+b1yerror, location.z, center.x+b2xerror, center.y+b2yerror, location.z))
 				if(density && T.contains_dense_objects())	continue//If density was specified.
 				if(T.x>world.maxx || T.x<1)	continue//Don't want them to teleport off the map.
 				if(T.y>world.maxy || T.y<1)	continue
@@ -157,9 +169,6 @@ Turf and target are seperate in case you want to teleport some distance from a t
 			return 1
 	return 0
 
-/proc/sign(x)
-	return x!=0?x/abs(x):0
-
 /proc/getline(atom/M,atom/N)//Ultra-Fast Bresenham Line-Drawing Algorithm
 	var/px=M.x		//starting x
 	var/py=M.y
@@ -168,10 +177,10 @@ Turf and target are seperate in case you want to teleport some distance from a t
 	var/dy=N.y-py
 	var/dxabs=abs(dx)//Absolute value of x distance
 	var/dyabs=abs(dy)
-	var/sdx=sign(dx)	//Sign of x distance (+ or -)
-	var/sdy=sign(dy)
-	var/x=dxabs>>1	//Counters for steps taken, setting to distance/2
-	var/y=dyabs>>1	//Bit-shifting makes me l33t.  It also makes getline() unnessecarrily fast.
+	var/sdx=SIGN(dx)	//Sign of x distance (+ or -)
+	var/sdy=SIGN(dy)
+	var/x=BITSHIFT_RIGHT(dxabs,1)	//Counters for steps taken, setting to distance/2
+	var/y=BITSHIFT_RIGHT(dyabs,1)	//Bit-shifting makes me l33t.  It also makes getline() unnessecarrily fast.
 	var/j			//Generic integer for counting
 	if(dxabs>=dyabs)	//x distance is greater than y
 		for(j=0;j<dxabs;j++)//It'll take dxabs steps to get there
@@ -191,7 +200,7 @@ Turf and target are seperate in case you want to teleport some distance from a t
 			line+=locate(px,py,M.z)
 	return line
 
-#define LOCATE_COORDS(X, Y, Z) locate(between(1, X, world.maxx), between(1, Y, world.maxy), Z)
+#define LOCATE_COORDS(X, Y, Z) locate(clamp(X, 1, world.maxx), clamp(Y, 1, world.maxy), Z)
 /proc/getcircle(turf/center, var/radius) //Uses a fast Bresenham rasterization algorithm to return the turfs in a thin circle.
 	if(!radius) return list(center)
 
@@ -218,6 +227,33 @@ Turf and target are seperate in case you want to teleport some distance from a t
 
 #undef LOCATE_COORDS
 
+#define LOCATE_COORDS_SAFE(X, Y, Z) locate(clamp(X, TRANSITIONEDGE + 1, world.maxx - TRANSITIONEDGE), clamp(Y, TRANSITIONEDGE + 1, world.maxy - TRANSITIONEDGE), Z)
+/proc/getcirclesafe(turf/center, var/radius) //Uses a fast Bresenham rasterization algorithm to return the turfs in a thin circle.
+	if(!radius) return list(center)
+
+	var/x = 0
+	var/y = radius
+	var/p = 3 - 2 * radius
+
+	. = list()
+	while(y >= x) // only formulate 1/8 of circle
+
+		. += LOCATE_COORDS_SAFE(center.x - x, center.y - y, center.z) //upper left left
+		. += LOCATE_COORDS_SAFE(center.x - y, center.y - x, center.z) //upper upper left
+		. += LOCATE_COORDS_SAFE(center.x + y, center.y - x, center.z) //upper upper right
+		. += LOCATE_COORDS_SAFE(center.x + x, center.y - y, center.z) //upper right right
+		. += LOCATE_COORDS_SAFE(center.x - x, center.y + y, center.z) //lower left left
+		. += LOCATE_COORDS_SAFE(center.x - y, center.y + x, center.z) //lower lower left
+		. += LOCATE_COORDS_SAFE(center.x + y, center.y + x, center.z) //lower lower right
+		. += LOCATE_COORDS_SAFE(center.x + x, center.y + y, center.z) //lower right right
+
+		if(p < 0)
+			p += 4*x++ + 6;
+		else
+			p += 4*(x++ - y--) + 10;
+
+#undef LOCATE_COORDS_SAFE
+
 //Returns whether or not a player is a guest using their ckey as an input
 /proc/IsGuestKey(key)
 	if (findtext(key, "Guest-", 1, 7) != 1) //was findtextEx
@@ -234,14 +270,9 @@ Turf and target are seperate in case you want to teleport some distance from a t
 			return 0
 	return 1
 
-//Ensure the frequency is within bounds of what it should be sending/recieving at
+//Ensure the frequency is within bounds of what it should be sending/receiving at
 /proc/sanitize_frequency(var/f, var/low = PUBLIC_LOW_FREQ, var/high = PUBLIC_HIGH_FREQ)
-	f = round(f)
-	f = max(low, f)
-	f = min(high, f)
-	if ((f % 2) == 0) //Ensure the last digit is an odd number
-		f += 1
-	return f
+	return clamp(round(f), low, high)
 
 //Turns 1479 into 147.9
 /proc/format_frequency(var/f)
@@ -250,32 +281,29 @@ Turf and target are seperate in case you want to teleport some distance from a t
 //Generalised helper proc for letting mobs rename themselves. Used to be clname() and ainame()
 //Last modified by Carn
 /mob/proc/rename_self(var/role, var/allow_numbers=0)
-	spawn(0)
-		var/oldname = real_name
+	set waitfor = FALSE
 
-		var/time_passed = world.time
-		var/newname
+	var/oldname = real_name
+	var/time_passed = world.time
+	var/newname
 
-		for(var/i=1,i<=3,i++)	//we get 3 attempts to pick a suitable name.
-			newname = input(src,"You are \a [role]. Would you like to change your name to something else?", "Name change",oldname) as text
-			if((world.time-time_passed)>3000)
-				return	//took too long
-			newname = sanitizeName(newname, ,allow_numbers)	//returns null if the name doesn't meet some basic requirements. Tidies up a few other things like bad-characters.
-
-			for(var/mob/living/M in GLOB.player_list)
-				if(M == src)
-					continue
-				if(!newname || M.real_name == newname)
-					newname = null
-					break
-			if(newname)
-				break	//That's a suitable name!
-			to_chat(src, "Sorry, that [role]-name wasn't appropriate, please try another. It's possibly too long/short, has bad characters or is already taken.")
-
-		if(!newname)	//we'll stick with the oldname then
-			return
-
-		fully_replace_character_name(newname)
+	for(var/i= 1 to 3)
+		newname = input(src,"You are \a [role]. Would you like to change your name to something else?", "Name change",oldname) as text
+		if((world.time-time_passed) > 5 MINUTES)
+			return	//took too long
+		newname = sanitize_name(newname, ,allow_numbers)	//returns null if the name doesn't meet some basic requirements. Tidies up a few other things like bad-characters.
+		for(var/mob/living/M in global.player_list)
+			if(M == src)
+				continue
+			if(!newname || M.real_name == newname)
+				newname = null
+				break
+		if(newname)
+			break	//That's a suitable name!
+		to_chat(src, "Sorry, that [role]-name wasn't appropriate, please try another. It's possibly too long/short, has bad characters or is already taken.")
+	if(!newname)	//we'll stick with the oldname then
+		return
+	fully_replace_character_name(newname)
 
 //Picks a string of symbols to display as the law number for hacked or ion laws
 /proc/ionnum()
@@ -287,8 +315,8 @@ Turf and target are seperate in case you want to teleport some distance from a t
 
 	var/select = null
 	var/list/borgs = list()
-	for (var/mob/living/silicon/robot/A in GLOB.player_list)
-		if (A.stat == 2 || A.connected_ai || A.scrambledcodes || istype(A,/mob/living/silicon/robot/drone) || !(get_z(A) in zs))
+	for (var/mob/living/silicon/robot/A in global.player_list)
+		if (A.stat == DEAD || A.connected_ai || A.scrambledcodes || isdrone(A) || !(get_z(A) in zs))
 			continue
 		var/name = "[A.real_name] ([A.modtype] [A.braintype])"
 		borgs[name] = A
@@ -302,7 +330,7 @@ Turf and target are seperate in case you want to teleport some distance from a t
 	var/list/zs = get_valid_silicon_zs(z)
 
 	. = list()
-	for(var/mob/living/silicon/ai/A in GLOB.living_mob_list_)
+	for(var/mob/living/silicon/ai/A in global.living_mob_list_)
 		if(A.stat == DEAD || A.control_disabled || !(get_z(A) in zs))
 			continue
 		. += A
@@ -328,13 +356,13 @@ Turf and target are seperate in case you want to teleport some distance from a t
 
 /proc/get_valid_silicon_zs(z)
 	if(z)
-		return GetConnectedZlevels(z)
+		return SSmapping.get_connected_levels(z)
 	return list() //We return an empty list, because we are apparently in nullspace
 
 //Returns a list of all mobs with their name
 /proc/getmobs()
 
-	var/list/mobs = sortmobs()
+	var/list/mobs = get_sorted_mob_list()
 	var/list/names = list()
 	var/list/creatures = list()
 	var/list/namecounts = list()
@@ -359,40 +387,6 @@ Turf and target are seperate in case you want to teleport some distance from a t
 
 /proc/get_follow_targets()
 	return follow_repository.get_follow_targets()
-
-//Orders mobs by type then by name
-/proc/sortmobs()
-	var/list/moblist = list()
-	var/list/sortmob = sortAtom(SSmobs.mob_list)
-	for(var/mob/observer/eye/M in sortmob)
-		moblist.Add(M)
-	for(var/mob/living/silicon/ai/M in sortmob)
-		moblist.Add(M)
-	for(var/mob/living/silicon/pai/M in sortmob)
-		moblist.Add(M)
-	for(var/mob/living/silicon/robot/M in sortmob)
-		moblist.Add(M)
-	for(var/mob/living/deity/M in sortmob)
-		moblist.Add(M)
-	for(var/mob/living/carbon/human/M in sortmob)
-		moblist.Add(M)
-	for(var/mob/living/carbon/brain/M in sortmob)
-		moblist.Add(M)
-	for(var/mob/living/carbon/alien/M in sortmob)
-		moblist.Add(M)
-	for(var/mob/observer/ghost/M in sortmob)
-		moblist.Add(M)
-	for(var/mob/new_player/M in sortmob)
-		moblist.Add(M)
-	for(var/mob/living/carbon/slime/M in sortmob)
-		moblist.Add(M)
-	for(var/mob/living/simple_animal/M in sortmob)
-		moblist.Add(M)
-//	for(var/mob/living/silicon/hivebot/M in world)
-//		mob_list.Add(M)
-//	for(var/mob/living/silicon/hive_mainframe/M in world)
-//		mob_list.Add(M)
-	return moblist
 
 // returns the turf located at the map edge in the specified direction relative to A
 // used for mass driver
@@ -443,16 +437,6 @@ Turf and target are seperate in case you want to teleport some distance from a t
 	var/y = min(world.maxy, max(1, A.y + dy))
 	return locate(x,y,A.z)
 
-//Makes sure MIDDLE is between LOW and HIGH. If not, it adjusts it. Returns the adjusted value. Lower bound takes priority.
-/proc/between(var/low, var/middle, var/high)
-	return max(min(middle, high), low)
-
-#if DM_VERSION < 513
-/proc/arctan(x)
-	var/y=arcsin(x/sqrt(1+x*x))
-	return y
-#endif
-
 //Will return the contents of an atom recursivly to a depth of 'searchDepth'
 /atom/proc/GetAllContents(searchDepth = 5)
 	var/list/toReturn = list()
@@ -471,6 +455,10 @@ Turf and target are seperate in case you want to teleport some distance from a t
 		if(A.density)//&&A.anchored
 			cant_pass = 1
 	return cant_pass
+
+/proc/get_step_resolving_mimic(var/atom/source, var/direction)
+	var/turf/turf = get_step(get_turf(source), direction)
+	return turf?.resolve_to_actual_turf()
 
 /proc/get_step_towards2(var/atom/ref , var/atom/trg)
 	var/base_dir = get_dir(ref, get_step_towards(ref,trg))
@@ -500,8 +488,9 @@ Turf and target are seperate in case you want to teleport some distance from a t
 
 	else return get_step(ref, base_dir)
 
-/area/proc/move_contents_to(var/area/A)
+/area/proc/move_contents_to(var/area/A, var/move_air)
 	//Takes: Area.
+	//       move_air - Boolean, whether or not air should be translated with the turfs.
 	//Returns: Nothing.
 	//Notes: Attempts to move the contents of one area to another area.
 	//       Movement based on lower left corner.
@@ -519,9 +508,9 @@ Turf and target are seperate in case you want to teleport some distance from a t
 
 	if(src_origin && trg_origin)
 		var/translation = get_turf_translation(src_origin, trg_origin, turfs_src)
-		translate_turfs(translation, null)
+		translate_turfs(translation, null, translate_air = move_air)
 
-proc/DuplicateObject(obj/original, var/perfectcopy = 0 , var/sameloc = 0)
+/proc/DuplicateObject(obj/original, var/perfectcopy = 0 , var/sameloc = 0)
 	if(!original)
 		return null
 
@@ -544,7 +533,6 @@ proc/DuplicateObject(obj/original, var/perfectcopy = 0 , var/sameloc = 0)
 /datum/coords //Simple datum for storing coordinates.
 	var/x_pos = null
 	var/y_pos = null
-	var/z_pos = null
 
 /area/proc/copy_contents_to(var/area/A , var/platingRequired = 0 )
 	//Takes: Area. Optional: If it should copy to areas that don't have plating
@@ -605,6 +593,7 @@ proc/DuplicateObject(obj/original, var/perfectcopy = 0 , var/sameloc = 0)
 					var/old_icon1 = T.icon
 					var/old_overlays = T.overlays.Copy()
 					var/old_underlays = T.underlays.Copy()
+					var/old_decals = T.decals?.Copy()
 
 					if(platingRequired)
 						if(istype(B, get_base_turf_by_area(B)))
@@ -615,8 +604,10 @@ proc/DuplicateObject(obj/original, var/perfectcopy = 0 , var/sameloc = 0)
 					X.set_dir(old_dir1)
 					X.icon_state = old_icon_state1
 					X.icon = old_icon1 //Shuttle floors are in shuttle.dmi while the defaults are floors.dmi
+					X.decals = old_decals
 					X.overlays = old_overlays
 					X.underlays = old_underlays
+					X.update_icon() // necessary to update decals properly
 
 					var/list/objs = new/list()
 					var/list/newobjs = new/list()
@@ -640,7 +631,7 @@ proc/DuplicateObject(obj/original, var/perfectcopy = 0 , var/sameloc = 0)
 
 					for(var/mob/M in T)
 
-						if(!istype(M,/mob) || !M.simulated) continue // If we need to check for more mobs, I'll add a variable
+						if(!ismob(M) || !M.simulated) continue // If we need to check for more mobs, I'll add a variable
 						mobs += M
 
 					for(var/mob/M in mobs)
@@ -652,23 +643,14 @@ proc/DuplicateObject(obj/original, var/perfectcopy = 0 , var/sameloc = 0)
 					copiedobjs += newobjs
 					copiedobjs += newmobs
 
-//					var/area/AR = X.loc
-
-//					if(AR.dynamic_lighting)
-//						X.opacity = !X.opacity
-//						X.sd_SetOpacity(!X.opacity)			//TODO: rewrite this code so it's not messed by lighting ~Carn
-
 					toupdate += X
 
 					refined_src -= T
 					refined_trg -= B
 					continue moving
 
-
-
-
 	if(toupdate.len)
-		for(var/turf/simulated/T1 in toupdate)
+		for(var/turf/T1 in toupdate)
 			SSair.mark_for_update(T1)
 
 	return copiedobjs
@@ -685,66 +667,37 @@ proc/DuplicateObject(obj/original, var/perfectcopy = 0 , var/sameloc = 0)
 			mobs += M
 	return mobs
 
-
 /proc/parse_zone(zone)
-	if(zone == BP_R_HAND) return "right hand"
-	else if (zone == BP_L_HAND) return "left hand"
-	else if (zone == BP_L_ARM) return "left arm"
-	else if (zone == BP_R_ARM) return "right arm"
-	else if (zone == BP_L_LEG) return "left leg"
-	else if (zone == BP_R_LEG) return "right leg"
-	else if (zone == BP_L_FOOT) return "left foot"
-	else if (zone == BP_R_FOOT) return "right foot"
-	else if (zone == BP_L_HAND) return "left hand"
-	else if (zone == BP_R_HAND) return "right hand"
-	else if (zone == BP_L_FOOT) return "left foot"
-	else if (zone == BP_R_FOOT) return "right foot"
-	else return zone
-
-/proc/get(atom/loc, type)
-	while(loc)
-		if(istype(loc, type))
-			return loc
-		loc = loc.loc
-	return null
-
-/proc/get_turf_or_move(turf/location)
-	return get_turf(location)
-
-
-//Quick type checks for some tools
-var/global/list/common_tools = list(
-/obj/item/stack/cable_coil,
-/obj/item/wrench,
-/obj/item/weldingtool,
-/obj/item/screwdriver,
-/obj/item/wirecutters,
-/obj/item/multitool,
-/obj/item/crowbar)
-
-/proc/istool(O)
-	if(O && is_type_in_list(O, common_tools))
-		return 1
-	return 0
+	var/static/list/zone_to_descriptor_mapping = list(
+		BP_R_HAND = "right hand",
+		BP_L_HAND = "left hand",
+		BP_L_ARM =  "left arm",
+		BP_R_ARM =  "right arm",
+		BP_L_LEG =  "left leg",
+		BP_R_LEG =  "right leg",
+		BP_L_FOOT = "left foot",
+		BP_R_FOOT = "right foot",
+		BP_L_HAND = "left hand",
+		BP_R_HAND = "right hand",
+		BP_L_FOOT = "left foot",
+		BP_R_FOOT = "right foot",
+		BP_MOUTH =  "mouth",
+		BP_EYES =   "eyes"
+	)
+	return zone_to_descriptor_mapping[zone] || zone
 
 //Whether or not the given item counts as sharp in terms of dealing damage
-/proc/is_sharp(obj/O)
-	if (!O) return 0
-	if (O.sharp) return 1
-	if (O.edge) return 1
-	return 0
+/obj/proc/is_sharp()
+	return FALSE
 
 //Whether or not the given item counts as cutting with an edge in terms of removing limbs
-/proc/has_edge(obj/O)
-	if (!O) return 0
-	if (O.edge) return 1
-	return 0
-
+/obj/proc/has_edge()
+	return FALSE
 
 //For items that can puncture e.g. thick plastic but aren't necessarily sharp
 //Returns 1 if the given item is capable of popping things like balloons, inflatable barriers, or cutting police tape.
 /obj/item/proc/can_puncture()
-	return src.sharp
+	return is_sharp()
 
 /obj/item/screwdriver/can_puncture()
 	return 1
@@ -752,31 +705,22 @@ var/global/list/common_tools = list(
 /obj/item/pen/can_puncture()
 	return 1
 
-/obj/item/weldingtool/can_puncture()
+/obj/item/fuelled_tool/welding/can_puncture()
 	return 1
-
-/obj/item/screwdriver/can_puncture()
-	return 1
-
-/obj/item/shovel/can_puncture() //includes spades
-	return 1
-
-/obj/item/flame/can_puncture()
-	return src.lit
 
 /obj/item/clothing/mask/smokable/cigarette/can_puncture()
-	return src.lit
+	return ..() || lit // in case someone has a sharp cigarette for some reason
 
 /*
 Checks if that loc and dir has a item on the wall
 */
-var/list/WALLITEMS = list(
-	/obj/machinery/power/apc, /obj/machinery/alarm, /obj/item/radio/intercom,
+var/global/list/WALLITEMS = list(
+	/obj/machinery/apc, /obj/machinery/alarm, /obj/item/radio/intercom,
 	/obj/structure/extinguisher_cabinet, /obj/structure/reagent_dispensers/peppertank,
-	/obj/machinery/status_display, /obj/machinery/requests_console, /obj/machinery/light_switch, /obj/structure/sign,
+	/obj/machinery/status_display, /obj/machinery/network/requests_console, /obj/machinery/light_switch, /obj/structure/sign,
 	/obj/machinery/newscaster, /obj/machinery/firealarm, /obj/structure/noticeboard,
-	/obj/item/storage/secure/safe, /obj/machinery/door_timer, /obj/machinery/flasher, /obj/machinery/keycard_auth,
-	/obj/item/storage/mirror, /obj/structure/fireaxecabinet, /obj/structure/filingcabinet/wallcabinet
+	/obj/item/secure_storage/safe, /obj/machinery/door_timer, /obj/machinery/flasher, /obj/machinery/keycard_auth,
+	/obj/structure/mirror, /obj/structure/fireaxecabinet, /obj/structure/filing_cabinet/wall
 	)
 /proc/gotwallitem(loc, dir)
 	for(var/obj/O in loc)
@@ -811,27 +755,29 @@ var/list/WALLITEMS = list(
 	return 0
 
 /proc/get_random_colour(var/simple = FALSE, var/lower = 0, var/upper = 255)
-	var/colour
 	if(simple)
-		colour = pick(list("FF0000","FF7F00","FFFF00","00FF00","0000FF","4B0082","8F00FF"))
-	else
-		for(var/i=1;i<=3;i++)
-			var/temp_col = "[num2hex(rand(lower,upper))]"
-			if(length(temp_col )<2)
-				temp_col = "0[temp_col]"
-			colour += temp_col
-	return "#[colour]"
+		return pick(list("#ff0000","#ff7f00","#ffff00","#00ff00","#0000ff","#4b0082","#8f00ff"))
+	return rgb(rand(lower, upper), rand(lower, upper), rand(lower, upper))
 
 // call to generate a stack trace and print to runtime logs
-/proc/crash_at(msg, file, line)
+/proc/get_stack_trace(msg, file, line)
 	CRASH("%% [file],[line] %% [msg]")
 
-/proc/get_mutable_overlay(icon, icon_state, color, flags = RESET_COLOR | RESET_ALPHA, plane = FLOAT_PLANE)
-	var/mutable_appearance/res = new()
-	res.icon = icon
-	res.icon_state = icon_state
-	res.color = color
-	res.appearance_flags = flags
-	res.plane = plane
-	res.layer = FLOAT_LAYER
-	return res
+/**Returns a number string with its ordinal suffix th, st, nd, rd */
+/proc/get_ordinal_string(var/num)
+	. = num
+	num %= 100
+	if(num < 10 || num > 20) //11, 12, 13 are exceptions in english, and just get 'th' like everything else
+		switch(num % 10)
+			if(1)
+				return "[.]st"
+			if(2)
+				return "[.]nd"
+			if(3)
+				return "[.]rd"
+	return "[.]th"
+
+///A do nothing proc used to prevent empty block warnings
+///In hot code (like atmos checks), use EMPTY_BLOCK_GUARD instead.
+/proc/pass(...)
+	return

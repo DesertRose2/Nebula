@@ -13,9 +13,12 @@
 
 	var/literacy_charges = 2 //used to limit the number of books a master literate mob can make
 
+var/global/list/all_skill_verbs
 /datum/skillset/New(mob/mob)
 	owner = mob
-	for(var/datum/skill_verb/SV in GLOB.skill_verbs)
+	if(!global.all_skill_verbs)
+		global.all_skill_verbs = init_subtypes(/datum/skill_verb)
+	for(var/datum/skill_verb/SV in global.all_skill_verbs)
 		if(SV.should_have_verb(src))
 			SV.give_to_skillset(src)
 	..()
@@ -29,12 +32,13 @@
 	. = ..()
 
 /datum/skillset/proc/get_value(skill_path)
-	. = skill_list[skill_path] || default_value
+	var/decl/skill/skill = GET_DECL(skill_path)
+	. = skill_list[skill_path] || (isnull(skill.default_value) ? src.default_value : skill.default_value)
 	for(var/datum/skill_buff/SB in skill_buffs)
 		. += SB.buffs[skill_path]
 
-/datum/skillset/proc/obtain_from_mob(mob/mob)
-	if(!istype(mob) || !skills_transferable || !mob.skillset.skills_transferable)
+/datum/skillset/proc/obtain_from_mob(mob/living/mob)
+	if(!istype(mob) || !skills_transferable || !mob.skillset?.skills_transferable)
 		return
 	skill_list = mob.skillset.skill_list
 	default_value = mob.skillset.default_value
@@ -43,7 +47,8 @@
 	QDEL_NULL(NM) //Clean all nano_modules for simplicity.
 	QDEL_NULL(mob.skillset.NM)
 	QDEL_NULL_LIST(nm_viewing)
-	QDEL_NULL_LIST(mob.skillset.nm_viewing)
+	if(mob.skillset)
+		QDEL_NULL_LIST(mob.skillset.nm_viewing)
 	on_levels_change()
 
 //Called when a player is added as an antag and the antag datum processes the skillset.
@@ -58,7 +63,7 @@
 /datum/skillset/proc/update_special_effects()
 	if(!owner)
 		return
-	for(var/decl/hierarchy/skill/skill in GLOB.skills)
+	for(var/decl/skill/skill in global.using_map.get_available_skills())
 		skill.update_special_effects(owner, get_value(skill.type))
 
 /datum/skillset/proc/obtain_from_client(datum/job/job, client/given_client, override = 0)
@@ -72,7 +77,7 @@
 	var/allocation = given_client.prefs.skills_allocated[job] || list()
 	skill_list = list()
 
-	for(var/decl/hierarchy/skill/S in GLOB.skills)
+	for(var/decl/skill/S in global.using_map.get_available_skills())
 		var/min = job ? given_client.prefs.get_min_skill(job, S) : SKILL_MIN
 		skill_list[S.type] = min + (allocation[S] || 0)
 	on_levels_change()
@@ -115,8 +120,8 @@
 		else
 			return max(0, 1 + (SKILL_DEFAULT - points) * factor)
 
-/mob/proc/do_skilled(base_delay, skill_path , atom/target = null, factor = 0.3)
-	return do_after(src, base_delay * skill_delay_mult(skill_path, factor), target)
+/mob/proc/do_skilled(base_delay, skill_path , atom/target = null, factor = 0.3, check_holding = FALSE, set_cooldown = FALSE)
+	return do_after(src, base_delay * skill_delay_mult(skill_path, factor), target, check_holding, set_cooldown = set_cooldown)
 
 // A generic way of modifying success probabilities via skill values. Higher factor means skills have more effect. fail_chance is the chance at SKILL_NONE.
 /mob/proc/skill_fail_chance(skill_path, fail_chance, no_more_fail = SKILL_MAX, factor = 1)

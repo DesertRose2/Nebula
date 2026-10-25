@@ -1,9 +1,4 @@
 //This file was auto-corrected by findeclaration.exe on 25.5.2012 20:42:31
-
-var/global/list/priority_air_alarms = list()
-var/global/list/minor_air_alarms = list()
-
-
 /obj/machinery/computer/atmos_alert
 	name = "atmospheric alert computer"
 	desc = "Used to access the atmospheric sensors."
@@ -13,7 +8,7 @@ var/global/list/minor_air_alarms = list()
 
 /obj/machinery/computer/atmos_alert/Initialize()
 	. = ..()
-	atmosphere_alarm.register_alarm(src, /atom/proc/update_icon)
+	atmosphere_alarm.register_alarm(src, TYPE_PROC_REF(/atom, update_icon))
 
 /obj/machinery/computer/atmos_alert/Destroy()
 	atmosphere_alarm.unregister_alarm(src)
@@ -61,16 +56,5 @@ var/global/list/minor_air_alarms = list()
 			for(var/datum/alarm_source/alarm_source in alarm.sources)
 				var/obj/machinery/alarm/air_alarm = alarm_source.source
 				if(istype(air_alarm))
-					var/list/new_ref = list("atmos_reset" = 1)
-					air_alarm.Topic(air_alarm, new_ref, state = air_alarm_topic)
+					air_alarm.set_alarm(0)
 		return TOPIC_REFRESH
-
-
-var/datum/topic_state/air_alarm_topic/air_alarm_topic = new()
-
-/datum/topic_state/air_alarm_topic/href_list(var/mob/user)
-	var/list/extra_href = list()
-	extra_href["remote_connection"] = 1
-	extra_href["remote_access"] = 1
-
-	return extra_href

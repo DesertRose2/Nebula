@@ -1,11 +1,19 @@
-/area/constructionsite
-	name = "\improper Construction Site"
-	icon_state = "storage"
+/area/example
+	abstract_type = /area/example
+	holomap_color = HOLOMAP_AREACOLOR_CREW
 
-/area/maintenance/fsmaint2
-	name = "\improper Fore Starboard Maintenance - 2"
+/area/example/first
+	name = "\improper Testing Site First Floor"
 	icon_state = "fsmaint"
 
-/area/medical/surgery
-	name = "\improper Operating Theatre"
+/area/example/second
+	name = "\improper Testing Site Second Floor"
 	icon_state = "surgery"
+
+/area/example/third
+	name = "\improper Testing Site Third Floor"
+	icon_state = "storage"
+
+/area/shuttle/ferry
+	name = "\improper Testing Site Ferry"
+	icon_state = "shuttle"

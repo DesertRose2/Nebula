@@ -1,0 +1,93 @@
+/datum/storage/pockets/suit/ascent
+	storage_slots = 10
+	max_w_class = ITEM_SIZE_LARGE
+
+/decl/outfit/job/ascent
+	name         = "Ascent - Gyne"
+	mask         = /obj/item/clothing/mask/gas/ascent
+	uniform      = /obj/item/clothing/jumpsuit/ascent
+	id_type      = /obj/item/card/id/ascent
+	shoes        = /obj/item/clothing/shoes/magboots/ascent
+	l_ear        = null
+	pda_type     = null
+	pda_slot     = 0
+	outfit_flags = 0
+
+/decl/outfit/job/ascent/attendant
+	name = "Ascent - Attendant"
+	back = /obj/item/rig/mantid
+
+/decl/outfit/job/ascent/tech
+	name = "Ascent - Technician"
+	suit = /obj/item/clothing/suit/ascent
+
+/obj/item/clothing/mask/gas/ascent
+	name = "mantid facemask"
+	desc = "An alien facemask with chunky gas filters and a breathing valve."
+	filter_water = TRUE
+	icon = 'mods/species/ascent/icons/clothing/mask.dmi'
+	_gyne_onmob_icon = 'mods/species/ascent/icons/clothing/mask_gyne.dmi'
+	bodytype_equip_flags = BODY_EQUIP_FLAG_GYNE | BODY_EQUIP_FLAG_ALATE
+	filtered_gases = list(
+		/decl/material/gas/nitrous_oxide,
+		/decl/material/gas/chlorine,
+		/decl/material/gas/ammonia,
+		/decl/material/gas/carbon_monoxide,
+		/decl/material/gas/methane
+	)
+	flags_inv = 0
+
+/obj/item/clothing/shoes/magboots/ascent
+	name = "mantid mag-claws"
+	desc = "A set of powerful gripping claws."
+	icon = 'mods/species/ascent/icons/magboots/boots.dmi'
+	bodytype_equip_flags = BODY_EQUIP_FLAG_GYNE | BODY_EQUIP_FLAG_ALATE
+	_gyne_onmob_icon = 'mods/species/ascent/icons/magboots/boots_gyne.dmi'
+
+/obj/item/clothing/jumpsuit/ascent
+	name = "mantid undersuit"
+	desc = "A ribbed, spongy undersuit of some sort. It has a big sleeve for a tail, so it probably isn't for humans."
+	bodytype_equip_flags = BODY_EQUIP_FLAG_GYNE | BODY_EQUIP_FLAG_ALATE
+	icon = 'mods/species/ascent/icons/clothing/under.dmi'
+	color = COLOR_DARK_GUNMETAL
+	_gyne_onmob_icon = 'mods/species/ascent/icons/clothing/under_gyne.dmi'
+
+/obj/item/clothing/suit/ascent
+	name = "mantid gear harness"
+	desc = "A complex tangle of articulated cables and straps."
+	bodytype_equip_flags = BODY_EQUIP_FLAG_GYNE | BODY_EQUIP_FLAG_ALATE
+	icon_state = ICON_STATE_WORLD
+	icon = 'mods/species/ascent/icons/clothing/under_harness.dmi'
+	_gyne_onmob_icon = 'mods/species/ascent/icons/clothing/under_harness_gyne.dmi'
+	body_parts_covered = 0
+	slot_flags = SLOT_OVER_BODY | SLOT_LOWER_BODY
+	storage = /datum/storage/pockets/suit/ascent
+	allowed = list(
+		/obj/item/flashlight,
+		/obj/item/tank,
+		/obj/item/suit_cooling_unit,
+		/obj/item/inflatable_dispenser,
+		/obj/item/rcd,
+		/obj/item/gun/energy/particle/small,
+		/obj/item/multitool/mantid,
+		/obj/item/clustertool,
+		/obj/item/fuelled_tool/welding/electric/mantid,
+		/obj/item/stack/medical/resin,
+		/obj/item/chems/drinks/cans/waterbottle/ascent
+	)
+
+/obj/item/clothing/suit/ascent/medical/WillContain()
+	return list(
+		/obj/item/stack/medical/resin = 3,
+		/obj/item/chems/drinks/cans/waterbottle/ascent = 3
+	)
+
+/obj/item/clothing/suit/ascent/utility/WillContain()
+	return list(
+		/obj/item/gun/energy/particle/small,
+		/obj/item/multitool/mantid,
+		/obj/item/clustertool = 2,
+		/obj/item/fuelled_tool/welding/electric/mantid,
+		/obj/item/stack/medical/resin,
+		/obj/item/chems/drinks/cans/waterbottle/ascent
+	)

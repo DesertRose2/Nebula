@@ -8,7 +8,7 @@ SUBSYSTEM_DEF(processing)
 
 	var/list/processing = list()
 	var/list/current_run = list()
-	var/process_proc = /datum/proc/Process
+	var/process_proc = TYPE_PROC_REF(/datum, Process)
 
 	var/debug_last_thing
 	var/debug_original_process_proc // initial() does not work with procs
@@ -28,7 +28,7 @@ SUBSYSTEM_DEF(processing)
 		var/datum/thing = current_run[current_run.len]
 		current_run.len--
 		if(QDELETED(thing) || (call(thing, process_proc)(wait, times_fired, src) == PROCESS_KILL))
-			if(thing)
+			if(thing?.is_processing == _internal_name)
 				thing.is_processing = null
 			processing -= thing
 		if (MC_TICK_CHECK)
@@ -43,7 +43,7 @@ SUBSYSTEM_DEF(processing)
 		debug_original_process_proc = null
 	else
 		debug_original_process_proc	= process_proc
-		process_proc = /datum/proc/DebugSubsystemProcess
+		process_proc = TYPE_PROC_REF(/datum, DebugSubsystemProcess)
 
 	to_chat(usr, "[name] - Debug mode [debug_original_process_proc ? "en" : "dis"]abled")
 
@@ -62,6 +62,6 @@ SUBSYSTEM_DEF(processing)
 	var/tick_time = world.time - start_tick
 	var/tick_use_limit = world.tick_usage - start_tick_usage - 100 // Current tick use - starting tick use - 100% (a full tick excess)
 	if(tick_time > 0)
-		crash_with("[log_info_line(subsystem.debug_last_thing)] slept during processing. Spent [tick_time] tick\s.")
+		PRINT_STACK_TRACE("[log_info_line(subsystem.debug_last_thing)] slept during processing. Spent [tick_time] tick\s.")
 	if(tick_use_limit > 0)
-		crash_with("[log_info_line(subsystem.debug_last_thing)] took longer than a tick to process. Exceeded with [tick_use_limit]%")
+		PRINT_STACK_TRACE("[log_info_line(subsystem.debug_last_thing)] took longer than a tick to process. Exceeded with [tick_use_limit]%")

@@ -9,11 +9,10 @@
 //			/atom/old_loc: The atom the enterer came from
 //
 
-GLOBAL_DATUM_INIT(entered_event, /decl/observ/entered, new)
-
 /decl/observ/entered
 	name = "Entered"
 	expected_type = /atom
+	flags = OBSERVATION_NO_GLOBAL_REGISTRATIONS
 
 /*******************
 * Entered Handling *
@@ -21,4 +20,5 @@ GLOBAL_DATUM_INIT(entered_event, /decl/observ/entered, new)
 
 /atom/Entered(atom/movable/enterer, atom/old_loc)
 	..()
-	GLOB.entered_event.raise_event(src, enterer, old_loc)
+	if(event_listeners?[/decl/observ/entered])
+		raise_event_non_global(/decl/observ/entered, enterer, old_loc)

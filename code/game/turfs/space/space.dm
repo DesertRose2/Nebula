@@ -4,46 +4,112 @@
 	icon = 'icons/turf/space.dmi'
 	explosion_resistance = 3
 	icon_state = "default"
-	dynamic_lighting = 0
+	dynamic_lighting = FALSE
 	temperature = T20C
 	thermal_conductivity = OPEN_HEAT_TRANSFER_COEFFICIENT
 	permit_ao = FALSE
 	z_eventually_space = TRUE
-	var/static/list/dust_cache
+	turf_flags = TURF_FLAG_BACKGROUND
+	can_inherit_air = FALSE
 
-/turf/space/proc/build_dust_cache()
-	LAZYINITLIST(dust_cache)
-	for (var/i in 0 to 25)
-		var/image/im = image('icons/turf/space_dust.dmi',"[i]")
-		im.plane = DUST_PLANE
-		im.alpha = 80
-		im.blend_mode = BLEND_ADD
+	open_turf_type = /turf/space
 
-		var/image/I = new()
-		I.appearance = /turf/space
-		I.icon_state = "white"
-		I.overlays += im
-		dust_cache["[i]"] = I
+	/// If we're an edge.
+	var/edge = 0
+	/// Force this one to pretend it's an overedge turf.
+	var/forced_dirs = 0
 
-/turf/space/Initialize()
-	. = ..()
-	update_starlight()
-	if (!dust_cache)
-		build_dust_cache()
-	appearance = dust_cache["[((x + y) ^ ~(x * y) + z) % 25]"]
+/turf/space/Initialize(mapload)
+
+	SHOULD_CALL_PARENT(FALSE)
+	atom_flags |= ATOM_FLAG_INITIALIZED
+	_earliest_type ||= type
+
+	if(SSambience.initialized) // if not initialized, we'll loop over all turfs anyway
+		AMBIENCE_QUEUE_TURF(src)
+
+	//We might be an edge
+	if(y == world.maxy || forced_dirs & NORTH)
+		edge |= NORTH
+	else if(y == 1 || forced_dirs & SOUTH)
+		edge |= SOUTH
+
+	if(x == 1 || forced_dirs & WEST)
+		edge |= WEST
+	else if(x == world.maxx || forced_dirs & EAST)
+		edge |= EAST
+
+	if(edge) //Magic edges
+		appearance = SSskybox.mapedge_cache["[edge]"]
+	else //Dust
+		appearance = SSskybox.dust_cache["[((x + y) ^ ~(x * y) + z) % 25]"]
+
+	// Z-Copy does this too, but we want to avoid calling into Z-Copy.
+	var/turf/lower
+	if (z_flags)
+		lower = HasBelow(z) ? get_step(src, DOWN) : null
+		if (lower)
+			z_eventually_space = lower.z_eventually_space
+
+		permit_ao = !z_eventually_space
+
+	// This is a common turf that frequently has fuck-all on it, so we're going to cheat.
+	if (mapload && z_flags && (z_flags & ZM_MIMIC_BELOW))
+		if (lower)
+			if (!z_eventually_space || !lower.z_allow_fastinit)	// Have stuff, can't avoid doing the full ZM path. This should be uncommon though.
+				z_allow_fastinit = FALSE
+				setup_zmimic(mapload)
+			else	// Fast init, we only care about setting up the Z-stack. For efficiency, we're not going to bother with boundaries - it's unlikely the lack of transition will be visible to a player.
+				below = lower
+				below.above = src
+				SSzcopy.openspace_turfs += 1
+				SSzcopy.total_space_fastinit += 1
+				z_was_fastinit = TRUE
+		else	// Nothing below, nothing would be copied -- cheat, and skip actually calling into ZM. State will still be correct, because the implicit below is us.
+			z_flags = 0
+			// SSzcopy.openspace_turfs += 1	// Counting these as openspace is kind of cheating, they're not meaningfully participating in ZM.
+			SSzcopy.total_space_zeroinit += 1
 
 	if(!HasBelow(z))
-		return
-	var/turf/below = GetBelow(src)
+		return INITIALIZE_HINT_NORMAL
 
-	if(istype(below, /turf/space))
-		return
-	var/area/A = below.loc
+	lower ||= HasBelow(z) ? get_step(src, DOWN) : null
+	if(isspaceturf(lower))
+		return INITIALIZE_HINT_NORMAL
 
-	if(!below.density && (A.area_flags & AREA_FLAG_EXTERNAL))
-		return
+	var/area/A = lower.loc
+	if(!lower.density && (A.area_flags & AREA_FLAG_EXTERNAL))
+		return INITIALIZE_HINT_NORMAL
 
 	return INITIALIZE_HINT_LATELOAD // oh no! we need to switch to being a different kind of turf!
+
+/turf/space/LateInitialize()
+	if(SSmapping.base_floor_area)
+		var/area/new_area = locate(SSmapping.base_floor_area) || new SSmapping.base_floor_area
+		ChangeArea(new_area)
+	ChangeTurf(SSmapping.base_floor_type)
+
+/turf/space/proc/toggle_transit(var/direction)
+	if(edge)
+		return
+
+	if(!direction) //Stopping our transit
+		appearance = SSskybox.dust_cache["[((x + y) ^ ~(x * y) + z) % 25]"]
+	else if(direction & (NORTH|SOUTH)) //Starting transit vertically
+		var/x_shift = SSskybox.phase_shift_by_x[x % (SSskybox.phase_shift_by_x.len - 1) + 1]
+		var/transit_state = ((direction & SOUTH ? world.maxy - y : y) + x_shift) % 15
+		appearance = SSskybox.speedspace_cache["NS_[transit_state]"]
+	else if(direction & (EAST|WEST)) //Starting transit horizontally
+		var/y_shift = SSskybox.phase_shift_by_y[y % (SSskybox.phase_shift_by_y.len - 1) + 1]
+		var/transit_state = ((direction & WEST ? world.maxx - x : x) + y_shift) % 15
+		appearance = SSskybox.speedspace_cache["EW_[transit_state]"]
+
+	for(var/atom/movable/AM in src)
+		if (AM.simulated && !AM.anchored)
+			AM.throw_at(get_step(src, global.reverse_dir[direction]), 5, 1)
+
+		if(istype(AM, /obj/effect/decal))
+			qdel(AM)
 
 /turf/space/Destroy()
 	// Cleanup cached z_eventually_space values above us.
@@ -51,172 +117,47 @@
 		var/turf/T = src
 		while ((T = GetAbove(T)))
 			T.z_eventually_space = FALSE
+
 	return ..()
 
-/turf/space/LateInitialize()
-	if(GLOB.using_map.base_floor_area)
-		var/area/new_area = locate(GLOB.using_map.base_floor_area) || new GLOB.using_map.base_floor_area
-		ChangeArea(src, new_area)
-	ChangeTurf(GLOB.using_map.base_floor_type)
+/turf/space/attackby(obj/item/used_item, mob/user)
 
-// override for space turfs, since they should never hide anything
-/turf/space/levelupdate()
-	for(var/obj/O in src)
-		O.hide(0)
-
-/turf/space/is_solid_structure()
-	return locate(/obj/structure/lattice, src) //counts as solid structure if it has a lattice
-
-/turf/space/attackby(obj/item/C, mob/user)
-
-	if (istype(C, /obj/item/stack/material/rods))
+	if (istype(used_item, /obj/item/stack/material/rods))
 		var/obj/structure/lattice/L = locate(/obj/structure/lattice, src)
 		if(L)
-			return L.attackby(C, user)
-		var/obj/item/stack/material/rods/R = C
-		if (R.use(1))
+			return L.attackby(used_item, user)
+		var/obj/item/stack/material/rods/rods = used_item
+		if (rods.use(1))
 			to_chat(user, "<span class='notice'>Constructing support lattice ...</span>")
 			playsound(src, 'sound/weapons/Genhit.ogg', 50, 1)
-			ReplaceWithLattice(R.material.type)
+			new /obj/structure/lattice(src, rods.material.type)
 			return TRUE
 
-	if (istype(C, /obj/item/stack/tile/floor))
+	if (istype(used_item, /obj/item/stack/tile/floor))
 		var/obj/structure/lattice/L = locate(/obj/structure/lattice, src)
 		if(L)
-			var/obj/item/stack/tile/floor/S = C
+			var/obj/item/stack/tile/floor/S = used_item
 			if (!S.use(1))
-				return
-			qdel(L)
+				return TRUE
 			playsound(src, 'sound/weapons/Genhit.ogg', 50, 1)
-			ChangeTurf(/turf/simulated/floor/airless, keep_air = TRUE)
+			ChangeTurf(/turf/floor/plating/airless)
+			qdel(L)
 		else
 			to_chat(user, "<span class='warning'>The plating is going to need some support.</span>")
 		return TRUE
+	return FALSE
 
 
 // Ported from unstable r355
 
 /turf/space/Entered(atom/movable/A)
 	..()
-	if(A && A.loc == src)
+	if(A && A.loc == src && !density) // !density so 'fake' space turfs don't fling ghosts everywhere
 		if (A.x <= TRANSITIONEDGE || A.x >= (world.maxx - TRANSITIONEDGE + 1) || A.y <= TRANSITIONEDGE || A.y >= (world.maxy - TRANSITIONEDGE + 1))
-			A.touch_map_edge()
+			A.touch_map_edge(OVERMAP_ID_SPACE)
 
-/turf/space/proc/Sandbox_Spacemove(atom/movable/A)
-	var/cur_x
-	var/cur_y
-	var/next_x
-	var/next_y
-	var/target_z
-	var/list/y_arr
-
-	if(src.x <= 1)
-		if(istype(A, /obj/effect/meteor))
-			qdel(A)
-			return
-
-		var/list/cur_pos = src.get_global_map_pos()
-		if(!cur_pos) return
-		cur_x = cur_pos["x"]
-		cur_y = cur_pos["y"]
-		next_x = (--cur_x||GLOB.global_map.len)
-		y_arr = GLOB.global_map[next_x]
-		target_z = y_arr[cur_y]
-/*
-		//debug
-		log_debug("Src.z = [src.z] in global map X = [cur_x], Y = [cur_y]")
-		log_debug("Target Z = [target_z]")
-		log_debug("Next X = [next_x]")
-
-		//debug
-*/
-		if(target_z)
-			A.z = target_z
-			A.x = world.maxx - 2
-			spawn (0)
-				if ((A && A.loc))
-					A.loc.Entered(A)
-	else if (src.x >= world.maxx)
-		if(istype(A, /obj/effect/meteor))
-			qdel(A)
-			return
-
-		var/list/cur_pos = src.get_global_map_pos()
-		if(!cur_pos) return
-		cur_x = cur_pos["x"]
-		cur_y = cur_pos["y"]
-		next_x = (++cur_x > GLOB.global_map.len ? 1 : cur_x)
-		y_arr = GLOB.global_map[next_x]
-		target_z = y_arr[cur_y]
-/*
-		//debug
-		log_debug("Src.z = [src.z] in global map X = [cur_x], Y = [cur_y]")
-		log_debug("Target Z = [target_z]")
-		log_debug("Next X = [next_x]")
-
-		//debug
-*/
-		if(target_z)
-			A.z = target_z
-			A.x = 3
-			spawn (0)
-				if ((A && A.loc))
-					A.loc.Entered(A)
-	else if (src.y <= 1)
-		if(istype(A, /obj/effect/meteor))
-			qdel(A)
-			return
-		var/list/cur_pos = src.get_global_map_pos()
-		if(!cur_pos) return
-		cur_x = cur_pos["x"]
-		cur_y = cur_pos["y"]
-		y_arr = GLOB.global_map[cur_x]
-		next_y = (--cur_y||y_arr.len)
-		target_z = y_arr[next_y]
-/*
-		//debug
-		log_debug("Src.z = [src.z] in global map X = [cur_x], Y = [cur_y]")
-		log_debug("Next Y = [next_y]")
-		log_debug("Target Z = [target_z]")
-
-		//debug
-*/
-		if(target_z)
-			A.z = target_z
-			A.y = world.maxy - 2
-			spawn (0)
-				if ((A && A.loc))
-					A.loc.Entered(A)
-
-	else if (src.y >= world.maxy)
-		if(istype(A, /obj/effect/meteor))
-			qdel(A)
-			return
-		var/list/cur_pos = src.get_global_map_pos()
-		if(!cur_pos) return
-		cur_x = cur_pos["x"]
-		cur_y = cur_pos["y"]
-		y_arr = GLOB.global_map[cur_x]
-		next_y = (++cur_y > y_arr.len ? 1 : cur_y)
-		target_z = y_arr[next_y]
-/*
-		//debug
-		log_debug("Src.z = [src.z] in global map X = [cur_x], Y = [cur_y]")
-		log_debug("Next Y = [next_y]")
-		log_debug("Target Z = [target_z]")
-
-		//debug
-*/
-		if(target_z)
-			A.z = target_z
-			A.y = 3
-			spawn (0)
-				if ((A && A.loc))
-					A.loc.Entered(A)
-	return
-
-/turf/space/ChangeTurf(turf/N, tell_universe = TRUE, force_lighting_update = FALSE, keep_air = FALSE)
-	return ..(N, tell_universe, TRUE, keep_air)
+/turf/space/ChangeTurf(var/turf/N, var/tell_universe = TRUE, var/force_lighting_update = FALSE, var/keep_air = FALSE, var/update_open_turfs_above = TRUE)
+	return ..(N, tell_universe, TRUE, keep_air, update_open_turfs_above)
 
 /turf/space/is_open()
 	return TRUE
@@ -225,3 +166,10 @@
 /turf/space/infinity
 	name = "\proper infinity"
 	icon_state = "bluespace"
+
+/turf/space/black
+	icon_state = "black"
+
+// not how space works
+/turf/space/get_movable_alpha_mask_state(atom/movable/mover)
+	return null

@@ -9,7 +9,7 @@
 	-- Will change all the tube lights to green, and flicker them. The semicolon is important to separate the consecutive querys, but is not required for standard one-query use.
 	UPDATE /obj/machinery/light SET color = "#0F0" WHERE icon_state == "tube1"; CALL flicker(1) ON /obj/machinery/light
 	-- Will delete all pickaxes. "IN world" is not required.
-	DELETE /obj/item/pickaxe
+	DELETE /obj/item/tool/pickaxe
 
 	--You can use operators other than ==, such as >, <=, != and etc..
 
@@ -104,15 +104,15 @@
 				if("select")
 					var/text = ""
 					for(var/datum/t in objs)
-						text += "<A HREF='?_src_=vars;Vars=\ref[t]'>\ref[t]</A>"
+						text += "<A HREF='byond://?_src_=vars;Vars=\ref[t]'>\ref[t]</A>"
 						if(istype(t, /atom))
 							var/atom/a = t
 
 							if(a.x)
-								text += ": [t] at <A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[a.x];Y=[a.y];Z=[a.z]'>([a.x], [a.y], [a.z])</a><br>"
+								text += ": [t] at <A HREF='byond://?_src_=holder;adminplayerobservecoodjump=1;X=[a.x];Y=[a.y];Z=[a.z]'>([a.x], [a.y], [a.z])</a><br>"
 
 							else if(a.loc && a.loc.x)
-								text += ": [t] in <A HREF='?_src_=vars;Vars=\ref[a.loc]'>[a.loc]</A> at <A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[a.loc.x];Y=[a.loc.y];Z=[a.loc.z]'>([a.loc.x], [a.loc.y], [a.loc.z])</a><br>"
+								text += ": [t] in <A HREF='byond://?_src_=vars;Vars=\ref[a.loc]'>[a.loc]</A> at <A HREF='byond://?_src_=holder;adminplayerobservecoodjump=1;X=[a.loc.x];Y=[a.loc.y];Z=[a.loc.z]'>([a.loc.x], [a.loc.y], [a.loc.z])</a><br>"
 
 							else
 								text += ": [t]<br>"
@@ -133,7 +133,7 @@
 								var/i = 0
 								for(var/v in sets)
 									if(++i == sets.len)
-										if(istype(temp, /turf) && (v == "x" || v == "y" || v == "z"))
+										if(isturf(temp) && (v == "x" || v == "y" || v == "z"))
 											break
 
 										temp.SDQL_update(v, SDQL_expression(d, set_list[sets]))
@@ -149,9 +149,8 @@
 
 			to_chat(usr, "<span class='notice'>Query executed on [objs.len] object\s.</span>")
 	catch(var/exception/e)
-		to_chat(usr, "<span class='danger'>An exception has occured during the execution of your query and your query has been aborted.</span>")
-		to_chat(usr, "exception name: [e.name]")
-		to_chat(usr, "file/line: [e.file]/[e.line]")
+		to_chat(usr, "<span class='danger'>An exception has occurred during the execution of your query and your query has been aborted.</span>")
+		to_chat(usr, EXCEPTION_TEXT(e))
 		return
 
 /proc/SDQL_parse(list/query_list)
@@ -497,7 +496,7 @@
 
 		else if(char == "'")
 			if(word != "")
-				to_chat(usr, "<span class='warning'>SDQL2: You have an error in your SDQL syntax, unexpected ' in query: \"<font color=gray>[query_text]</font>\" following \"<font color=gray>[word]</font>\". Please check your syntax, and try again.</span>")
+				to_chat(usr, "<span class='warning'>SDQL2: You have an error in your SDQL syntax, unexpected ' in query: \"[SPAN_GREY(query_text)]\" following \"[SPAN_GREY(word)]\". Please check your syntax, and try again.</span>")
 				return null
 
 			word = "'"
@@ -517,7 +516,7 @@
 					word += char
 
 			if(i > len)
-				to_chat(usr, "<span class='warning'>SDQL2: You have an error in your SDQL syntax, unmatched ' in query: \"<font color=gray>[query_text]</font>\". Please check your syntax, and try again.</span>")
+				to_chat(usr, "<span class='warning'>SDQL2: You have an error in your SDQL syntax, unmatched ' in query: \"[SPAN_GREY(query_text)]\". Please check your syntax, and try again.</span>")
 				return null
 
 			query_list += "[word]'"
@@ -525,7 +524,7 @@
 
 		else if(char == "\"")
 			if(word != "")
-				to_chat(usr, "<span class='warning'>SDQL2: You have an error in your SDQL syntax, unexpected \" in query: \"<font color=gray>[query_text]</font>\" following \"<font color=gray>[word]</font>\". Please check your syntax, and try again.</span>")
+				to_chat(usr, "<span class='warning'>SDQL2: You have an error in your SDQL syntax, unexpected \" in query: \"[SPAN_GREY(query_text)]\" following \"[SPAN_GREY(word)]\". Please check your syntax, and try again.</span>")
 				return null
 
 			word = "\""
@@ -545,7 +544,7 @@
 					word += char
 
 			if(i > len)
-				to_chat(usr, "<span class='warning'>SDQL2: You have an error in your SDQL syntax, unmatched \" in query: \"<font color=gray>[query_text]</font>\". Please check your syntax, and try again.</span>")
+				to_chat(usr, "<span class='warning'>SDQL2: You have an error in your SDQL syntax, unmatched \" in query: \"[SPAN_GREY(query_text)]\". Please check your syntax, and try again.</span>")
 				return null
 
 			query_list += "[word]\""

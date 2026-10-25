@@ -9,11 +9,10 @@
 //			/atom/new_loc: The atom the exitee is now residing in
 //
 
-GLOBAL_DATUM_INIT(exited_event, /decl/observ/exited, new)
-
 /decl/observ/exited
 	name = "Exited"
 	expected_type = /atom
+	flags = OBSERVATION_NO_GLOBAL_REGISTRATIONS
 
 /******************
 * Exited Handling *
@@ -21,4 +20,5 @@ GLOBAL_DATUM_INIT(exited_event, /decl/observ/exited, new)
 
 /atom/Exited(atom/movable/exitee, atom/new_loc)
 	. = ..()
-	GLOB.exited_event.raise_event(src, exitee, new_loc)
+	if(event_listeners?[/decl/observ/exited])
+		raise_event_non_global(/decl/observ/exited, exitee, new_loc)

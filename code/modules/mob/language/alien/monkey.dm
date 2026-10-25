@@ -4,7 +4,8 @@
 	speech_verb = "chimpers"
 	ask_verb = "chimpers"
 	exclaim_verb = "screeches"
-	key = ""
+	language_key = "ook"
+	language_flags = LANG_FLAG_RESTRICTED
 	syllables = list("ook", "eek", "hiss", "gronk")
 	shorthand = "Ook"
 	hidden_from_codex = 1

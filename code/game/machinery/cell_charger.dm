@@ -3,7 +3,7 @@
 	desc = "A much more powerful version of the standard recharger that is specially designed for charging power cells."
 	icon = 'icons/obj/power.dmi'
 	icon_state = "ccharger0"
-	anchored = 1
+	anchored = TRUE
 	idle_power_usage = 5
 	power_channel = EQUIP
 	var/chargelevel = -1
@@ -32,13 +32,13 @@
 	else
 		overlays.Cut()
 
-/obj/machinery/cell_charger/examine(var/mob/user, var/distance)
+/obj/machinery/cell_charger/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
 	if(distance <= 5)
 		var/obj/item/cell/cell = get_cell()
-		to_chat(user, "There's [cell ? "a" : "no"] cell in the charger.")
+		. += "There's [cell ? "a" : "no"] cell in the charger."
 		if(cell)
-			to_chat(user, "Current charge: [cell.charge]")
+			. += "Current charge: [cell.charge]."
 
 /obj/machinery/cell_charger/component_stat_change(obj/item/stock_parts/part, old_stat, flag)
 	. = ..()
@@ -52,15 +52,15 @@
 			STOP_PROCESSING_MACHINE(src, MACHINERY_PROCESS_SELF)
 		update_icon()
 
-/obj/machinery/cell_charger/attackby(obj/item/W, mob/user)
-	if(isWrench(W) && !panel_open)
+/obj/machinery/cell_charger/attackby(obj/item/used_item, mob/user)
+	if(IS_WRENCH(used_item) && !panel_open)
 		. = TRUE
 		if(get_cell())
 			to_chat(user, "<span class='warning'>Remove the cell first!</span>")
 			return
 
-		anchored = !anchored
-		to_chat(user, "You [anchored ? "attach" : "detach"] the cell charger [anchored ? "to" : "from"] the ground")
+		set_anchored(!anchored)
+		to_chat(user, "You [anchored ? "attach" : "detach"] \the [src] [anchored ? "to" : "from"] the ground.")
 		playsound(src.loc, 'sound/items/Ratchet.ogg', 75, 1)
 		return
 

@@ -4,26 +4,20 @@
 	icon = 'icons/obj/objects.dmi'
 	icon_state = "spirit_board"
 	density = TRUE
+	material = /decl/material/solid/organic/wood/oak
 	var/next_use = 0
 	var/planchette = "A"
 	var/lastuser = null
 
-/obj/item/spirit_board/examine(mob/user)
-	..()
-	to_chat(user, "The planchette is sitting at \"[planchette]\".")
+/obj/item/spirit_board/get_examine_strings(mob/user, distance, infix, suffix)
+	. = ..()
+	. += "The planchette is sitting at \"[planchette]\"."
 
 /obj/item/spirit_board/attack_hand(mob/user)
-	if (user.a_intent == I_GRAB)
+	if(user.check_intent(I_FLAG_GRAB) || !user.check_dexterity(DEXTERITY_HOLD_ITEM, TRUE))
 		return ..()
-	else
-		spirit_board_pick_letter(user)
-
-
-//ATTACK GHOST IGNORING PARENT RETURN VALUE
-/obj/item/spirit_board/attack_ghost(var/mob/observer/ghost/user)
-	if(GLOB.cult.max_cult_rating >= CULT_GHOSTS_2)
-		spirit_board_pick_letter(user)
-	return ..()
+	spirit_board_pick_letter(user)
+	return TRUE
 
 /obj/item/spirit_board/proc/spirit_board_pick_letter(mob/M)
 	if(!spirit_board_checks(M))
@@ -56,20 +50,20 @@
 
 
 	if(light_amount > 0.2)
-		to_chat(M, SPAN_WARNING("It's too bright here to use \the [src.name]!"))
+		to_chat(M, SPAN_WARNING("It's too bright here to use \the [src]!"))
 		return 0
 
 	//mobs in range check
 	var/users_in_range = 0
 	for(var/mob/living/L in orange(1,src))
 		if(L.ckey && L.client)
-			if(L.client.is_afk(300) || L.incapacitated())//no playing with braindeads or corpses or handcuffed dudes.
+			if(L.client.is_afk(300) || L.incapacitated())//no playing with braindeads or corpses or cuffed dudes.
 				to_chat(M, SPAN_WARNING("[L] doesn't seem to be paying attention..."))
 			else
 				users_in_range++
 
 	if(users_in_range < 2)
-		to_chat(M, SPAN_WARNING("There aren't enough people to use \the [src.name]!"))
+		to_chat(M, SPAN_WARNING("There aren't enough people to use \the [src]!"))
 		return 0
 
 	return 1

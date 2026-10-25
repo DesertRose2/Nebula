@@ -19,11 +19,11 @@
 		return res
 
 /datum/event/radiation_storm/announce()
-	GLOB.using_map.radiation_detected_announcement()
+	global.using_map.radiation_detected_announcement(affecting_z = affecting_z)
 
 /datum/event/radiation_storm/start()
 	..()
-	GLOB.using_map.make_maint_all_access(1)
+	global.using_map.make_maint_all_access(1)
 
 /datum/event/radiation_storm/tick()
 	if(activeFor == enterBelt)
@@ -45,24 +45,23 @@
 	for(var/z in affecting_z)
 		SSradiation.z_radiate(locate(1, 1, z), radiation_level, 1)
 
-	for(var/mob/living/carbon/C in GLOB.living_mob_list_)
-		var/area/A = get_area(C)
+	for(var/mob/living/M in global.living_mob_list_)
+		var/area/A = get_area(M)
 		if(!A)
 			continue
 		if(A.area_flags & AREA_FLAG_RAD_SHIELDED)
 			continue
-		if(istype(C,/mob/living/carbon/human))
-			var/mob/living/carbon/human/H = C
-			if(prob(5 * (1 - H.get_blocked_ratio(null, IRRADIATE, damage_flags = DAM_DISPERSED, armor_pen = radiation_level))))
-				if (prob(75))
-					randmutb(H) // Applies bad mutation
-					domutcheck(H,null,MUTCHK_FORCED)
-				else
-					randmutg(H) // Applies good mutation
-					domutcheck(H,null,MUTCHK_FORCED)
+		if(!M.can_have_genetic_conditions())
+			continue
+		if(prob(5 * (1 - M.get_blocked_ratio(null, IRRADIATE, damage_flags = DAM_DISPERSED, armor_pen = radiation_level))))
+			if(prob(75))
+				M.add_genetic_condition(pick(decls_repository.get_decls_of_type(/decl/genetic_condition/disability)))
+			else
+				M.add_genetic_condition(pick(decls_repository.get_decls_of_type(/decl/genetic_condition/superpower)))
+
 
 /datum/event/radiation_storm/end()
-	GLOB.using_map.revoke_maint_all_access(1)
+	global.using_map.revoke_maint_all_access(1)
 
 /datum/event/radiation_storm/syndicate/radiate()
 	return

@@ -1,27 +1,28 @@
 /obj/item/aicard
-	name = "inteliCard"
+	name = "intelliCard"
 	icon = 'icons/obj/items/device/ai_card.dmi'
-	icon_state = "aicard" // aicard-full
-	item_state = "electronic"
+	icon_state = ICON_STATE_WORLD
 	w_class = ITEM_SIZE_SMALL
-	slot_flags = SLOT_BELT
-	origin_tech = "{'programming':4,'materials':4}"
-	material = /decl/material/solid/glass
+	slot_flags = SLOT_LOWER_BODY
+	origin_tech = @'{"programming":4,"materials":4}'
+	material = /decl/material/solid/fiberglass
 	matter = list(/decl/material/solid/metal/gold = MATTER_AMOUNT_REINFORCEMENT)
 
 	var/flush
 	var/mob/living/silicon/ai/carded_ai
 
-/obj/item/aicard/attack_self(mob/user)
+/obj/item/aicard/preserve_in_cryopod(var/obj/machinery/cryopod/pod)
+	return TRUE
 
+/obj/item/aicard/attack_self(mob/user)
 	ui_interact(user)
 
-/obj/item/aicard/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = GLOB.inventory_state)
+/obj/item/aicard/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = global.inventory_topic_state)
 	var/data[0]
 	data["has_ai"] = carded_ai != null
 	if(carded_ai)
 		data["name"] = carded_ai.name
-		data["hardware_integrity"] = carded_ai.hardware_integrity()
+		data["hardware_integrity"] = carded_ai.get_health_percent()
 		data["backup_capacitor"] = carded_ai.backup_capacitor()
 		data["radio"] = !carded_ai.ai_radio.disabledAi
 		data["wireless"] = !carded_ai.control_disabled
@@ -52,12 +53,11 @@
 	if (href_list["wipe"])
 		var/confirm = alert("Are you sure you want to wipe this card's memory? This cannot be undone once started.", "Confirm Wipe", "Yes", "No")
 		if(confirm == "Yes" && (CanUseTopic(user, state) == STATUS_INTERACTIVE))
-			admin_attack_log(user, carded_ai, "Wiped using \the [src.name]", "Was wiped with \the [src.name]", "used \the [src.name] to wipe")
+			admin_attack_log(user, carded_ai, "Wiped using \the [src]", "Was wiped with \the [src]", "used \the [src] to wipe")
 			flush = 1
 			to_chat(carded_ai, "Your core files are being wiped!")
 			while (carded_ai && carded_ai.stat != DEAD)
-				carded_ai.adjustOxyLoss(2)
-				carded_ai.updatehealth()
+				carded_ai.take_damage(2, OXY)
 				sleep(10)
 			flush = 0
 	if (href_list["radio"])
@@ -72,16 +72,14 @@
 	return 1
 
 /obj/item/aicard/on_update_icon()
-	overlays.Cut()
+	. = ..()
 	if(carded_ai)
 		if (!carded_ai.control_disabled)
-			overlays += image(icon, "aicard-on")
+			add_overlay("[icon_state]-on")
 		if(carded_ai.stat)
-			icon_state = "aicard-404"
+			add_overlay("[icon_state]-404")
 		else
-			icon_state = "aicard-full"
-	else
-		icon_state = "aicard"
+			add_overlay("[icon_state]-full")
 
 /obj/item/aicard/proc/grab_ai(var/mob/living/silicon/ai/ai, var/mob/living/user)
 	if(!ai.client)
@@ -100,7 +98,7 @@
 		new /obj/structure/aicore/deactivated(get_turf(ai))
 
 	ai.carded = 1
-	admin_attack_log(user, ai, "Carded with [src.name]", "Was carded with [src.name]", "used the [src.name] to card")
+	admin_attack_log(user, ai, "Carded with [src.name]", "Was carded with [src.name]", "used \the [src] to card")
 	src.SetName("[initial(name)] - [ai.name]")
 
 	ai.forceMove(src)
@@ -120,28 +118,22 @@
 	return 1
 
 /obj/item/aicard/proc/clear()
-	if(carded_ai && istype(carded_ai.loc, /turf))
+	if(carded_ai && isturf(carded_ai.loc))
 		carded_ai.carded = 0
 	SetName(initial(name))
 	carded_ai.calculate_power_usage()
 	carded_ai = null
 	update_icon()
 
-/obj/item/aicard/see_emote(mob/living/M, text)
-	if(carded_ai && carded_ai.client)
-		var/rendered = "<span class='message'>[text]</span>"
-		carded_ai.show_message(rendered, 2)
-	..()
-
-/obj/item/aicard/show_message(msg, type, alt, alt_type)
+/obj/item/aicard/show_message(msg, type, alt, alt_type, atom/source)
 	if(carded_ai && carded_ai.client)
 		var/rendered = "<span class='message'>[msg]</span>"
 		carded_ai.show_message(rendered, type)
 	..()
 
 /obj/item/aicard/relaymove(var/mob/user, var/direction)
-	if(user.stat || user.stunned)
+	if(user.incapacitated(INCAPACITATION_KNOCKOUT))
 		return
-	var/obj/item/rig/rig = src.get_rig()
-	if(istype(rig))
+	var/obj/item/rig/rig = get_rig()
+	if(rig)
 		rig.forced_move(direction, user)

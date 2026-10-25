@@ -2,11 +2,11 @@
 	name = "timer"
 	desc = "Used to time things. Works well with contraptions which have to count down. Tick tock."
 	icon_state = "timer"
-	origin_tech = "{'magnets':1}"
+	origin_tech = @'{"magnets":1}'
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/slag = MATTER_AMOUNT_TRACE
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/metal/copper = MATTER_AMOUNT_TRACE
 	)
 
 	wires = WIRE_PULSE
@@ -15,9 +15,6 @@
 
 	var/timing = 0
 	var/time = 10
-
-/obj/item/assembly/timer/proc/timer_end()
-
 
 /obj/item/assembly/timer/activate()
 	if(!..())	return 0//Cooldown check
@@ -39,11 +36,11 @@
 	return secured
 
 
-/obj/item/assembly/timer/timer_end()
+/obj/item/assembly/timer/proc/timer_end()
 	if(!secured)	return 0
-	pulse(0)
+	pulse_device(0)
 	if(!holder)
-		visible_message("\icon[src] *beep* *beep*", "*beep* *beep*")
+		visible_message("[html_icon(src)] *beep* *beep*", "*beep* *beep*")
 	cooldown = 2
 	spawn(10)
 		process_cooldown()
@@ -62,15 +59,14 @@
 
 
 /obj/item/assembly/timer/on_update_icon()
-	overlays.Cut()
-	attached_overlays = list()
+	. = ..()
+	LAZYCLEARLIST(attached_overlays)
 	if(timing)
-		overlays += "timer_timing"
-		attached_overlays += "timer_timing"
+		var/image/img = overlay_image(icon, "timer_timing")
+		add_overlay(img)
+		LAZYADD(attached_overlays, img)
 	if(holder)
 		holder.update_icon()
-	return
-
 
 /obj/item/assembly/timer/interact(mob/user)//TODO: Have this use the wires
 	if(!secured)
@@ -78,15 +74,15 @@
 		return 0
 	var/second = time % 60
 	var/minute = (time - second) / 60
-	var/dat = text("<TT><B>Timing Unit</B>\n[] []:[]\n<A href='?src=\ref[];tp=-30'>-</A> <A href='?src=\ref[];tp=-1'>-</A> <A href='?src=\ref[];tp=1'>+</A> <A href='?src=\ref[];tp=30'>+</A>\n</TT>", (timing ? text("<A href='?src=\ref[];time=0'>Timing</A>", src) : text("<A href='?src=\ref[];time=1'>Not Timing</A>", src)), minute, second, src, src, src, src)
-	dat += "<BR><BR><A href='?src=\ref[src];refresh=1'>Refresh</A>"
-	dat += "<BR><BR><A href='?src=\ref[src];close=1'>Close</A>"
+	var/dat = text("<TT><B>Timing Unit</B>\n[] []:[]\n<A href='byond://?src=\ref[];tp=-30'>-</A> <A href='byond://?src=\ref[];tp=-1'>-</A> <A href='byond://?src=\ref[];tp=1'>+</A> <A href='byond://?src=\ref[];tp=30'>+</A>\n</TT>", (timing ? text("<A href='byond://?src=\ref[];time=0'>Timing</A>", src) : text("<A href='byond://?src=\ref[];time=1'>Not Timing</A>", src)), minute, second, src, src, src, src)
+	dat += "<BR><BR><A href='byond://?src=\ref[src];refresh=1'>Refresh</A>"
+	dat += "<BR><BR><A href='byond://?src=\ref[src];close=1'>Close</A>"
 	show_browser(user, dat, "window=timer")
 	onclose(user, "timer")
 	return
 
 
-/obj/item/assembly/timer/Topic(href, href_list, state = GLOB.physical_state)
+/obj/item/assembly/timer/Topic(href, href_list, state = global.physical_topic_state)
 	if((. = ..()))
 		close_browser(usr, "window=timer")
 		onclose(usr, "timer")

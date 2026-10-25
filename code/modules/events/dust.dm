@@ -14,16 +14,20 @@ The "dust" will damage the hull of the station causin minor hull breaches.
 	command_announcement.Announce("The [location_name()] is now passing through a belt of space dust.", "[location_name()] Sensor Array", zlevels = affecting_z)
 
 /datum/event/dust/tick()
-	if(world.time > last_wave + min_delay && prob(10))
+	if(world.time > last_wave + min_delay && prob(10) && length(affecting_z))
 		dust_swarm(severity, affecting_z)
 
 /datum/event/dust/end()
 	command_announcement.Announce("The [location_name()] has now passed through the belt of space dust.", "[location_name()] Sensor Array", zlevels = affecting_z)
 
 /proc/dust_swarm(var/strength = EVENT_LEVEL_MUNDANE, var/list/zlevels)
+
+	if(!length(zlevels))
+		return // Not sure how this happened, but saw it in a runtime on Pyrelight.
+
 	var/numbers = rand(strength * 10, strength * 15)
 
-	var/start_dir = pick(GLOB.cardinal)
+	var/start_dir = pick(global.cardinal)
 	var/turf/startloc
 	var/turf/targloc
 	var/randomz = pick(zlevels)
@@ -42,11 +46,11 @@ The "dust" will damage the hull of the station causin minor hull breaches.
 		if(WEST)
 			startloc = locate(1 + TRANSITIONEDGE, randomy, randomz)
 			targloc = locate(world.maxx - TRANSITIONEDGE, world.maxy - randomy, randomz)
-	var/list/starters = getcircle(startloc, 3)
+	var/list/starters = getcirclesafe(startloc, 3)
 	starters += startloc
 
 	var/rocks_per_tile = round(numbers/starters.len)
 	for(var/turf/T in starters)
 		for(var/i = 1 to rocks_per_tile)
 			var/obj/item/projectile/bullet/rock/R = new(T)
-			R.launch(targloc, null, startloc.x - T.x, startloc.y - T.y)
+			R.launch(locate(targloc.x + (T.x - startloc.x), targloc.y + (T.y - startloc.y), targloc.z)) // offset the target to match start offset so we fire in straight lines; this is adapted legacy code

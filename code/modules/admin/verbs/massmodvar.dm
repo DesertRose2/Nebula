@@ -37,7 +37,7 @@
 	for (var/V in O.vars)
 		names += V
 
-	names = sortList(names)
+	names = sortTim(names, /proc/cmp_text_asc)
 
 	var/variable = ""
 
@@ -72,7 +72,7 @@
 
 	else if(isicon(var_value))
 		to_chat(usr, "Variable appears to be <b>ICON</b>.")
-		var_value = "\icon[var_value]"
+		var_value = "[html_icon(var_value)]"
 		default = "icon"
 
 	else if(istype(var_value,/atom) || istype(var_value,/datum))
@@ -115,7 +115,7 @@
 		if("restore to default")
 			O.vars[variable] = initial(O.vars[variable])
 			if(method)
-				if(istype(O, /mob))
+				if(ismob(O))
 					for(var/mob/M in SSmobs.mob_list)
 						if ( istype(M , O.type) )
 							M.vars[variable] = O.vars[variable]
@@ -125,13 +125,13 @@
 						if ( istype(A , O.type) )
 							A.vars[variable] = O.vars[variable]
 
-				else if(istype(O, /turf))
+				else if(isturf(O))
 					for(var/turf/A in world)
 						if ( istype(A , O.type) )
 							A.vars[variable] = O.vars[variable]
 
 			else
-				if(istype(O, /mob))
+				if(ismob(O))
 					for(var/mob/M in SSmobs.mob_list)
 						if (M.type == O.type)
 							M.vars[variable] = O.vars[variable]
@@ -141,7 +141,7 @@
 						if (A.type == O.type)
 							A.vars[variable] = O.vars[variable]
 
-				else if(istype(O, /turf))
+				else if(isturf(O))
 					for(var/turf/A in world)
 						if (A.type == O.type)
 							A.vars[variable] = O.vars[variable]
@@ -155,7 +155,7 @@
 			O.vars[variable] = new_value
 
 			if(method)
-				if(istype(O, /mob))
+				if(ismob(O))
 					for(var/mob/M in SSmobs.mob_list)
 						if ( istype(M , O.type) )
 							M.vars[variable] = O.vars[variable]
@@ -165,12 +165,12 @@
 						if ( istype(A , O.type) )
 							A.vars[variable] = O.vars[variable]
 
-				else if(istype(O, /turf))
+				else if(isturf(O))
 					for(var/turf/A in world)
 						if ( istype(A , O.type) )
 							A.vars[variable] = O.vars[variable]
 			else
-				if(istype(O, /mob))
+				if(ismob(O))
 					for(var/mob/M in SSmobs.mob_list)
 						if (M.type == O.type)
 							M.vars[variable] = O.vars[variable]
@@ -180,7 +180,7 @@
 						if (A.type == O.type)
 							A.vars[variable] = O.vars[variable]
 
-				else if(istype(O, /turf))
+				else if(isturf(O))
 					for(var/turf/A in world)
 						if (A.type == O.type)
 							A.vars[variable] = O.vars[variable]
@@ -192,7 +192,7 @@
 			O.vars[variable] = new_value
 
 			if(method)
-				if(istype(O, /mob))
+				if(ismob(O))
 					for(var/mob/M in SSmobs.mob_list)
 						if ( istype(M , O.type) )
 							M.vars[variable] = O.vars[variable]
@@ -202,13 +202,13 @@
 						if ( istype(A , O.type) )
 							A.vars[variable] = O.vars[variable]
 
-				else if(istype(O, /turf))
+				else if(isturf(O))
 					for(var/turf/A in world)
 						if ( istype(A , O.type) )
 							A.vars[variable] = O.vars[variable]
 
 			else
-				if(istype(O, /mob))
+				if(ismob(O))
 					for(var/mob/M in SSmobs.mob_list)
 						if (M.type == O.type)
 							M.vars[variable] = O.vars[variable]
@@ -218,7 +218,7 @@
 						if (A.type == O.type)
 							A.vars[variable] = O.vars[variable]
 
-				else if(istype(O, /turf))
+				else if(isturf(O))
 					for(var/turf/A in world)
 						if (A.type == O.type)
 							A.vars[variable] = O.vars[variable]
@@ -229,7 +229,7 @@
 			if(new_value == null) return
 			O.vars[variable] = new_value
 			if(method)
-				if(istype(O, /mob))
+				if(ismob(O))
 					for(var/mob/M in SSmobs.mob_list)
 						if ( istype(M , O.type) )
 							M.vars[variable] = O.vars[variable]
@@ -239,12 +239,12 @@
 						if ( istype(A , O.type) )
 							A.vars[variable] = O.vars[variable]
 
-				else if(istype(O, /turf))
+				else if(isturf(O))
 					for(var/turf/A in world)
 						if ( istype(A , O.type) )
 							A.vars[variable] = O.vars[variable]
 			else
-				if(istype(O, /mob))
+				if(ismob(O))
 					for(var/mob/M in SSmobs.mob_list)
 						if (M.type == O.type)
 							M.vars[variable] = O.vars[variable]
@@ -254,7 +254,7 @@
 						if (A.type == O.type)
 							A.vars[variable] = O.vars[variable]
 
-				else if(istype(O, /turf))
+				else if(isturf(O))
 					for(var/turf/A in world)
 						if (A.type == O.type)
 							A.vars[variable] = O.vars[variable]
@@ -265,7 +265,7 @@
 			O.vars[variable] = new_value
 
 			if(method)
-				if(istype(O, /mob))
+				if(ismob(O))
 					for(var/mob/M in SSmobs.mob_list)
 						if ( istype(M , O.type) )
 							M.vars[variable] = O.vars[variable]
@@ -275,12 +275,12 @@
 						if ( istype(A , O.type) )
 							A.vars[variable] = O.vars[variable]
 
-				else if(istype(O.type, /turf))
+				else if(isturf(O.type))
 					for(var/turf/A in world)
 						if ( istype(A , O.type) )
 							A.vars[variable] = O.vars[variable]
 			else
-				if(istype(O, /mob))
+				if(ismob(O))
 					for(var/mob/M in SSmobs.mob_list)
 						if (M.type == O.type)
 							M.vars[variable] = O.vars[variable]
@@ -290,7 +290,7 @@
 						if (A.type == O.type)
 							A.vars[variable] = O.vars[variable]
 
-				else if(istype(O.type, /turf))
+				else if(isturf(O.type))
 					for(var/turf/A in world)
 						if (A.type == O.type)
 							A.vars[variable] = O.vars[variable]
@@ -300,7 +300,7 @@
 			if(new_value == null) return
 			O.vars[variable] = new_value
 			if(method)
-				if(istype(O, /mob))
+				if(ismob(O))
 					for(var/mob/M in SSmobs.mob_list)
 						if ( istype(M , O.type) )
 							M.vars[variable] = O.vars[variable]
@@ -310,13 +310,13 @@
 						if ( istype(A , O.type) )
 							A.vars[variable] = O.vars[variable]
 
-				else if(istype(O, /turf))
+				else if(isturf(O))
 					for(var/turf/A in world)
 						if ( istype(A , O.type) )
 							A.vars[variable] = O.vars[variable]
 
 			else
-				if(istype(O, /mob))
+				if(ismob(O))
 					for(var/mob/M in SSmobs.mob_list)
 						if (M.type == O.type)
 							M.vars[variable] = O.vars[variable]
@@ -326,7 +326,7 @@
 						if (A.type == O.type)
 							A.vars[variable] = O.vars[variable]
 
-				else if(istype(O, /turf))
+				else if(isturf(O))
 					for(var/turf/A in world)
 						if (A.type == O.type)
 							A.vars[variable] = O.vars[variable]

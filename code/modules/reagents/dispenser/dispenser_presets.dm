@@ -1,3 +1,6 @@
+/obj/machinery/chemical_dispenser/unanchored
+	anchored = FALSE
+
 /obj/machinery/chemical_dispenser/full
 	spawn_cartridges = list(
 			/obj/item/chems/chem_disp_cartridge/hydrazine,
@@ -23,7 +26,9 @@
 			/obj/item/chems/chem_disp_cartridge/tungsten
 		)
 
-/obj/machinery/chemical_dispenser/ert
+	buildable = FALSE
+
+/obj/machinery/chemical_dispenser/medicine
 	name = "medicine dispenser"
 	spawn_cartridges = list(
 			/obj/item/chems/chem_disp_cartridge/adrenaline,
@@ -42,6 +47,7 @@
 			/obj/item/chems/chem_disp_cartridge/antibiotics,
 			/obj/item/chems/chem_disp_cartridge/sedatives
 		)
+	buildable = FALSE
 
 /obj/machinery/chemical_dispenser/bar_soft
 	name = "soft drink dispenser"
@@ -51,6 +57,12 @@
 	accept_drinking = 1
 	core_skill = SKILL_COOKING
 	can_contaminate = FALSE //It's not a complex panel, and I'm fairly sure that most people don't haymaker the control panel on a soft drinks machine. -- Chaoko99
+	base_type = /obj/machinery/chemical_dispenser/bar_soft
+	beaker_offset = -2
+	beaker_positions = list(-1,3,7,11,15)
+
+/obj/machinery/chemical_dispenser/bar_soft/unanchored
+	anchored = FALSE
 
 /obj/machinery/chemical_dispenser/bar_soft/full
 	spawn_cartridges = list(
@@ -76,6 +88,8 @@
 			/obj/item/chems/chem_disp_cartridge/watermelon
 		)
 
+	buildable = FALSE
+
 /obj/machinery/chemical_dispenser/bar_alc
 	name = "booze dispenser"
 	desc = "A beer machine. Like a soda machine, but more fun!"
@@ -84,6 +98,12 @@
 	accept_drinking = 1
 	core_skill = SKILL_COOKING
 	can_contaminate = FALSE //See above.
+	base_type = /obj/machinery/chemical_dispenser/bar_alc
+	beaker_offset = -2
+	beaker_positions = list(-3,2,7,12,17)
+
+/obj/machinery/chemical_dispenser/bar_alc/unanchored
+	anchored = FALSE
 
 /obj/machinery/chemical_dispenser/bar_alc/full
 	spawn_cartridges = list(
@@ -107,6 +127,8 @@
 			/obj/item/chems/chem_disp_cartridge/mead
 		)
 
+	buildable = FALSE
+
 /obj/machinery/chemical_dispenser/bar_coffee
 	name = "coffee dispenser"
 	desc = "Driving crack dealers out of employment since 2280."
@@ -115,6 +137,10 @@
 	accept_drinking = 1
 	core_skill = SKILL_COOKING
 	can_contaminate = FALSE //See above.
+	base_type = /obj/machinery/chemical_dispenser/bar_coffee
+	beaker_offset = -2
+	beaker_positions = list(0,14)
+
 
 /obj/machinery/chemical_dispenser/bar_coffee/full
 	spawn_cartridges = list(
@@ -131,5 +157,9 @@
 			/obj/item/chems/chem_disp_cartridge/syrup_chocolate,
 			/obj/item/chems/chem_disp_cartridge/syrup_caramel,
 			/obj/item/chems/chem_disp_cartridge/syrup_vanilla,
-			/obj/item/chems/chem_disp_cartridge/syrup_pumpkin
+			/obj/item/chems/chem_disp_cartridge/syrup_pumpkin,
+			/obj/item/chems/chem_disp_cartridge/syrup_lavender,
+			/obj/item/chems/chem_disp_cartridge/cinnamon
 		)
+
+	buildable = FALSE

@@ -10,7 +10,8 @@
 	. = ..()
 	new /obj/item/tank/jetpack/oxygen(src)
 	new /obj/item/clothing/mask/gas/syndicate(src)
-	new /obj/item/clothing/under/syndicate(src)
+	new /obj/item/clothing/shirt/syndicate(src)
+	new /obj/item/clothing/pants/casual/camo(src)
 	new /obj/item/clothing/head/helmet/space/void/merc(src)
 	new /obj/item/clothing/suit/space/void/merc(src)
 	new /obj/item/crowbar/red(src)
@@ -31,35 +32,6 @@
 	new /obj/item/clothing/suit/space/void/merc(src)
 	new /obj/item/clothing/mask/gas/syndicate(src)
 	new /obj/item/clothing/head/helmet/space/void/merc(src)
-
-
-/obj/structure/closet/syndicate/nuclear
-	desc = "It's a storage unit for nuclear-operative gear."
-
-/obj/structure/closet/syndicate/nuclear/Initialize()
-	. = ..()
-
-	new /obj/item/ammo_magazine/smg(src)
-	new /obj/item/ammo_magazine/smg(src)
-	new /obj/item/ammo_magazine/smg(src)
-	new /obj/item/ammo_magazine/smg(src)
-	new /obj/item/ammo_magazine/smg(src)
-	new /obj/item/storage/box/handcuffs(src)
-	new /obj/item/storage/box/flashbangs(src)
-	new /obj/item/gun/energy/gun(src)
-	new /obj/item/gun/energy/gun(src)
-	new /obj/item/gun/energy/gun(src)
-	new /obj/item/gun/energy/gun(src)
-	new /obj/item/gun/energy/gun(src)
-	new /obj/item/pinpointer/nukeop(src)
-	new /obj/item/pinpointer/nukeop(src)
-	new /obj/item/pinpointer/nukeop(src)
-	new /obj/item/pinpointer/nukeop(src)
-	new /obj/item/pinpointer/nukeop(src)
-	new /obj/item/modular_computer/pda/syndicate(src)
-	var/obj/item/radio/uplink/U = new(src)
-	U.hidden_uplink.uses = 40
-	return
 
 /obj/structure/closet/syndicate/resources
 	desc = "An old, dusty locker."
@@ -83,31 +55,31 @@
 
 	//Metal (common ore)
 	if(pickednum >= 2)
-		new /obj/item/stack/material/steel(src, rand(common_min, common_max))
+		SSmaterials.create_object(/decl/material/solid/metal/steel, src, rand(common_min, common_max))
 
 	//Glass (common ore)
 	if(pickednum >= 5)
-		new /obj/item/stack/material/glass(src, rand(common_min, common_max))
+		SSmaterials.create_object(/decl/material/solid/glass, src, rand(common_min, common_max))
 
 	//Plasteel (common metal)
 	if(pickednum >= 10)
-		new /obj/item/stack/material/plasteel(src, rand(common_min, common_max))
+		SSmaterials.create_object(/decl/material/solid/metal/plasteel, src, rand(common_min, common_max))
 
 	//Silver (rare ore)
 	if(pickednum >= 15)
-		new /obj/item/stack/material/silver(src, rand(rare_min, rare_max))
+		SSmaterials.create_object(/decl/material/solid/metal/silver, src, rand(rare_min, rare_max))
 
 	//Gold (rare ore)
 	if(pickednum >= 30)
-		new /obj/item/stack/material/gold(src, rand(rare_min, rare_max))
+		SSmaterials.create_object(/decl/material/solid/metal/gold, src, rand(rare_min, rare_max))
 
 	//Uranium (rare ore)
 	if(pickednum >= 40)
-		new /obj/item/stack/material/uranium(src, rand(rare_min, rare_max))
+		SSmaterials.create_object(/decl/material/solid/metal/uranium, src, rand(rare_min, rare_max))
 
 	//Diamond (rare HONK)
 	if(pickednum >= 45)
-		new /obj/item/stack/material/diamond(src, rand(rare_min, rare_max))
+		SSmaterials.create_object(/decl/material/solid/gemstone/diamond, src, rand(rare_min, rare_max))
 
 	//Jetpack (You hit the jackpot!)
 	if(pickednum == 50)
@@ -120,18 +92,16 @@
 	. = ..()
 
 	var/list/resources = list(
-		/obj/item/stack/material/steel,
-		/obj/item/stack/material/glass,
-		/obj/item/stack/material/gold,
-		/obj/item/stack/material/silver,
-		/obj/item/stack/material/uranium,
-		/obj/item/stack/material/diamond,
-		/obj/item/stack/material/plasteel,
-		/obj/item/stack/material/rods
+		/obj/item/stack/material/sheet/mapped/steel/fifty,
+		/obj/item/stack/material/pane/mapped/glass/fifty,
+		/obj/item/stack/material/ingot/mapped/gold/fifty,
+		/obj/item/stack/material/ingot/mapped/silver/fifty,
+		/obj/item/stack/material/puck/mapped/uranium/fifty,
+		/obj/item/stack/material/gemstone/mapped/diamond/fifty,
+		/obj/item/stack/material/sheet/reinforced/mapped/plasteel/fifty,
+		/obj/item/stack/material/rods/mapped/steel/fifty
 	)
 
-
-	for(var/i = 0, i<2, i++)
+	for(var/i = 0, i < 2, i++)
 		for(var/res in resources)
-			var/obj/item/stack/R = new res(src)
-			R.amount = R.max_amount
+			new res(src)

@@ -21,21 +21,22 @@
 	one_hand_penalty = 0
 	has_safety = FALSE
 	item_flags = ITEM_FLAG_INVALID_FOR_CHAMELEON
+	is_spawnable_type = FALSE // Do not manually spawn this, it will runtime/break.
 
 /obj/item/gun/energy/gun/secure/mounted/Initialize()
-	var/mob/borg = get_holder_of_type(src, /mob/living/silicon/robot)
+	var/mob/borg = get_recursive_loc_of_type(/mob/living/silicon/robot)
 	if(!borg)
 		. = INITIALIZE_HINT_QDEL
 		CRASH("Invalid spawn location.")
 	registered_owner = borg.name
-	GLOB.registered_cyborg_weapons += src
+	global.registered_cyborg_weapons += src
 	. = ..()
 
 /obj/item/gun/energy/laser/secure
 	name = "laser carbine"
-	desc = "A G40E carbine, designed to kill with concentrated energy blasts. Fitted with an NT1019 chip to make sure killcount is tracked appropriately."
+	desc = "A G40E carbine, designed to kill with concentrated energy blasts. Fitted with an NT1019 chip to make sure kill count is tracked appropriately."
 	req_access = list(list(access_brig, access_bridge))
 
 /obj/item/gun/energy/laser/secure/on_update_icon()
 	. = ..()
-	overlays += get_mutable_overlay(icon, "[icon_state]_stripe", COLOR_BLUE_GRAY)
+	add_overlay(mutable_appearance(icon, "[icon_state]_stripe", COLOR_BLUE_GRAY))

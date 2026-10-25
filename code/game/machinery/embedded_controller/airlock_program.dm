@@ -9,7 +9,7 @@
 #define TARGET_INOPEN		-1
 #define TARGET_OUTOPEN		-2
 
-#define SENSOR_TOLERANCE 1
+#define SENSOR_TOLERANCE 0.5
 
 /datum/computer/file/embedded_program/airlock
 	var/tag_exterior_door
@@ -48,11 +48,11 @@
 
 /datum/computer/file/embedded_program/airlock/reset_id_tags(base_tag)
 	. = ..()
-	if(cycle_to_external_air)
-		tag_pump_out_external = "[id_tag]_pump_out_external"
-		tag_pump_out_internal = "[id_tag]_pump_out_internal"
 	if(istype(master, /obj/machinery/embedded_controller/radio/airlock))	//if our controller is an airlock controller than we can auto-init our tags
 		var/obj/machinery/embedded_controller/radio/airlock/controller = master
+		if(cycle_to_external_air)
+			tag_pump_out_external = SET_AIRLOCK_TAG(controller.tag_pump_out_external, "[id_tag]_pump_out_external")
+			tag_pump_out_internal = SET_AIRLOCK_TAG(controller.tag_pump_out_internal, "[id_tag]_pump_out_internal")
 		tag_exterior_door = SET_AIRLOCK_TAG(controller.tag_exterior_door, "[id_tag]_outer")
 		tag_interior_door = SET_AIRLOCK_TAG(controller.tag_interior_door, "[id_tag]_inner")
 		tag_airpump = SET_AIRLOCK_TAG(controller.tag_airpump, "[id_tag]_pump")
@@ -89,24 +89,30 @@
 	if(!receive_tag) return
 
 	if(receive_tag==tag_chamber_sensor)
-		if(signal.data["pressure"])
+		if("pressure" in signal.data)
 			memory["chamber_sensor_pressure"] = text2num(signal.data["pressure"])
 
 	else if(receive_tag==tag_exterior_sensor)
-		memory["external_sensor_pressure"] = text2num(signal.data["pressure"])
+		if("pressure" in signal.data)
+			memory["external_sensor_pressure"] = text2num(signal.data["pressure"])
 
 	else if(receive_tag==tag_interior_sensor)
-		memory["internal_sensor_pressure"] = text2num(signal.data["pressure"])
+		if("pressure" in signal.data)
+			memory["internal_sensor_pressure"] = text2num(signal.data["pressure"])
 
 	else if(receive_tag==tag_exterior_door)
-		memory["exterior_status"]["state"] = signal.data["door_status"]
-		memory["exterior_status"]["lock"] = signal.data["lock_status"]
+		if("door_status" in signal.data)
+			memory["exterior_status"]["state"] = signal.data["door_status"]
+		if("lock_status" in signal.data)
+			memory["exterior_status"]["lock"] = signal.data["lock_status"]
 
 	else if(receive_tag==tag_interior_door)
-		memory["interior_status"]["state"] = signal.data["door_status"]
-		memory["interior_status"]["lock"] = signal.data["lock_status"]
+		if("door_status" in signal.data)
+			memory["interior_status"]["state"] = signal.data["door_status"]
+		if("lock_status" in signal.data)
+			memory["interior_status"]["lock"] = signal.data["lock_status"]
 
-	else if(receive_tag==tag_airpump || receive_tag==tag_pump_out_internal)
+	else if((receive_tag==tag_airpump || receive_tag==tag_pump_out_internal) && ("power" in signal.data))
 		if(signal.data["power"])
 			memory["pump_status"] = signal.data["direction"]
 		else
@@ -139,7 +145,7 @@
 
 /datum/computer/file/embedded_program/airlock/receive_user_command(command)
 	var/shutdown_pump = 0
-	. = TRUE
+	. = TOPIC_REFRESH
 	switch(command)
 		if("cycle_ext")
 			//If airlock is already cycled in this direction, just toggle the doors.
@@ -182,7 +188,7 @@
 			toggleDoor(memory["interior_status"], tag_interior_door, !memory["secure"])
 			memory["secure"] = !memory["secure"]
 		else
-			. = FALSE
+			. = TOPIC_NOACTION
 
 	if(shutdown_pump)
 		signalPump(tag_airpump, 0)		//send a signal to stop pressurizing
@@ -228,7 +234,7 @@
 						signalPump(tag_airpump, 1, 0, target_pressure)	//send a signal to start depressurizing
 					else
 						signalPump(tag_pump_out_internal, 1, 0, target_pressure) // if going inside, pump external air out of the airlock
-						signalPump(tag_pump_out_external, 1, 1, 1000) // make sure the air is actually going outside
+						signalPump(tag_pump_out_external, 1, 1, MAX_PUMP_PRESSURE) // make sure the air is actually going outside
 
 				else if(chamber_pressure <= target_pressure)
 					state = STATE_PRESSURIZE
@@ -259,8 +265,7 @@
 						signalPump(tag_pump_out_external, 0)
 				else
 					cycleDoors(target_state)
-					state = STATE_IDLE
-					target_state = TARGET_NONE
+					stop_cycling()
 
 
 		if(STATE_DEPRESSURIZE)
@@ -278,8 +283,7 @@
 							state = STATE_PREPARE
 					else
 						cycleDoors(target_state)
-						state = STATE_IDLE
-						target_state = TARGET_NONE
+						stop_cycling()
 
 
 	memory["processing"] = (state != target_state)
@@ -294,12 +298,14 @@
 	memory["purge"] = cycle_to_external_air
 	playsound(master, 'sound/machines/warning-buzzer.ogg', 50)
 	shutAlarm()
+	signalCycling(TRUE)
 
 /datum/computer/file/embedded_program/airlock/proc/begin_dock_cycle()
 	state = STATE_IDLE
 	target_state = TARGET_INOPEN
 	playsound(master, 'sound/machines/warning-buzzer.ogg', 50)
 	shutAlarm()
+	signalCycling(TRUE)
 
 /datum/computer/file/embedded_program/airlock/proc/begin_cycle_out()
 	state = STATE_IDLE
@@ -307,6 +313,7 @@
 	memory["purge"] = cycle_to_external_air
 	playsound(master, 'sound/machines/warning-buzzer.ogg', 50)
 	shutAlarm()
+	signalCycling(TRUE)
 
 /datum/computer/file/embedded_program/airlock/proc/close_doors()
 	toggleDoor(memory["interior_status"], tag_interior_door, 1, "close")
@@ -315,6 +322,7 @@
 /datum/computer/file/embedded_program/airlock/proc/stop_cycling()
 	state = STATE_IDLE
 	target_state = TARGET_NONE
+	signalCycling(FALSE)
 
 /datum/computer/file/embedded_program/airlock/proc/done_cycling()
 	return (state == STATE_IDLE && target_state == TARGET_NONE)
@@ -368,12 +376,34 @@
 			toggleDoor(memory["exterior_status"], tag_exterior_door, memory["secure"], "close")
 			toggleDoor(memory["interior_status"], tag_interior_door, memory["secure"], "open")
 
+/datum/computer/file/embedded_program/proc/signalCycling(var/cycling = TRUE)
+	var/datum/signal/signal = new
+	//Send signal to buttons first
+	signal.data["tag"] = id_tag
+	signal.data["set_airlock_cycling"] = cycling
+	post_signal(signal)
+
+/datum/computer/file/embedded_program/airlock/signalCycling(cycling = TRUE)
+	. = ..()
+	var/datum/signal/signal = new
+	signal.data["set_airlock_cycling"] = cycling
+	//Send signal to sensors
+	if(length(tag_chamber_sensor))
+		signal.data["tag"] = tag_chamber_sensor
+		post_signal(signal)
+	if(length(tag_interior_sensor))
+		signal.data["tag"] = tag_interior_sensor
+		post_signal(signal)
+	if(length(tag_exterior_sensor))
+		signal.data["tag"] = tag_exterior_sensor
+		post_signal(signal)
+
 /*----------------------------------------------------------
 toggleDoor()
 
 Sends a radio command to a door to either open or close. If
 the command is 'toggle' the door will be sent a command that
-reverses it's current state.
+reverses its current state.
 Can also toggle whether the door bolts are locked or not,
 depending on the state of the 'secure' flag.
 Only sends a command if it is needed, i.e. if the door is
@@ -386,6 +416,8 @@ send an additional command to open the door again.
 	if(command == "toggle")
 		command = doorStatus["state"] == "open" ? "close" : "open"
 
+	// the close command is 'close' but the closed state is 'closed'
+	// so we have to check if we aren't the open state, because the command and status strings match for it
 	var/toggle = command && ((doorStatus["state"] == "open") ^ (command == "open"))
 	var/locked = (doorStatus["lock"] == "locked")
 	if(toggle)

@@ -1,7 +1,7 @@
-#define HEX_RED(COLOUR)   hex2num(copytext(COLOUR,2,4))
-#define HEX_GREEN(COLOUR) hex2num(copytext(COLOUR,4,6))
-#define HEX_BLUE(COLOUR)  hex2num(copytext(COLOUR,6,8))
-#define HEX_ALPHA(COLOUR) hex2num(copytext(COLOUR,8,10))
+#define HEX_RED(COLOR)   hex2num(copytext(COLOR,2,4))
+#define HEX_GREEN(COLOR) hex2num(copytext(COLOR,4,6))
+#define HEX_BLUE(COLOR)  hex2num(copytext(COLOR,6,8))
+#define HEX_ALPHA(COLOR) hex2num(copytext(COLOR,8,10))
 
 // BYOND lower-cases color values, and thus we do so as well to ensure atom.color == COLOR_X will work correctly
 #define COLOR_BLACK            "#000000"
@@ -39,6 +39,7 @@
 #define COLOR_GREEN_GRAY       "#8daf6a"
 #define COLOR_DARK_GREEN_GRAY  "#54654c"
 #define COLOR_BLUE_GRAY        "#6a97b0"
+#define COLOR_MID_BLUE_GRAY    "#666699"
 #define COLOR_DARK_BLUE_GRAY   "#3e4855"
 #define COLOR_SURGERY_BLUE     "#e0f2f6"
 #define COLOR_SUN              "#ec8b2f"
@@ -78,6 +79,7 @@
 #define COLOR_AMBER            "#ffbf00"
 #define COLOR_COMMAND_BLUE     "#46698c"
 #define COLOR_SKY_BLUE         "#5ca1cc"
+#define COLOR_FONT_ORANGE      "#e67300"
 #define COLOR_PALE_ORANGE      "#b88a3b"
 #define COLOR_CIVIE_GREEN      "#b7f27d"
 #define COLOR_TITANIUM         "#d1e6e3"
@@ -91,45 +93,70 @@
 #define COLOR_CRYSTAL          "#00c8a5"
 #define COLOR_ASTEROID_ROCK    "#735555"
 #define COLOR_DIAMOND          "#d8d4ea"
+#define COLOR_BLOOD_RED        "#990000"
+#define COLOR_PALE_GOLD        "#cc9900"
+#define COLOR_ROYAL_BLUE       "#0033ff"
+#define COLOR_VERDANT_GREEN    "#287d00"
+#define COLOR_SCIENCE_PURPLE   "#6633cc"
+#define COLOR_DAYLIGHT         "#f3e6ca"
+#define COLOR_CHERRY_RED       "#902630"
 
-
-#define	PIPE_COLOR_GREY        "#808080"
-#define	PIPE_COLOR_RED         "#ff0000"
-#define	PIPE_COLOR_BLUE        "#0000ff"
-#define	PIPE_COLOR_CYAN        "#00ffff"
-#define	PIPE_COLOR_GREEN       "#00ff00"
-#define	PIPE_COLOR_YELLOW      "#ffcc00"
-#define	PIPE_COLOR_BLACK       "#444444"
-#define	PIPE_COLOR_ORANGE      "#b95a00"
+#define PIPE_COLOR_GREY        "#808080"
+#define PIPE_COLOR_RED         "#ff0000"
+#define PIPE_COLOR_BLUE        "#0000ff"
+#define PIPE_COLOR_CYAN        "#00ffff"
+#define PIPE_COLOR_GREEN       "#00ff00"
+#define PIPE_COLOR_YELLOW      "#ffcc00"
+#define PIPE_COLOR_BLACK       "#444444"
+#define PIPE_COLOR_ORANGE      "#b95a00"
 #define PIPE_COLOR_WHITE       "#ffffff"
+#define PIPE_COLOR_PURPLE      "#880088"
 
-#define	COMMS_COLOR_DEFAULT    "#ff00ff"
-#define	COMMS_COLOR_ENTERTAIN  "#666666"
-#define	COMMS_COLOR_AI         "#ff00ff"
+#define COMMS_COLOR_DEFAULT    "#ff00ff"
+#define COMMS_COLOR_ENTERTAIN  "#666666"
+#define COMMS_COLOR_AI         "#ff00ff"
 #define	COMMS_COLOR_COMMON     "#408010"
-#define	COMMS_COLOR_SERVICE    "#709b00"
-#define	COMMS_COLOR_SUPPLY     "#7f6539"
-#define	COMMS_COLOR_SCIENCE    "#993399"
-#define	COMMS_COLOR_MEDICAL    "#009190"
-#define	COMMS_COLOR_EXPLORER   "#929820"
-#define	COMMS_COLOR_ENGINEER   "#a66300"
-#define	COMMS_COLOR_SECURITY   "#930000"
-#define	COMMS_COLOR_COMMAND    "#204090"
-#define	COMMS_COLOR_CENTCOMM   "#5c5c7c"
-#define	COMMS_COLOR_SYNDICATE  "#6d3f40"
+#define COMMS_COLOR_SERVICE    "#709b00"
+#define COMMS_COLOR_SUPPLY     "#7f6539"
+#define COMMS_COLOR_SCIENCE    "#993399"
+#define COMMS_COLOR_MEDICAL    "#009190"
+#define COMMS_COLOR_EXPLORER   "#929820"
+#define COMMS_COLOR_ENGINEER   "#a66300"
+#define COMMS_COLOR_SECURITY   "#930000"
+#define COMMS_COLOR_COMMAND    "#204090"
+#define COMMS_COLOR_CENTCOMM   "#5c5c7c"
+#define COMMS_COLOR_SYNDICATE  "#6d3f40"
+#define COMMS_COLOR_ANALOG     "#64706b" // special case, not in telecomms_colours
+
+var/global/list/telecomms_colours = list(
+	"Default Pink" = COMMS_COLOR_DEFAULT,
+	"Entertainment Grey" = COMMS_COLOR_ENTERTAIN,
+	"A.I. Pink" = COMMS_COLOR_AI,
+	"Common Green" = COMMS_COLOR_COMMON,
+	"Service Lime" = COMMS_COLOR_SERVICE,
+	"Supply Drab" = COMMS_COLOR_SUPPLY,
+	"Scientific Purple" = COMMS_COLOR_SCIENCE,
+	"Medical Blue" = COMMS_COLOR_MEDICAL,
+	"Explorer Yellow" = COMMS_COLOR_EXPLORER,
+	"Engineering Orange" = COMMS_COLOR_ENGINEER,
+	"Security Red" = COMMS_COLOR_SECURITY,
+	"Command Blue" = COMMS_COLOR_COMMAND,
+	"Steel Blue" = COMMS_COLOR_CENTCOMM,
+	"Syndicate Red" = COMMS_COLOR_SYNDICATE
+)
 
 #define WOOD_COLOR_GENERIC     "#d5a66e"
 #define WOOD_COLOR_RICH        "#792f27"
 #define WOOD_COLOR_PALE        "#d2bc9d"
 #define WOOD_COLOR_PALE2       "#e6d2ba"
-#define WOOD_COLOR_BLACK       "#332521"
+#define WOOD_COLOR_BLACK       "#39342c"
 #define WOOD_COLOR_CHOCOLATE   "#543c30"
 #define WOOD_COLOR_YELLOW      "#e3994e"
 
-#define GLASS_COLOR            "#74c1ee"
+#define GLASS_COLOR            "#aaccff"
 #define GLASS_COLOR_SILICATE   "#7c3a9a"
 #define GLASS_COLOR_TINTED     "#222222"
-#define GLASS_COLOR_FROSTED    "#ffffff"
+#define GLASS_COLOR_FROSTED    "#eeeeee"
 
 #define COLOR_BLOOD_HUMAN      "#a10808"
 
@@ -184,8 +211,8 @@
 #define LIGHT_COLOR_EMERGENCY  "#ff3232" //Red color used by emergency lighting. rgb(255, 50, 50)
 
 // Used by fluid system.
-#define COLOR_OCEAN "#99f5ff"
-
+#define COLOR_LIQUID_WATER "#99f5ff"
+#define COLOR_ICE          "#eef5ff"
 // Used to easily change research colour in case of ???
 #define COLOR_RESEARCH COLOR_PURPLE_GRAY
 
@@ -198,8 +225,16 @@
 #define RANDOM_RGB rgb(rand(0,255), rand(0,255), rand(0,255))
 
 // Codex category colours.
-#define CODEX_COLOR_LORE      "#abdb9b"
-#define CODEX_COLOR_MECHANICS "#9ebcd8"
-#define CODEX_COLOR_ANTAG     "#e5a2a2"
-
 #define COLOR_WEBHOOK_DEFAULT 0x8bbbd5
+
+// Colors for input/hotkey panel.
+#define COLOR_INPUT_DISABLED "#f0f0f0"
+#define COLOR_INPUT_ENABLED "#d3b5b5"
+
+#define COLOR_DARKMODE_BACKGROUND "#202020"
+#define COLOR_DARKMODE_DARKBACKGROUND "#171717"
+#define COLOR_DARKMODE_TEXT "#a4bad6"
+
+#define COLORED_SQUARE(COLOR) "<span style='font-face: fixedsys; font-size: 14px; background-color: [COLOR]; color: [COLOR]'>___</span>"
+
+#define hsv(args...) rgb(args, space = COLORSPACE_HSV)

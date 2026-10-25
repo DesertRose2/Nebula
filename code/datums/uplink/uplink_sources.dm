@@ -1,13 +1,15 @@
-#define NO_GUARANTEE_NO_EXTRA_COST_DESC(X) "Installs an uplink into " + X + " if, and only if, found on your person. Has no TC cost."
+#define NO_GUARANTEE_NO_EXTRA_COST_DESC(X) "Installs an uplink into [X] if, and only if, found on your person. Has no TC cost."
 
 #define SETUP_FAILED TRUE
 
-GLOBAL_LIST_INIT(default_uplink_source_priority, list(
+var/global/list/default_uplink_source_priority = list(
 	/decl/uplink_source/pda,
 	/decl/uplink_source/radio,
-	/decl/uplink_source/unit))
+	/decl/uplink_source/unit
+)
 
 /decl/uplink_source
+	abstract_type = /decl/uplink_source
 	var/name
 	var/desc
 
@@ -16,71 +18,67 @@ GLOBAL_LIST_INIT(default_uplink_source_priority, list(
 
 /decl/uplink_source/pda
 	name = "PDA"
+
+/decl/uplink_source/pda/Initialize()
 	desc = NO_GUARANTEE_NO_EXTRA_COST_DESC("a PDA")
+	. = ..()
 
 /decl/uplink_source/pda/setup_uplink_source(var/mob/M, var/amount)
+
 	var/obj/item/modular_computer/pda/P = find_in_mob(M, /obj/item/modular_computer/pda)
-	var/datum/extension/assembly/assembly = get_extension(P, /datum/extension/assembly)
-	var/obj/item/stock_parts/computer/hard_drive/HDD = assembly.get_component(PART_HDD)
-	if(!P || !HDD)
+	if(!P)
 		return SETUP_FAILED
 
-	var/pda_pass = "[rand(100,999)] [pick(GLOB.greek_letters)]"
+	var/datum/extension/assembly/assembly = get_extension(P, /datum/extension/assembly)
+	if(!assembly)
+		return SETUP_FAILED
+
+	var/obj/item/stock_parts/computer/hard_drive/HDD = assembly.get_component(PART_HDD)
+	if(!HDD)
+		return SETUP_FAILED
+
+	var/pda_pass = "[rand(100,999)] [pick(global.greek_letters)]"
 	var/obj/item/uplink/T = new(P, M.mind, amount)
 	P.hidden_uplink = T
 	var/datum/computer_file/program/uplink/program = new(pda_pass)
-	if(!HDD.try_store_file(program))
-		HDD.remove_file(HDD.find_file_by_name(program.filename))	//Maybe it already has a fake copy.
-	if(!HDD.try_store_file(program))
+	var/datum/computer_file/directory/program_dir = HDD.parse_directory(OS_PROGRAMS_DIR, TRUE) // This is almost certainly already created, but just in case.
+	if(HDD.store_file(program, program_dir, TRUE, overwrite = TRUE) != OS_FILE_SUCCESS)
 		return SETUP_FAILED	//Not enough space or other issues.
-	HDD.store_file(program)
 	to_chat(M, "<span class='notice'>A portable object teleportation relay has been installed in your [P.name]. Simply enter the code \"[pda_pass]\" in TaxQuickly program to unlock its hidden features.</span>")
 	M.StoreMemory("<B>Uplink passcode:</B> [pda_pass] ([P.name]).", /decl/memory_options/system)
 
 /decl/uplink_source/radio
 	name = "Radio"
+
+/decl/uplink_source/radio/Initialize()
 	desc = NO_GUARANTEE_NO_EXTRA_COST_DESC("a radio")
+	. = ..()
 
 /decl/uplink_source/radio/setup_uplink_source(var/mob/M, var/amount)
-	var/obj/item/radio/R = find_in_mob(M, /obj/item/radio)
-	if(!R)
+	var/obj/item/radio/radio = find_in_mob(M, /obj/item/radio)
+	if(!radio)
 		return SETUP_FAILED
 
-	var/freq = PUBLIC_LOW_FREQ
-	var/list/freqlist = list()
-	while (freq <= PUBLIC_HIGH_FREQ)
-		if (freq < 1451 || freq > PUB_FREQ)
-			freqlist += freq
-		freq += 2
-		if ((freq % 2) == 0)
-			freq += 1
-
-	freq = freqlist[rand(1, freqlist.len)]
-	var/obj/item/uplink/T = new(R, M.mind, amount)
-	R.hidden_uplink = T
-	R.traitor_frequency = freq
-	to_chat(M, "<span class='notice'>A portable object teleportation relay has been installed in your [R.name]. Simply dial the frequency [format_frequency(freq)] to unlock its hidden features.</span>")
-	M.StoreMemory("<B>Radio Freq:</B> [format_frequency(freq)] ([R.name]).", /decl/memory_options/system)
+	var/obj/item/uplink/T = new(radio, M.mind, amount)
+	radio.hidden_uplink = T
+	radio.traitor_frequency = sanitize_frequency(rand(PUBLIC_LOW_FREQ+1, PUB_FREQ-1))
+	to_chat(M, "<span class='notice'>A portable object teleportation relay has been installed in your [radio.name]. Simply dial the frequency [format_frequency(radio.traitor_frequency)] to unlock its hidden features.</span>")
+	M.StoreMemory("<B>Radio Freq:</B> [format_frequency(radio.traitor_frequency)] ([radio.name]).", /decl/memory_options/system)
 
 /decl/uplink_source/implant
 	name = "Implant"
 	desc = "Teleports an uplink implant into your head. Costs 20% of the initial TC amount."
 
-/decl/uplink_source/implant/setup_uplink_source(var/mob/living/carbon/human/H, var/amount)
-	if(!istype(H))
+/decl/uplink_source/implant/setup_uplink_source(var/mob/living/human/recipient, var/amount)
+	if(!istype(recipient))
 		return SETUP_FAILED
 
-	var/obj/item/organ/external/head = H.organs_by_name[BP_HEAD]
+	var/obj/item/organ/external/head = GET_EXTERNAL_ORGAN(recipient, BP_HEAD)
 	if(!head)
 		return SETUP_FAILED
 
-	var/obj/item/implant/uplink/U = new(H, round(amount * 0.8))
-	U.imp_in = H
-	U.implanted = TRUE
-	U.part = head
-	head.implants += U
-
-	U.implanted(H) // This proc handles the installation feedback
+	var/obj/item/implant/uplink/uplink_implant = new(recipient, round(amount * 0.8))
+	uplink_implant.implant_in_mob(recipient, recipient, head)
 
 /decl/uplink_source/unit
 	name = "Uplink Unit"
@@ -125,14 +123,14 @@ GLOBAL_LIST_INIT(default_uplink_source_priority, list(
 	if(M.client && M.client.prefs)
 		priority_order = M.client.prefs.uplink_sources
 
-	if(!priority_order || !priority_order.len)
+	if(!LAZYLEN(priority_order))
 		priority_order = list()
-		for(var/entry in GLOB.default_uplink_source_priority)
-			priority_order += decls_repository.get_decl(entry)
+		for(var/entry in global.default_uplink_source_priority)
+			priority_order |= GET_DECL(entry)
 
 	for(var/entry in priority_order)
-		var/decl/uplink_source/US = entry
-		if(US.setup_uplink_source(M, amount) != SETUP_FAILED)
+		var/decl/uplink_source/uplink = entry
+		if(uplink.setup_uplink_source(M, amount) != SETUP_FAILED)
 			return TRUE
 
 	to_chat(M, "<span class='warning'>Either by choice or circumstance you will be without an uplink.</span>")

@@ -13,10 +13,9 @@
 	icon = 'icons/mob/bot/mulebot.dmi'
 	icon_state = "mulebot0"
 	layer = MOB_LAYER
-	anchored = 1
-	density = 1
-	health = 150
-	maxHealth = 150
+	anchored = TRUE
+	density = TRUE
+	max_health = 150
 	mob_bump_flag = HEAVY
 
 	min_target_dist = 0
@@ -36,7 +35,7 @@
 	var/turf/home
 	var/homeName
 
-	var/global/amount = 0
+	var/static/amount = 0
 
 /mob/living/bot/mulebot/Initialize()
 	. = ..()
@@ -52,14 +51,11 @@
 	suffix = num2text(++amount)
 	name = "Mulebot #[suffix]"
 
-/mob/living/bot/mulebot/MouseDrop_T(var/atom/movable/C, var/mob/user)
-	if(user.stat)
-		return
-
-	if(!istype(C) || C.anchored || get_dist(user, src) > 1 || get_dist(src, C) > 1 )
-		return
-
-	load(C)
+/mob/living/bot/mulebot/receive_mouse_drop(atom/dropping, mob/user, params)
+	. = ..()
+	if(!.)
+		load(dropping)
+		return TRUE
 
 /mob/living/bot/mulebot/GetInteractTitle()
 	. = "<head><title>Mulebot [suffix ? "([suffix])" : ""]</title></head>"
@@ -71,19 +67,19 @@
 	. += "<br>Current Load: [load ? load.name : "<i>none</i>"]"
 
 /mob/living/bot/mulebot/GetInteractPanel()
-	. += "<a href='?src=\ref[src];command=stop'>Stop</a>"
-	. += "<br><a href='?src=\ref[src];command=go'>Proceed</a>"
-	. += "<br><a href='?src=\ref[src];command=home'>Return to home</a>"
-	. += "<br><a href='?src=\ref[src];command=destination'>Set destination</a>"
-	. += "<br><a href='?src=\ref[src];command=sethome'>Set home</a>"
-	. += "<br><a href='?src=\ref[src];command=autoret'>Toggle auto return home</a> ([auto_return ? "On" : "Off"])"
-	. += "<br><a href='?src=\ref[src];command=cargotypes'>Toggle non-standard cargo</a> ([crates_only ? "Off" : "On"])"
+	. += "<a href='byond://?src=\ref[src];command=stop'>Stop</a>"
+	. += "<br><a href='byond://?src=\ref[src];command=go'>Proceed</a>"
+	. += "<br><a href='byond://?src=\ref[src];command=home'>Return to home</a>"
+	. += "<br><a href='byond://?src=\ref[src];command=destination'>Set destination</a>"
+	. += "<br><a href='byond://?src=\ref[src];command=sethome'>Set home</a>"
+	. += "<br><a href='byond://?src=\ref[src];command=autoret'>Toggle auto return home</a> ([auto_return ? "On" : "Off"])"
+	. += "<br><a href='byond://?src=\ref[src];command=cargotypes'>Toggle non-standard cargo</a> ([crates_only ? "Off" : "On"])"
 
 	if(load)
-		. += "<br><a href='?src=\ref[src];command=unload'>Unload now</a>"
+		. += "<br><a href='byond://?src=\ref[src];command=unload'>Unload now</a>"
 
 /mob/living/bot/mulebot/GetInteractMaintenance()
-	. = "<a href='?src=\ref[src];command=safety'>Toggle safety</a> ([safety ? "On" : "Off - DANGER"])"
+	. = "<a href='byond://?src=\ref[src];command=safety'>Toggle safety</a> ([safety ? "On" : "Off - DANGER"])"
 
 /mob/living/bot/mulebot/ProcessCommand(var/mob/user, var/command, var/href_list)
 	..()
@@ -119,9 +115,9 @@
 			if("safety")
 				safety = !safety
 
-/mob/living/bot/mulebot/attackby(var/obj/item/O, var/mob/user)
-	..()
-	update_icons()
+/mob/living/bot/mulebot/attackby(var/obj/item/used_item, var/mob/user)
+	. = ..()
+	update_icon()
 
 /mob/living/bot/mulebot/proc/obeyCommand(var/command)
 	switch(command)
@@ -152,7 +148,8 @@
 	playsound(loc, 'sound/effects/sparks1.ogg', 100, 0)
 	return 1
 
-/mob/living/bot/mulebot/update_icons()
+/mob/living/bot/mulebot/on_update_icon()
+	..()
 	if(open)
 		icon_state = "mulebot-hatch"
 		return
@@ -164,7 +161,7 @@
 /mob/living/bot/mulebot/handleRegular()
 	if(!safety && prob(1))
 		flick("mulebot-emagged", src)
-	update_icons()
+	update_icon()
 
 /mob/living/bot/mulebot/handleFrustrated()
 	custom_emote(2, "makes a sighing buzz.")
@@ -175,18 +172,18 @@
 	if(target == src.loc)
 		custom_emote(2, "makes a chiming sound.")
 		playsound(loc, 'sound/machines/chime.ogg', 50, 0)
-		UnarmedAttack(target)
+		UnarmedAttack(target, TRUE)
 		resetTarget()
 		if(auto_return && home && (loc != home))
 			target = home
 			targetName = "Home"
 
-/mob/living/bot/mulebot/confirmTarget()
+/mob/living/bot/mulebot/confirmTarget(atom/target)
 	return 1
 
 /mob/living/bot/mulebot/calcTargetPath()
 	..()
-	if(!target_path.len && target != home) // I presume that target is not null
+	if(!length(target_path) && target != home) // I presume that target is not null
 		resetTarget()
 		target = home
 		targetName = "Home"
@@ -196,53 +193,42 @@
 		return
 	..()
 
-/mob/living/bot/mulebot/UnarmedAttack(var/turf/T)
+/mob/living/bot/mulebot/ResolveUnarmedAttack(var/turf/T)
 	if(T == src.loc)
 		unload(dir)
 
-/mob/living/bot/mulebot/Bump(var/mob/living/carbon/human/M)
+/mob/living/bot/mulebot/Bump(var/mob/living/human/M)
 	if(!safety && istype(M))
 		visible_message("<span class='warning'>[src] knocks over [M]!</span>")
-		M.Stun(8)
-		M.Weaken(5)
+		SET_STATUS_MAX(M, STAT_STUN, 8)
+		SET_STATUS_MAX(M, STAT_WEAK, 5)
 	..()
 
-/mob/living/bot/mulebot/proc/runOver(var/mob/living/carbon/human/H)
-	if(istype(H)) // No safety checks - WILL run over lying humans. Stop ERPing in the maint!
-		visible_message("<span class='warning'>[src] drives over [H]!</span>")
-		playsound(loc, 'sound/effects/splat.ogg', 50, 1)
-
-		var/damage = rand(5, 7)
-		H.apply_damage(2 * damage, BRUTE, BP_HEAD)
-		H.apply_damage(2 * damage, BRUTE, BP_CHEST)
-		H.apply_damage(0.5 * damage, BRUTE, BP_L_LEG)
-		H.apply_damage(0.5 * damage, BRUTE, BP_R_LEG)
-		H.apply_damage(0.5 * damage, BRUTE, BP_L_ARM)
-		H.apply_damage(0.5 * damage, BRUTE, BP_R_ARM)
-
-		blood_splatter(src, H, 1)
+/mob/living/bot/mulebot/crossed_mob(var/mob/living/victim)
+	// No safety checks - WILL run over lying humans. Stop ERPing in the maint!
+	visible_message(SPAN_WARNING("\The [src] drives over \the [victim]!"))
+	playsound(loc, 'sound/effects/splat.ogg', 50, 1)
+	var/damage = rand(5, 7)
+	victim.apply_damage(2 * damage, BRUTE, BP_HEAD)
+	victim.apply_damage(2 * damage, BRUTE, BP_CHEST)
+	victim.apply_damage(0.5 * damage, BRUTE, BP_L_LEG)
+	victim.apply_damage(0.5 * damage, BRUTE, BP_R_LEG)
+	victim.apply_damage(0.5 * damage, BRUTE, BP_L_ARM)
+	victim.apply_damage(0.5 * damage, BRUTE, BP_R_ARM)
+	blood_splatter(src, victim, 1)
 
 /mob/living/bot/mulebot/relaymove(var/mob/user, var/direction)
 	if(load == user)
 		unload(direction)
 
-/mob/living/bot/mulebot/explode()
+/mob/living/bot/mulebot/gib(do_gibs = TRUE)
 	unload(pick(0, 1, 2, 4, 8))
-
-	visible_message("<span class='danger'>[src] blows apart!</span>")
-
-	var/turf/Tsec = get_turf(src)
-	new /obj/item/assembly/prox_sensor(Tsec)
-	new /obj/item/stack/material/rods(Tsec)
-	new /obj/item/stack/material/rods(Tsec)
-	new /obj/item/stack/cable_coil/cut(Tsec)
-
-	var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-	s.set_up(3, 1, src)
-	s.start()
-
-	new /obj/effect/decal/cleanable/blood/oil(Tsec)
-	..()
+	var/turf/my_turf = get_turf(src)
+	. = ..()
+	if(. && my_turf)
+		new /obj/item/assembly/prox_sensor(my_turf)
+		new /obj/item/stack/cable_coil/cut(my_turf)
+		SSmaterials.create_object(/decl/material/solid/metal/steel, get_turf(src), 2, /obj/item/stack/material/rods)
 
 /mob/living/bot/mulebot/proc/GetBeaconList()
 	var/list/beaconlist = list()
@@ -254,10 +240,10 @@
 	return beaconlist
 
 /mob/living/bot/mulebot/proc/load(var/atom/movable/C)
-	if(busy || load || get_dist(C, src) > 1 || !isturf(C.loc))
+	if(busy || load || get_dist(C, src) > 1 || !isturf(C.loc) || C.anchored)
 		return
 
-	for(var/obj/structure/plasticflaps/P in src.loc)//Takes flaps into account
+	for(var/obj/structure/flaps/P in src.loc)//Takes flaps into account
 		if(!CanPass(C,P))
 			return
 
@@ -326,3 +312,8 @@
 				M.client.perspective = MOB_PERSPECTIVE
 				M.client.eye = src
 	busy = 0
+
+/mob/living/bot/mulebot/get_mob()
+	if(load && isliving(load))
+		return list(src, load)
+	return src

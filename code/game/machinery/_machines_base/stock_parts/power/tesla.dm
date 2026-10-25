@@ -26,6 +26,10 @@
 		A.use_power_oneoff(amount, channel)
 		return amount
 
+/obj/item/stock_parts/power/apc/get_source_info()
+	return "The machine can receive power wirelessly from a nearby area power controller."
+
 /obj/item/stock_parts/power/apc/buildable
+	max_health = null //Buildable variant may take damage
 	part_flags = PART_FLAG_HAND_REMOVE
 	material = /decl/material/solid/metal/steel

@@ -1,4 +1,4 @@
-var/repository/attack_logs/attack_log_repository = new()
+var/global/repository/attack_logs/attack_log_repository = new()
 
 /repository/attack_logs
 	var/list/attack_logs_
@@ -14,6 +14,7 @@ var/repository/attack_logs/attack_log_repository = new()
 /datum/attack_log
 	var/station_time
 	var/intent
+	var/target_zone
 	var/datum/mob_lite/attacker      // We don't store the proper mob in case it gets deleted
 	var/datum/mob_lite/victim
 	var/turf/location                // Turfs are forever
@@ -32,7 +33,8 @@ var/repository/attack_logs/attack_log_repository = new()
 	else
 		message = "[victim.name] [action_message]"
 
-	intent = mob_attacker ? uppertext(mob_attacker.a_intent) : "N/A"
+	intent = mob_attacker ? uppertext(mob_attacker.get_intent().uid) : "N/A"
+	target_zone = uppertext(mob_attacker?.get_target_zone() || "N/A")
 
 	if(mob_attacker)
 		location = get_turf(mob_attacker)

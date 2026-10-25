@@ -6,8 +6,8 @@
 	name = "exotic particle harvester"
 	icon = 'icons/obj/xenoarchaeology.dmi'
 	icon_state = "xenoarchaeology_harvester"
-	anchored = 1
-	density = 1
+	anchored = TRUE
+	density = TRUE
 	idle_power_usage = 50
 	active_power_usage = 750
 	var/mode = MODE_INACTIVE
@@ -31,7 +31,7 @@
 	if(!owned_scanner)
 		owned_scanner = locate(/obj/machinery/artifact_scanpad) in orange(1, src)
 	if(owned_scanner)
-		GLOB.destroyed_event.register(owned_scanner, src, /obj/machinery/artifact_analyser/proc/clear_scanner)
+		events_repository.register(/decl/observ/destroyed, owned_scanner, src, TYPE_PROC_REF(/obj/machinery/artifact_analyser, clear_scanner))
 
 /obj/machinery/artifact_harvester/Destroy()
 	clear_scanner()
@@ -40,34 +40,34 @@
 
 /obj/machinery/artifact_harvester/proc/clear_scanner()
 	if(owned_scanner)
-		GLOB.destroyed_event.unregister(owned_scanner, src)
+		events_repository.unregister(/decl/observ/destroyed, owned_scanner, src)
 		owned_scanner = null
 		clear_artifact() // It was probably on the scanner; if not deleted, still want to clear it.
 
 /obj/machinery/artifact_harvester/proc/clear_artifact()
 	if(cur_artifact)
-		GLOB.destroyed_event.unregister(cur_artifact, src)
+		events_repository.unregister(/decl/observ/destroyed, cur_artifact, src)
 		cur_artifact = null
 
 /obj/machinery/artifact_harvester/proc/set_artifact(var/obj/structure/artifact/new_artifact)
 	if(cur_artifact == new_artifact || !new_artifact)
 		return
 	clear_artifact()
-	GLOB.destroyed_event.register(new_artifact, src, /obj/machinery/artifact_harvester/proc/clear_artifact)
+	events_repository.register(/decl/observ/destroyed, new_artifact, src, TYPE_PROC_REF(/obj/machinery/artifact_harvester, clear_artifact))
 	cur_artifact = new_artifact
 
-/obj/machinery/artifact_harvester/attackby(var/obj/I, var/mob/user)
-	if(istype(I,/obj/item/anobattery))
-		if(!inserted_battery)
-			if(!user.unEquip(I, src))
-				return
-			to_chat(user, "<span class='notice'>You insert [I] into [src].</span>")
-			inserted_battery = I
-			updateDialog()
-		else
-			to_chat(user, "<span class='warning'>There is already a battery in [src].</span>")
-	else
-		return..()
+/obj/machinery/artifact_harvester/attackby(var/obj/item/used_item, var/mob/user)
+	if(!istype(used_item, /obj/item/anobattery))
+		return ..()
+	if(inserted_battery)
+		to_chat(user, SPAN_WARNING("There is already a battery in [src]."))
+		return TRUE
+	if(!user.try_unequip(used_item, src))
+		return TRUE
+	to_chat(user, SPAN_NOTICE("You insert [used_item] into [src]."))
+	inserted_battery = used_item
+	updateDialog()
+	return TRUE
 
 /obj/machinery/artifact_harvester/interface_interact(user)
 	ui_interact(user)
@@ -108,7 +108,6 @@
 		update_use_power(POWER_USE_IDLE)
 	else
 		update_use_power(POWER_USE_ACTIVE)
-	update_icon()
 
 /obj/machinery/artifact_harvester/Process()
 	if(!operable())
@@ -131,7 +130,7 @@
 			inserted_battery.battery_effect.process()
 
 			//if the effect works by touch, activate it on anyone near the console
-			if(inserted_battery.battery_effect.operation_type == EFFECT_TOUCH)
+			if(inserted_battery.battery_effect.operation_type == (XA_EFFECT_TOUCH))
 				for(var/mob/M in hearers(1, src))
 					inserted_battery.battery_effect.DoEffectTouch(M)
 
@@ -172,7 +171,7 @@
 		if(!analysed)
 			state("Cannot harvest. No noteworthy energy signature isolated.")
 			return TOPIC_HANDLED
-			
+
 		set_artifact(analysed)
 
 		//see if we can clear out an old effect
@@ -195,7 +194,7 @@
 			if(!battery_matches_secondary_id && !battery_matches_primary_id)
 				state("Cannot harvest. Battery is charged with a different energy signature.")
 				return TOPIC_HANDLED
-	
+
 		if(cur_artifact.my_effect.activated)
 			source_effect = cur_artifact.my_effect
 
@@ -211,7 +210,7 @@
 				inserted_battery.battery_effect = source_effect.copy()
 				inserted_battery.battery_effect.holder = inserted_battery
 				inserted_battery.stored_charge = 0
-		
+
 		. = TOPIC_REFRESH
 
 	else if (href_list["stopharvest"])
@@ -243,6 +242,6 @@
 		. = TOPIC_REFRESH
 
 
-#undef	MODE_DRAINING 
+#undef	MODE_DRAINING
 #undef 	MODE_INACTIVE
-#undef 	MODE_HARVESTING 
+#undef 	MODE_HARVESTING

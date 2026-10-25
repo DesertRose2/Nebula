@@ -6,7 +6,7 @@
 	set name = "Advanced ProcCall"
 
 	if(!check_rights(R_DEBUG)) return
-	if(config.debugparanoid && !check_rights(R_ADMIN)) return
+	if(get_config_value(/decl/config/toggle/paranoid) && !check_rights(R_ADMIN)) return
 
 	var/target = null
 	var/targetselected = 0
@@ -22,7 +22,7 @@
 				if("Area or Turf")
 					target = input("Select target:", "Target", get_turf(usr)) as null|area|turf in world
 				if("Client")
-					target = input("Select target:", "Target", usr.client) as null|anything in GLOB.clients
+					target = input("Select target:", "Target", usr.client) as null|anything in global.clients
 				else
 					return
 			if(!target)
@@ -41,7 +41,7 @@
 	set name = "Advanced ProcCall Target"
 
 	if(!check_rights(R_DEBUG)) return
-	if(config.debugparanoid && !check_rights(R_ADMIN)) return
+	if(get_config_value(/decl/config/toggle/paranoid) && !check_rights(R_ADMIN)) return
 
 	callproc_targetpicked(1, A)
 
@@ -51,7 +51,7 @@
 /client/proc/callproc_targetpicked(hastarget, datum/target)
 	// this needs checking again here because VV's 'Call Proc' option directly calls this proc with the target datum
 	if(!check_rights(R_DEBUG)) return
-	if(config.debugparanoid && !check_rights(R_ADMIN)) return
+	if(get_config_value(/decl/config/toggle/paranoid) && !check_rights(R_ADMIN)) return
 
 	if(!holder.callproc)
 		holder.callproc = new(src)
@@ -120,7 +120,7 @@
 			return CANCEL
 		switch(input("Type of [arguments.len+1]\th variable", "argument [arguments.len+1]") as null|anything in list(
 				"finished", "null", "text", "num", "type", "obj reference", "mob reference",
-				"area/turf reference", "icon", "file", "client", "mob's area", "marked datum", "click on atom"))
+				"area/turf reference", "icon", "file", "client", "mob's area", "path", "marked datum", "click on atom"))
 			if(null)
 				return CANCEL
 
@@ -139,8 +139,12 @@
 				if(isnull(current)) return CANCEL
 
 			if("type")
-				current = input("Select type for [arguments.len+1]\th argument") as null|anything in typesof(/obj, /mob, /area, /turf)
-				if(isnull(current)) return CANCEL
+				var/tpath = input("Enter type path for [arguments.len+1]\th argument") as null|text
+				if(isnull(tpath)) return CANCEL
+				current = text2path(tpath)
+				if(!ispath(current))
+					to_chat(usr, SPAN_WARNING("Inputed a bad path: '[tpath]'"))
+					return CANCEL
 
 			if("obj reference")
 				current = input("Select object for [arguments.len+1]\th argument") as null|obj in world
@@ -159,7 +163,7 @@
 				if(isnull(current)) return CANCEL
 
 			if("client")
-				current = input("Select client for [arguments.len+1]\th argument") as null|anything in GLOB.clients
+				current = input("Select client for [arguments.len+1]\th argument") as null|anything in global.clients
 				if(isnull(current)) return CANCEL
 
 			if("mob's area")
@@ -173,8 +177,13 @@
 						if("Cancel")
 							return CANCEL
 
+			if ("path")
+				current = text2path(input("Enter path for [arguments.len+1]\th argument") as null|text)
+				if (isnull(current))
+					return CANCEL
+
 			if("marked datum")
-				current = C.holder.marked_datum()
+				current = C.holder?.marked_datum()
 				if(!current)
 					switch(alert("You do not currently have a marked datum; do you want to pass null instead?",, "Yes", "Cancel"))
 						if("Yes")
@@ -202,19 +211,6 @@
 		holder.callproc.waiting_for_click = 0
 		holder.callproc.do_args()
 
-/client/Click(atom/A)
-	if(!user_acted(src))
-		return
-	if(holder && holder.callproc && holder.callproc.waiting_for_click)
-		if(alert("Do you want to select \the [A] as the [holder.callproc.arguments.len+1]\th argument?",, "Yes", "No") == "Yes")
-			holder.callproc.arguments += A
-
-		holder.callproc.waiting_for_click = 0
-		verbs -= /client/proc/cancel_callproc_select
-		holder.callproc.do_args()
-	else
-		return ..()
-
 /datum/callproc/proc/finalise()
 	var/returnval
 
@@ -229,7 +225,7 @@
 			returnval = call(target, procname)()
 	else
 		log_admin("[key_name(src)] called [procname]() with [arguments.len ? "the arguments [list2params(arguments)]" : "no arguments"].")
-		returnval = call(procname)(arglist(arguments))
+		returnval = call(text2path("/proc/[procname]"))(arglist(arguments))
 
 	to_chat(usr, "<span class='info'>[procname]() returned: [json_encode(returnval)]</span>")
 	SSstatistics.add_field_details("admin_verb","APC") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!

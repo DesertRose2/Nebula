@@ -1,20 +1,22 @@
-var/bomb_set
+var/global/bomb_set
 
 /obj/machinery/nuclearbomb
 	name = "\improper Nuclear Fission Explosive"
 	desc = "Uh oh. RUN!"
 	icon = 'icons/obj/nuke.dmi'
 	icon_state = "idle"
-	density = 1
+	density = TRUE
 	use_power = POWER_USE_OFF
 	uncreated_component_parts = null
-	unacidable = 1
 	interact_offline = TRUE
+	wires = /datum/wires/nuclearbomb
 
 	var/deployable = 0
 	var/extended = 0
 	var/lighthack = 0
 	var/timeleft = 120
+	var/minTime = 120
+	var/maxTime = 600
 	var/timing = 0
 	var/r_code = "ADMIN"
 	var/code = ""
@@ -23,8 +25,6 @@ var/bomb_set
 	var/obj/item/disk/nuclear/auth = null
 	var/removal_stage = 0 // 0 is no removal, 1 is covers removed, 2 is covers open, 3 is sealant open, 4 is unwrenched, 5 is removed from bolts.
 	var/lastentered
-	var/previous_level = ""
-	wires = /datum/wires/nuclearbomb
 	var/decl/security_level/original_level
 
 /obj/machinery/nuclearbomb/Initialize()
@@ -36,16 +36,16 @@ var/bomb_set
 	auth = null
 	return ..()
 
-/obj/machinery/nuclearbomb/Process(var/wait)
+/obj/machinery/nuclearbomb/Process(wait, tick)
 	if(timing)
 		timeleft = max(timeleft - (wait / 10), 0)
 		playsound(loc, 'sound/items/timer.ogg', 50)
 		if(timeleft <= 0)
-			addtimer(CALLBACK(src, .proc/explode), 0)
+			addtimer(CALLBACK(src, PROC_REF(explode)), 0)
 		SSnano.update_uis(src)
 
-/obj/machinery/nuclearbomb/attackby(obj/item/O, mob/user, params)
-	if(isScrewdriver(O))
+/obj/machinery/nuclearbomb/attackby(obj/item/used_item, mob/user, params)
+	if(IS_SCREWDRIVER(used_item))
 		add_fingerprint(user)
 		if(auth)
 			if(panel_open == 0)
@@ -67,88 +67,89 @@ var/bomb_set
 				to_chat(user, "You screw the control panel of \the [src] back on.")
 				playsound(src, 'sound/items/Screwdriver.ogg', 50, 1)
 			flick("lock", src)
-		return
+		return TRUE
 
-	if(panel_open && isMultitool(O) || isWirecutter(O))
-		return attack_hand(user)
+	if(panel_open && (IS_MULTITOOL(used_item) || IS_WIRECUTTER(used_item)))
+		return attack_hand_with_interaction_checks(user)
 
 	if(extended)
-		if(istype(O, /obj/item/disk/nuclear))
-			if(!user.unEquip(O, src))
-				return
-			auth = O
+		if(istype(used_item, /obj/item/disk/nuclear))
+			if(!user.try_unequip(used_item, src))
+				return TRUE
+			auth = used_item
 			add_fingerprint(user)
-			return attack_hand(user)
+			return attack_hand_with_interaction_checks(user)
 
 	if(anchored)
 		switch(removal_stage)
 			if(0)
-				if(isWelder(O))
-					var/obj/item/weldingtool/WT = O
-					if(!WT.isOn()) return
-					if(WT.get_fuel() < 5) // uses up 5 fuel.
+				if(IS_WELDER(used_item))
+					var/obj/item/fuelled_tool/welding/welder = used_item
+					if(!welder.tool_is_running()) return TRUE
+					if(welder.get_fuel() < 5) // uses up 5 fuel.
 						to_chat(user, "<span class='warning'>You need more fuel to complete this task.</span>")
-						return
+						return TRUE
 
-					user.visible_message("[user] starts cutting loose the anchoring bolt covers on [src].", "You start cutting loose the anchoring bolt covers with [O]...")
+					user.visible_message("[user] starts cutting loose the anchoring bolt covers on [src].", "You start cutting loose the anchoring bolt covers with [used_item]...")
 
-					if(do_after(user,40, src))
-						if(!src || !user || !WT.remove_fuel(5, user)) return
+					if(do_after(user, 4 SECONDS, src))
+						if(QDELETED(src) || QDELETED(user) || !welder.weld(5, user)) return TRUE
 						user.visible_message("\The [user] cuts through the bolt covers on \the [src].", "You cut through the bolt cover.")
 						removal_stage = 1
-				return
+				return TRUE
 
 			if(1)
-				if(isCrowbar(O))
-					user.visible_message("[user] starts forcing open the bolt covers on [src].", "You start forcing open the anchoring bolt covers with [O]...")
+				if(IS_CROWBAR(used_item))
+					user.visible_message("[user] starts forcing open the bolt covers on [src].", "You start forcing open the anchoring bolt covers with [used_item]...")
 
-					if(do_after(user, 15, src))
-						if(!src || !user) return
+					if(do_after(user, 1.5 SECONDS, src))
+						if(QDELETED(src) || QDELETED(user)) return TRUE
 						user.visible_message("\The [user] forces open the bolt covers on \the [src].", "You force open the bolt covers.")
 						removal_stage = 2
-				return
+				return TRUE
 
 			if(2)
-				if(isWelder(O))
-					var/obj/item/weldingtool/WT = O
-					if(!WT.isOn()) return
-					if (WT.get_fuel() < 5) // uses up 5 fuel.
+				if(IS_WELDER(used_item))
+					var/obj/item/fuelled_tool/welding/welder = used_item
+					if(!welder.tool_is_running()) return TRUE
+					if (welder.get_fuel() < 5) // uses up 5 fuel.
 						to_chat(user, "<span class='warning'>You need more fuel to complete this task.</span>")
-						return
+						return TRUE
 
-					user.visible_message("[user] starts cutting apart the anchoring system sealant on [src].", "You start cutting apart the anchoring system's sealant with [O]...")
+					user.visible_message("[user] starts cutting apart the anchoring system sealant on [src].", "You start cutting apart the anchoring system's sealant with [used_item]...")
 
-					if(do_after(user, 40, src))
-						if(!src || !user || !WT.remove_fuel(5, user)) return
+					if(do_after(user, 4 SECONDS, src))
+						if(QDELETED(src) || QDELETED(user) || !welder.weld(5, user)) return TRUE
 						user.visible_message("\The [user] cuts apart the anchoring system sealant on \the [src].", "You cut apart the anchoring system's sealant.")
 						removal_stage = 3
-				return
+				return TRUE
 
 			if(3)
-				if(isWrench(O))
+				if(IS_WRENCH(used_item))
 					user.visible_message("[user] begins unwrenching the anchoring bolts on [src].", "You begin unwrenching the anchoring bolts...")
-					if(do_after(user, 50, src))
-						if(!src || !user) return
+					if(do_after(user, 5 SECONDS, src))
+						if(QDELETED(src) || QDELETED(user)) return TRUE
 						user.visible_message("[user] unwrenches the anchoring bolts on [src].", "You unwrench the anchoring bolts.")
 						removal_stage = 4
-				return
+				return TRUE
 
 			if(4)
-				if(isCrowbar(O))
+				if(IS_CROWBAR(used_item))
 					user.visible_message("[user] begins lifting [src] off of the anchors.", "You begin lifting the device off the anchors...")
-					if(do_after(user, 80, src))
-						if(!src || !user) return
+					if(do_after(user, 8 SECONDS, src))
+						if(QDELETED(src) || QDELETED(user)) return TRUE
 						user.visible_message("\The [user] crowbars \the [src] off of the anchors. It can now be moved.", "You jam the crowbar under the nuclear device and lift it off its anchors. You can now move it!")
-						anchored = 0
+						anchored = FALSE
 						removal_stage = 5
-				return
-	..()
+				return TRUE
+	return ..()
 
 /obj/machinery/nuclearbomb/physical_attack_hand(mob/user)
+	. = FALSE
 	if(!extended && deployable)
 		. = TRUE
 		if(removal_stage < 5)
-			src.anchored = 1
+			set_anchored(TRUE)
 			visible_message("<span class='warning'>With a steely snap, bolts slide out of [src] and anchor it to the flooring!</span>")
 		else
 			visible_message("<span class='warning'>\The [src] makes a highly unpleasant crunching noise. It looks like the anchoring bolts have been cut.</span>")
@@ -219,9 +220,9 @@ var/bomb_set
 		return 1
 	return 0
 
-/obj/machinery/nuclearbomb/Topic(href, href_list)
-	if(..())
-		return 1
+/obj/machinery/nuclearbomb/OnTopic(mob/user, href_list, datum/topic_state/state)
+	if((. = ..()))
+		return
 
 	if(href_list["auth"])
 		if(auth)
@@ -229,13 +230,14 @@ var/bomb_set
 			yes_code = 0
 			auth = null
 		else
-			var/obj/item/I = usr.get_active_hand()
-			if(istype(I, /obj/item/disk/nuclear))
-				if(!usr.unEquip(I, src))
-					return 1
-				auth = I
-	if(is_auth(usr))
+			var/obj/item/used_item = user.get_active_held_item()
+			if(istype(used_item, /obj/item/disk/nuclear))
+				if(!user.try_unequip(used_item, src))
+					return TOPIC_HANDLED
+				auth = used_item
+	if(is_auth(user))
 		if(href_list["type"])
+			. = TOPIC_REFRESH
 			if(href_list["type"] == "E")
 				if(code == r_code)
 					yes_code = 1
@@ -258,58 +260,62 @@ var/bomb_set
 		if(yes_code)
 			if(href_list["time"])
 				if(timing)
-					to_chat(usr, "<span class='warning'>Cannot alter the timing during countdown.</span>")
-					return
+					to_chat(user, SPAN_WARNING("Cannot alter the timing during countdown."))
+					return TOPIC_HANDLED
 
 				var/time = text2num(href_list["time"])
 				timeleft += time
-				timeleft = Clamp(timeleft, 120, 600)
+				timeleft = clamp(timeleft, minTime, maxTime)
+				. = TOPIC_HANDLED
 			if(href_list["timer"])
 				if(timing == -1)
-					return 1
+					return TOPIC_NOACTION
 				if(!anchored)
-					to_chat(usr, "<span class='warning'>\The [src] needs to be anchored.</span>")
-					return 1
+					to_chat(user, SPAN_WARNING("\The [src] needs to be anchored."))
+					return TOPIC_HANDLED
 				if(safety)
-					to_chat(usr, "<span class='warning'>The safety is still on.</span>")
-					return 1
+					to_chat(user, SPAN_WARNING("The safety is still on."))
+					return TOPIC_HANDLED
 				if(wires.IsIndexCut(NUCLEARBOMB_WIRE_TIMING))
-					to_chat(usr, "<span class='warning'>Nothing happens, something might be wrong with the wiring.</span>")
-					return 1
+					to_chat(user, SPAN_WARNING("Nothing happens, something might be wrong with the wiring."))
+					return TOPIC_HANDLED
 				if(!timing && !safety)
-					start_bomb()
+					start_bomb(user)
+					. = TOPIC_HANDLED
 				else
 					check_cutoff()
+					. = TOPIC_HANDLED
 			if(href_list["safety"])
 				if (wires.IsIndexCut(NUCLEARBOMB_WIRE_SAFETY))
-					to_chat(usr, "<span class='warning'>Nothing happens, something might be wrong with the wiring.</span>")
-					return 1
+					to_chat(user, SPAN_WARNING("Nothing happens, something might be wrong with the wiring."))
+					return TOPIC_HANDLED
 				safety = !safety
 				if(safety)
 					secure_device()
 				update_icon()
+				return TOPIC_REFRESH
 			if(href_list["anchor"])
 				if(removal_stage == 5)
-					anchored = 0
-					visible_message("<span class='warning'>\The [src] makes a highly unpleasant crunching noise. It looks like the anchoring bolts have been cut.</span>")
-					return 1
+					anchored = FALSE
+					visible_message(SPAN_WARNING("\The [src] makes a highly-unpleasant crunching noise. It looks like the anchoring bolts have been cut."), blind_message = SPAN_NOTICE("You hear a highly-unpleasant crunching noise."))
+					return TOPIC_HANDLED
 
-				if(!isinspace())
-					anchored = !anchored
+				if(!isspaceturf(get_turf(src)))
+					set_anchored(!anchored)
 					if(anchored)
-						visible_message("<span class='warning'>With a steely snap, bolts slide out of \the [src] and anchor it to the flooring.</span>")
+						visible_message(SPAN_WARNING("With a steely snap, bolts slide out of \the [src] and anchor it to the flooring."), blind_message = SPAN_NOTICE("You hear a steely snap."))
 					else
 						secure_device()
-						visible_message("<span class='warning'>The anchoring bolts slide back into the depths of \the [src].</span>")
+						visible_message(SPAN_WARNING("The anchoring bolts slide back into the depths of \the [src]."), blind_message = SPAN_NOTICE("You hear a steely snap."))
+					return TOPIC_HANDLED
 				else
-					to_chat(usr, "<span class='warning'>There is nothing to anchor to!</span>")
-	return 1
+					to_chat(user, SPAN_WARNING("There is nothing to anchor to!"))
 
-/obj/machinery/nuclearbomb/proc/start_bomb()
+/obj/machinery/nuclearbomb/proc/start_bomb(user)
 	timing = 1
-	log_and_message_admins("activated the detonation countdown of \the [src]")
+	log_and_message_admins("activated the detonation countdown of \the [src]", user)
 	bomb_set++ //There can still be issues with this resetting when there are multiple bombs. Not a big deal though for Nuke/N
-	var/decl/security_state/security_state = decls_repository.get_decl(GLOB.using_map.security_state)
+	var/decl/security_state/security_state = GET_DECL(global.using_map.security_state)
 	original_level = security_state.current_security_level
 	security_state.set_security_level(security_state.severe_security_level, TRUE)
 	update_icon()
@@ -320,12 +326,12 @@ var/bomb_set
 /obj/machinery/nuclearbomb/proc/secure_device()
 	if(timing <= 0)
 		return
-	var/decl/security_state/security_state = decls_repository.get_decl(GLOB.using_map.security_state)
+	var/decl/security_state/security_state = GET_DECL(global.using_map.security_state)
 	security_state.set_security_level(original_level, TRUE)
 	bomb_set--
 	safety = TRUE
 	timing = 0
-	timeleft = Clamp(timeleft, 120, 600)
+	timeleft = clamp(timeleft, 120, 600)
 	update_icon()
 
 /obj/machinery/nuclearbomb/explosion_act(severity)
@@ -357,34 +363,21 @@ var/bomb_set
 		icon_state = "idle"
 
 //====The nuclear authentication disc====
+var/global/list/obj/item/disk/nuclear/nuke_disks = list()
 /obj/item/disk/nuclear
 	name = "nuclear authentication disk"
 	desc = "Better keep this safe."
-	icon = 'icons/obj/items/device/diskette.dmi'
-	icon_state = "nucleardisk"
-	item_state = "card-id"
-	w_class = ITEM_SIZE_TINY
-
+	color = COLOR_GRAY20
+	label = "label_warning"
 
 /obj/item/disk/nuclear/Initialize()
 	. = ..()
-	nuke_disks |= src
-	// Can never be quite sure that a game mode has been properly initiated or not at this point, so always register
-	GLOB.moved_event.register(src, src, /obj/item/disk/nuclear/proc/check_z_level)
-
-/obj/item/disk/nuclear/proc/check_z_level()
-	if(!(istype(SSticker.mode, /datum/game_mode/nuclear)))
-		GLOB.moved_event.unregister(src, src, /obj/item/disk/nuclear/proc/check_z_level) // However, when we are certain unregister if necessary
-		return
-	var/turf/T = get_turf(src)
-	if(!T || isNotStationLevel(T.z))
-		qdel(src)
+	global.nuke_disks |= src
 
 /obj/item/disk/nuclear/Destroy()
-	GLOB.moved_event.unregister(src, src, /obj/item/disk/nuclear/proc/check_z_level)
-	nuke_disks -= src
-	if(!nuke_disks.len)
-		var/turf/T = pick_area_turf(/area/maintenance, list(/proc/is_station_turf, /proc/not_turf_contains_dense_objects))
+	global.nuke_disks -= src
+	if(!length(global.nuke_disks))
+		var/turf/T = pick_area_turf_by_flag(AREA_FLAG_MAINTENANCE, list(/proc/is_station_turf, /proc/not_turf_contains_dense_objects))
 		if(T)
 			var/obj/D = new /obj/item/disk/nuclear(T)
 			log_and_message_admins("[src], the last authentication disk, has been destroyed. Spawning [D] at ([D.x], [D.y], [D.z]).", location = T)
@@ -393,18 +386,21 @@ var/bomb_set
 	return ..()
 
 //====the nuclear football (holds the disk and instructions)====
-/obj/item/storage/secure/briefcase/nukedisk
+/obj/item/secure_storage/briefcase/nukedisk
 	desc = "A large briefcase with a digital locking system."
-	startswith = list(
+
+/obj/item/secure_storage/briefcase/nukedisk/WillContain()
+	return list(
 		/obj/item/disk/nuclear,
 		/obj/item/pinpointer,
 		/obj/item/folder/envelope/nuke_instructions,
-		/obj/item/modular_computer/laptop/preset/custom_loadout/cheap/
+		/obj/item/modular_computer/laptop/preset/custom_loadout/cheap
 	)
 
-/obj/item/storage/secure/briefcase/nukedisk/examine(mob/user)
+/obj/item/secure_storage/briefcase/nukedisk/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
-	to_chat(user,"On closer inspection, you see \a [GLOB.using_map.company_name] emblem is etched into the front of it.")
+	if(distance <= 1)
+		. += "On closer inspection, you see \a [global.using_map.company_name] emblem is etched into the front of it."
 
 /obj/item/folder/envelope/nuke_instructions
 	name = "instructions envelope"
@@ -412,43 +408,44 @@ var/bomb_set
 
 /obj/item/folder/envelope/nuke_instructions/Initialize()
 	. = ..()
-	var/obj/item/paper/R = new(src)
-	R.set_content("<center><b>Warning: Classified<br>[GLOB.using_map.station_name] Self-Destruct System - Instructions</b></center><br><br>\
-	In the event of a Delta-level emergency, this document will guide you through the activation of the vessel's \
-	on-board nuclear self-destruct system. Please read carefully.<br><br>\
-	1) (Optional) Announce the imminent activation to any surviving crew members, and begin evacuation procedures.<br>\
-	2) Notify two heads of staff, both with ID cards with access to the ship's Keycard Authentication Devices.<br>\
-	3) Proceed to the self-destruct chamber, located on Deck One by the stairwell.<br>\
-	4) Unbolt the door and enter the chamber.<br>\
-	5) Both heads of staff should stand in front of their own Keycard Authentication Devices. On the KAD interface, select \
-	Grant Nuclear Authentication Code. Both heads of staff should then swipe their ID cards simultaneously.<br>\
-	6) The KAD will now display the Authentication Code. Memorize this code.<br>\
-	7) Insert the nuclear authentication disk into the self-destruct terminal.<br>\
-	8) Enter the code into the self-destruct terminal.<br>\
-	9) Authentication procedures are now complete. Open the two cabinets containing the nuclear cylinders. They are \
-	located on the back wall of the chamber.<br>\
-	10) Place the cylinders upon the six nuclear cylinder inserters.<br>\
-	11) Activate the inserters. The cylinders will be pulled down into the self-destruct system.<br>\
-	12) Return to the terminal. Enter the desired countdown time.<br>\
-	13) When ready, disable the safety switch.<br>\
-	14) Start the countdown.<br><br>\
-	This concludes the instructions.", "vessel self-destruct instructions")
+	var/obj/item/paper/codes = new(src)
+	codes.set_content({"<center><b>Warning: Classified<br>[global.using_map.station_name] Self-Destruct System - Instructions</b></center><br><br>
+	In the event of a Delta-level emergency, this document will guide you through the activation of the vessel's
+	on-board nuclear self-destruct system. Please read carefully.<br><br>
+	1) (Optional) Announce the imminent activation to any surviving crew members, and begin evacuation procedures.<br>
+	2) Notify two heads of staff, both with ID cards with access to the ship's Keycard Authentication Devices.<br>
+	3) Proceed to the self-destruct chamber, located on Deck One by the stairwell.<br>
+	4) Unbolt the door and enter the chamber.<br>
+	5) Both heads of staff should stand in front of their own Keycard Authentication Devices. On the KAD interface, select
+	Grant Nuclear Authentication Code. Both heads of staff should then swipe their ID cards simultaneously.<br>
+	6) The KAD will now display the Authentication Code. Memorize this code.<br>
+	7) Insert the nuclear authentication disk into the self-destruct terminal.<br>
+	8) Enter the code into the self-destruct terminal.<br>
+	9) Authentication procedures are now complete. Open the two cabinets containing the nuclear cylinders. They are
+	located on the back wall of the chamber.<br>
+	10) Place the cylinders upon the six nuclear cylinder inserters.<br>
+	11) Activate the inserters. The cylinders will be pulled down into the self-destruct system.<br>
+	12) Return to the terminal. Enter the desired countdown time.<br>
+	13) When ready, disable the safety switch.<br>
+	14) Start the countdown.<br><br>
+	This concludes the instructions."},
+		"vessel self-destruct instructions")
 
 	//stamp the paper
-	var/image/stampoverlay = image('icons/obj/bureaucracy.dmi')
-	stampoverlay.icon_state = "paper_stamp-hos"
-	R.stamped += /obj/item/stamp
-	R.overlays += stampoverlay
-	R.stamps += "<HR><i>This paper has been stamped as 'Top Secret'.</i>"
+	codes.apply_custom_stamp('icons/obj/items/stamps/stamp_cos.dmi', "'Top Secret'")
 
 //====vessel self-destruct system====
 /obj/machinery/nuclearbomb/station
 	name = "self-destruct terminal"
 	desc = "For when it all gets too much to bear. Do not taunt."
 	icon = 'icons/obj/nuke_station.dmi'
-	anchored = 1
+	anchored = TRUE
 	deployable = 1
 	extended = 1
+
+	timeleft = 300
+	minTime = 300
+	maxTime = 900
 
 	var/list/flash_tiles = list()
 	var/list/inserters = list()
@@ -461,38 +458,26 @@ var/bomb_set
 /obj/machinery/nuclearbomb/station/Initialize()
 	. = ..()
 	verbs -= /obj/machinery/nuclearbomb/verb/toggle_deployable
-	for(var/turf/simulated/floor/T in get_area(src))
-		if(istype(T.flooring, /decl/flooring/reinforced/circuit/red))
+	for(var/turf/floor/T in get_area(src))
+		if(istype(T.get_topmost_flooring(), /decl/flooring/reinforced/circuit/red))
 			flash_tiles += T
 	update_icon()
 	for(var/obj/machinery/self_destruct/ch in get_area(src))
 		inserters += ch
 
-/obj/machinery/nuclearbomb/station/attackby(obj/item/O, mob/user)
-	if(isWrench(O))
-		return
+/obj/machinery/nuclearbomb/station/attackby(obj/item/used_item, mob/user)
+	return TRUE // cannot be moved
 
-/obj/machinery/nuclearbomb/station/Topic(href, href_list)
-	if((. = ..()))
-		return
-
+/obj/machinery/nuclearbomb/station/OnTopic(mob/user, href_list, datum/topic_state/state)
 	if(href_list["anchor"])
-		return
+		return TOPIC_NOACTION
+	return ..()
 
-	if(href_list["time"])
-		if(timing)
-			to_chat(usr, "<span class='warning'>Cannot alter the timing during countdown.</span>")
-			return
-		var/time = text2num(href_list["time"])
-		timeleft += time
-		timeleft = Clamp(timeleft, 300, 900)
-		return 1
-
-/obj/machinery/nuclearbomb/station/start_bomb()
+/obj/machinery/nuclearbomb/station/start_bomb(mob/user)
 	for(var/inserter in inserters)
 		var/obj/machinery/self_destruct/sd = inserter
 		if(!istype(sd) || !sd.armed)
-			to_chat(usr, "<span class='warning'>An inserter has not been armed or is damaged.</span>")
+			to_chat(user, "<span class='warning'>An inserter has not been armed or is damaged.</span>")
 			return
 	visible_message("<span class='warning'>Warning. The self-destruct sequence override will be disabled [self_destruct_cutoff] seconds before detonation.</span>")
 	..()
@@ -528,7 +513,7 @@ var/bomb_set
 					high_intensity = rand(3, 6)
 					low_intensity = rand(5, 8)
 					time_to_explosion = world.time + 5 SECONDS
-				var/turf/T = pick_area_and_turf(GLOB.is_station_but_not_space_or_shuttle_area)
+				var/turf/T = pick_area_and_turf(global.is_station_but_not_space_or_shuttle_area)
 				explosion(T, range, high_intensity, low_intensity)
 
 /obj/machinery/nuclearbomb/station/secure_device()
@@ -555,8 +540,8 @@ var/bomb_set
 
 	if(!last_turf_state || target_icon_state != last_turf_state)
 		for(var/thing in flash_tiles)
-			var/turf/simulated/floor/T = thing
-			if(!istype(T.flooring, /decl/flooring/reinforced/circuit/red))
+			var/turf/floor/T = thing
+			if(!istype(T.get_topmost_flooring(), /decl/flooring/reinforced/circuit/red))
 				flash_tiles -= T
 				continue
 			T.icon_state = target_icon_state

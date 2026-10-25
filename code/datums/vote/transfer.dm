@@ -7,26 +7,24 @@
 		return
 	if(!SSevac.evacuation_controller || !SSevac.evacuation_controller.should_call_autotransfer_vote())
 		return FALSE
-	if(!automatic && !config.allow_vote_restart && !is_admin(creator))
+	if(!automatic && !get_config_value(/decl/config/toggle/vote_restart) && !is_admin(creator))
 		return FALSE // Admins and autovotes bypass the config setting.
 	if(check_rights(R_INVESTIGATE, 0, creator))
 		return //Mods bypass further checks.
-	var/decl/security_state/security_state = decls_repository.get_decl(GLOB.using_map.security_state)
+	var/decl/security_state/security_state = GET_DECL(global.using_map.security_state)
 	if (!automatic && security_state.current_security_level_is_same_or_higher_than(security_state.high_security_level))
-		to_chat(creator, "The current alert status is too high to call for a crew transfer!")
 		return FALSE
 	if(GAME_STATE <= RUNLEVEL_SETUP)
-		to_chat(creator, "The crew transfer button has been disabled!")
 		return FALSE
 
 /datum/vote/transfer/setup_vote(mob/creator, automatic)
-	choices = list("Initiate Crew Transfer", "Extend the Round ([config.vote_autotransfer_interval / 600] minutes)")
-	if (config.allow_extra_antags && SSvote.is_addantag_allowed(creator, automatic))
+	choices = list("Initiate Crew Transfer", "Extend the Round ([get_config_value(/decl/config/num/vote_autotransfer_interval) / 600] minutes)")
+	if (get_config_value(/decl/config/toggle/allow_extra_antags) && SSvote.is_addantag_allowed(creator, automatic))
 		choices += "Add Antagonist"
 	..()
 
 /datum/vote/transfer/handle_default_votes()
-	if(config.vote_no_default)
+	if(get_config_value(/decl/config/num/vote_no_default))
 		return
 	var/factor = 0.5
 	switch(world.time / (1 MINUTE))
@@ -41,7 +39,7 @@
 		else
 			factor = 1.4
 	choices["Initiate Crew Transfer"] = round(choices["Initiate Crew Transfer"] * factor)
-	to_world("<font color='purple'>Crew Transfer Factor: [factor]</font>")
+	to_world(SPAN_PURPLE("Crew Transfer Factor: [factor]"))
 
 /datum/vote/transfer/report_result()
 	if(..())
@@ -54,12 +52,12 @@
 /datum/vote/transfer/mob_not_participating(mob/user)
 	if((. = ..()))
 		return
-	if(config.vote_no_dead_crew_transfer)
-		return !isliving(user) || ismouse(user) || is_drone(user)
+	if(get_config_value(/decl/config/num/vote_no_dead_crew_transfer))
+		return !isliving(user) || ismouse(user) || isdrone(user)
 
 /datum/vote/transfer/check_toggle()
-	return config.allow_vote_restart ? "Allowed" : "Disallowed"
+	return get_config_value(/decl/config/toggle/vote_restart) ? "Allowed" : "Disallowed"
 
 /datum/vote/transfer/toggle(mob/user)
 	if(is_admin(user))
-		config.allow_vote_restart = !config.allow_vote_restart
+		toggle_config_value(/decl/config/toggle/vote_restart)

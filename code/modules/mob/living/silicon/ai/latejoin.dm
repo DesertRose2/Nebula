@@ -20,8 +20,16 @@
 		log_and_message_admins("removed themselves from the round via Wipe Core")
 
 	// We warned you.
+	do_telecomms_announcement(src, "\The [src] has been moved to intelligence storage.", "Artificial Intelligence Oversight")
 	empty_playable_ai_cores += new /obj/structure/aicore/deactivated(loc)
-	GLOB.global_announcer.autosay("[src] has been moved to intelligence storage.", "Artificial Intelligence Oversight")
 
 	//Handle job slot/tater cleanup.
 	clear_client()
+
+/obj/abstract/landmark/start/ai
+	name = "AI"
+
+/obj/abstract/landmark/start/ai/Initialize()
+	. = ..()
+	//The job subsystem does its thing before we can, so we've got to handle this
+	empty_playable_ai_cores += new /obj/structure/aicore/deactivated(get_turf(loc))

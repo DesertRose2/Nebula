@@ -3,17 +3,17 @@
 	wire_count = 3
 	descriptions = list(
 		new /datum/wire_description(SUIT_STORAGE_WIRE_ELECTRIFY, "This wire seems to be carrying a heavy current."),
-		new /datum/wire_description(SUIT_STORAGE_WIRE_SAFETY, "This wire seems connected to a safety override", SKILL_EXPERT),
+		new /datum/wire_description(SUIT_STORAGE_WIRE_SAFETY, "This wire seems connected to a safety override.", SKILL_EXPERT),
 		new /datum/wire_description(SUIT_STORAGE_WIRE_LOCKED, "This wire is connected to the ID scanning panel.")
 	)
 
-var/const/SUIT_STORAGE_WIRE_ELECTRIFY	= 1
-var/const/SUIT_STORAGE_WIRE_SAFETY		= 2
-var/const/SUIT_STORAGE_WIRE_LOCKED		= 4
+var/global/const/SUIT_STORAGE_WIRE_ELECTRIFY	= 1
+var/global/const/SUIT_STORAGE_WIRE_SAFETY		= 2
+var/global/const/SUIT_STORAGE_WIRE_LOCKED		= 4
 
 /datum/wires/suit_cycler/CanUse(var/mob/living/L)
 	var/obj/machinery/suit_cycler/S = holder
-	if(!istype(L, /mob/living/silicon))
+	if(!issilicon(L))
 		if(S.electrified)
 			if(S.shock(L, 100))
 				return 0

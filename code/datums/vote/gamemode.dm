@@ -1,12 +1,11 @@
 /datum/vote/gamemode
 	name = "game mode"
-	additional_header = "<td align = 'center'><b>Minimum Players</b></td></tr>"
+	additional_header = "<td align = 'center'><b>Minimum Players</b></td>"
 	win_x = 500
 	win_y = 1100
-	show_leading = TRUE
 
 /datum/vote/gamemode/can_run(mob/creator, automatic)
-	if(!automatic && (!config.allow_vote_mode || !is_admin(creator)))
+	if(!automatic && (!get_config_value(/decl/config/toggle/vote_mode) || !is_admin(creator)))
 		return FALSE // Admins and autovotes bypass the config setting.
 	if(GAME_STATE >= RUNLEVEL_GAME)
 		return FALSE
@@ -20,9 +19,9 @@
 
 /datum/vote/gamemode/setup_vote(mob/creator, automatic)
 	..()
-	choices += config.votable_modes
+	choices += get_config_value(/decl/config/lists/mode_votable)
 	for (var/F in choices)
-		var/datum/game_mode/M = gamemode_cache[F]
+		var/decl/game_mode/M = decls_repository.get_decl_by_id(F, validate_decl_type = FALSE)
 		if(!M)
 			continue
 		display_choices[F] = capitalize(M.name)
@@ -37,7 +36,7 @@
 /datum/vote/gamemode/report_result()
 	if(!SSticker.round_progressing) //Unpause any holds. If the vote failed, SSticker is responsible for fielding the result.
 		SSticker.round_progressing = 1
-		to_world("<font color='red'><b>The round will start soon.</b></font>")
+		to_world(SPAN_RED("<b>The round will start soon.</b>"))
 	if(..())
 		SSticker.gamemode_vote_results = list() //This signals to SSticker that the vote is over but there were no winners.
 		return 1
@@ -50,8 +49,8 @@
 	SSticker.gamemode_vote_results = result.Copy()
 
 /datum/vote/gamemode/check_toggle()
-	return config.allow_vote_mode ? "Allowed" : "Disallowed"
+	return get_config_value(/decl/config/toggle/vote_mode) ? "Allowed" : "Disallowed"
 
 /datum/vote/gamemode/toggle(mob/user)
 	if(is_admin(user))
-		config.allow_vote_mode = !config.allow_vote_mode
+		toggle_config_value(/decl/config/toggle/vote_mode)

@@ -1,0 +1,16 @@
+/decl/language/diona
+	name = "Nymph"
+	desc = "A language known instinctively by diona nymphs."
+	speech_verb = "creaks and rustles"
+	ask_verb = "creaks"
+	exclaim_verb = "rustles"
+	colour = "soghun"
+	language_key = "chirp"
+	language_flags = LANG_FLAG_RESTRICTED
+	syllables = list("hs","zt","kr","st","sh")
+	shorthand = "RT"
+	machine_understands = FALSE
+	hidden_from_codex = TRUE
+
+/decl/language/diona/get_random_language_name(gender, name_count=2, syllable_count=4, syllable_divisor=2)
+	. = "[pick(list("To Sleep Beneath","Wind Over","Embrace of","Dreams of","Witnessing","To Walk Beneath","Approaching the"))] [pick(list("the Void","the Sky","Encroaching Night","Planetsong","Starsong","the Wandering Star","the Empty Day","Daybreak","Nightfall","the Rain"))]"

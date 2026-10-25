@@ -5,14 +5,14 @@
 /obj/effect/effect/foam
 	name = "foam"
 	icon_state = "foam"
-	opacity = 0
-	anchored = 1
-	density = 0
+	opacity = FALSE
+	anchored = TRUE
+	density = FALSE
 	layer = ABOVE_OBJ_LAYER
-	mouse_opacity = 0
+	mouse_opacity = MOUSE_OPACITY_UNCLICKABLE
 	animate_movement = 0
+	chem_volume = 10
 	var/amount = 3
-	var/expand = 1
 	var/metal = 0
 
 /obj/effect/effect/foam/Initialize(mapload, var/ismetal = 0)
@@ -23,7 +23,7 @@
 	spawn(3 + metal * 3)
 		Process()
 		checkReagents()
-	addtimer(CALLBACK(src, .proc/remove_foam), 12 SECONDS)
+	addtimer(CALLBACK(src, PROC_REF(remove_foam)), 12 SECONDS)
 
 /obj/effect/effect/foam/proc/remove_foam()
 	STOP_PROCESSING(SSobj, src)
@@ -38,14 +38,12 @@
 	if(!metal && reagents)
 		var/turf/T = get_turf(src)
 		reagents.touch_turf(T)
-		for(var/obj/O in T)
-			reagents.touch_obj(O)
 
 /obj/effect/effect/foam/Process()
 	if(--amount < 0)
 		return
 
-	for(var/direction in GLOB.cardinal)
+	for(var/direction in global.cardinal)
 		var/turf/T = get_step(src, direction)
 		if(!T)
 			continue
@@ -59,25 +57,22 @@
 
 		F = new(T, metal)
 		F.amount = amount
-		if(!metal)
-			F.create_reagents(10)
-			if(reagents)
-				for(var/R in reagents.reagent_volumes)
-					F.reagents.add_reagent(R, 1, safety = 1) //added safety check since reagents in the foam have already had a chance to react
+		if(!metal && REAGENT_TOTAL_VOLUME(reagents))
+			for(var/decl/material/reagent as anything in REAGENT_VOLUMES(reagents))
+				F.add_to_reagents(reagent, 1, safety = 1) //added safety check since reagents in the foam have already had a chance to react
 
 /obj/effect/effect/foam/fire_act(datum/gas_mixture/air, exposed_temperature, exposed_volume) // foam disolves when heated, except metal foams
 	if(!metal && prob(max(0, exposed_temperature - 475)))
 		flick("[icon_state]-disolve", src)
-
-		spawn(5)
-			qdel(src)
-
-/obj/effect/effect/foam/Crossed(var/atom/movable/AM)
-	if(metal)
+		QDEL_IN(src, 5)
 		return
-	if(istype(AM, /mob/living))
-		var/mob/living/M = AM
-		M.slip("the foam", 6)
+	return ..()
+
+/obj/effect/effect/foam/Crossed(atom/movable/AM)
+	if(metal || !isliving(AM))
+		return
+	var/mob/living/M = AM
+	M.slip("the foam", 6)
 
 /datum/effect/effect/system/foam_spread
 	var/amount = 5				// the size of the foam spread.
@@ -97,8 +92,8 @@
 	// bit of a hack here. Foam carries along any reagent also present in the glass it is mixed with (defaults to water if none is present). Rather than actually transfer the reagents, this makes a list of the reagent ids and spawns 1 unit of that reagent when the foam disolves.
 
 	if(carry && !metal)
-		for(var/R in carry.reagent_volumes)
-			carried_reagents += R
+		for(var/decl/material/reagent as anything in REAGENT_VOLUMES(carry))
+			carried_reagents += reagent
 
 /datum/effect/effect/system/foam_spread/start()
 	spawn(0)
@@ -111,24 +106,23 @@
 		F.amount = amount
 
 		if(!metal) // don't carry other chemicals if a metal foam
-			F.create_reagents(10)
-
 			if(carried_reagents)
 				for(var/id in carried_reagents)
-					F.reagents.add_reagent(id, 1, safety = 1) //makes a safety call because all reagents should have already reacted anyway
+					F.add_to_reagents(id, 1, safety = 1) //makes a safety call because all reagents should have already reacted anyway
 			else
-				F.reagents.add_reagent(/decl/material/liquid/water, 1, safety = 1)
+				F.add_to_reagents(/decl/material/liquid/water, 1, safety = 1)
 
 // wall formed by metal foams, dense and opaque, but easy to break
 
 /obj/structure/foamedmetal
 	icon = 'icons/effects/effects.dmi'
 	icon_state = "metalfoam"
-	density = 1
-	opacity = 1 // changed in New()
-	anchored = 1
+	density =  TRUE
+	opacity =  TRUE
+	anchored = TRUE
 	name = "foamed metal"
 	desc = "A lightweight foamed metal wall."
+	atmos_canpass = CANPASS_DENSITY
 	var/metal = 1 // 1 = aluminium, 2 = iron
 
 /obj/structure/foamedmetal/Initialize()
@@ -138,9 +132,10 @@
 /obj/structure/foamedmetal/Destroy()
 	set_density(0)
 	update_nearby_tiles(1)
-	..()
+	return ..()
 
 /obj/structure/foamedmetal/on_update_icon()
+	..()
 	if(metal == 1)
 		icon_state = "metalfoam"
 	else
@@ -149,36 +144,36 @@
 /obj/structure/foamedmetal/explosion_act(severity)
 	..()
 	if(!QDELETED(src))
-		physically_destroyed(src)
+		physically_destroyed()
 
 /obj/structure/foamedmetal/bullet_act()
 	if(metal == 1 || prob(50))
 		qdel(src)
 
 /obj/structure/foamedmetal/attack_hand(var/mob/user)
-	if ((MUTATION_HULK in user.mutations) || (prob(75 - metal * 25)))
+	SHOULD_CALL_PARENT(FALSE)
+	if (prob(75 - metal * 25))
 		user.visible_message("<span class='warning'>[user] smashes through the foamed metal.</span>", "<span class='notice'>You smash through the metal foam wall.</span>")
 		qdel(src)
 	else
 		to_chat(user, "<span class='notice'>You hit the metal foam but bounce off it.</span>")
-	return
+	return TRUE
 
-/obj/structure/foamedmetal/attackby(var/obj/item/I, var/mob/user)
-	if(istype(I, /obj/item/grab))
-		var/obj/item/grab/G = I
-		G.affecting.loc = src.loc
-		visible_message("<span class='warning'>[G.assailant] smashes [G.affecting] through the foamed metal wall.</span>")
-		qdel(I)
-		qdel(src)
-		return
 
-	if(prob(I.force * 20 - metal * 25))
-		user.visible_message("<span class='warning'>[user] smashes through the foamed metal.</span>", "<span class='notice'>You smash through the foamed metal with \the [I].</span>")
-		qdel(src)
+/obj/structure/foamedmetal/grab_attack(obj/item/grab/grab, mob/user)
+	grab.affecting.forceMove(loc)
+	visible_message(SPAN_DANGER("\The [user] smashes \the [grab.affecting] through the foamed metal wall!"))
+	qdel(grab)
+	physically_destroyed()
+	return TRUE
+
+/obj/structure/foamedmetal/attackby(var/obj/item/used_item, var/mob/user)
+	if(prob(used_item.expend_attack_force(user) * 20 - metal * 25))
+		user.visible_message(
+			SPAN_WARNING("\The [user] smashes through the foamed metal."),
+			SPAN_NOTICE("You smash through the foamed metal with \the [used_item].")
+		)
+		physically_destroyed()
 	else
-		to_chat(user, "<span class='notice'>You hit the metal foam to no effect.</span>")
-
-/obj/structure/foamedmetal/CanPass(atom/movable/mover, turf/target, height=1.5, air_group = 0)
-	if(air_group)
-		return 0
-	return !density
+		to_chat(user, SPAN_WARNING("You hit \the [src] to no effect."))
+	return TRUE

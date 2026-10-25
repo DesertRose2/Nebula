@@ -19,8 +19,8 @@
 	if(!vendingMachines.len)
 		kill()
 		return
-	var/weakref/W = pick_n_take(vendingMachines)
-	originMachine = W.resolve()
+	var/weakref/vendor_ref = pick_n_take(vendingMachines)
+	originMachine = vendor_ref.resolve()
 	originMachine.shut_up = 0
 	originMachine.shoot_inventory = 1
 	originMachine.shooting_chance = 15
@@ -31,11 +31,11 @@
 		return
 
 	if(IsMultiple(activeFor, 5) && prob(15))
-		var/weakref/W = pick(vendingMachines)
-		vendingMachines -= W
-		var/obj/machinery/vending/infectedMachine = W.resolve()
+		var/weakref/vendor_ref = pick(vendingMachines)
+		vendingMachines -= vendor_ref
+		var/obj/machinery/vending/infectedMachine = vendor_ref.resolve()
 		if(infectedMachine)
-			infectedVendingMachines += W
+			infectedVendingMachines += vendor_ref
 			infectedMachine.shut_up = 0
 			infectedMachine.shoot_inventory = 1
 
@@ -49,15 +49,16 @@
 								 "You don't want to buy anything? Yeah, well I didn't want to buy your mom either."))
 
 /datum/event/brand_intelligence/end()
-	originMachine.shut_up = 1
-	originMachine.shooting_chance = initial(originMachine.shooting_chance)
-	for(var/weakref/W in infectedVendingMachines)
-		var/obj/machinery/vending/infectedMachine = W.resolve()
+	if(istype(originMachine))
+		originMachine.shut_up = 1
+		originMachine.shooting_chance = initial(originMachine.shooting_chance)
+		originMachine = null
+	for(var/weakref/vendor_ref in infectedVendingMachines)
+		var/obj/machinery/vending/infectedMachine = vendor_ref.resolve()
 		if(!infectedMachine)
 			continue
 		infectedMachine.shut_up = 1
 		infectedMachine.shoot_inventory = 0
 	command_announcement.Announce("All traces of the rampant brand intelligence have disappeared from the systems.", "[location_name()] Firewall Subroutines")
-	originMachine = null
 	infectedVendingMachines.Cut()
 	vendingMachines.Cut()

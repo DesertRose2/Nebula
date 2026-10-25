@@ -1,6 +1,6 @@
 /decl/communication_channel/ooc
 	name = "OOC"
-	config_setting = "ooc_allowed"
+	config_setting = /decl/config/toggle/on/ooc_allowed
 	expected_communicator_type = /client
 	flags = COMMUNICATION_NO_GUESTS
 	log_proc = /proc/log_ooc
@@ -13,7 +13,7 @@
 		return
 
 	if(!C.holder)
-		if(!config.dooc_allowed && (C.mob.stat == DEAD))
+		if(!get_config_value(/decl/config/toggle/on/dooc_allowed) && (C.mob.stat == DEAD))
 			to_chat(C, "<span class='danger'>[name] for dead mobs has been turned off.</span>")
 			return FALSE
 		if(findtext(message, "byond://"))
@@ -38,10 +38,10 @@
 	var/can_badmin = !is_stealthed && can_select_ooc_color(C) && (C.prefs.ooccolor != initial(C.prefs.ooccolor))
 	var/ooc_color = C.prefs.ooccolor
 
-	for(var/client/target in GLOB.clients)
+	for(var/client/target in global.clients)
 		if(target.is_key_ignored(C.key)) // If we're ignored by this person, then do nothing.
 			continue
-		var/sent_message = "[create_text_tag("ooc", "OOC:", target)] <EM>[C.key]:</EM> <span class='message'>[message]</span>"
+		var/sent_message = "[create_text_tag("ooc", "OOC:", target)] [get_emblem(C)]<EM>[C.key]:</EM> <span class='message'>[message]</span>"
 		if(can_badmin)
 			receive_communication(C, target, "<font color='[ooc_color]'><span class='ooc'>[sent_message]</font></span>")
 		else

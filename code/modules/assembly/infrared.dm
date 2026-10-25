@@ -1,14 +1,20 @@
 //This file was auto-corrected by findeclaration.exe on 25.5.2012 20:42:32
+/obj/effect/ir_beam
+	name = "ir beam"
+	icon = 'icons/obj/projectiles.dmi'
+	icon_state = "ibeam"
+	anchored =  TRUE
+	simulated = FALSE
 
 /obj/item/assembly/infra
 	name = "infrared emitter"
 	desc = "Emits a visible or invisible beam and is triggered when the beam is interrupted."
 	icon_state = "infrared"
-	origin_tech = "{'magnets':2}"
+	origin_tech = @'{"magnets":2}'
 	material = /decl/material/solid/metal/steel
 	matter = list(
-		/decl/material/solid/glass = MATTER_AMOUNT_REINFORCEMENT,
-		/decl/material/solid/slag = MATTER_AMOUNT_TRACE
+		/decl/material/solid/fiberglass = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/metal/copper = MATTER_AMOUNT_TRACE
 	)
 	wires = WIRE_PULSE
 	secured = 0
@@ -24,7 +30,7 @@
 	. = ..()
 	beams = list()
 	seen_turfs = list()
-	proximity_trigger = new(src, /obj/item/assembly/infra/proc/on_beam_entered, /obj/item/assembly/infra/proc/on_visibility_change, world.view, PROXIMITY_EXCLUDE_HOLDER_TURF)
+	proximity_trigger = new(src, TYPE_PROC_REF(/obj/item/assembly/infra, on_beam_entered), TYPE_PROC_REF(/obj/item/assembly/infra, on_visibility_change), world.view, proximity_flags = PROXIMITY_EXCLUDE_HOLDER_TURF)
 
 /obj/item/assembly/infra/Destroy()
 	qdel(proximity_trigger)
@@ -54,28 +60,28 @@
 	return secured
 
 /obj/item/assembly/infra/on_update_icon()
-	overlays.Cut()
+	. = ..()
 	if(on)
-		overlays += "infrared_on"
+		add_overlay("infrared_on")
 	if(holder)
 		holder.update_icon()
 	update_beams()
 
-/obj/item/assembly/infra/interact(mob/user)//TODO: change this this to the wire control panel
+/obj/item/assembly/infra/interact(mob/user)//TODO: change this to the wire control panel
 	if(!secured)
 		return
-	if(!CanInteract(user, GLOB.physical_state))
+	if(!CanInteract(user, global.physical_topic_state))
 		return
 
 	user.set_machine(src)
 	var/dat = list()
-	dat += text("<TT><B>Infrared Laser</B>\n<B>Status</B>: []<BR>\n<B>Visibility</B>: []<BR>\n</TT>", (on ? text("<A href='?src=\ref[];state=0'>On</A>", src) : text("<A href='?src=\ref[];state=1'>Off</A>", src)), (src.visible ? text("<A href='?src=\ref[];visible=0'>Visible</A>", src) : text("<A href='?src=\ref[];visible=1'>Invisible</A>", src)))
-	dat += "<BR><BR><A href='?src=\ref[src];refresh=1'>Refresh</A>"
-	dat += "<BR><BR><A href='?src=\ref[src];close=1'>Close</A>"
+	dat += text("<TT><B>Infrared Laser</B>\n<B>Status</B>: []<BR>\n<B>Visibility</B>: []<BR>\n</TT>", (on ? text("<A href='byond://?src=\ref[];state=0'>On</A>", src) : text("<A href='byond://?src=\ref[];state=1'>Off</A>", src)), (src.visible ? text("<A href='byond://?src=\ref[];visible=0'>Visible</A>", src) : text("<A href='byond://?src=\ref[];visible=1'>Invisible</A>", src)))
+	dat += "<BR><BR><A href='byond://?src=\ref[src];refresh=1'>Refresh</A>"
+	dat += "<BR><BR><A href='byond://?src=\ref[src];close=1'>Close</A>"
 	show_browser(user, jointext(dat,null), "window=infra")
 	onclose(user, "infra")
 
-/obj/item/assembly/infra/Topic(href, href_list, state = GLOB.physical_state)
+/obj/item/assembly/infra/Topic(href, href_list, state = global.physical_topic_state)
 	if(..())
 		close_browser(usr, "window=infra")
 		onclose(usr, "infra")
@@ -105,9 +111,9 @@
 	if((ismob(enterer) && !isliving(enterer))) // Observers and their ilk don't count even if visible
 		return
 
-	pulse(0)
+	pulse_device(0)
 	if(!holder)
-		visible_message("\icon[src] *beep* *beep*")
+		visible_message("[html_icon(src)] *beep* *beep*")
 	cooldown = 2
 	spawn(10)
 		process_cooldown()
@@ -129,7 +135,7 @@
 	var/list/turfs_that_need_beams = seen_turfs.Copy()
 
 	for(var/b in existing_beams)
-		var/obj/effect/beam/ir_beam/beam = b
+		var/obj/effect/ir_beam/beam = b
 		if(beam.loc in turfs_that_need_beams)
 			turfs_that_need_beams -= beam.loc
 			beam.set_invisibility(visible ? 0 : INVISIBILITY_MAXIMUM)
@@ -141,13 +147,6 @@
 		return
 
 	for(var/t in turfs_that_need_beams)
-		var/obj/effect/beam/ir_beam/beam = new(t)
+		var/obj/effect/ir_beam/beam = new(t)
 		existing_beams += beam
 		beam.set_dir(dir)
-
-/obj/effect/beam/ir_beam
-	name = "ir beam"
-	icon = 'icons/obj/projectiles.dmi'
-	icon_state = "ibeam"
-	anchored = 1
-	simulated = 0

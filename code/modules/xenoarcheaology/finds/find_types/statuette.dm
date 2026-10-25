@@ -17,6 +17,7 @@
 	name = "statuette"
 	icon_state = "statuette"
 	icon = 'icons/obj/xenoarchaeology.dmi'
+	material = /decl/material/solid/stone/basalt
 	var/charges = 0
 	var/list/nearby_mobs = list()
 	var/last_bloodcall = 0
@@ -29,18 +30,25 @@
 /obj/item/vampiric/Initialize()
 	. = ..()
 	START_PROCESSING(SSobj, src)
-	GLOB.listening_objects += src
+	global.listening_objects += src
 
 /obj/item/vampiric/Destroy()
 	STOP_PROCESSING(SSobj, src)
-	GLOB.listening_objects -= src
 	return ..()
+
+// Overridden to spider eggs in _spiders.dme
+/obj/random/evil_manifestation
+	name = "Random Evil Manifestation"
+	var/list/spawn_types = list(/obj/item/ectoplasm)
+
+/obj/random/evil_manifestation/spawn_choices()
+	return spawn_types
 
 /obj/item/vampiric/Process()
 	//see if we've identified anyone nearby
 	if(world.time - last_bloodcall > bloodcall_interval && nearby_mobs.len)
-		var/mob/living/carbon/human/M = pop(nearby_mobs)
-		if(M in view(7,src) && M.health > 20)
+		var/mob/living/human/M = pop(nearby_mobs)
+		if((M in viewers(7,src)) && M.current_health > 20)
 			if(prob(50))
 				bloodcall(M)
 				nearby_mobs.Add(M)
@@ -60,7 +68,7 @@
 	//use up stored charges
 	if(charges >= 10)
 		charges -= 10
-		new /obj/effect/spider/eggcluster(pick(view(1,src)))
+		new /obj/random/evil_manifestation(pick(view(1,src)))
 
 	if(charges >= 3)
 		if(prob(5))
@@ -77,7 +85,7 @@
 
 	if(charges >= 0.1)
 		if(prob(5))
-			src.visible_message("<span class='warning'>\icon[src] [src]'s eyes glow ruby red for a moment!</span>")
+			src.visible_message("<span class='warning'>[html_icon(src)] [src]'s eyes glow ruby red for a moment!</span>")
 			charges -= 0.1
 
 	//check on our shadow wights
@@ -86,32 +94,34 @@
 		if(wight_check_index > shadow_wights.len)
 			wight_check_index = 1
 
-		var/obj/effect/shadow_wight/W = shadow_wights[wight_check_index]
-		if(isnull(W))
+		var/obj/effect/shadow_wight/wight = shadow_wights[wight_check_index]
+		if(isnull(wight))
 			shadow_wights.Remove(wight_check_index)
-		else if(isnull(W.loc))
+		else if(isnull(wight.loc))
 			shadow_wights.Remove(wight_check_index)
-		else if(get_dist(W, src) > 10)
+		else if(get_dist(wight, src) > 10)
 			shadow_wights.Remove(wight_check_index)
 
-/obj/item/vampiric/hear_talk(mob/M, text)
+/obj/item/vampiric/hear_talk(mob/living/speaker, datum/speech/phrases, verb, stars, decl/language/force_language)
 	..()
-	if(world.time - last_bloodcall >= bloodcall_interval && (M in view(7, src)))
-		bloodcall(M)
+	if(world.time - last_bloodcall >= bloodcall_interval && (speaker in view(7, src)))
+		bloodcall(speaker)
 
-/obj/item/vampiric/proc/bloodcall(var/mob/living/carbon/human/M)
+/obj/item/vampiric/proc/bloodcall(var/mob/living/human/M)
 	last_bloodcall = world.time
 	if(istype(M))
 		playsound(src.loc, pick('sound/hallucinations/wail.ogg','sound/hallucinations/veryfar_noise.ogg','sound/hallucinations/far_noise.ogg'), 50, 1, -3)
 		nearby_mobs.Add(M)
 
-		var/target = pick(M.organs_by_name)
-		M.apply_damage(rand(5, 10), BRUTE, target)
-		to_chat(M, "<span class='warning'>The skin on your [parse_zone(target)] feels like it's ripping apart, and a stream of blood flies out.</span>")
+		var/obj/item/organ/external/target = pick(M.get_external_organs())
+		M.apply_damage(rand(5, 10), BRUTE, target.organ_tag)
+		to_chat(M, "<span class='warning'>The skin on your [parse_zone(target.organ_tag)] feels like it's ripping apart, and a stream of blood flies out.</span>")
 		var/obj/effect/decal/cleanable/blood/splatter/animated/B = new(M.loc)
 		B.target_turf = pick(range(1, src))
-		B.blood_DNA = list()
-		B.blood_DNA[M.dna.unique_enzymes] = M.dna.b_type
+		var/blood_type = M.get_blood_type()
+		var/unique_enzymes = M.get_unique_enzymes()
+		if(blood_type && unique_enzymes)
+			LAZYSET(B.blood_DNA, unique_enzymes, blood_type)
 		M.vessel.remove_any(rand(25,50))
 
 //animated blood 2 SPOOKY
@@ -152,7 +162,7 @@
 	name = "shadow wight"
 	icon = 'icons/mob/mob.dmi'
 	icon_state = "shade"
-	density = 1
+	density = TRUE
 
 /obj/effect/shadow_wight/Initialize()
 	. = ..()
@@ -165,7 +175,7 @@
 /obj/effect/shadow_wight/Process()
 	if(loc)
 		step_rand(src)
-		var/mob/living/carbon/M = locate() in src.loc
+		var/mob/living/M = locate() in src.loc
 		if(M)
 			playsound(src.loc, pick('sound/hallucinations/behind_you1.ogg',\
 			'sound/hallucinations/behind_you2.ogg',\
@@ -181,7 +191,7 @@
 			'sound/hallucinations/turn_around1.ogg',\
 			'sound/hallucinations/turn_around2.ogg',\
 			), 50, 1, -3)
-			M.sleeping = max(M.sleeping,rand(5,10))
+			SET_STATUS_MAX(M, STAT_ASLEEP, rand(5,10))
 			qdel(src)
 	else
 		STOP_PROCESSING(SSobj, src)

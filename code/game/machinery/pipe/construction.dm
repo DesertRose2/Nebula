@@ -6,17 +6,17 @@ Buildable meters
 /obj/item/pipe
 	name = "pipe"
 	desc = "A pipe."
-	var/pipename
-	var/connect_types = CONNECT_TYPE_REGULAR
-	force = 7
+	_base_attack_force = 7
 	icon = 'icons/obj/pipe-item.dmi'
 	icon_state = "simple"
 	randpixel = 5
 	item_state = "buildpipe"
 	w_class = ITEM_SIZE_NORMAL
-	level = 2
+	level = LEVEL_ABOVE_PLATING
 	obj_flags = OBJ_FLAG_ROTATABLE
 	dir = SOUTH
+	material = /decl/material/solid/metal/steel
+	var/connect_types = CONNECT_TYPE_REGULAR
 	var/constructed_path = /obj/machinery/atmospherics/pipe/simple/hidden
 	var/pipe_class = PIPE_CLASS_BINARY
 	var/rotate_class = PIPE_ROTATE_STANDARD
@@ -34,7 +34,7 @@ Buildable meters
 	desc = P.desc
 
 	connect_types = P.connect_types
-	color = P.pipe_color
+	set_color(P.pipe_color)
 	icon = P.build_icon
 	icon_state = P.build_icon_state
 	pipe_class = P.pipe_class
@@ -42,10 +42,10 @@ Buildable meters
 	constructed_path = P.base_type || P.type
 
 //called when a turf is attacked with a pipe item
-/obj/item/pipe/afterattack(turf/simulated/floor/target, mob/user, proximity)
+/obj/item/pipe/afterattack(turf/floor/target, mob/user, proximity)
 	if(!proximity) return
 	if(istype(target))
-		user.unEquip(src, target)
+		user.try_unequip(src, target)
 	else
 		return ..()
 
@@ -71,74 +71,15 @@ Buildable meters
 /obj/item/pipe/attack_self(mob/user)
 	return rotate(user)
 
-/obj/item/pipe/proc/build_unary(var/obj/machinery/atmospherics/unary/P, var/pipefailtext)
-	P.atmos_init()
-	if (QDELETED(P))
-		to_chat(usr, pipefailtext)
-		return 1
-	P.build_network()
-	if(P.node)
-		P.node.atmos_init()
-		P.node.build_network()
-	return 0
-
-/obj/item/pipe/proc/build_binary(var/obj/machinery/atmospherics/pipe/simple/P, var/pipefailtext)
-	P.atmos_init()
-	if (QDELETED(P))
-		to_chat(usr, pipefailtext)
-		return 1
-	P.build_network()
-	if(P.node1)
-		P.node1.atmos_init()
-		P.node1.build_network()
-	if(P.node2)
-		P.node2.atmos_init()
-		P.node2.build_network()
-	return 0
-
-/obj/item/pipe/proc/build_trinary(var/obj/machinery/atmospherics/pipe/manifold/P, var/pipefailtext)
-	P.atmos_init()
-	if (QDELETED(P))
-		to_chat(usr, pipefailtext)
-		return 1
-	P.build_network()
-	if(P.node1)
-		P.node1.atmos_init()
-		P.node1.build_network()
-	if(P.node2)
-		P.node2.atmos_init()
-		P.node2.build_network()
-	if(P.node3)
-		P.node3.atmos_init()
-		P.node3.build_network()
-	return 0
-
-/obj/item/pipe/proc/build_quaternary(var/obj/machinery/atmospherics/pipe/manifold4w/P, var/pipefailtext)
-	P.atmos_init()
-	if (QDELETED(P))
-		to_chat(usr, pipefailtext)
-		return 1
-	P.build_network()
-	if(P.node1)
-		P.node1.atmos_init()
-		P.node1.build_network()
-	if(P.node2)
-		P.node2.atmos_init()
-		P.node2.build_network()
-	if(P.node3)
-		P.node3.atmos_init()
-		P.node3.build_network()
-	if(P.node4)
-		P.node4.atmos_init()
-		P.node4.build_network()
-	return 0
-
-/obj/item/pipe/attackby(var/obj/item/W, var/mob/user)
-	if(!isWrench(W))
+/obj/item/pipe/attackby(var/obj/item/used_item, var/mob/user)
+	if(!IS_WRENCH(used_item))
 		return ..()
 	if (!isturf(loc))
 		return 1
+	construct_pipe(user)
+	return TRUE
 
+/obj/item/pipe/proc/construct_pipe(mob/user)
 	sanitize_dir()
 	var/obj/machinery/atmospherics/fake_machine = constructed_path
 	var/pipe_dir = base_pipe_initialize_directions(dir, initial(fake_machine.connect_dir_type))
@@ -146,12 +87,9 @@ Buildable meters
 	for(var/obj/machinery/atmospherics/M in loc)
 		if((M.initialize_directions & pipe_dir) && M.check_connect_types_construction(M,src))	// matches at least one direction on either type of pipe & same connection type
 			to_chat(user, "<span class='warning'>There is already a pipe of the same type at this location.</span>")
-			return 1
+			return
 	// no conflicts found
 
-	var/pipefailtext = "<span class='warning'>There's nothing to connect this pipe section to!</span>" //(with how the pipe code works, at least one end needs to be connected to something, otherwise the game deletes the segment)"
-
-	//TODO: Move all of this stuff into the various pipe constructors.
 	var/obj/machinery/atmospherics/P = new constructed_path(get_turf(src))
 	var/datum/extension/parts_stash/stash = get_extension(src, /datum/extension/parts_stash)
 	if(stash)
@@ -160,48 +98,27 @@ Buildable meters
 	P.pipe_color = color
 	P.set_dir(dir)
 	P.set_initial_level()
+	P.build(src)
+	. = P
 
-	if(P.pipe_class == PIPE_CLASS_UNARY)
-		if(build_unary(P, pipefailtext))
-			return 1
-
-	if(P.pipe_class == PIPE_CLASS_BINARY)
-		if(build_binary(P, pipefailtext))
-			return 1
-
-	if(P.pipe_class == PIPE_CLASS_TRINARY)
-		if(build_trinary(P, pipefailtext))
-			return 1
-
-	if(P.pipe_class == PIPE_CLASS_QUATERNARY)
-		if(build_quaternary(P, pipefailtext))
-			return 1
-
-	if(P.pipe_class == PIPE_CLASS_OMNI)
-		P.atmos_init()
-		P.build_network()
-
-	playsound(src.loc, 'sound/items/Ratchet.ogg', 50, 1)
-	user.visible_message( \
-		"[user] fastens the [src].", \
-		"<span class='notice'>You have fastened the [src].</span>", \
-		"You hear ratchet.")
+	playsound(loc, 'sound/items/Ratchet.ogg', 50, 1)
+	if(user)
+		user.visible_message( \
+			"[user] fastens \the [src].", \
+			"<span class='notice'>You have fastened \the [src].</span>", \
+			"You hear ratchet.")
 	qdel(src)	// remove the pipe item
 
 /obj/item/machine_chassis
+	material = /decl/material/solid/metal/steel
 	var/build_type
 
 /obj/item/machine_chassis/Initialize()
 	. = ..()
 	set_extension(src, /datum/extension/parts_stash)
 
-/obj/item/machine_chassis/examine(mob/user, distance)
-	. = ..()
-	if(distance <= 2)
-		to_chat(user, "Use a wrench to secure \the [src] here.")
-
-/obj/item/machine_chassis/attackby(var/obj/item/W, var/mob/user)
-	if(!isWrench(W))
+/obj/item/machine_chassis/attackby(var/obj/item/used_item, var/mob/user)
+	if(!IS_WRENCH(used_item))
 		return ..()
 	var/obj/machinery/machine = new build_type(get_turf(src), dir, TRUE)
 	var/datum/extension/parts_stash/stash = get_extension(src, /datum/extension/parts_stash)
@@ -210,8 +127,9 @@ Buildable meters
 	if(machine.construct_state)
 		machine.construct_state.post_construct(machine)
 	playsound(loc, 'sound/items/Ratchet.ogg', 50, 1)
-	to_chat(user, "<span class='notice'>You have fastened the [src].</span>")
+	to_chat(user, "<span class='notice'>You have fastened \the [src].</span>")
 	qdel(src)
+	return TRUE
 
 /obj/item/machine_chassis/air_sensor
 	name = "gas sensor"
@@ -233,9 +151,6 @@ Buildable meters
 	w_class = ITEM_SIZE_LARGE
 	build_type = /obj/machinery/meter
 
-/obj/item/machine_chassis/pipe_meter/base
-	build_type = /obj/machinery/meter/buildable
-
 /obj/item/machine_chassis/igniter
 	name = "igniter"
 	desc = "A device which will ignite surrounding gasses."
@@ -253,4 +168,4 @@ Buildable meters
 	icon = 'icons/obj/objects.dmi'
 	icon_state = "floor_beacon" // If anyone wants to make better sprite, feel free to do so without asking me.
 	w_class = ITEM_SIZE_NORMAL
-	build_type = /obj/machinery/power/sensor
+	build_type = /obj/machinery/power_sensor

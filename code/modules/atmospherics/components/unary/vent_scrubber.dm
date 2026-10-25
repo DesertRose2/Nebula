@@ -2,7 +2,7 @@
 	icon = 'icons/atmos/vent_scrubber.dmi'
 	icon_state = "map_scrubber_off"
 
-	name = "Air Scrubber"
+	name = "air scrubber"
 	desc = "Has a valve and pump attached to it."
 	use_power = POWER_USE_OFF
 	idle_power_usage = 150		//internal circuitry, friction losses and stuff
@@ -11,7 +11,7 @@
 	connect_types = CONNECT_TYPE_REGULAR|CONNECT_TYPE_SCRUBBER //connects to regular and scrubber pipes
 	identifier = "AScr"
 
-	level = 1
+	level = LEVEL_BELOW_PLATING
 
 	var/hibernate = 0 //Do we even process?
 	var/scrubbing = SCRUBBER_EXCHANGE
@@ -20,7 +20,6 @@
 	var/panic = 0 //is this scrubber panicked?
 
 	var/welded = 0
-	connect_types = CONNECT_TYPE_REGULAR|CONNECT_TYPE_SCRUBBER
 	build_icon_state = "scrubber"
 
 	uncreated_component_parts = list(
@@ -61,76 +60,72 @@
 	icon_state = "map_scrubber_on"
 
 /obj/machinery/atmospherics/unary/vent_scrubber/Initialize()
-	. = ..()
-	air_contents.volume = ATMOS_DEFAULT_VOLUME_FILTER
-	icon = null
-
-/obj/machinery/atmospherics/unary/vent_scrubber/Destroy()
-	var/area/A = get_area(src)
-	if(A)
-		GLOB.name_set_event.unregister(A, src, .proc/change_area_name)
-		A.air_scrub_info -= id_tag
-		A.air_scrub_names -= id_tag
-	. = ..()
-
-/obj/machinery/atmospherics/unary/vent_scrubber/on_update_icon(var/safety = 0)
-	if(!check_icon_cache())
-		return
-
-	overlays.Cut()
-
-
-	var/turf/T = get_turf(src)
-	if(!istype(T))
-		return
-
-	var/scrubber_icon = "scrubber"
-	if(welded)
-		scrubber_icon += "weld"
-	else
-		if(!powered())
-			scrubber_icon += "off"
-		else
-			scrubber_icon += "[use_power ? "[scrubbing ? "on" : "in"]" : "off"]"
-
-	overlays += icon_manager.get_atmos_icon("device", , , scrubber_icon)
-
-/obj/machinery/atmospherics/unary/vent_scrubber/update_underlays()
-	if(..())
-		underlays.Cut()
-		var/turf/T = get_turf(src)
-		if(!istype(T))
-			return
-		if(!T.is_plating() && node && node.level == 1 && istype(node, /obj/machinery/atmospherics/pipe))
-			return
-		else
-			if(node)
-				add_underlay(T, node, dir, node.icon_connect_type)
-			else
-				add_underlay(T,, dir)
-
-/obj/machinery/atmospherics/unary/vent_scrubber/Initialize()
 	if (!id_tag)
 		id_tag = "[sequential_id("obj/machinery")]"
 	if(!scrubbing_gas)
 		scrubbing_gas = list()
-		for(var/g in subtypesof(/decl/material/gas))
+		for(var/g in get_filterable_material_types())
 			if(g != /decl/material/gas/oxygen && g != /decl/material/gas/nitrogen)
 				scrubbing_gas += g
-	var/area/A = get_area(src)
-	if(A && !A.air_scrub_names[id_tag])
-		var/new_name = "[A.name] Vent Scrubber #[A.air_scrub_names.len+1]"
-		A.air_scrub_names[id_tag] = new_name
-		SetName(new_name)
-		GLOB.name_set_event.register(A, src, .proc/change_area_name)
 	. = ..()
+	air_contents.total_volume = ATMOS_DEFAULT_VOLUME_FILTER
+
+/obj/machinery/atmospherics/unary/vent_scrubber/reset_area(area/old_area, area/new_area)
+	if(!controlled)
+		return
+	if(old_area == new_area)
+		return
+	if(old_area)
+		events_repository.unregister(/decl/observ/name_set, old_area, src, PROC_REF(change_area_name))
+		old_area.air_scrub_info -= id_tag
+		old_area.air_scrub_names -= id_tag
+	if(new_area && new_area == get_area(src))
+		events_repository.register(/decl/observ/name_set, new_area, src, PROC_REF(change_area_name))
+		if(!new_area.air_scrub_names[id_tag])
+			var/new_name = "[new_area.proper_name] Vent Scrubber #[new_area.air_scrub_names.len+1]"
+			new_area.air_scrub_names[id_tag] = new_name
+			SetName(new_name)
+
+
+/obj/machinery/atmospherics/unary/vent_scrubber/on_update_icon()
+	if(welded)
+		icon_state = "weld"
+	else if((stat & NOPOWER) || !use_power)
+		icon_state = "off"
+	else if(scrubbing == SCRUBBER_SIPHON)
+		icon_state = "in"
+	else
+		icon_state = "on"
+
+	build_device_underlays()
 
 /obj/machinery/atmospherics/unary/vent_scrubber/proc/change_area_name(var/area/A, var/old_area_name, var/new_area_name)
+	if(!controlled)
+		return
 	if(get_area(src) != A)
 		return
-	var/new_name = replacetext(A.air_scrub_names[id_tag], old_area_name, new_area_name)
-	SetName(new_name)
+	update_name()
+
+/obj/machinery/atmospherics/unary/vent_scrubber/area_changed(area/old_area, area/new_area)
+	if(old_area)
+		old_area.air_scrub_names -= id_tag
+	. = ..()
+	update_name()
+
+/obj/machinery/atmospherics/unary/vent_scrubber/proc/update_name()
+	var/area/A = get_area(src)
+	if(!A || A == global.space_area)
+		SetName("vent scrubber")
+		return
+	var/index
+	if(A.air_scrub_names[id_tag])
+		index = A.air_scrub_names.Find(id_tag)
+	else
+		A.air_scrub_names[id_tag] = TRUE
+		index = length(A.air_scrub_names)
+	var/new_name = "[A.proper_name] vent scrubber #[index]"
 	A.air_scrub_names[id_tag] = new_name
+	SetName(new_name)
 
 /obj/machinery/atmospherics/unary/vent_scrubber/RefreshParts()
 	. = ..()
@@ -142,7 +137,7 @@
 	if (hibernate > world.time)
 		return 1
 
-	if (!node)
+	if (!LAZYLEN(nodes_to_networks))
 		update_use_power(POWER_USE_OFF)
 	//broadcast_status()
 	if(!use_power || (stat & (NOPOWER|BROKEN)))
@@ -156,34 +151,33 @@
 	var/transfer_moles = 0
 	if(scrubbing == SCRUBBER_SIPHON) //Just siphon all air
 		//limit flow rate from turfs
-		transfer_moles = min(environment.total_moles, environment.total_moles*MAX_SIPHON_FLOWRATE/environment.volume)	//group_multiplier gets divided out here
+		transfer_moles = min(environment.total_moles, environment.total_moles*MAX_SIPHON_FLOWRATE/environment.total_volume)	//group_multiplier gets divided out here
 		power_draw = pump_gas(src, environment, air_contents, transfer_moles, power_rating)
 	else //limit flow rate from turfs
-		transfer_moles = min(environment.total_moles, environment.total_moles*MAX_SCRUBBER_FLOWRATE/environment.volume)	//group_multiplier gets divided out here
+		transfer_moles = min(environment.total_moles, environment.total_moles*MAX_SCRUBBER_FLOWRATE/environment.total_volume)	//group_multiplier gets divided out here
 		power_draw = scrub_gas(src, scrubbing_gas, environment, air_contents, transfer_moles, power_rating)
 
 	if(scrubbing != SCRUBBER_SIPHON && power_draw <= 0)	//99% of all scrubbers
 		//Fucking hibernate because you ain't doing shit.
 		hibernate = world.time + (rand(100,200))
 	else if(scrubbing == SCRUBBER_EXCHANGE) // after sleep check so it only does an exchange if there are bad gasses that have been scrubbed
-		transfer_moles = min(environment.total_moles, environment.total_moles*MAX_SCRUBBER_FLOWRATE/environment.volume)
+		transfer_moles = min(environment.total_moles, environment.total_moles*MAX_SCRUBBER_FLOWRATE/environment.total_volume)
 		power_draw += pump_gas(src, environment, air_contents, transfer_moles / 4, power_rating)
 
 	if (power_draw >= 0)
 		last_power_draw = power_draw
 		use_power_oneoff(power_draw)
 
-	if(network && (transfer_moles > 0))
-		network.update = 1
+	if(transfer_moles > 0)
+		update_networks()
 
 	return 1
 
 /obj/machinery/atmospherics/unary/vent_scrubber/hide(var/i) //to make the little pipe section invisible, the icon changes.
 	update_icon()
-	update_underlays()
 
 /obj/machinery/atmospherics/unary/vent_scrubber/proc/toggle_panic()
-	var/decl/public_access/public_variable/panic/panic = decls_repository.get_decl(/decl/public_access/public_variable/panic)
+	var/decl/public_access/public_variable/panic/panic = GET_DECL(/decl/public_access/public_variable/panic)
 	panic.write_var(src, !panic)
 
 /obj/machinery/atmospherics/unary/vent_scrubber/proc/set_scrub_gas(var/list/gases)
@@ -196,25 +190,28 @@
 		if (!(stat & NOPOWER) && use_power)
 			return SPAN_WARNING("You cannot take this [src] apart, turn it off first.")
 		var/turf/T = get_turf(src)
-		if (node && node.level==1 && isturf(T) && !T.is_plating())
+		var/hidden_pipe_check = FALSE
+		for(var/obj/machinery/atmospherics/node as anything in nodes_to_networks)
+			if(node.level == LEVEL_BELOW_PLATING)
+				hidden_pipe_check = TRUE
+				break
+		if (hidden_pipe_check && isturf(T) && !T.is_plating())
 			return SPAN_WARNING("You must remove the plating first.")
-		var/datum/gas_mixture/int_air = return_air()
-		var/datum/gas_mixture/env_air = loc.return_air()
-		if ((int_air.return_pressure()-env_air.return_pressure()) > 2*ONE_ATMOSPHERE)
+		if (check_internal_pressure_difference_over(2 ATM))
 			return SPAN_WARNING("You cannot take this [src] apart, it too exerted due to internal pressure.")
 	return ..()
 
-/obj/machinery/atmospherics/unary/vent_scrubber/attackby(var/obj/item/W, var/mob/user)
-	if(istype(W, /obj/item/weldingtool))
+/obj/machinery/atmospherics/unary/vent_scrubber/attackby(var/obj/item/used_item, var/mob/user)
+	if(istype(used_item, /obj/item/fuelled_tool/welding))
 
-		var/obj/item/weldingtool/WT = W
+		var/obj/item/fuelled_tool/welding/welder = used_item
 
-		if(!WT.isOn())
-			to_chat(user, "<span class='notice'>The welding tool needs to be on to start this task.</span>")
+		if(!welder.tool_is_running())
+			to_chat(user, "<span class='notice'>\The [welder] needs to be on to start this task.</span>")
 			return 1
 
-		if(!WT.remove_fuel(0,user))
-			to_chat(user, "<span class='warning'>You need more welding fuel to complete this task.</span>")
+		if(!welder.weld(0,user))
+			to_chat(user, "<span class='warning'>You need more fuel to complete this task.</span>")
 			return 1
 
 		to_chat(user, "<span class='notice'>Now welding \the [src].</span>")
@@ -227,8 +224,8 @@
 		if(!src)
 			return 1
 
-		if(!WT.isOn())
-			to_chat(user, "<span class='notice'>The welding tool needs to be on to finish this task.</span>")
+		if(!welder.tool_is_running())
+			to_chat(user, "<span class='notice'>\The [welder] needs to be on to finish this task.</span>")
 			return 1
 
 		welded = !welded
@@ -241,14 +238,16 @@
 
 	return ..()
 
-/obj/machinery/atmospherics/unary/vent_scrubber/examine(mob/user, distance)
+/obj/machinery/atmospherics/unary/vent_scrubber/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
 	if(distance <= 1)
-		to_chat(user, "A small gauge in the corner reads [round(last_flow_rate, 0.1)] L/s; [round(last_power_draw)] W")
+		. += "A small gauge in the corner reads [round(last_flow_rate, 0.1)] L/s; [round(last_power_draw)] W."
 	else
-		to_chat(user, "You are too far away to read the gauge.")
+		. += "You are too far away to read the gauge."
 	if(welded)
-		to_chat(user, "It seems welded shut.")
+		. += "It seems welded shut."
+	if(!(stat & NOPOWER) && use_power && user.skill_check(SKILL_ATMOS,SKILL_BASIC))
+		. += "It's running in [scrubbing] mode."
 
 /obj/machinery/atmospherics/unary/vent_scrubber/refresh()
 	..()
@@ -265,7 +264,7 @@
 	desc = "The scrubbing mode code, which identifies what the scrubber is doing."
 	can_write = TRUE
 	has_updates = FALSE
-	var_type = IC_FORMAT_STRING
+	var_type = VAR_FORMAT_STRING
 
 /decl/public_access/public_variable/scrubbing/access_var(obj/machinery/atmospherics/unary/vent_scrubber/machine)
 	return machine.scrubbing
@@ -285,14 +284,13 @@
 	desc = "Whether or not the scrubber is in panic mode."
 	can_write = TRUE
 	has_updates = FALSE
-	var_type = IC_FORMAT_BOOLEAN
+	var_type = VAR_FORMAT_BOOLEAN
 
 /decl/public_access/public_variable/panic/access_var(obj/machinery/atmospherics/unary/vent_scrubber/machine)
 	return machine.panic
 
 /decl/public_access/public_variable/panic/write_var(obj/machinery/atmospherics/unary/vent_scrubber/machine, new_value)
-	if(!(new_value in list(TRUE, FALSE)))
-		return FALSE
+	new_value = !!new_value
 	. = ..()
 	if(.)
 		machine.panic = new_value
@@ -308,7 +306,7 @@
 	desc = "A list of gases that this scrubber is scrubbing."
 	can_write = FALSE
 	has_updates = FALSE
-	var_type = IC_FORMAT_LIST
+	var_type = VAR_FORMAT_LIST
 
 /decl/public_access/public_variable/scrubbing_gas/access_var(obj/machinery/atmospherics/unary/vent_scrubber/machine)
 	return machine.scrubbing_gas.Copy()
@@ -316,13 +314,13 @@
 /decl/public_access/public_method/toggle_panic_siphon
 	name = "toggle panic siphon"
 	desc = "Toggles the panic siphon function."
-	call_proc = /obj/machinery/atmospherics/unary/vent_scrubber/proc/toggle_panic
+	call_proc = TYPE_PROC_REF(/obj/machinery/atmospherics/unary/vent_scrubber, toggle_panic)
 
 /decl/public_access/public_method/set_scrub_gas
 	name = "set filter gases"
 	desc = "Given a list of gases, sets whether the gas is being scrubbed to the value of the gas in the list."
 	forward_args = TRUE
-	call_proc = /obj/machinery/atmospherics/unary/vent_scrubber/proc/set_scrub_gas
+	call_proc = TYPE_PROC_REF(/obj/machinery/atmospherics/unary/vent_scrubber, set_scrub_gas)
 
 /decl/stock_part_preset/radio/event_transmitter/vent_scrubber
 	frequency = PUMP_FREQ

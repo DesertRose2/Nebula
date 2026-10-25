@@ -1,90 +1,97 @@
+/decl/loadout_category/accessories
+	name = "Accessories"
 
-/datum/gear/accessory
-	sort_category = "Accessories"
-	category = /datum/gear/accessory
-	slot = slot_tie
+/decl/loadout_option/accessory
+	category = /decl/loadout_category/accessories
+	abstract_type = /decl/loadout_option/accessory
+	slot = slot_w_uniform_str
+	replace_equipped = FALSE
 
-/datum/gear/accessory/tie
-	display_name = "tie selection"
-	path = /obj/item/clothing/accessory
+/decl/loadout_option/accessory/tie
+	name = "tie selection"
+	path = /obj/item/clothing/neck/tie
+	uid = "gear_accessory_tie"
 
-/datum/gear/accessory/tie/get_gear_tweak_options()
+/decl/loadout_option/accessory/tie/get_gear_tweak_options()
 	. = ..()
 	LAZYINITLIST(.[/datum/gear_tweak/path])
 	.[/datum/gear_tweak/path] |= list(
-		"blue tie" =       /obj/item/clothing/accessory/blue,
-		"red tie" =        /obj/item/clothing/accessory/red,
-		"blue tie, clip" = /obj/item/clothing/accessory/blue_clip,
-		"red long tie" =   /obj/item/clothing/accessory/red_long,
-		"black tie" =      /obj/item/clothing/accessory/black,
-		"yellow tie" =     /obj/item/clothing/accessory/yellow,
-		"navy tie" =       /obj/item/clothing/accessory/navy,
-		"horrible tie" =   /obj/item/clothing/accessory/horrible,
-		"brown tie" =      /obj/item/clothing/accessory/brown
+		"blue tie" =        /obj/item/clothing/neck/tie/blue,
+		"red tie" =         /obj/item/clothing/neck/tie/red,
+		"blue tie, clip" =  /obj/item/clothing/neck/tie/blue_clip,
+		"black tie" =       /obj/item/clothing/neck/tie/black,
+		"long red tie" =    /obj/item/clothing/neck/tie/long/red,
+		"long yellow tie" = /obj/item/clothing/neck/tie/long/yellow,
+		"navy tie" =        /obj/item/clothing/neck/tie/navy,
+		"horrible tie" =    /obj/item/clothing/neck/tie/horrible,
+		"brown tie" =       /obj/item/clothing/neck/tie/brown
 	)
 
-/datum/gear/accessory/tie_color
-	display_name = "colored tie"
-	path = /obj/item/clothing/accessory
-	flags = GEAR_HAS_COLOR_SELECTION
+/decl/loadout_option/accessory/tie_color
+	name = "colored tie"
+	path = /obj/item/clothing/neck/tie
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_accessory_tie_color"
 
-/datum/gear/accessory/tie_color/get_gear_tweak_options()
+/decl/loadout_option/accessory/tie_color/get_gear_tweak_options()
 	. = ..()
 	LAZYINITLIST(.[/datum/gear_tweak/path])
 	.[/datum/gear_tweak/path] |= list(
-		"tie" =         /obj/item/clothing/accessory,
-		"striped tie" = /obj/item/clothing/accessory/long
+		"tie" =         /obj/item/clothing/neck/tie,
+		"striped tie" = /obj/item/clothing/neck/tie/long
 	)
 
-/datum/gear/accessory/locket
-	display_name = "locket"
-	path = /obj/item/clothing/accessory/locket
+/decl/loadout_option/accessory/locket
+	name = "locket"
+	path = /obj/item/clothing/neck/necklace/locket
+	uid = "gear_accessory_locket"
 
-/datum/gear/accessory/necklace
-	display_name = "necklace, colour select"
-	path = /obj/item/clothing/accessory/necklace
-	flags = GEAR_HAS_COLOR_SELECTION
+/decl/loadout_option/accessory/necklace
+	name = "necklace, color select"
+	path = /obj/item/clothing/neck/necklace
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_accessory_necklace"
+	var/list/available_materials = list(
+		/decl/material/solid/metal/steel,
+		/decl/material/solid/metal/bronze,
+		/decl/material/solid/metal/silver,
+		/decl/material/solid/metal/gold,
+		/decl/material/solid/metal/platinum
+	)
 
-/datum/gear/accessory/bowtie
-	display_name = "bowtie, horrible"
-	path = /obj/item/clothing/accessory/bowtie/ugly
+/decl/loadout_option/accessory/necklace/get_gear_tweak_options()
+	. = ..()
+	LAZYINITLIST(.[/datum/gear_tweak/path])
+	.[/datum/gear_tweak/path] |= list(
+		"necklace"                  = /obj/item/clothing/neck/necklace,
+		"necklace, square pendant"  = /obj/item/clothing/neck/necklace/square,
+		"necklace, frill"           = /obj/item/clothing/neck/necklace/frill,
+		"necklace, cross pendant"   = /obj/item/clothing/neck/necklace/cross,
+		"necklace, diamond pendant" = /obj/item/clothing/neck/necklace/diamond,
+		"necklace, ornate"          = /obj/item/clothing/neck/necklace/ornate
+	)
+	if(length(available_materials))
+		for(var/mat in available_materials)
+			var/decl/material/mat_decl = GET_DECL(mat)
+			available_materials -= mat
+			available_materials[mat_decl.name] = mat
+		LAZYINITLIST(.[/datum/gear_tweak/material])
+		.[/datum/gear_tweak/material] = available_materials
 
-/datum/gear/accessory/bowtie/color
-	display_name = "bowtie, colour select"
-	path = /obj/item/clothing/accessory/bowtie/color
-	flags = GEAR_HAS_COLOR_SELECTION
+/decl/loadout_option/accessory/bow
+	name = "bowtie, horrible"
+	path = /obj/item/clothing/neck/tie/bow/ugly
+	uid = "gear_accessory_bowtie"
 
-//have to break up armbands to restrict access
-/datum/gear/accessory/armband_security
-	display_name = "security armband"
-	path = /obj/item/clothing/accessory/armband
+/decl/loadout_option/accessory/bow/color
+	name = "bowtie, color select"
+	path = /obj/item/clothing/neck/tie/bow
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_accessory_bowtie_color"
 
-/datum/gear/accessory/armband_cargo
-	display_name = "cargo armband"
-	path = /obj/item/clothing/accessory/armband/cargo
-
-/datum/gear/accessory/armband_medical
-	display_name = "medical armband"
-	path = /obj/item/clothing/accessory/armband/med
-
-/datum/gear/accessory/armband_engineering
-	display_name = "engineering armband"
-	path = /obj/item/clothing/accessory/armband/engine
-
-/datum/gear/accessory/ftupin
-	display_name = "Free Trade Union pin"
-	path = /obj/item/clothing/accessory/ftupin
-
-/datum/gear/accessory/bracelet
-	display_name = "bracelet, color select"
-	path = /obj/item/clothing/accessory/bracelet
+/decl/loadout_option/accessory/bracelet
+	name = "bracelet, color select"
+	path = /obj/item/clothing/gloves/bracelet
 	cost = 1
-	flags = GEAR_HAS_COLOR_SELECTION
-
-/datum/gear/accessory/charge_stick
-	display_name = "charge stick"
-	path = /obj/item/charge_stick
-	cost = 1
-
-/datum/gear/accessory/charge_stick/get_gear_tweak_options()
-	. = ..() | /datum/gear_tweak/charge_stick
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_accessory_bracelet"

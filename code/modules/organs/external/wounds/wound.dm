@@ -29,7 +29,7 @@
 	var/tmp/list/desc_list = list()
 	var/tmp/list/damage_list = list()
 
-/datum/wound/New(var/damage, var/obj/item/organ/external/organ = null)
+/datum/wound/New(var/damage, var/obj/item/organ/external/organ = null, var/surgical)
 
 	created = world.time
 
@@ -38,6 +38,10 @@
 	for(var/V in stages)
 		desc_list += V
 		damage_list += stages[V]
+
+	// Surgical wounds need to be at minimum big enough to be considered open, which is max_bleeding_stage.
+	if(surgical)
+		damage = max(damage, damage_list[clamp(max_bleeding_stage, 1, length(damage_list))]+1)
 
 	src.damage = damage
 
@@ -75,7 +79,7 @@
 		return 0
 	return (wound_damage() <= autoheal_cutoff) ? 1 : is_treated()
 
-// checks whether the wound has been appropriately treated
+/// checks whether the wound has been appropriately treated
 /datum/wound/proc/is_treated()
 	if(!LAZYLEN(embedded_objects))
 		switch(damage_type)
@@ -84,8 +88,8 @@
 			if(BURN)
 				return salved
 
-	// Checks whether other other can be merged into src.
-/datum/wound/proc/can_merge(var/datum/wound/other)
+/// Checks whether other can be merged into src.
+/datum/wound/proc/can_merge_wounds(var/datum/wound/other)
 	if (other.type != src.type) return 0
 	if (other.current_stage != src.current_stage) return 0
 	if (other.damage_type != src.damage_type) return 0
@@ -165,6 +169,9 @@
 	// return amount of healing still leftover, can be used for other wounds
 	return amount
 
+/datum/wound/proc/is_open()
+	return current_stage <= max_bleeding_stage && !bandaged
+
 // opens the wound again
 /datum/wound/proc/open_wound(damage)
 	src.damage += damage
@@ -194,12 +201,11 @@
 	return 1
 
 /datum/wound/proc/bleeding()
-	for(var/obj/item/thing in embedded_objects)
-		if(thing.w_class > ITEM_SIZE_SMALL)
-			return FALSE
-	if(bandaged || clamped)
-		return FALSE
-	return ((bleed_timer > 0 || wound_damage() > bleed_threshold) && current_stage <= max_bleeding_stage)
+	. = !clamped && is_open() && (bleed_timer > 0 || wound_damage() > bleed_threshold)
+	if(. && length(embedded_objects))
+		for(var/obj/item/thing in embedded_objects)
+			if(thing.w_class > ITEM_SIZE_SMALL)
+				return FALSE
 
 /datum/wound/proc/is_surgical()
 	return 0

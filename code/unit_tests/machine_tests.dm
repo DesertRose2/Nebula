@@ -32,7 +32,7 @@
 		if(passed[machine.type] || failed[machine.type])
 			continue
 		var/path = machine.base_type || machine.type
-		var/circuit_type = GLOB.machine_path_to_circuit_type[path]
+		var/circuit_type = get_circuit_by_build_path(path)
 		if(circuit_type && !machine.construct_state)
 			failed[machine.type] = TRUE
 			log_bad("[log_info_line(machine)] had an associated circuit of type [circuit_type] but no construction state.")
@@ -48,15 +48,20 @@
 /datum/unit_test/machine_construct_states_shall_be_valid
 	name = "MACHINE: All mapped machines with construct states shall meet state requirements."
 
+/// Returns a failure string if the unit test should fail, FALSE if it should succeed.
+/// Mostly just a wrapper to handle things like unlocking prior to testing, or skipping the testing entirely.
+/obj/machinery/proc/fail_construct_state_unit_test()
+	if(!construct_state)
+		return FALSE
+	return construct_state.fail_unit_test(src)
+
 /datum/unit_test/machine_construct_states_shall_be_valid/start_test()
 	var/failed = list()
 	for(var/thing in SSmachines.machinery)
 		var/obj/machinery/machine = thing
 		if(failed[machine.type])
 			continue
-		if(!machine.construct_state)
-			continue
-		var/fail = machine.construct_state.fail_unit_test(machine)
+		var/fail = machine.fail_construct_state_unit_test()
 		if(fail)
 			failed[machine.type] = TRUE
 			log_bad(fail)
@@ -67,23 +72,55 @@
 		pass("All machines had valid construction states.")
 	return  1
 
+/datum/unit_test/machine_circuit_matches_basetype
+	name = "MACHINE: All mapped machines with a circuit for their exact type will have a matching basetype."
 
-/datum/unit_test/fabricator_recipes_shall_be_buildable
-	name = "MACHINE: All fabricators will be able to produce all of their recipes"
-
-/datum/unit_test/fabricator_recipes_shall_be_buildable/start_test()
+/datum/unit_test/machine_circuit_matches_basetype/start_test()
 	var/failed = list()
-	for(var/thing in typesof(/obj/machinery/fabricator))
-		var/obj/machinery/fabricator/fab = new thing
-		for(var/datum/fabricator_recipe/recipe in SSfabrication.get_all_recipes(fab.fabricator_class))
-			for(var/mat in recipe.resources)
-				if(isnull(fab.storage_capacity[mat]))
-					log_bad("[fab.name] ([fab.type]) could not print [recipe.name] due to lacking [mat].")
-					failed += thing
-					break
-		qdel(fab)
+	for(var/obj/machinery/machine in SSmachines.machinery)
+		if(failed[machine.type])
+			continue
+		var/exact_circuit = get_circuit_by_build_path(machine.type)
+		var/base_circuit = machine.base_type && get_circuit_by_build_path(machine.base_type)
+		if(exact_circuit && base_circuit && (exact_circuit != base_circuit) && (machine.base_type != machine.type))
+			failed[machine.type] = TRUE
+			log_bad("[machine.type] exactly matches [exact_circuit] but its base type is [machine.base_type], which has [base_circuit].")
+
 	if(length(failed))
-		fail("One or more fabricators could not produce an associated recipe.")
+		fail("One or more machines had an invaild basetype.")
 	else
-		pass("All fabricators could produce their associated recipes.")
+		pass("All machines had valid basetypes.")
 	return  1
+
+/datum/unit_test/machines_shall_have_sane_stat_immune
+	name = "MACHINE: All machines that do not require screens/keyboards must have NOSCREEN/NOINPUT stat immunity."
+
+/datum/unit_test/machines_shall_have_sane_stat_immune/start_test()
+	var/failed = list()
+	var/passed = list()
+	for(var/obj/machinery/machine as anything in SSmachines.machinery)
+		var/candidate_type = machine.base_type || machine.type
+		if(isnull(machine.construct_state))
+			continue
+		if(passed[candidate_type] || failed[candidate_type])
+			continue
+		var/obj/item/stock_parts/circuitboard/board = machine.get_component_of_type(/obj/item/stock_parts/circuitboard)
+		var/has_screen = machine.get_component_of_type(/obj/item/stock_parts/console_screen)
+		var/has_keyboard = machine.get_component_of_type(/obj/item/stock_parts/keyboard)
+		if(board)
+			has_screen ||= (/obj/item/stock_parts/console_screen in board.req_components) || (/obj/item/stock_parts/console_screen in board.additional_spawn_components)
+			has_keyboard ||= (/obj/item/stock_parts/keyboard in board.req_components) || (/obj/item/stock_parts/keyboard in board.additional_spawn_components)
+		if(!has_screen && !(machine.stat_immune & NOSCREEN))
+			failed[candidate_type] = TRUE
+			log_bad("[log_info_line(machine)] doesn't start with or require a screen, but did not have NOSCREEN in stat_immune.")
+		if(!has_keyboard && !(machine.stat_immune & NOINPUT))
+			failed[candidate_type] = TRUE
+			log_bad("[log_info_line(machine)] doesn't start with or require a keyboard, but did not have NOINPUT in stat_immune.")
+		if(!failed[candidate_type])
+			passed[candidate_type] = TRUE
+
+	if(length(failed))
+		fail("One or more machines had incorrect stat_immune settings.")
+	else
+		pass("All machines had correct stat_immune settings.")
+	return TRUE

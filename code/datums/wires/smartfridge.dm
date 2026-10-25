@@ -11,13 +11,13 @@
 	random = 1
 	wire_count = 4
 
-var/const/SMARTFRIDGE_WIRE_ELECTRIFY	= 1
-var/const/SMARTFRIDGE_WIRE_THROW		= 2
-var/const/SMARTFRIDGE_WIRE_IDSCAN		= 4
+var/global/const/SMARTFRIDGE_WIRE_ELECTRIFY	= 1
+var/global/const/SMARTFRIDGE_WIRE_THROW		= 2
+var/global/const/SMARTFRIDGE_WIRE_IDSCAN		= 4
 
 /datum/wires/smartfridge/CanUse(var/mob/living/L)
 	var/obj/machinery/smartfridge/S = holder
-	if(!istype(L, /mob/living/silicon))
+	if(!issilicon(L))
 		if(S.seconds_electrified)
 			if(S.shock(L, 100))
 				return 0

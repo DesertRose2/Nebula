@@ -20,7 +20,7 @@
 	name = "\improper Electrowarfare Suite and Voice Synthesiser"
 	desc = "Includes two modules that, once installed and activated, are capable of masking your voice and disrupting the AI from tracking you."
 	item_cost = 24
-	path = /obj/item/storage/backpack/satchel/syndie_kit/ewar_voice
+	path = /obj/item/backpack/satchel/syndie_kit/ewar_voice
 
 /datum/uplink_item/item/hardsuit_modules/maneuvering_jets
 	name = "\improper Maneuvering Jets"
@@ -39,10 +39,3 @@
 	desc = "A module capable of recharging your suit's power reserves, by tapping into an exposed, live wire."
 	item_cost = 48
 	path = /obj/item/rig_module/power_sink
-
-/datum/uplink_item/item/hardsuit_modules/laser_canon
-	name = "\improper Mounted Laser Cannon"
-	desc = "A module capable of draining your suit's power reserves in order to fire a shoulder mounted laser cannon."
-	item_cost = 64
-	path = /obj/item/rig_module/mounted/lcannon
-	antag_roles = list(MODE_MERCENARY)

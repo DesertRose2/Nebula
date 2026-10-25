@@ -7,7 +7,7 @@
 		return
 	key_to_ignore = ckey(sanitize(key_to_ignore))
 	if(prefs && prefs.ignored_players)
-		if(key_to_ignore in prefs.ignored_players && key_to_ignore != ckey)
+		if((key_to_ignore in prefs.ignored_players) && key_to_ignore != ckey)
 			to_chat(usr, "<span class='warning'>[key_to_ignore] is already being ignored.</span>")
 			return
 		prefs.ignored_players |= key_to_ignore
@@ -37,7 +37,7 @@
 
 /client/proc/is_key_ignored(var/key_to_check)
 	key_to_check = ckey(key_to_check)
-	if(key_to_check in prefs.ignored_players)
+	if(key_to_check in prefs?.ignored_players)
 		if(check_rights(R_MOD|R_ADMIN, 0)) // Admins and moderators are not ignorable
 			return 0
 		return 1

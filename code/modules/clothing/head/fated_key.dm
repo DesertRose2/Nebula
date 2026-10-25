@@ -1,18 +1,19 @@
 /obj/item/clothing/head/fated
 	name = "strange key"
 	desc = "A glowing key, uncomfortably hot to the touch."
-
 	icon = 'icons/clothing/head/fated_key.dmi'
 	body_parts_covered = 0
-	armor = list(melee = 55, bullet = 55, laser = 55, energy = 55, bomb = 55, bio = 100, rad = 100)
+	armor = list(ARMOR_MELEE = 55, ARMOR_BULLET = 55, ARMOR_LASER = 55, ARMOR_ENERGY = 55, ARMOR_BOMB = 55, ARMOR_BIO = 100, ARMOR_RAD = 100)
+	flags_inv = 0
+	accessory_slot = null // cannot be equipped on top of helmets because this isn't really even an actual clothing item
 
 /obj/item/clothing/head/fated/equipped(mob/living/user, slot)
 	. = ..()
 	if(istype(user) && canremove && loc == user && slot == slot_head_str)
 		canremove = FALSE
 		to_chat(user, SPAN_DANGER("<font size=3>\The [src] shatters your mind as it sears through [user.isSynthetic() ? "metal and circuitry" : "flesh and bone"], embedding itself into your skull!</font>"))
-		user.Paralyse(5)
-		addtimer(CALLBACK(src, .proc/activate_role), 5 SECONDS)
+		SET_STATUS_MAX(user, STAT_PARA, 5)
+		addtimer(CALLBACK(src, PROC_REF(activate_role)), 5 SECONDS)
 	else
 		canremove = TRUE
 		name = initial(name)
@@ -25,8 +26,8 @@
 	if(istype(starbearer) && !canremove)
 		name = "halo of starfire"
 		desc = "Beware the fire of the star-bearers; it is too terrible to touch."
-		starbearer.add_aura(new /obj/aura/regenerating(starbearer))
-		body_parts_covered = UPPER_TORSO|LOWER_TORSO|LEGS|ARMS|HEAD|FACE|EYES|HANDS|FEET
+		starbearer.add_mob_modifier(/decl/mob_modifier/regeneration, source = src)
+		body_parts_covered = SLOT_UPPER_BODY|SLOT_LOWER_BODY|SLOT_LEGS|SLOT_ARMS|SLOT_HEAD|SLOT_FACE|SLOT_EYES|SLOT_HANDS|SLOT_FEET|SLOT_TAIL
 		item_flags |= ITEM_FLAG_AIRTIGHT
 
 /obj/item/clothing/head/fated/verb/perform_division()
@@ -44,33 +45,29 @@
 		to_chat(user, SPAN_WARNING("You are in no fit state to perform division."))
 		return
 
-	if(world.time < user.last_special)
+	if(user.is_on_special_ability_cooldown())
 		to_chat(user, SPAN_WARNING("You have not yet regained enough focus to perform division."))
 		return
 
 	var/atom/blade
-	for(var/obj/item/held in shuffle(list(user.l_hand, user.r_hand)))
-		if(has_edge(held))
+	for(var/obj/item/held in shuffle(user.get_held_items()))
+		if(held.has_edge())
 			blade = held
 			break
 	if(!blade)
 		to_chat(user, SPAN_WARNING("You have no blade with which to divide."))
 		return
 
-	user.visible_message(SPAN_DANGER("\The [user] raises \his [blade.name] to shoulder level!"))
+	var/decl/pronouns/pronouns = user.get_pronouns()
+	user.visible_message(SPAN_DANGER("\The [user] raises [pronouns.his] [blade.name] to shoulder level!"))
 	playsound(user.loc, 'sound/effects/sanctionedaction_prep.ogg', 100, 1)
 
 	if(do_after(user, 1 SECOND, progress = 0, same_direction = 1))
-		user.visible_message(SPAN_DANGER("\The [user] swings \his [blade.name] in a blazing arc!"))
+		user.visible_message(SPAN_DANGER("\The [user] swings [pronouns.his] [blade.name] in a blazing arc!"))
 		playsound(user.loc, 'sound/effects/sanctionedaction_cut.ogg', 100, 1)
 		var/obj/item/projectile/sanctionedaction/cut = new(user.loc)
-		cut.launch(get_edge_target_turf(get_turf(user.loc), user.dir), user.zone_sel.selecting)
-		user.last_special = world.time + 10 SECONDS
-
-/obj/item/clothing/suit/fated
-	name = "mantle"
-	desc = "A heavy, gold-chained mantle."
-	icon_state = "fated"
+		cut.launch(get_edge_target_turf(get_turf(user.loc), user.dir), user.get_target_zone())
+		user.set_special_ability_cooldown(10 SECONDS)
 
 /obj/item/projectile/sanctionedaction
 	name = "rending slash"
@@ -81,12 +78,12 @@
 
 /obj/item/projectile/sanctionedaction/check_penetrate(var/atom/A)
 	. = TRUE
-	if(istype(A, /mob/living/carbon/human))
-		var/mob/living/carbon/human/H = A
-		if(H.organs && H.organs.len)
-			var/obj/item/organ/external/E = pick(H.organs)
-			if(istype(E))
-				E.droplimb()
+	if(ishuman(A))
+		var/mob/living/human/H = A
+		var/list/external_organs = H.get_external_organs()
+		if(LAZYLEN(external_organs))
+			var/obj/item/organ/external/E = pick(external_organs)
+			E.dismember()
 
 /obj/item/projectile/sanctionedaction/before_move()
 	. = ..()
@@ -116,5 +113,5 @@
 	animate(src, alpha = 255, time = 3)
 	sleep(13)
 	animate(src, alpha = 0, time = 40)
-	sleep(40)
-	qdel(src)
+	if(!QDELING(src))
+		QDEL_IN(src, 4 SECONDS)

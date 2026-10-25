@@ -1,58 +1,62 @@
-/datum/gear/gloves
+/decl/loadout_category/hands
+	name = "Handwear"
+
+/decl/loadout_option/gloves
 	cost = 2
-	slot = slot_gloves
-	sort_category = "Gloves and Handwear"
-	category = /datum/gear/gloves
+	slot = slot_gloves_str
+	category = /decl/loadout_category/hands
+	abstract_type = /decl/loadout_option/gloves
 
-/datum/gear/gloves/colored
-	display_name = "gloves, colored"
-	flags = GEAR_HAS_COLOR_SELECTION
-	path = /obj/item/clothing/gloves/color
+/decl/loadout_option/gloves/colored
+	name = "gloves, colored"
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	path = /obj/item/clothing/gloves
+	uid = "gear_gloves_color"
 
-/datum/gear/gloves/latex
-	display_name = "gloves, latex"
-	path = /obj/item/clothing/gloves/latex
-	cost = 3
+/decl/loadout_option/gloves/evening
+	name = "gloves, evening, color select"
+	path = /obj/item/clothing/gloves/evening
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_gloves_evening"
 
-/datum/gear/gloves/nitrile
-	display_name = "gloves, nitrile"
-	path = /obj/item/clothing/gloves/latex/nitrile
-	cost = 3
-
-/datum/gear/gloves/rainbow
-	display_name = "gloves, rainbow"
-	path = /obj/item/clothing/gloves/rainbow
-
-/datum/gear/gloves/evening
-	display_name = "gloves, evening, colour select"
-	path = /obj/item/clothing/gloves/color/evening
-	flags = GEAR_HAS_COLOR_SELECTION
-
-/datum/gear/ring
-	display_name = "ring"
-	path = /obj/item/clothing/ring
+/decl/loadout_option/ring
+	name = "ring"
+	path = /obj/item/clothing/gloves/ring
 	cost = 2
+	uid = "gear_gloves_ring"
+	var/list/available_materials = list(
+		/decl/material/solid/metal/steel,
+		/decl/material/solid/metal/bronze,
+		/decl/material/solid/metal/silver,
+		/decl/material/solid/metal/gold,
+		/decl/material/solid/metal/platinum,
+		/decl/material/solid/glass,
+		/decl/material/solid/organic/plastic,
+		/decl/material/solid/organic/wood/oak,
+		/decl/material/solid/organic/wood/bamboo,
+		/decl/material/solid/organic/wood/ebony,
+		/decl/material/solid/organic/wood/mahogany,
+		/decl/material/solid/organic/wood/maple,
+		/decl/material/solid/organic/wood/walnut,
+		/decl/material/solid/organic/wood/yew
+	)
 
-/datum/gear/ring/get_gear_tweak_options()
+/decl/loadout_option/ring/get_gear_tweak_options()
 	. = ..()
 	LAZYINITLIST(.[/datum/gear_tweak/path])
 	.[/datum/gear_tweak/path] |= list(
-		"CTI ring" =                /obj/item/clothing/ring/cti,
-		"Mariner University ring" = /obj/item/clothing/ring/mariner,
-		"engagement ring" =         /obj/item/clothing/ring/engagement,
-		"signet ring" =             /obj/item/clothing/ring/seal/signet,
-		"masonic ring" =            /obj/item/clothing/ring/seal/mason,
-		"ring, steel" =             /obj/item/clothing/ring/material/steel,
-		"ring, bronze" =            /obj/item/clothing/ring/material/bronze,
-		"ring, silver" =            /obj/item/clothing/ring/material/silver,
-		"ring, gold" =              /obj/item/clothing/ring/material/gold,
-		"ring, platinum" =          /obj/item/clothing/ring/material/platinum,
-		"ring, glass" =             /obj/item/clothing/ring/material/glass,
-		"ring, wood" =              /obj/item/clothing/ring/material/wood,
-		"ring, plastic" =           /obj/item/clothing/ring/material/plastic
+		"ring"            = /obj/item/clothing/gloves/ring/gold,
+		"ring, thin"      = /obj/item/clothing/gloves/ring/thin,
+		"ring, thick"     = /obj/item/clothing/gloves/ring/thick,
+		"ring, split"     = /obj/item/clothing/gloves/ring/split,
+		"engagement ring" = /obj/item/clothing/gloves/ring/engagement,
+		"signet ring"     = /obj/item/clothing/gloves/ring/seal/signet,
+		"masonic ring"    = /obj/item/clothing/gloves/ring/seal/mason
 	)
-
-/datum/gear/gloves/work
-	display_name = "gloves, work"
-	path = /obj/item/clothing/gloves/thick
-	cost = 3
+	if(length(available_materials))
+		for(var/mat in available_materials)
+			var/decl/material/mat_decl = GET_DECL(mat)
+			available_materials -= mat
+			available_materials[mat_decl.name] = mat
+		LAZYINITLIST(.[/datum/gear_tweak/material])
+		.[/datum/gear_tweak/material] = available_materials

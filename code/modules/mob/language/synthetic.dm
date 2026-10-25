@@ -1,3 +1,26 @@
+/decl/language/machine
+	name = "Encoded Audio Language"
+	shorthand = "EAL"
+	desc = "An efficient language of encoded tones used by synthetics."
+	speech_verb = "whistles"
+	ask_verb = "chirps"
+	exclaim_verb = "whistles loudly"
+	colour = "mutant"
+	language_key = "eal"
+	language_flags = LANG_FLAG_NO_STUTTER
+	syllables = list("beep","beep","beep","beep","beep","boop","boop","boop","bop","bop","dee","dee","doo","doo","hiss","hss","buzz","buzz","bzz","ksssh","keey","wurr","wahh","tzzz")
+	space_chance = 10
+	speech_sounds = list(
+		'sound/voice/eal/eal1.ogg',
+		'sound/voice/eal/eal2.ogg',
+		'sound/voice/eal/eal3.ogg',
+		'sound/voice/eal/eal4.ogg',
+		'sound/voice/eal/eal5.ogg',
+		'sound/voice/eal/eal6.ogg',
+		'sound/voice/eal/eal7.ogg',
+		'sound/voice/eal/eal8.ogg'
+	)
+
 /decl/language/binary
 	name = "Robot Talk"
 	desc = "Most human facilities support free-use communications protocols and routing hubs for synthetic use."
@@ -5,33 +28,34 @@
 	speech_verb = "states"
 	ask_verb = "queries"
 	exclaim_verb = "declares"
-	key = "b"
-	flags = RESTRICTED | HIVEMIND
+	language_key = "bot"
+	language_flags = LANG_FLAG_RESTRICTED | LANG_FLAG_HIVEMIND
 	shorthand = "N/A"
 	var/drone_only
 
-/decl/language/binary/broadcast(var/mob/living/speaker,var/message,var/speaker_mask)
+/decl/language/binary/broadcast(mob/living/speaker, datum/speech/phrases, speaker_mask)
 
 	if(!speaker.binarycheck())
 		return
 
+	var/message = istype(phrases) ? phrases.unformatted_message : phrases
 	if (!message)
 		return
 
 	var/message_start = "<i><span class='game say'>[name], <span class='name'>[speaker.name]</span>"
 	var/message_body = "<span class='message'>[speaker.say_quote(message)], \"[message]\"</span></span></i>"
 
-	for (var/mob/observer/ghost/O in GLOB.ghost_mob_list)
+	for (var/mob/observer/ghost/O in global.ghost_mob_list)
 		O.show_message("[message_start] ([ghost_follow_link(speaker, O)]) [message_body]", 2)
 
-	for (var/mob/M in GLOB.dead_mob_list_)
-		if(!istype(M,/mob/new_player) && !istype(M,/mob/living/carbon/brain)) //No meta-evesdropping
+	for (var/mob/M in global.dead_mob_list_)
+		if(!isnewplayer(M) && !isbrain(M)) //No meta-evesdropping
 			M.show_message("[message_start] ([ghost_follow_link(speaker, M)]) [message_body]", 2)
 
-	for (var/mob/living/S in GLOB.living_mob_list_)
-		if(drone_only && !istype(S,/mob/living/silicon/robot/drone))
+	for (var/mob/living/S in global.living_mob_list_)
+		if(drone_only && !isdrone(S))
 			continue
-		else if(istype(S , /mob/living/silicon/ai))
+		else if(isAI(S))
 			message_start = "<i><span class='game say'>[name], <a href='byond://?src=\ref[S];track2=\ref[S];track=\ref[speaker];trackname=[html_encode(speaker.name)]'><span class='name'>[speaker.name]</span></a></span></i>"
 		else if (!S.binarycheck())
 			continue
@@ -42,15 +66,15 @@
 	listening -= src
 
 	for (var/mob/living/M in listening)
-		if(istype(M, /mob/living/silicon) || M.binarycheck())
+		if(issilicon(M) || M.binarycheck())
 			continue
 		M.show_message("<i><span class='game say'><span class='name'>synthesised voice</span> <span class='message'>beeps, \"beep beep beep\"</span></span></i>",2)
 
 	//robot binary xmitter component power usage
 	if (isrobot(speaker))
-		var/mob/living/silicon/robot/R = speaker
-		var/datum/robot_component/C = R.components["comms"]
-		R.cell_use_power(C.active_usage)
+		var/mob/living/silicon/robot/robot = speaker
+		var/datum/robot_component/C = robot.components["comms"]
+		robot.cell_use_power(C.active_usage)
 
 /decl/language/binary/drone
 	name = "Drone Talk"
@@ -59,7 +83,7 @@
 	ask_verb = "transmits"
 	exclaim_verb = "transmits"
 	colour = "say_quote"
-	key = "d"
-	flags = RESTRICTED | HIVEMIND
+	language_key = "drone"
+	language_flags = LANG_FLAG_RESTRICTED | LANG_FLAG_HIVEMIND
 	drone_only = 1
 	shorthand = "N/A"

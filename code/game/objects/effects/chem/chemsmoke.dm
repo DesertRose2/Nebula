@@ -3,24 +3,23 @@
 /////////////////////////////////////////////
 /obj/effect/effect/smoke/chem
 	icon = 'icons/effects/chemsmoke.dmi'
-	opacity = 0
+	opacity = FALSE
 	layer = ABOVE_PROJECTILE_LAYER
 	time_to_live = 300
 	pass_flags = PASS_FLAG_TABLE | PASS_FLAG_GRILLE | PASS_FLAG_GLASS //PASS_FLAG_GLASS is fine here, it's just so the visual effect can "flow" around glass
+	chem_volume = 500
+
 	var/splash_amount = 10 //atoms moving through a smoke cloud get splashed with up to 10 units of reagent
 	var/turf/destination
 
 /obj/effect/effect/smoke/chem/Initialize(mapload, smoke_duration, turf/dest_turf = null, icon/cached_icon = null)
-	time_to_live = smoke_duration
-
 	. = ..()
 
-	create_reagents(500)
 
 	if(cached_icon)
 		icon = cached_icon
 
-	set_dir(pick(GLOB.cardinal))
+	set_dir(pick(global.cardinal))
 	pixel_x = -32 + rand(-8, 8)
 	pixel_y = -32 + rand(-8, 8)
 
@@ -36,8 +35,7 @@
 /obj/effect/effect/smoke/chem/Destroy()
 	walk(src, 0) // Because we might have called walk_to, we must stop the walk loop or BYOND keeps an internal reference to us forever.
 	set_opacity(0)
-	// TODO - fadeOut() sleeps.  Sleeping in /Destroy is Bad, this needs to be fixed.
-	fadeOut()
+	set_density(0)
 	return ..()
 
 /obj/effect/effect/smoke/chem/Move()
@@ -54,7 +52,7 @@
 
 /obj/effect/effect/smoke/chem/Crossed(atom/movable/AM)
 	..()
-	if(!istype(AM, /obj/effect/effect/smoke/chem))
+	if(AM.simulated && !istype(AM, /obj/effect/effect/smoke/chem))
 		reagents.splash(AM, splash_amount, copy = 1)
 
 /obj/effect/effect/smoke/chem/proc/initial_splash()
@@ -63,22 +61,26 @@
 			if(!istype(AM, /obj/effect/effect/smoke/chem))
 				reagents.splash(AM, splash_amount, copy = 1)
 
-// Fades out the smoke smoothly using it's alpha variable.
-/obj/effect/effect/smoke/chem/proc/fadeOut(var/frames = 16)
-	if(!alpha) return //already transparent
+// Fades out the smoke smoothly using its alpha variable.
+/obj/effect/effect/smoke/chem/end_of_life()
+	if(QDELETED(src))
+		return
+	walk(src, 0) // Because we might have called walk_to, we must stop the walk loop or BYOND keeps an internal reference to us forever.
+	set_opacity(0)
+	set_density(0)
+	animate(src, alpha = 0, time = 0.5 SECONDS)
+	sleep(0.5 SECONDS)
+	..()
 
-	frames = max(frames, 1) //We will just assume that by 0 frames, the coder meant "during one frame".
-	var/alpha_step = round(alpha / frames)
-	while(alpha > 0)
-		alpha = max(0, alpha - alpha_step)
-		sleep(world.tick_lag)
+/obj/effect/effect/smoke/chem/transparent
+	opacity = FALSE
 
 /////////////////////////////////////////////
 // Chem Smoke Effect System
 /////////////////////////////////////////////
 /datum/effect/effect/system/smoke_spread/chem
 	smoke_type = /obj/effect/effect/smoke/chem
-	var/obj/chemholder
+	var/obj/effect/chem_holder/chemholder
 	var/range
 	var/list/targetTurfs
 	var/list/wallList
@@ -89,17 +91,16 @@
 	show_log = 0
 	var/datum/seed/seed
 
-/datum/effect/effect/system/smoke_spread/chem/spores/New(seed_name)
-	if(seed_name)
-		seed = SSplants.seeds[seed_name]
+/datum/effect/effect/system/smoke_spread/chem/spores/New(seed_id)
+	if(seed_id)
+		seed = SSplants.seeds[seed_id]
 	if(!seed)
 		qdel(src)
 	..()
 
 /datum/effect/effect/system/smoke_spread/chem/New()
 	..()
-	chemholder = new/obj()
-	chemholder.create_reagents(500)
+	chemholder = new(null, 500)
 
 //Sets up the chem smoke effect
 // Calculates the max range smoke can travel, then gets all turfs in that view range.
@@ -108,7 +109,7 @@
 /datum/effect/effect/system/smoke_spread/chem/set_up(var/datum/reagents/carry = null, n = 10, c = 0, loca, direct)
 	range = n * 0.3
 	cardinals = c
-	carry.trans_to_obj(chemholder, carry.total_volume, copy = 1)
+	carry.trans_to_obj(chemholder, REAGENT_TOTAL_VOLUME(carry), copy = 1)
 
 	if(istype(loca, /turf/))
 		location = loca
@@ -136,16 +137,17 @@
 	var/contained = carry.get_reagents()
 	var/area/A = get_area(location)
 
-	var/where = "[A.name] | [location.x], [location.y]"
-	var/whereLink = "<A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[location.x];Y=[location.y];Z=[location.z]'>[where]</a>"
+	var/where = "[A.proper_name] | [location.x], [location.y]"
+	var/whereLink = "<A HREF='byond://?_src_=holder;adminplayerobservecoodjump=1;X=[location.x];Y=[location.y];Z=[location.z]'>[where]</a>"
 
 	if(show_log)
-		if(carry.my_atom.fingerprintslast)
-			var/mob/M = get_mob_by_key(carry.my_atom.fingerprintslast)
+		var/atom/location = carry?.get_reaction_loc(CHEM_REACTION_FLAG_OVERFLOW_CONTAINER)
+		if(location?.fingerprintslast)
+			var/mob/M = get_mob_by_key(location.fingerprintslast)
 			var/more = ""
 			if(M)
-				more = "(<A HREF='?_src_=holder;adminmoreinfo=\ref[M]'>?</a>)"
-			log_and_message_admins("A chemical smoke reaction has taken place in ([whereLink])[contained]. Last associated key is [carry.my_atom.fingerprintslast][more].")
+				more = "(<A HREF='byond://?_src_=holder;adminmoreinfo=\ref[M]'>?</a>)"
+			log_and_message_admins("A chemical smoke reaction has taken place in ([whereLink])[contained]. Last associated key is [location.fingerprintslast][more].")
 		else
 			log_and_message_admins("A chemical smoke reaction has taken place in ([whereLink]). No associated key.")
 
@@ -158,16 +160,10 @@
 	if(!location)
 		return
 
-	if(LAZYLEN(chemholder.reagents.reagent_volumes))
-		for(var/turf/T in wallList)
+	var/trans_volumes = REAGENT_VOLUMES(chemholder.reagents)
+	if(LAZYLEN(trans_volumes))
+		for(var/turf/T in (wallList|targetTurfs))
 			chemholder.reagents.touch_turf(T)
-		for(var/turf/T in targetTurfs)
-			chemholder.reagents.touch_turf(T)
-			for(var/atom/A in T.contents)
-				if(istype(A, /obj/effect/effect/smoke/chem) || istype(A, /mob))
-					continue
-				else if(isobj(A) && !A.simulated)
-					chemholder.reagents.touch_obj(A)
 
 	var/color = chemholder.reagents.get_color() //build smoke icon
 	var/icon/I
@@ -183,7 +179,7 @@
 	var/pressure = 0
 	var/datum/gas_mixture/environment = location.return_air()
 	if(environment) pressure = environment.return_pressure()
-	smoke_duration = between(5, smoke_duration*pressure/(ONE_ATMOSPHERE/3), smoke_duration)
+	smoke_duration = clamp(smoke_duration*pressure/(ONE_ATMOSPHERE/3), 5, smoke_duration)
 
 	var/const/arcLength = 2.3559 //distance between each smoke cloud
 
@@ -224,8 +220,9 @@
 	else
 		smoke = new /obj/effect/effect/smoke/chem(location, smoke_duration + rand(0, 20), T, I)
 
-	if(LAZYLEN(chemholder.reagents.reagent_volumes))
-		chemholder.reagents.trans_to_obj(smoke, chemholder.reagents.total_volume / dist, copy = 1) //copy reagents to the smoke so mob/breathe() can handle inhaling the reagents
+	var/trans_volumes = REAGENT_VOLUMES(chemholder.reagents)
+	if(LAZYLEN(trans_volumes))
+		chemholder.reagents.trans_to_obj(smoke, REAGENT_TOTAL_VOLUME(chemholder.reagents) / dist, copy = 1) //copy reagents to the smoke so mob/breathe() can handle inhaling the reagents
 
 	//Kinda ugly, but needed unless the system is reworked
 	if(splash_initial)
@@ -234,7 +231,7 @@
 
 /datum/effect/effect/system/smoke_spread/chem/spores/spawnSmoke(var/turf/T, var/icon/I, var/smoke_duration, var/dist = 1)
 	var/obj/effect/effect/smoke/chem/spores = new /obj/effect/effect/smoke/chem(location)
-	spores.SetName("cloud of [seed.seed_name] [seed.seed_noun]")
+	spores.SetName("cloud of [seed.product_name] [seed.seed_noun]")
 	..(T, I, smoke_duration, dist, passed_smoke=spores)
 
 
@@ -245,12 +242,13 @@
 
 	pending += location
 
+	var/airblock // zeroed by ATMOS_CANPASS_TURF
 	while(pending.len)
 		for(var/turf/current in pending)
-			for(var/D in GLOB.cardinal)
+			for(var/D in global.cardinal)
 				var/turf/target = get_step(current, D)
 				if(wallList)
-					if(istype(target, /turf/simulated/wall))
+					if(istype(target, /turf/wall))
 						if(!(target in wallList))
 							wallList += target
 						continue
@@ -261,9 +259,11 @@
 					continue
 				if(!(target in targetTurfs))
 					continue
-				if(current.c_airblock(target)) //this is needed to stop chemsmoke from passing through thin window walls
+				ATMOS_CANPASS_TURF(airblock, current, target)
+				if(airblock) //this is needed to stop chemsmoke from passing through thin window walls
 					continue
-				if(target.c_airblock(current))
+				ATMOS_CANPASS_TURF(airblock, target, current)
+				if(airblock)
 					continue
 				pending += target
 
@@ -273,3 +273,7 @@
 	targetTurfs = complete
 
 	return
+
+/datum/effect/effect/system/smoke_spread/chem/transparent
+	show_log = FALSE
+	smoke_type = /obj/effect/effect/smoke/chem/transparent

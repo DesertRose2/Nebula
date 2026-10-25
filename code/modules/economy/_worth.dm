@@ -1,20 +1,27 @@
+/atom
+	/// If TRUE, this is worthless. Its contents will still be properly valued by get_contents_monetary_worth(), however.
+	var/worthless = FALSE
+	var/monetary_worth_multiplier = 1
+
 /atom/proc/get_base_value()
 	. = 1
 
 /atom/proc/get_value_multiplier()
-	. = 1
+	. = monetary_worth_multiplier
 
 /atom/proc/get_single_monetary_worth()
+	if(worthless)
+		return 0
 	. = get_base_value() * get_value_multiplier()
 	if(reagents)
-		for(var/a in reagents.reagent_volumes)
-			var/decl/material/reg = decls_repository.get_decl(a)
-			. += reg.get_value() * REAGENT_VOLUME(reagents, a)
+		for(var/decl/material/reagent as anything in REAGENT_VOLUMES(reagents))
+			. += reagent.get_value() * REAGENT_VOLUME(reagents, reagent) * REAGENT_WORTH_MULTIPLIER
+	. = max(0, round(.))
 
 /atom/proc/get_contents_monetary_worth()
 	. = 0
-	for(var/atom/movable/thing in contents)
+	for(var/atom/movable/thing in get_contained_external_atoms())
 		. += thing.get_combined_monetary_worth()
 
 /atom/proc/get_combined_monetary_worth()
-	. = max(1, get_single_monetary_worth() + get_contents_monetary_worth())
+	. = max(0, round(get_single_monetary_worth() + get_contents_monetary_worth()))

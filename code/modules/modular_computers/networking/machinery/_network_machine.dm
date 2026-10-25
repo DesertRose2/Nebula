@@ -2,7 +2,8 @@
 	name = "base network machine"
 	icon = 'icons/obj/machines/tcomms/bus.dmi'
 	icon_state = "bus"
-	density = 1
+	density = TRUE
+	anchored = TRUE
 
 	var/main_template = "network_mainframe.tmpl"
 	var/network_device_type =  /datum/extension/network_device
@@ -10,34 +11,50 @@
 
 	var/initial_network_id
 	var/initial_network_key
+	var/wired_connection = FALSE	// Whether or not this machine will start with a local network connection.
 	var/produces_heat = TRUE		// If true, produces and is affected by heat.
 	var/inefficiency = 0.12			// How much power is waste heat.
 	var/heat_threshold = 90 CELSIUS	// At what temperature the machine will lock up.
 	var/overheated = FALSE
-	var/runtimeload // Use this for calling an even later lateload.
+
+	var/tmp/tag_network_tag //The name of this device on the network set by mapper
+
+/obj/machinery/network/modify_mapped_vars(map_hash)
+	..()
+	ADJUST_TAG_VAR(initial_network_id, map_hash)
+	ADJUST_TAG_VAR(initial_network_key, map_hash)
+	ADJUST_TAG_VAR(tag_network_tag, map_hash)
 
 /obj/machinery/network/Initialize()
-	set_extension(src, network_device_type, initial_network_id, initial_network_key, NETWORK_CONNECTION_WIRED)
+	var/datum/extension/network_device/ND = get_or_create_extension(src, network_device_type, initial_network_id, initial_network_key, RECEIVER_STRONG_WIRELESS)
+	if(length(tag_network_tag))
+		ND.set_network_tag(tag_network_tag)
 	. = ..()
 
+/obj/machinery/network/populate_parts(full_populate)
+	. = ..()
+	if(full_populate && wired_connection)
+		install_component(/obj/item/stock_parts/computer/lan_port, FALSE)
+
 /obj/machinery/network/proc/is_overheated()
-	var/turf/simulated/L = loc
-	if(istype(L))
+	var/turf/L = loc
+	if(istype(L) && L.simulated)
 		var/datum/gas_mixture/env = L.return_air()
 		if(env.temperature >= heat_threshold)
 			return TRUE
 
 /obj/machinery/network/on_update_icon()
-	if(operable())
-		icon_state = panel_open ? "bus_o" : "bus"
-	else
-		icon_state = panel_open ? "bus_o_off" : "bus_off"
+	icon_state = initial(icon_state)
+	if(panel_open)
+		icon_state = "[icon_state]_o"
+	if(!operable())
+		icon_state = "[icon_state]_off"
 
 /obj/machinery/network/proc/produce_heat()
 	if (!produces_heat || !use_power || !operable())
 		return
-	var/turf/simulated/L = loc
-	if(istype(L))
+	var/turf/L = loc
+	if(istype(L) && L.simulated)
 		var/datum/gas_mixture/env = L.return_air()
 		var/transfer_moles = 0.25 * env.total_moles
 		var/datum/gas_mixture/removed = env.remove(transfer_moles) // Air is moved through computer vents.
@@ -46,18 +63,11 @@
 		env.merge(removed)
 
 /obj/machinery/network/Process()
-	if(runtimeload)
-		RuntimeInitialize()
-		runtimeload = FALSE
-		
 	set_overheated(is_overheated())
 	if(stat & (BROKEN|NOPOWER))
 		return
 	produce_heat()
 
-/obj/machinery/network/proc/RuntimeInitialize()
-
-	
 /obj/machinery/network/interface_interact(user)
 	ui_interact(user)
 	return TRUE
@@ -116,6 +126,14 @@
 	if(!D)
 		return
 	if(operable())
-		D.connect()
+		SSnetworking.queue_connection(D) // must queue, due to router race conditions
 	else
 		D.disconnect()
+
+/obj/machinery/network/proc/get_message_server()
+	var/datum/extension/network_device/network_device = get_extension(src, /datum/extension/network_device)
+	var/datum/computer_network/network = network_device?.get_network()
+	for(var/datum/extension/network_device/message_server in network?.devices)
+		var/obj/machinery/network/message_server/MS = message_server.holder
+		if(istype(MS) && !(MS.stat & (BROKEN|NOPOWER)))
+			return MS

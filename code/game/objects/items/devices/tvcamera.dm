@@ -1,155 +1,174 @@
+// TODO make this a network device.
 /obj/item/camera/tvcamera
 	name = "press camera drone"
 	desc = "An EyeBuddy livestreaming press camera drone. Weapon of choice for war correspondents and reality show cameramen. It does not appear to have any internal memory storage."
-	icon_state = "camcorder"
-	item_state = "camcorder"
+	icon = 'icons/clothing/belt/camcorder.dmi'
+	icon_state = ICON_STATE_WORLD
+	item_state = null
 	w_class = ITEM_SIZE_LARGE
-	slot_flags = SLOT_BELT
+	slot_flags = SLOT_LOWER_BODY
+	material = /decl/material/solid/organic/plastic
+	matter = list(
+		/decl/material/solid/metal/copper    = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/silicon         = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/metal/aluminium = MATTER_AMOUNT_REINFORCEMENT,
+		/decl/material/solid/glass           = MATTER_AMOUNT_TRACE,
+	)
 	var/channel = "General News Feed"
-	var/obj/machinery/camera/network/thunder/camera
+	var/video_enabled = FALSE
 	var/obj/item/radio/radio
 
 /obj/item/camera/tvcamera/Destroy()
-	GLOB.listening_objects -= src
-	QDEL_NULL(camera)
 	QDEL_NULL(radio)
 	. = ..()
 
 /obj/item/camera/tvcamera/Initialize()
-	camera = new(src)
-	camera.c_tag = channel
-	camera.status = FALSE
+	set_extension(src, /datum/extension/network_device/camera/television, null, null, null, TRUE, list(CAMERA_CHANNEL_TELEVISION), channel, FALSE)
 	radio = new(src)
 	radio.listening = FALSE
-	radio.set_frequency(ENT_FREQ)
 	radio.power_usage = 0
-	GLOB.listening_objects += src
+	global.listening_objects += src
 	. = ..()
 
-/obj/item/camera/tvcamera/examine(mob/user)
+/obj/item/camera/tvcamera/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
-	to_chat(user, "Video feed is currently: [camera.status ? "Online" : "Offline"]")
-	to_chat(user, "Audio feed is currently: [radio.broadcasting ? "Online" : "Offline"]")
-	to_chat(user, "Photography setting is currently: [on ? "On" : "Off"]")
+	. += "Video feed is currently: [video_enabled ? "Online" : "Offline"]"
+	. += "Audio feed is currently: [radio.broadcasting ? "Online" : "Offline"]"
+	. += "Photography setting is currently: [turned_on ? "On" : "Off"]"
 
 /obj/item/camera/tvcamera/attack_self(mob/user)
 	add_fingerprint(user)
 	user.set_machine(src)
 	var/dat = list()
-	dat += "Photography mode is currently: <a href='?src=\ref[src];photo=1'>[on ? "On" : "Off"]</a><br>"
-	dat += "Photography focus is currently: <a href='?src=\ref[src];focus=1'>[size]</a><br>"
-	dat += "Channel name is: <a href='?src=\ref[src];channel=1'>[channel ? channel : "unidentified broadcast"]</a><br>"
-	dat += "Video streaming is: <a href='?src=\ref[src];video=1'>[camera.status ? "Online" : "Offline"]</a><br>"
-	dat += "Microphone is: <a href='?src=\ref[src];sound=1'>[radio.broadcasting ? "Online" : "Offline"]</a><br>"
-	dat += "Sound is being broadcasted on frequency: [format_frequency(radio.frequency)] ([get_frequency_default_name(radio.frequency)])<br>"
-	var/datum/browser/written/popup = new(user, "Press Camera Drone", "EyeBuddy", 300, 390, src)
+	dat += "Photography mode is currently: <a href='byond://?src=\ref[src];photo=1'>[turned_on ? "On" : "Off"]</a><br>"
+	dat += "Photography focus is currently: <a href='byond://?src=\ref[src];focus=1'>[field_of_view]</a><br>"
+	dat += "Channel name is: <a href='byond://?src=\ref[src];channel=1'>[channel ? channel : "unidentified broadcast"]</a><br>"
+	dat += "Video streaming is: <a href='byond://?src=\ref[src];video=1'>[video_enabled ? "Online" : "Offline"]</a><br>"
+	dat += "Microphone is: <a href='byond://?src=\ref[src];sound=1'>[radio.broadcasting ? "Online" : "Offline"]</a><br>"
+	dat += "Sound is being broadcasted on frequency: [format_frequency(radio.frequency)]<br>"
+	dat += "<a href='byond://?src=\ref[src];net_options=1'>Network Options</a>"
+	var/datum/browser/written_digital/popup = new(user, "Press Camera Drone", "EyeBuddy", 300, 390, src)
 	popup.set_content(jointext(dat,null))
 	popup.open()
 
-/obj/item/camera/tvcamera/Topic(bred, href_list, state = GLOB.physical_state)
+/obj/item/camera/tvcamera/Topic(bred, href_list, state = global.physical_topic_state)
 	if(..())
 		return 1
 	if (href_list["photo"])
-		on = !on
+		turned_on = !turned_on
 	if (href_list["focus"])
 		change_size()
 	if(href_list["channel"])
 		var/nc = sanitize(input(usr, "Channel name", "Select new channel name", channel) as text|null)
 		if(nc)
 			channel = nc
-			camera.c_tag = channel
+			var/datum/extension/network_device/camera/television/D = get_extension(src, /datum/extension/network_device)
+			D.display_name = channel
 			to_chat(usr, "<span class='notice'>New channel name: '[channel]' has been set.</span>")
 	if(href_list["video"])
-		camera.set_status(!camera.status)
-		if(camera.status)
+		video_enabled = !video_enabled
+		if(video_enabled)
 			to_chat(usr,"<span class='notice'>Video streaming: Activated. Broadcasting on channel: '[channel]'</span>")
 		else
 			to_chat(usr,"<span class='notice'>Video streaming: Deactivated.</span>")
 		update_icon()
 	if(href_list["sound"])
-		radio.ToggleBroadcast()
+		radio.toggle_broadcast()
 		if(radio.broadcasting)
 			to_chat(usr,"<span class='notice'>Audio streaming: Activated. Broadcasting on frequency: [format_frequency(radio.frequency)].</span>")
 		else
 			to_chat(usr,"<span class='notice'>Audio streaming: Deactivated.</span>")
+	if(href_list["net_options"])
+		var/datum/extension/network_device/camera/television/D = get_extension(src, /datum/extension/network_device)
+		D.ui_interact(usr)
 	if(!href_list["close"])
 		attack_self(usr)
 
+/obj/item/camera/tvcamera/adjust_mob_overlay(mob/living/user_mob, bodytype, image/overlay, slot, bodypart, use_fallback_if_icon_missing = TRUE)
+	if(overlay && video_enabled && check_state_in_icon("[overlay.icon_state]-on", overlay.icon))
+		overlay.icon_state = "[overlay.icon_state]-on"
+	. = ..()
+
 /obj/item/camera/tvcamera/on_update_icon()
-	..()
-	if(camera.status)
-		icon_state = "camcorder_on"
-		item_state = "camcorder_on"
-	else
-		icon_state = "camcorder"
-		item_state = "camcorder"
-	var/mob/living/carbon/human/H = loc
-	if(istype(H))
-		H.update_inv_r_hand(0)
-		H.update_inv_l_hand()
+	. = ..()
+	if(video_enabled)
+		add_overlay("[icon_state]-on")
+	update_held_icon()
 
 /* Assembly by a roboticist */
-/obj/item/robot_parts/head/attackby(var/obj/item/assembly/S, mob/user)
-	if ((!istype(S, /obj/item/assembly/infra)))
-		..()
-		return
-	var/obj/item/TVAssembly/A = new(user)
-	qdel(S)
-	user.put_in_hands(A)
+// TODO: Make this slapcrafting or remove tvcamera/tvassembly entirely
+/obj/item/robot_parts/head/attackby(obj/item/used_item, mob/user)
+	var/obj/item/assembly/infra/assembly = used_item
+	if(!istype(assembly))
+		return ..()
+	var/obj/item/TVAssembly/tv_assembly = new(user)
+	qdel(assembly)
+	user.put_in_hands(tv_assembly)
 	to_chat(user, "<span class='notice'>You add the infrared sensor to the robot head.</span>")
 	qdel(src)
+	return TRUE
 
 /* Using camcorder icon as I can't sprite.
 Using robohead because of restricting to roboticist */
 /obj/item/TVAssembly
 	name = "TV Camera assembly"
-	desc = "A robotic head with an infrared sensor inside"
+	desc = "A robotic head with an infrared sensor inside."
 	icon = 'icons/obj/robot_parts.dmi'
 	icon_state = "head"
 	item_state = "head"
 	var/buildstep = 0
 	w_class = ITEM_SIZE_LARGE
+	material = /decl/material/solid/metal/steel
 
-/obj/item/TVAssembly/attackby(var/obj/item/W, var/mob/user)
+// TODO: refactor this to use slapcrafting? remove entirely?
+/obj/item/TVAssembly/attackby(var/obj/item/used_item, var/mob/user)
 	switch(buildstep)
 		if(0)
-			if(istype(W, /obj/item/robot_parts/robot_component/camera))
+			if(istype(used_item, /obj/item/robot_parts/robot_component/camera))
 				to_chat(user, "<span class='notice'>You add the camera module to [src]</span>")
-				qdel(W)
+				qdel(used_item)
 				desc = "This TV camera assembly has a camera module."
 				buildstep++
+				return TRUE
 		if(1)
-			if(istype(W, /obj/item/taperecorder))
-				qdel(W)
+			if(istype(used_item, /obj/item/taperecorder))
+				qdel(used_item)
 				buildstep++
 				to_chat(user, "<span class='notice'>You add the tape recorder to [src]</span>")
 				desc = "This TV camera assembly has a camera and audio module."
-				return
+				return TRUE
 		if(2)
-			if(isCoil(W))
-				var/obj/item/stack/cable_coil/C = W
+			if(IS_COIL(used_item))
+				var/obj/item/stack/cable_coil/C = used_item
 				if(!C.use(3))
 					to_chat(user, "<span class='notice'>You need three cable coils to wire the devices.</span>")
-					..()
-					return
+					return TRUE
 				buildstep++
-				to_chat(user, "<span class='notice'>You wire the assembly</span>")
-				desc = "This TV camera assembly has wires sticking out"
-				return
+				to_chat(user, SPAN_NOTICE("You wire the assembly."))
+				desc = "This TV camera assembly has wires sticking out."
+				return TRUE
 		if(3)
-			if(isWirecutter(W))
+			if(IS_WIRECUTTER(used_item))
 				to_chat(user, "<span class='notice'> You trim the wires.</span>")
 				buildstep++
 				desc = "This TV camera assembly needs casing."
-				return
+				return TRUE
 		if(4)
-			if(istype(W, /obj/item/stack/material/steel))
-				var/obj/item/stack/material/steel/S = W
-				if(S.use(1))
+			if(istype(used_item, /obj/item/stack/material))
+				var/obj/item/stack/material/S = used_item
+				if(S.material?.type == /decl/material/solid/metal/steel && S.use(1))
 					buildstep++
 					to_chat(user, "<span class='notice'>You encase the assembly.</span>")
 					var/turf/T = get_turf(src)
 					new /obj/item/camera/tvcamera(T)
 					qdel(src)
-					return
-	..()
+					return TRUE
+	return ..()
+
+/datum/extension/network_device/camera/television
+	expected_type = /obj/item/camera/tvcamera
+	requires_connection = FALSE
+
+/datum/extension/network_device/camera/television/is_functional()
+	var/obj/item/camera/tvcamera/tv = holder
+	return tv.video_enabled

@@ -1,0 +1,70 @@
+MANTIDIFY(/obj/item/bag/trash/purple,           "sample collection carrier", "material storage")
+MANTIDIFY(/obj/item/tool/drill/diamond,         "lithobliterator",           "drilling")
+MANTIDIFY(/obj/item/tank/jetpack/carbondioxide, "maneuvering pack",          "propulsion")
+MANTIDIFY(/obj/item/circular_saw,               "carapace penetrator",       "saw")
+MANTIDIFY(/obj/item/sutures,                    "incision stapler",          "suturing")
+MANTIDIFY(/obj/item/scalpel,                    "surface splitter",          "scalpel")
+MANTIDIFY(/obj/item/hemostat,                   "hemolymph clamp",           "hemostat")
+MANTIDIFY(/obj/item/bone_clamp,                 "structural reconfigurator", "bone setting")
+MANTIDIFY(/obj/item/retractor,                  "leverage applicator",       "retractor")
+MANTIDIFY(/obj/structure/table,                 "support surface",           "table")
+MANTIDIFY(/obj/structure/closet,                "containment systme",        "storage")
+
+/obj/item/light/tube/ascent
+	name = "mantid light filament"
+	color = COLOR_CYAN
+	b_color = COLOR_CYAN
+	desc = "Some kind of strange alien lightbulb technology."
+
+/obj/item/multitool/mantid
+	name = "mantid multitool"
+	desc = "An alien microcomputer of some kind."
+	icon = 'mods/species/ascent/icons/ascent.dmi'
+	icon_state = "multitool"
+
+/obj/item/fuelled_tool/welding/electric/mantid
+	name = "mantid welding tool"
+	desc = "An oddly shaped alien welding tool."
+	icon = 'mods/species/ascent/icons/ascent.dmi'
+
+/obj/item/mop/advanced/ascent
+	name = "deck detritus delaminator"
+	desc = "An alien staff with spongy filaments on one end."
+	icon = 'mods/species/ascent/icons/ascent_doodads.dmi'
+	item_state = "advmop"
+
+/obj/item/chems/glass/bucket/ascent
+	name = "portable liquid cleaning agent carrier"
+	desc = "An alien container of some sort."
+	icon = 'mods/species/ascent/icons/ascent_bucket.dmi'
+
+/obj/item/knife/kitchen/cleaver/ascent
+	name = "xenobiological flenser"
+	desc = "A mind-boggingly alien tool for flensing flesh."
+	icon = 'mods/species/ascent/icons/ascent_doodads.dmi'
+	icon_state = "xenobutch"
+
+/obj/item/chems/drinks/cans/waterbottle/ascent
+	name = "hydration cylinder"
+	desc = "An alien portable long term storage device for potable water."
+	icon = 'mods/species/ascent/icons/ascent_doodads.dmi'
+
+/obj/item/food/hydration
+	name = "hydration ration"
+	desc = "Approximately ten units of liquid hydration in an edible membrane. Unflavored."
+	icon = 'mods/species/ascent/icons/ascent_doodads.dmi'
+	icon_state = "h2o_ration"
+	bitesize = 10
+
+/obj/item/food/hydration/populate_reagents()
+	add_to_reagents(/decl/material/liquid/water, 10)
+	. = ..()
+
+/obj/item/box/water/ascent
+	name = "box of hydration cylinders"
+	desc = "A box full of bottled water."
+	icon = 'mods/species/ascent/icons/ascent_doodads.dmi'
+	icon_state = "box"
+
+/obj/item/box/water/ascent/WillContain()
+	return list(/obj/item/chems/drinks/cans/waterbottle/ascent = 7)

@@ -26,12 +26,13 @@
 		* Passing through in this case ignores anything with the throwpass flag, such as tables, racks, and morgue trays.
 */
 /turf/Adjacent(var/atom/neighbor, var/atom/target = null)
-	var/list/turf/Ts = get_turf(neighbor)
-
+	var/list/turf/Ts = list()
 	if(istype(neighbor, /atom/movable)) // incase our neighbor atom is a multitile atom
 		var/atom/movable/N = neighbor
-		Ts = N.locs
-		Ts |= get_turf(N.loc)
+		for(var/atom/A in N.locs)
+			Ts |= get_turf(A)
+	else
+		Ts += get_turf(neighbor)
 
 	for(var/turf/T0 in Ts)
 		if(T0 == src)
@@ -95,13 +96,41 @@ Quick adjacency (to turf):
 		if(T.Adjacent(neighbor,src)) return 1
 	return 0
 
-// This is necessary for storage items not on your person.
+// These overrides are necessary for storage items not on your person.
+// TODO: see if this can just go on an /obj override (may impact /machinery?)
 /obj/item/Adjacent(var/atom/neighbor, var/recurse = 1)
-	if(neighbor == loc) return 1
-	if(istype(loc,/obj/item))
+	if(neighbor == loc)
+		return TRUE
+	if(istype(loc, /obj/item) || istype(loc, /obj/structure))
 		if(recurse > 0)
-			return loc.Adjacent(neighbor,recurse - 1)
-		return 0
+			return loc.Adjacent(neighbor, recurse - 1)
+		return FALSE
+	return ..()
+
+/obj/structure/Adjacent(var/atom/neighbor, var/recurse = 1)
+	if(neighbor == loc)
+		return TRUE
+	if(istype(loc, /obj/item) || istype(loc, /obj/structure))
+		if(recurse > 0)
+			return loc.Adjacent(neighbor, recurse - 1)
+		return FALSE
+	return ..()
+
+/*
+	Special case: This allows you to reach a door when it is visally on top of,
+	but technically behind, a fire door
+
+	You could try to rewrite this to be faster, but I'm not sure anything would be.
+	This can be safely removed if border firedoors are ever moved to be on top of doors
+	so they can be interacted with without opening the door.
+*/
+/obj/machinery/door/Adjacent(atom/neighbor)
+	var/obj/machinery/door/firedoor/border/BD = locate() in loc
+	if(BD)
+		BD.throwpass = 1 // allow click to pass
+		. = ..()
+		BD.throwpass = 0
+		return .
 	return ..()
 
 /*
@@ -109,16 +138,17 @@ Quick adjacency (to turf):
 	This is defined as any dense ATOM_FLAG_CHECKS_BORDER object, or any dense object without throwpass.
 	The border_only flag allows you to not objects (for source and destination squares)
 */
-/turf/proc/ClickCross(var/target_dir, var/border_only, var/target_atom = null)
+/turf/proc/ClickCross(target_dir, border_only, atom/target_atom = null)
 	for(var/obj/O in src)
 		if( !O.density || O == target_atom || O.throwpass) continue // throwpass is used for anything you can click through
 
 		if(O.atom_flags & ATOM_FLAG_CHECKS_BORDER) // windows have throwpass but are on border, check them first
 			if( O.dir & target_dir || O.dir&(O.dir-1) ) // full tile windows are just diagonals mechanically
-				var/obj/structure/window/W = target_atom
-				if(istype(W))
-					if(!W.is_fulltile())	//exception for breaking full tile windows on top of single pane windows
-						return 0
+				var/obj/structure/window/window = target_atom
+				if(istype(window) && window.is_fulltile()) //exception for breaking full tile windows on top of single pane windows
+					return 1
+				if(target_atom && (target_atom.atom_flags & ATOM_FLAG_ADJACENT_EXCEPTION)) // exception for atoms that should always be reachable
+					return 1
 				else
 					return 0
 

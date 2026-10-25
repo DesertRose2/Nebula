@@ -41,10 +41,11 @@
 /datum/uplink_item/item/services/fake_update_annoncement/New()
 	..()
 	item_cost = round(DEFAULT_TELECRYSTAL_AMOUNT / 2)
+	addtimer(CALLBACK(src, PROC_REF(finalize_announce)), 2)
 
-	spawn(2)
-		name = "[command_name()] Update Announcement"
-		desc = "Causes a falsified [command_name()] Update."
+/datum/uplink_item/item/services/fake_update_annoncement/proc/finalize_announce()
+	name = "[global.using_map.boss_name] Update Announcement"
+	desc = "Causes a falsified [global.using_map.boss_name] Update."
 
 /***************
 * Service Item *
@@ -58,8 +59,9 @@
 	name = "tiny device"
 	desc = "Press button to activate. Can be done once and only once."
 	w_class = ITEM_SIZE_TINY
-	icon = 'icons/obj/items/device/flash.dmi'
-	icon_state = "sflash"
+	icon = 'icons/obj/items/device/flash_synthetic.dmi'
+	icon_state = ICON_STATE_WORLD
+	max_health = ITEM_HEALTH_NO_DAMAGE
 	var/state = AWAITING_ACTIVATION
 	var/service_label = "Unnamed Service"
 	var/service_duration = 0 SECONDS
@@ -69,22 +71,22 @@
 		deactivate()
 	. = ..()
 
-/obj/item/uplink_service/examine(mob/user, distance)
+/obj/item/uplink_service/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
 	if(distance <= 1)
 		switch(state)
 			if(AWAITING_ACTIVATION)
-				to_chat(user, "It is labeled '[service_label]' and appears to be awaiting activation.")
+				LAZYADD(., "It is labeled '[service_label]' and appears to be awaiting activation.")
 			if(CURRENTLY_ACTIVE)
-				to_chat(user, "It is labeled '[service_label]' and appears to be active.")
+				LAZYADD(., "It is labeled '[service_label]' and appears to be active.")
 			if(HAS_BEEN_ACTIVATED)
-				to_chat(user, "It is labeled '[service_label]' and appears to be permanently disabled.")
+				LAZYADD(., "It is labeled '[service_label]' and appears to be permanently disabled.")
 
 /obj/item/uplink_service/attack_self(var/mob/user)
 	if(state != AWAITING_ACTIVATION)
 		to_chat(user, "<span class='warning'>\The [src] won't activate again.</span>")
 		return
-	var/obj/effect/overmap/visitable/O = map_sectors["[get_z(src)]"]
+	var/obj/effect/overmap/visitable/O = global.overmap_sectors[get_z(src)]
 	var/choice = alert(user, "This will only affect your current location[istype(O) ? " ([O])" : ""]. Proceed?","Confirmation", "Yes", "No")
 	if(choice != "Yes")
 		return
@@ -96,7 +98,7 @@
 	log_and_message_admins("has activated the service '[service_label]'", user)
 
 	if(service_duration)
-		addtimer(CALLBACK(src,/obj/item/uplink_service/proc/deactivate), service_duration)
+		addtimer(CALLBACK(src, TYPE_PROC_REF(/obj/item/uplink_service, deactivate)), service_duration)
 	else
 		deactivate()
 
@@ -110,13 +112,13 @@
 	visible_message("<span class='warning'>\The [src] shuts down with a spark.</span>")
 
 /obj/item/uplink_service/on_update_icon()
+	. = ..()
+	icon_state = get_world_inventory_state()
 	switch(state)
-		if(AWAITING_ACTIVATION)
-			icon_state = initial(icon_state)
 		if(CURRENTLY_ACTIVE)
-			icon_state = "flash_on"
+			icon_state = "[icon_state]-on"
 		if(HAS_BEEN_ACTIVATED)
-			icon_state = "flash_burnt"
+			icon_state = "[icon_state]-burnt"
 
 /obj/item/uplink_service/proc/enable(var/mob/user = usr)
 	return TRUE
@@ -159,7 +161,7 @@
 	service_label = "Ion Storm Announcement"
 
 /obj/item/uplink_service/fake_ion_storm/enable(var/mob/user = usr)
-	ion_storm_announcement(GetConnectedZlevels(get_z(src)))
+	ion_storm_announcement(SSmapping.get_connected_levels(get_z(src)))
 	. = ..()
 
 /*****************
@@ -187,9 +189,9 @@
 	if(!message)
 		return
 
-	if(CanUseTopic(user, GLOB.hands_state) != STATUS_INTERACTIVE)
+	if(CanUseTopic(user, global.hands_topic_state) != STATUS_INTERACTIVE)
 		return FALSE
-	command_announcement.Announce(message, title, msg_sanitized = 1, zlevels = GetConnectedZlevels(get_z(src)))
+	command_announcement.Announce(message, title, msg_sanitized = 1, zlevels = SSmapping.get_connected_levels(get_z(src)))
 	return TRUE
 
 /*********************************
@@ -211,7 +213,7 @@
 	if(I)
 		new_record.set_name(I.registered_name)
 		new_record.set_formal_name("[I.formal_name_prefix][I.registered_name][I.formal_name_suffix]")
-		new_record.set_sex(I.sex)
+		new_record.set_gender(I.card_gender)
 		new_record.set_age(I.age)
 		new_record.set_job(I.assignment)
 		new_record.set_fingerprint(I.fingerprint_hash)
@@ -225,14 +227,14 @@
 	if(random_record)
 		COPY_VALUE(faction)
 		COPY_VALUE(religion)
-		COPY_VALUE(homeSystem)
+		COPY_VALUE(residence)
 		COPY_VALUE(fingerprint)
 		COPY_VALUE(dna)
 		COPY_VALUE(bloodtype)
 	var/datum/job/job = SSjobs.get_by_title(new_record.get_job())
 	if(job)
 		var/skills = list()
-		for(var/decl/hierarchy/skill/S in GLOB.skills)
+		for(var/decl/skill/S in global.using_map.get_available_skills())
 			var/level = job.min_skill[S.type]
 			if(prob(10))
 				level = min(rand(1,3), job.max_skill[S.type])
@@ -241,7 +243,9 @@
 		new_record.set_skillset(jointext(skills,"\n"))
 
 	if(istype(job) && job.announced)
-		AnnounceArrivalSimple(new_record.get_name(), new_record.get_job(), "has completed cryogenic revival", get_announcement_frequency(job))
+		var/announce_channel = get_announcement_frequency(job)
+		if(announce_channel)
+			do_telecomms_announcement(user, "[new_record.get_name()], [new_record.get_job()], has completed cryogenic revival.", "Arrivals Announcement Computer", announce_channel)
 	. = ..()
 
 #undef COPY_VALUE

@@ -1,4 +1,5 @@
-/datum/chemical_reaction
+/decl/chemical_reaction
+	abstract_type = /decl/chemical_reaction
 	var/name = null
 	var/result = null
 	var/list/required_reagents = list()
@@ -11,11 +12,13 @@
 	var/thermal_product
 	var/mix_message = "The solution begins to bubble."
 	var/reaction_sound = 'sound/effects/bubbles.ogg'
-	var/log_is_important = 0 // If this reaction should be considered important for logging. Important recipes message admins when mixed, non-important ones just log to file.
 	var/lore_text
 	var/mechanics_text
+	var/reaction_category = REACTION_TYPE_COMPOUND
+	/// Flags used when reaction processing.
+	var/chemical_reaction_flags = 0
 
-/datum/chemical_reaction/proc/can_happen(var/datum/reagents/holder)
+/decl/chemical_reaction/proc/can_happen(var/datum/reagents/holder)
 	//check that all the required reagents are present
 	if(!holder.has_all_reagents(required_reagents))
 		return 0
@@ -28,35 +31,32 @@
 	if(holder.has_any_reagent(inhibitors))
 		return 0
 
-	var/temperature = holder.my_atom ? holder.my_atom.temperature : T20C
+	var/atom/location = holder.get_reaction_loc(chemical_reaction_flags)
+	var/temperature = location?.temperature || T20C
 	if(temperature < minimum_temperature || temperature > maximum_temperature)
 		return 0
 
 	return 1
 
-/datum/chemical_reaction/proc/on_reaction(var/datum/reagents/holder, var/created_volume, var/reaction_flags)
-	if(thermal_product && ATOM_IS_TEMPERATURE_SENSITIVE(holder.my_atom))
-		ADJUST_ATOM_TEMPERATURE(holder.my_atom, thermal_product)
+/decl/chemical_reaction/proc/on_reaction(datum/reagents/holder, created_volume, list/reaction_data)
+	var/atom/location = holder.get_reaction_loc(chemical_reaction_flags)
+	if(thermal_product && location && ATOM_SHOULD_TEMPERATURE_ENQUEUE(location))
+		ADJUST_ATOM_TEMPERATURE(location, location.temperature + (location.get_thermal_mass_coefficient() * thermal_product))
 
 // This proc returns a list of all reagents it wants to use; if the holder has several reactions that use the same reagent, it will split the reagent evenly between them
-/datum/chemical_reaction/proc/get_used_reagents()
+/decl/chemical_reaction/proc/get_used_reagents()
 	. = list()
 	for(var/reagent in required_reagents)
 		. += reagent
 
-/datum/chemical_reaction/proc/get_reaction_flags(var/datum/reagents/holder)
-	return 0
-
-/datum/chemical_reaction/proc/process(var/datum/reagents/holder, var/limit)
+/decl/chemical_reaction/proc/process(var/datum/reagents/holder, var/limit)
 	var/data = send_data(holder)
 
-	var/reaction_volume = holder.maximum_volume
+	var/reaction_volume = REAGENT_GET_MAX_VOL(holder)
 	for(var/reactant in required_reagents)
-		var/A = REAGENT_VOLUME(holder, reactant) / required_reagents[reactant] / limit // How much of this reagent we are allowed to use
+		var/A = CHEMS_QUANTIZE(REAGENT_VOLUME(holder, reactant) / required_reagents[reactant] / limit)  // How much of this reagent we are allowed to use
 		if(reaction_volume > A)
 			reaction_volume = A
-
-	var/reaction_flags = get_reaction_flags(holder)
 
 	for(var/reactant in required_reagents)
 		holder.remove_reagent(reactant, reaction_volume * required_reagents[reactant], safety = 1)
@@ -66,20 +66,21 @@
 	if(result)
 		holder.add_reagent(result, amt_produced, data, safety = 1)
 
-	on_reaction(holder, amt_produced, reaction_flags)
+	on_reaction(holder, amt_produced, data)
 
 //called after processing reactions, if they occurred
-/datum/chemical_reaction/proc/post_reaction(var/datum/reagents/holder)
-	var/atom/container = holder.my_atom
+/decl/chemical_reaction/proc/post_reaction(var/datum/reagents/holder)
+	var/atom/container = holder.get_reaction_loc(chemical_reaction_flags)
 	if(mix_message && container && !ismob(container))
 		var/turf/T = get_turf(container)
 		if(istype(T))
-			T.visible_message(SPAN_NOTICE("\icon[container] [mix_message]"))
+			T.visible_message(SPAN_NOTICE("[html_icon(container)] [mix_message]"))
 		else
-			container.visible_message(SPAN_NOTICE("\icon[container] [mix_message]"))
-		playsound(T || container, reaction_sound, 80, 1)
+			container.visible_message(SPAN_NOTICE("[html_icon(container)] [mix_message]"))
+		if(reaction_sound)
+			playsound(T || container, reaction_sound, 80, 1)
 
 //obtains any special data that will be provided to the reaction products
 //this is called just before reactants are removed.
-/datum/chemical_reaction/proc/send_data(var/datum/reagents/holder, var/reaction_limit)
+/decl/chemical_reaction/proc/send_data(var/datum/reagents/holder, var/reaction_limit)
 	return null

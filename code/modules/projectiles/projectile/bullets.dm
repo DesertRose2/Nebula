@@ -3,20 +3,37 @@
 	icon_state = "bullet"
 	fire_sound = 'sound/weapons/gunshot/gunshot_strong.ogg'
 	damage = 50
-	damage_type = BRUTE
+	atom_damage_type = BRUTE
 	damage_flags = DAM_BULLET | DAM_SHARP
 	nodamage = 0
 	embed = 1
 	space_knockback = 1
 	penetration_modifier = 1.0
+	impact_effect_type = /obj/effect/temp_visual/impact_effect
+	muzzle_type = /obj/effect/projectile/muzzle/bullet
+	hitsound_non_mob = "ricochet"
+
 	var/mob_passthrough_check = 0
 	var/caliber
 
-	muzzle_type = /obj/effect/projectile/bullet/muzzle
-	miss_sounds = list('sound/weapons/guns/miss1.ogg','sound/weapons/guns/miss2.ogg','sound/weapons/guns/miss3.ogg','sound/weapons/guns/miss4.ogg')
-	ricochet_sounds = list('sound/weapons/guns/ricochet1.ogg', 'sound/weapons/guns/ricochet2.ogg',
-							'sound/weapons/guns/ricochet3.ogg', 'sound/weapons/guns/ricochet4.ogg')
-	impact_sounds = list(BULLET_IMPACT_MEAT = SOUNDS_BULLET_MEAT, BULLET_IMPACT_METAL = SOUNDS_BULLET_METAL)
+/obj/item/projectile/bullet/get_miss_sounds()
+	var/static/list/miss_sounds = list(
+		'sound/weapons/guns/miss1.ogg',
+		'sound/weapons/guns/miss2.ogg',
+		'sound/weapons/guns/miss3.ogg',
+		'sound/weapons/guns/miss4.ogg'
+	)
+
+/obj/item/projectile/bullet/get_ricochet_sounds()
+	return global.ricochet_sound
+
+/obj/item/projectile/bullet/get_impact_sounds()
+
+	var/static/list/impact_sounds = list(
+		(BULLET_IMPACT_MEAT) = SOUNDS_BULLET_MEAT,
+		(BULLET_IMPACT_METAL) = SOUNDS_BULLET_METAL
+	)
+	return impact_sounds
 
 /obj/item/projectile/bullet/get_autopsy_descriptors()
 	. = ..()
@@ -28,15 +45,16 @@
 		var/mob/living/L = target
 		shake_camera(L, 3, 2)
 
-/obj/item/projectile/bullet/attack_mob(var/mob/living/target_mob, var/distance, var/miss_modifier)
+/obj/item/projectile/bullet/attack_mob(var/mob/target_mob, var/distance, var/miss_modifier)
 	if(penetrating > 0 && damage > 20 && prob(damage))
-		mob_passthrough_check = 1
+		mob_passthrough_check = TRUE
 	else
-		mob_passthrough_check = 0
+		mob_passthrough_check = FALSE
 	. = ..()
-
-	if(. == 1 && iscarbon(target_mob))
-		damage *= 0.7 //squishy mobs absorb KE
+	if(. == 1 && isliving(target_mob))
+		var/mob/living/squish = target_mob
+		if(!squish.isSynthetic())
+			damage *= 0.7 //squishy mobs absorb KE
 
 /obj/item/projectile/bullet/can_embed()
 	//prevent embedding if the projectile is passing through the mob
@@ -55,7 +73,7 @@
 	var/chance = damage
 	if(has_extension(A, /datum/extension/penetration))
 		var/datum/extension/penetration/P = get_extension(A, /datum/extension/penetration)
-		chance = P.PenetrationProbability(chance, damage, damage_type)
+		chance = P.PenetrationProbability(chance, damage, atom_damage_type)
 
 	if(prob(chance))
 		if(A.opacity)
@@ -90,6 +108,10 @@
 	damage = 5
 	agony = 30
 	embed = 0
+
+/obj/item/projectile/bullet/pistol/rubber/strong
+	damage = 8
+	agony = 38
 
 /obj/item/projectile/bullet/pistol/rubber/holdout
 	agony = 20
@@ -140,7 +162,7 @@
 /* Miscellaneous */
 
 /obj/item/projectile/bullet/blank
-	invisibility = 101
+	invisibility = INVISIBILITY_ABSTRACT
 	damage = 1
 	embed = 0
 
@@ -158,9 +180,9 @@
 
 /obj/item/projectile/bullet/pistol/cap
 	name = "cap"
-	invisibility = 101
+	invisibility = INVISIBILITY_ABSTRACT
 	fire_sound = null
-	damage_type = PAIN
+	atom_damage_type = PAIN
 	damage_flags = 0
 	damage = 0
 	nodamage = 1

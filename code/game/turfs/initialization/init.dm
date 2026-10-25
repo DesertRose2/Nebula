@@ -4,9 +4,10 @@
 /area
 	var/turf_initializer = null
 
-/area/Initialize()
+/area/Initialize(mapload)
 	. = ..()
-	for(var/turf/T in src)
-		if(turf_initializer)
-			var/decl/turf_initializer/ti = decls_repository.get_decl(turf_initializer)
-			ti.InitializeTurf(T)
+	if(ispath(turf_initializer))
+		var/decl/turf_initializer/initializer = GET_DECL(turf_initializer)
+		// TODO: It may be worth doing a post-mapload loop over turfs instead, to limit the number of in-area (in-world) loops?
+		for(var/turf/initialized_turf in src)
+			initializer.InitializeTurf(initialized_turf)

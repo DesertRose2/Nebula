@@ -1,20 +1,24 @@
+/decl/loadout_category/feet
+	name = "Footwear"
 
-/datum/gear/shoes
-	sort_category = "Shoes and Footwear"
-	slot = slot_shoes
-	category = /datum/gear/shoes
+/decl/loadout_option/shoes
+	slot = slot_shoes_str
+	category = /decl/loadout_category/feet
+	abstract_type = /decl/loadout_option/shoes
 
-/datum/gear/shoes/athletic
-	display_name = "athletic shoes, colour select"
+/decl/loadout_option/shoes/athletic
+	name = "athletic shoes, color select"
 	path = /obj/item/clothing/shoes/athletic
-	flags = GEAR_HAS_COLOR_SELECTION
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_shoes_athletic"
 
-/datum/gear/shoes/boots
-	display_name = "boot selection"
+/decl/loadout_option/shoes/boots
+	name = "boot selection"
 	path = /obj/item/clothing/shoes
 	cost = 2
+	uid = "gear_shoes_boots"
 
-/datum/gear/shoes/boots/get_gear_tweak_options()
+/decl/loadout_option/shoes/boots/get_gear_tweak_options()
 	. = ..()
 	LAZYINITLIST(.[/datum/gear_tweak/path/specified_types_list])
 	.[/datum/gear_tweak/path/specified_types_list] |= list(
@@ -22,14 +26,16 @@
 		/obj/item/clothing/shoes/workboots,
 		/obj/item/clothing/shoes/jackboots/duty,
 		/obj/item/clothing/shoes/jackboots/jungleboots,
-		/obj/item/clothing/shoes/jackboots/desertboots
+		/obj/item/clothing/shoes/jackboots/desertboots,
+		/obj/item/clothing/shoes/winterboots
 	)
 
-/datum/gear/shoes/color
-	display_name = "shoe selection"
+/decl/loadout_option/shoes/color
+	name = "shoe selection"
 	path = /obj/item/clothing/shoes
+	uid = "gear_shoes_color"
 
-/datum/gear/shoes/color/get_gear_tweak_options()
+/decl/loadout_option/shoes/color/get_gear_tweak_options()
 	. = ..()
 	LAZYINITLIST(.[/datum/gear_tweak/path/specified_types_list])
 	.[/datum/gear_tweak/path/specified_types_list] |= list(
@@ -48,21 +54,25 @@
 		/obj/item/clothing/shoes/color/yellow
 	)
 
-/datum/gear/shoes/flats
-	display_name = "flats, colour select"
+/decl/loadout_option/shoes/flats
+	name = "flats, color select"
 	path = /obj/item/clothing/shoes/flats
-	flags = GEAR_HAS_COLOR_SELECTION
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_shoes_flats"
 
-/datum/gear/shoes/high
-	display_name = "high tops selection"
+/decl/loadout_option/shoes/high
+	name = "high tops selection"
 	path = /obj/item/clothing/shoes/color/hightops
-	flags = GEAR_HAS_TYPE_SELECTION
+	loadout_flags = GEAR_HAS_TYPE_SELECTION
+	uid = "gear_shoes_high_tops"
 
-/datum/gear/shoes/sandal
-	display_name = "wooden sandals"
+/decl/loadout_option/shoes/sandal
+	name = "wooden sandals"
 	path = /obj/item/clothing/shoes/sandal
+	uid = "gear_shoes_sandals"
 
-/datum/gear/shoes/heels
-	display_name = "high heels, colour select"
+/decl/loadout_option/shoes/heels
+	name = "high heels, color select"
 	path = /obj/item/clothing/shoes/heels
-	flags = GEAR_HAS_COLOR_SELECTION
+	loadout_flags = GEAR_HAS_COLOR_SELECTION
+	uid = "gear_shoes_heels"

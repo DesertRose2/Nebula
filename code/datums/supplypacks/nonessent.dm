@@ -3,31 +3,30 @@
 
 /decl/hierarchy/supply_pack/nonessent/painters
 	name = "Art - Painting Supplies"
-	contains = list(/obj/item/pipe_painter = 2,
-					/obj/item/floor_painter = 2,
+	contains = list(/obj/item/paint_sprayer = 2,
 					/obj/item/cable_painter = 2)
-	cost = 10
 	containername = "painting supplies crate"
 	containertype = /obj/structure/closet/crate
 
 /decl/hierarchy/supply_pack/nonessent/artscrafts
 	name = "Art - Arts and Crafts supplies"
-	contains = list(/obj/item/storage/fancy/crayons,
-	/obj/item/camera,
-	/obj/item/camera_film = 2,
-	/obj/item/storage/photo_album,
-	/obj/item/stack/package_wrap/twenty_five,
-	/obj/item/chems/glass/paint/red,
-	/obj/item/chems/glass/paint/green,
-	/obj/item/chems/glass/paint/blue,
-	/obj/item/chems/glass/paint/yellow,
-	/obj/item/chems/glass/paint/purple,
-	/obj/item/chems/glass/paint/black,
-	/obj/item/chems/glass/paint/white,
-	/obj/item/contraband/poster,
-	/obj/item/wrapping_paper = 3)
-	cost = 10
-	containername = "arts and Crafts crate"
+	contains = list(
+		/obj/item/box/fancy/crayons,
+		/obj/item/camera,
+		/obj/item/camera_film = 2,
+		/obj/item/photo_album,
+		/obj/item/chems/glass/bucket/paint/red,
+		/obj/item/chems/glass/bucket/paint/green,
+		/obj/item/chems/glass/bucket/paint/blue,
+		/obj/item/chems/glass/bucket/paint/yellow,
+		/obj/item/chems/glass/bucket/paint/purple,
+		/obj/item/chems/glass/bucket/paint/black,
+		/obj/item/chems/glass/bucket/paint/white,
+		/obj/item/poster,
+		/obj/item/stack/package_wrap/fifty      = 2,
+		/obj/item/stack/package_wrap/gift/fifty = 2
+	)
+	containername = "arts and crafts crate"
 
 
 /decl/hierarchy/supply_pack/nonessent/card_packs
@@ -36,7 +35,6 @@
 					/obj/item/pack/spaceball,
 					/obj/item/deck/holder)
 	name = "Rec - Trading Cards"
-	cost = 20
 	containername = "trading cards crate"
 	supply_method = /decl/supply_method/randomized
 
@@ -46,7 +44,6 @@
 					/obj/item/clothing/suit/redtag = 3,
 					/obj/item/gun/energy/lasertag/blue = 3,
 					/obj/item/clothing/suit/bluetag = 3)
-	cost = 20
 	containertype = /obj/structure/closet
 	containername = "lasertag Closet"
 
@@ -55,7 +52,6 @@
 	contains = list(/obj/item/synthesized_instrument/synthesizer,
 					/obj/item/synthesized_instrument/guitar/multi,
 					/obj/item/synthesized_instrument/trumpet)
-	cost = 40
 	containername = "musical instrument crate"
 
 
@@ -71,74 +67,78 @@
 					/obj/item/flashlight/lamp/lava/purple,
 					/obj/item/flashlight/lamp/lava/pink)
 	name = "Deco - Lava lamps"
-	cost = 10
 	containername = "lava lamp crate"
 	supply_method = /decl/supply_method/randomized
 
 
 /decl/hierarchy/supply_pack/nonessent/wizard
 	name = "Costume - Wizard"
-	contains = list(/obj/item/staff,
-					/obj/item/clothing/suit/wizrobe/fake,
+	contains = list(/obj/item/staff/crystal,
+					/obj/item/clothing/suit/wizrobe,
 					/obj/item/clothing/shoes/sandal,
-					/obj/item/clothing/head/wizard/fake)
-	cost = 20
+					/obj/item/clothing/head/wizard/beard)
 	containername = "wizard costume crate"
 
 /decl/hierarchy/supply_pack/nonessent/costume
 	num_contained = 2
 	contains = list(/obj/item/clothing/suit/pirate,
 					/obj/item/clothing/suit/judgerobe,
-					/obj/item/clothing/accessory/wcoat/black,
+					/obj/item/clothing/suit/jacket/waistcoat/black,
 					/obj/item/clothing/suit/hastur,
 					/obj/item/clothing/suit/holidaypriest,
 					/obj/item/clothing/suit/nun,
 					/obj/item/clothing/suit/imperium_monk,
 					/obj/item/clothing/suit/ianshirt,
-					/obj/item/clothing/under/gimmick/rank/captain/suit,
-					/obj/item/clothing/under/gimmick/rank/head_of_personnel/suit,
-					/obj/item/clothing/under/lawyer/purpsuit,
-					/obj/item/clothing/under/rank/mailman,
-					/obj/item/clothing/under/dress/dress_saloon,
-					/obj/item/clothing/accessory/suspenders,
-					/obj/item/clothing/suit/storage/toggle/labcoat/mad,
+					/obj/item/clothing/costume/captain_suit,
+					/obj/item/clothing/costume/head_of_personnel_suit,
+					/obj/item/clothing/pants/slacks/purple,
+					/obj/item/clothing/shirt/button,
+					/obj/item/clothing/suit/jacket/vest/black,
+					/obj/item/clothing/costume/mailman,
+					/obj/item/clothing/dress/saloon,
+					/obj/item/clothing/suspenders,
+					/obj/item/clothing/suit/toggle/labcoat/mad,
 					/obj/item/clothing/suit/bio_suit/plaguedoctorsuit,
-					/obj/item/clothing/under/schoolgirl,
-					/obj/item/clothing/under/owl,
-					/obj/item/clothing/under/waiter,
-					/obj/item/clothing/under/gladiator,
-					/obj/item/clothing/under/soviet,
-					/obj/item/clothing/under/scratch,
-					/obj/item/clothing/under/wedding/bride_white,
+					/obj/item/clothing/costume/schoolgirl,
+					/obj/item/clothing/costume/owl,
+					/obj/item/clothing/pants/slacks/black,
+					/obj/item/clothing/shirt/button,
+					/obj/item/clothing/neck/tie/bow/red,
+					/obj/item/clothing/suit/jacket/vest/blue,
+					/obj/item/clothing/costume/gladiator,
+					/obj/item/clothing/costume/soviet,
+					/obj/item/clothing/costume/scratch,
+					/obj/item/clothing/dress/wedding/bride_white,
 					/obj/item/clothing/suit/chef,
 					/obj/item/clothing/suit/apron/overalls,
-					/obj/item/clothing/under/redcoat,
-					/obj/item/clothing/under/kilt,
-					/obj/item/clothing/under/savage_hunter,
-					/obj/item/clothing/under/savage_hunter/female,
-					/obj/item/clothing/under/wetsuit)
+					/obj/item/clothing/costume/redcoat,
+					/obj/item/clothing/costume/kilt,
+					/obj/item/clothing/costume/savage_hunter,
+					/obj/item/clothing/costume/savage_hunter/female,
+					/obj/item/clothing/costume/wetsuit)
 	name = "Costume - Random"
-	cost = 10
 	containername = "actor costumes crate"
 	supply_method = /decl/supply_method/randomized
 
 /decl/hierarchy/supply_pack/nonessent/formal_wear
-	contains = list(/obj/item/clothing/head/bowler,
-					/obj/item/clothing/head/that,
-					/obj/item/clothing/suit/storage/toggle/suit/blue,
-					/obj/item/clothing/suit/storage/toggle/suit/purple,
-					/obj/item/clothing/under/suit_jacket,
-					/obj/item/clothing/under/suit_jacket/female,
-					/obj/item/clothing/under/suit_jacket/really_black,
-					/obj/item/clothing/under/suit_jacket/red,
-					/obj/item/clothing/under/lawyer/bluesuit,
-					/obj/item/clothing/under/lawyer/purpsuit,
-					/obj/item/clothing/shoes/color/black,
-					/obj/item/clothing/shoes/color/black,
-					/obj/item/clothing/shoes/craftable,
-					/obj/item/clothing/accessory/wcoat/black)
+	contains = list(
+		/obj/item/clothing/head/bowler,
+		/obj/item/clothing/head/that,
+		/obj/item/clothing/suit/jacket,
+		/obj/item/clothing/suit/jacket/blue,
+		/obj/item/clothing/suit/jacket/purple,
+		/obj/item/clothing/suit/jacket/black,
+		/obj/item/clothing/suit/jacket/burgundy,
+		/obj/item/clothing/suit/jacket/waistcoat,
+		/obj/item/clothing/costume/lawyer_bluesuit,
+		/obj/item/clothing/pants/slacks/purple,
+		/obj/item/clothing/shirt/button,
+		/obj/item/clothing/suit/jacket/vest/black,
+		/obj/item/clothing/shoes/color/black,
+		/obj/item/clothing/shoes/color/black,
+		/obj/item/clothing/shoes/craftable
+	)
 	name = "Costume - Formalwear"
-	cost = 30
 	containertype = /obj/structure/closet
 	containername = "formalwear for the best occasions."
 
@@ -165,17 +165,15 @@
 					/obj/item/clothing/head/collectable/xenom,
 					/obj/item/clothing/head/collectable/petehat)
 	name = "Costume - Collectible hats!"
-	cost = 200
 	containername = "\improper Collectable hats crate! Brought to you by Bass.inc!"
 	supply_method = /decl/supply_method/randomized
 
 /decl/hierarchy/supply_pack/nonessent/witch
 	name = "Costume - Witch"
-	contains = list(/obj/item/clothing/suit/wizrobe/marisa/fake,
+	contains = list(/obj/item/clothing/suit/wizrobe/marisa,
 					/obj/item/clothing/shoes/sandal,
-					/obj/item/clothing/head/wizard/marisa/fake,
+					/obj/item/clothing/head/wizard/marisa,
 					/obj/item/staff/broom)
-	cost = 20
 	containername = "witch costume crate"
 	containertype = /obj/structure/closet
 
@@ -195,7 +193,6 @@
 					/obj/item/clothing/head/helmet/gladiator,
 					/obj/item/clothing/head/ushanka,
 					/obj/item/clothing/mask/spirit)
-	cost = 10
 	containername = "actor hats crate"
 	containertype = /obj/structure/closet
 	num_contained = 2
@@ -203,18 +200,17 @@
 
 /decl/hierarchy/supply_pack/nonessent/dresses
 	name = "Costume - Womens formal dress locker"
-	contains = list(/obj/item/clothing/under/wedding/bride_orange,
-					/obj/item/clothing/under/wedding/bride_purple,
-					/obj/item/clothing/under/wedding/bride_blue,
-					/obj/item/clothing/under/wedding/bride_red,
-					/obj/item/clothing/under/wedding/bride_white,
-					/obj/item/clothing/under/sundress,
-					/obj/item/clothing/under/dress/dress_green,
-					/obj/item/clothing/under/dress/dress_pink,
-					/obj/item/clothing/under/dress/dress_orange,
-					/obj/item/clothing/under/dress/dress_yellow,
-					/obj/item/clothing/under/dress/dress_saloon)
-	cost = 15
+	contains = list(/obj/item/clothing/dress/wedding/bride_orange,
+					/obj/item/clothing/dress/wedding/bride_purple,
+					/obj/item/clothing/dress/wedding/bride_blue,
+					/obj/item/clothing/dress/wedding/bride_red,
+					/obj/item/clothing/dress/wedding/bride_white,
+					/obj/item/clothing/dress/sun,
+					/obj/item/clothing/dress/green,
+					/obj/item/clothing/dress/pink,
+					/obj/item/clothing/dress/orange,
+					/obj/item/clothing/dress/yellow,
+					/obj/item/clothing/dress/saloon)
 	containername = "pretty dress locker"
 	containertype = /obj/structure/closet
 	num_contained = 1
@@ -228,43 +224,37 @@
 					/obj/item/toy/desk/fan,
 					/obj/item/toy/desk/officetoy,
 					/obj/item/toy/desk/dippingbird)
-	cost = 15
 	containername = "office toys crate"
 
 /decl/hierarchy/supply_pack/nonessent/chaplaingear
 	name = "Costume - Chaplain"
-	contains = list(/obj/item/clothing/under/rank/chaplain,
+	contains = list(/obj/item/clothing/jumpsuit/chaplain,
 					/obj/item/clothing/shoes/color/black,
 					/obj/item/clothing/suit/nun,
 					/obj/item/clothing/head/nun_hood,
 					/obj/item/clothing/suit/chaplain_hoodie,
 					/obj/item/clothing/head/chaplain_hood,
 					/obj/item/clothing/suit/holidaypriest,
-					/obj/item/clothing/under/wedding/bride_white,
-//					/obj/item/storage/backpack/cultpack,
-					/obj/item/storage/candle_box = 3)
-	cost = 10
+					/obj/item/clothing/dress/wedding/bride_white,
+					/obj/item/box/candles = 3)
 	containername = "chaplain equipment crate"
 
 /decl/hierarchy/supply_pack/nonessent/exosuit_mod_ripl3
 	name = "Mod - \"Firestarter\" exosuit modkit"
-	contains = list(/obj/item/kit/paint/powerloader/flames_red)
-	cost = 50
+	contains = list(/obj/item/kit/paint/flames_red)
 	containername = "heavy exosuit modkit crate"
 
 /decl/hierarchy/supply_pack/nonessent/exosuit_mod_ripl4
 	num_contained = 1
 	name = "Mod - \"Burning Chrome\" exosuit modkit"
-	contains = list(/obj/item/kit/paint/powerloader/flames_blue)
-	cost = 50
+	contains = list(/obj/item/kit/paint/flames_blue)
 	containername = "heavy exosuit modkit crate"
 
 /decl/hierarchy/supply_pack/nonessent/aromatherapy
 	name = "Rec - Aromatherapy"
 	contains = list(
 		/obj/item/paper/aromatherapy_disclaimer,
-		/obj/item/storage/candle_box/scented = 3,
-		/obj/item/storage/candle_box/incense = 6,
-		/obj/item/flame/lighter/random)
-	cost = 15
+		/obj/item/box/candles/scented = 3,
+		/obj/item/box/candles/incense = 6,
+		/obj/item/flame/fuelled/lighter/random)
 	containername = "aromatherapy crate"

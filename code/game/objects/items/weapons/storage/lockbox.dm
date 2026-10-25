@@ -1,15 +1,16 @@
 //This file was auto-corrected by findeclaration.exe on 25.5.2012 20:42:32
 
-/obj/item/storage/lockbox
+/obj/item/lockbox
 	name = "lockbox"
 	desc = "A locked box."
 	icon = 'icons/obj/items/storage/lockbox.dmi'
 	icon_state = "lockbox+l"
 	item_state = "syringe_kit"
 	w_class = ITEM_SIZE_HUGE
-	max_w_class = ITEM_SIZE_NORMAL
-	max_storage_space = 32 //The sum of the w_classes of all the items in this storage item.
+	storage = /datum/storage/lockbox
 	req_access = list(access_armory)
+	material = /decl/material/solid/metal/stainlesssteel
+
 	var/locked = 1
 	var/broken = 0
 	var/icon_locked = "lockbox+l"
@@ -17,46 +18,36 @@
 	var/icon_broken = "lockbox+b"
 
 
-	attackby(obj/item/W as obj, mob/user as mob)
-		if (istype(W, /obj/item/card/id))
-			if(src.broken)
-				to_chat(user, "<span class='warning'>It appears to be broken.</span>")
-				return
-			if(src.allowed(user))
-				src.locked = !( src.locked )
-				if(src.locked)
-					src.icon_state = src.icon_locked
-					to_chat(user, "<span class='notice'>You lock \the [src]!</span>")
-					close_all()
-					return
-				else
-					src.icon_state = src.icon_closed
-					to_chat(user, "<span class='notice'>You unlock \the [src]!</span>")
-					return
+/obj/item/lockbox/attackby(obj/item/used_item, mob/user)
+	if (istype(used_item, /obj/item/card/id))
+		if(src.broken)
+			to_chat(user, "<span class='warning'>It appears to be broken.</span>")
+			return TRUE
+		if(src.allowed(user))
+			src.locked = !( src.locked )
+			if(src.locked)
+				src.icon_state = src.icon_locked
+				to_chat(user, "<span class='notice'>You lock \the [src]!</span>")
+				storage?.close_all()
 			else
-				to_chat(user, "<span class='warning'>Access Denied</span>")
-		else if(istype(W, /obj/item/energy_blade/blade))
-			if(emag_act(INFINITY, user, W, "The locker has been sliced open by [user] with an energy blade!", "You hear metal being sliced and sparks flying."))
-				var/datum/effect/effect/system/spark_spread/spark_system = new /datum/effect/effect/system/spark_spread()
-				spark_system.set_up(5, 0, src.loc)
-				spark_system.start()
-				playsound(src.loc, 'sound/weapons/blade1.ogg', 50, 1)
-				playsound(src.loc, "sparks", 50, 1)
-		if(!locked)
-			..()
+				src.icon_state = src.icon_closed
+				to_chat(user, "<span class='notice'>You unlock \the [src]!</span>")
 		else
-			to_chat(user, "<span class='warning'>It's locked!</span>")
-		return
+			to_chat(user, "<span class='warning'>Access Denied</span>")
+		return TRUE
+	else if(istype(used_item, /obj/item/energy_blade))
+		var/obj/item/energy_blade/blade = used_item
+		if(blade.is_special_cutting_tool() && emag_act(INFINITY, user, used_item, "The locker has been sliced open by [user] with an energy blade!", "You hear metal being sliced and sparks flying."))
+			spark_at(src.loc, amount=5)
+			playsound(src.loc, 'sound/weapons/blade1.ogg', 50, 1)
+		return TRUE
+	if(!locked)
+		return ..()
+	else
+		to_chat(user, "<span class='warning'>It's locked!</span>")
+		return TRUE
 
-
-	show_to(mob/user as mob)
-		if(locked)
-			to_chat(user, "<span class='warning'>It's locked!</span>")
-		else
-			..()
-		return
-
-/obj/item/storage/lockbox/emag_act(var/remaining_charges, var/mob/user, var/emag_source, var/visual_feedback = "", var/audible_feedback = "")
+/obj/item/lockbox/emag_act(var/remaining_charges, var/mob/user, var/emag_source, var/visual_feedback = "", var/audible_feedback = "")
 	if(!broken)
 		if(visual_feedback)
 			visual_feedback = "<span class='warning'>[visual_feedback]</span>"
@@ -74,22 +65,20 @@
 		visible_message(visual_feedback, audible_feedback)
 		return 1
 
-/obj/item/storage/lockbox/loyalty
+/obj/item/lockbox/loyalty
 	name = "lockbox of loyalty implants"
 	req_access = list(access_security)
 
-/obj/item/storage/lockbox/loyalty/Initialize()
-	. = ..()
-	new /obj/item/implantcase/loyalty(src)
-	new /obj/item/implantcase/loyalty(src)
-	new /obj/item/implantcase/loyalty(src)
-	new /obj/item/implanter/loyalty(src)
+/obj/item/lockbox/loyalty/WillContain()
+	return list(
+		/obj/item/implantcase/loyalty = 3,
+		/obj/item/implanter/loyalty
+	)
 
-/obj/item/storage/lockbox/clusterbang
+/obj/item/lockbox/clusterbang
 	name = "lockbox of clusterbangs"
 	desc = "You have a bad feeling about opening this."
 	req_access = list(access_security)
 
-/obj/item/storage/lockbox/clusterbang/Initialize()
-	. = ..()
-	new /obj/item/grenade/flashbang/clusterbang(src)
+/obj/item/lockbox/clusterbang/WillContain()
+	return list(/obj/item/grenade/flashbang/clusterbang)

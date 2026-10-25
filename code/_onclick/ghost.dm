@@ -28,20 +28,14 @@
 	if(!canClick()) return
 	setClickCooldown(DEFAULT_QUICK_COOLDOWN)
 
-	// You are responsible for checking config.ghost_interaction when you override this function
+	// You are responsible for checking ghost_interaction when you override this function
 	// Not all of them require checking, see below
 	var/list/modifiers = params2list(params)
 	if(modifiers["alt"])
-		// I'd rather call ..() but who knows what will break if we do that
-		var/datum/extension/on_click/alt = get_extension(A, /datum/extension/on_click/alt)
-		if(alt && alt.on_click(src))
-			return
-		var/target_turf = get_turf(A)
-		if(target_turf)
-			AltClickOn(target_turf)
+		AltClickOn(A)
 		return
 	if(modifiers["shift"])
-		examinate(A)
+		examine_verb(A)
 		return
 	A.attack_ghost(src)
 
@@ -50,7 +44,10 @@
 	if(!istype(user))
 		return
 	if(user.client && user.client.inquisitive_ghost)
-		user.examinate(src)
+		user.examine_verb(src)
+		return
+	if(user.client?.holder || user.antagHUD)
+		storage?.show_to(user)
 	return
 
 // ---------------------------------------
@@ -58,36 +55,9 @@
 // Now you can click through portals, wormholes, gateways, and teleporters while observing. -Sayu
 
 /obj/machinery/teleport/hub/attack_ghost(mob/user)
-	var/atom/l = loc
-	var/obj/machinery/computer/teleporter/com = locate(/obj/machinery/computer/teleporter, locate(l.x - 2, l.y, l.z))
-	if(com.locked)
+	if(com?.locked)
 		user.forceMove(get_turf(com.locked))
 
 /obj/effect/portal/attack_ghost(mob/user)
 	if(target)
 		user.forceMove(get_turf(target))
-
-/obj/machinery/gateway/centerstation/attack_ghost(mob/user)
-	if(awaygate)
-		user.forceMove(awaygate.loc)
-	else
-		to_chat(user, "[src] has no destination.")
-
-/obj/machinery/gateway/centeraway/attack_ghost(mob/user)
-	if(stationgate)
-		user.forceMove(stationgate.loc)
-	else
-		to_chat(user, "[src] has no destination.")
-
-// -------------------------------------------
-// This was supposed to be used by adminghosts
-// I think it is a *terrible* idea
-// but I'm leaving it here anyway
-// commented out, of course.
-/*
-/atom/proc/attack_admin(mob/user)
-	if(!user || !user.client || !user.client.holder)
-		return
-	attack_hand(user)
-
-*/

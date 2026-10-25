@@ -3,6 +3,7 @@
 	. = ..(maploading)
 
 /decl/closet_appearance
+	// this is NOT abstract
 	var/color = COLOR_GRAY40
 	var/decals = list(
 		"upper_vent",
@@ -14,7 +15,8 @@
 	var/decal_icon = 'icons/obj/closets/decals/closet.dmi'
 	var/can_lock = FALSE
 
-/decl/closet_appearance/New()
+/decl/closet_appearance/Initialize()
+	. = ..()
 	// Build our colour and decal lists.
 	if(LAZYLEN(extra_decals))
 		if(!decals)
@@ -208,6 +210,12 @@
 		"biohazard" = COLOR_OFF_WHITE
 	)
 
+/decl/closet_appearance/bio/medical
+	extra_decals = list(
+		"lower_half_solid" = COLOR_PALE_BLUE_GRAY,
+		"biohazard" = COLOR_OFF_WHITE
+	)
+
 /decl/closet_appearance/secure_closet
 	can_lock = TRUE
 
@@ -349,6 +357,15 @@
 		"stripe_vertical_mid_partial" = COLOR_BLUE_GRAY
 	)
 
+/decl/closet_appearance/secure_closet/medical/paramedic
+	decals = list(
+		"lower_side_vent"
+	)
+	extra_decals = list(
+		"medical" = COLOR_BLUE_GRAY,
+		"stripe_vertical_mid_full" = COLOR_BLUE_GRAY
+	)
+
 /decl/closet_appearance/secure_closet/cargo
 	color = COLOR_WARM_YELLOW
 	decals = list(
@@ -470,6 +487,13 @@
 		"hydro" = COLOR_DARK_GREEN_GRAY
 	)
 
+/decl/closet_appearance/secure_closet/hydroponics/xenoflora
+	extra_decals = list(
+		"stripe_vertical_right_partial" = COLOR_PURPLE,
+		"stripe_vertical_mid_partial" = COLOR_PURPLE,
+		"hydro" = COLOR_PURPLE
+	)
+
 /decl/closet_appearance/secure_closet/chaplain
 	decals = list(
 		"lower_side_vent",
@@ -507,6 +531,10 @@
 	base_icon =  'icons/obj/closets/bases/crate.dmi'
 	decal_icon = 'icons/obj/closets/decals/crate.dmi'
 	color = COLOR_GRAY40
+
+/decl/closet_appearance/crate/chest
+	color = COLOR_WHITE
+	base_icon =  'icons/obj/closets/bases/chest.dmi'
 
 /decl/closet_appearance/crate/plastic
 	color = COLOR_GRAY80
@@ -639,6 +667,9 @@
 	decals = null
 	extra_decals = null
 
+/decl/closet_appearance/cabinet/nocolor
+	color = COLOR_WHITE
+
 /decl/closet_appearance/cabinet/secure
 	can_lock = TRUE
 
@@ -657,6 +688,11 @@
 		"glass" = COLOR_WHITE
 	)
 
+/decl/closet_appearance/wall/suit
+	color = COLOR_LIGHT_CYAN
+	extra_decals = list(
+		"stripe_outer" = COLOR_OFF_WHITE
+	)
 /decl/closet_appearance/wall/medical
 	decals = null
 	color = COLOR_OFF_WHITE

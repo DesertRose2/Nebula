@@ -1,26 +1,26 @@
 /obj/machinery/meter
 	name = "meter"
-	desc = "A gas flow meter."
+	desc = "A meter that monitors gas composition, pressure, and temperature in the attached pipe."
 	icon = 'icons/obj/meter.dmi'
 	icon_state = "meterX"
 	var/atom/target = null //A pipe for the base type
-	anchored = 1.0
+	anchored = TRUE
 	power_channel = ENVIRON
 	idle_power_usage = 15
 
 	uncreated_component_parts = list(
-		/obj/item/stock_parts/power/apc/buildable
+		/obj/item/stock_parts/power/apc
 	)
 	public_variables = list(
 		/decl/public_access/public_variable/gas,
 		/decl/public_access/public_variable/pressure,
-		/decl/public_access/public_variable/temperature		
+		/decl/public_access/public_variable/temperature
 	)
 	stock_part_presets = list(/decl/stock_part_preset/radio/basic_transmitter/meter = 1)
 
-	frame_type = /obj/item/machine_chassis/pipe_meter/base
+	frame_type = /obj/item/machine_chassis/pipe_meter
 	construct_state = /decl/machine_construction/default/panel_closed/item_chassis
-	base_type = /obj/machinery/meter/buildable
+	base_type = /obj/machinery/meter
 
 /obj/machinery/meter/Initialize()
 	. = ..()
@@ -32,12 +32,12 @@
 /obj/machinery/meter/proc/set_target(atom/new_target)
 	clear_target()
 	target = new_target
-	GLOB.destroyed_event.register(target, src, .proc/clear_target)
+	events_repository.register(/decl/observ/destroyed, target, src, PROC_REF(clear_target))
 
 /obj/machinery/meter/proc/clear_target()
 	if(target)
-		GLOB.destroyed_event.unregister(target, src)
-		target = null	
+		events_repository.unregister(/decl/observ/destroyed, target, src)
+		target = null
 
 /obj/machinery/meter/return_air()
 	if(target)
@@ -64,37 +64,37 @@
 		return 0
 
 	var/env_pressure = environment.return_pressure()
-	if(env_pressure <= 0.15*ONE_ATMOSPHERE)
+	if(env_pressure <= (0.15 ATM))
 		icon_state = "meter0"
-	else if(env_pressure <= 1.8*ONE_ATMOSPHERE)
-		var/val = round(env_pressure/(ONE_ATMOSPHERE*0.3) + 0.5)
+	else if(env_pressure <= (1.8 ATM))
+		var/val = round(env_pressure/(0.3 ATM) + 0.5)
 		icon_state = "meter1_[val]"
-	else if(env_pressure <= 30*ONE_ATMOSPHERE)
-		var/val = round(env_pressure/(ONE_ATMOSPHERE*5)-0.35) + 1
+	else if(env_pressure <= (30 ATM))
+		var/val = round(env_pressure/(5 ATM)-0.35) + 1
 		icon_state = "meter2_[val]"
-	else if(env_pressure <= 59*ONE_ATMOSPHERE)
-		var/val = round(env_pressure/(ONE_ATMOSPHERE*5) - 6) + 1
+	else if(env_pressure <= (59 ATM))
+		var/val = round(env_pressure/(5 ATM) - 6) + 1
 		icon_state = "meter3_[val]"
 	else
 		icon_state = "meter4"
 
-/obj/machinery/meter/examine(mob/user, distance)
+/obj/machinery/meter/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
 
-	if(distance > 3 && !(istype(user, /mob/living/silicon/ai) || isghost(user)))
-		to_chat(user, "<span class='warning'>You are too far away to read it.</span>")
+	if(distance > 3 && !(isAI(user) || isghost(user)))
+		. += SPAN_WARNING("You are too far away to read it.")
 
 	else if(stat & (NOPOWER|BROKEN))
-		to_chat(user, "<span class='warning'>The display is off.</span>")
+		. += SPAN_WARNING("The display is off.")
 
 	else if(src.target)
 		var/datum/gas_mixture/environment = target.return_air()
 		if(environment)
-			to_chat(user, "The pressure gauge reads [round(environment.return_pressure(), 0.01)] kPa; [round(environment.temperature,0.01)]K ([round(environment.temperature-T0C,0.01)]&deg;C)")
+			. += "The pressure gauge reads [round(environment.return_pressure(), 0.01)] kPa; [round(environment.temperature,0.01)]K ([round(environment.temperature-T0C,0.01)]&deg;C)."
 		else
-			to_chat(user, "The sensor error light is blinking.")
+			. += "The sensor error light is blinking."
 	else
-		to_chat(user, "The connect error light is blinking.")
+		. += "The connect error light is blinking."
 
 // turf meter -- prioritizes turfs over pipes for target acquisition
 
@@ -103,13 +103,10 @@
 		set_target(loc)
 	. = ..()
 
-/obj/machinery/meter/buildable
-	uncreated_component_parts = null
-
 /obj/machinery/meter/starts_with_radio
 	uncreated_component_parts = list(
 		/obj/item/stock_parts/radio/transmitter/basic/buildable,
-		/obj/item/stock_parts/power/apc/buildable
+		/obj/item/stock_parts/power/apc
 	)
 
 /decl/stock_part_preset/radio/basic_transmitter/meter

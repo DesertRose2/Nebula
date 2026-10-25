@@ -3,21 +3,23 @@
 	desc = "A large alien device."
 	icon = 'icons/obj/xenoarchaeology.dmi'
 	icon_state = "ano00"
+	density = TRUE
+
 	var/base_icon = "ano0"
-	density = 1
 	var/datum/artifact_effect/my_effect
 	var/datum/artifact_effect/secondary_effect
-	var/being_used = 0
 
 /obj/structure/artifact/Initialize()
 	. = ..()
 
-	var/effecttype = pick(subtypesof(/datum/artifact_effect))
-	my_effect = new effecttype(src)
+	if(!ispath(my_effect))
+		my_effect = pick(subtypesof(/datum/artifact_effect))
+	my_effect = new my_effect(src)
 
-	if(prob(75))
-		effecttype = pick(subtypesof(/datum/artifact_effect))
-		secondary_effect = new effecttype(src)
+	if(prob(75) && !ispath(secondary_effect))
+		secondary_effect = pick(subtypesof(/datum/artifact_effect))
+	if(ispath(secondary_effect))
+		secondary_effect = new secondary_effect(src)
 		if(prob(75))
 			secondary_effect.ToggleActivate(0)
 
@@ -35,6 +37,7 @@
 	return FALSE
 
 /obj/structure/artifact/on_update_icon()
+	..()
 	icon_state = "[base_icon][is_active()]"
 
 /obj/structure/artifact/Destroy()
@@ -60,40 +63,41 @@
 	if(!istype(T)) 	// We're inside a container or on null turf, either way stop processing effects
 		return
 
-	for(var/obj/item/grab/G in grabbed_by)
-		if(G.assailant)
-			check_triggers(/datum/artifact_trigger/proc/on_touch, G.assailant)
-			touched(G.assailant)
+	for(var/obj/item/grab/grab as anything in grabbed_by)
+		if(isliving(grab.assailant))
+			check_triggers(/datum/artifact_trigger/proc/on_touch, grab.assailant)
+			touched(grab.assailant)
 
 	var/datum/gas_mixture/enivonment = T.return_air()
-	if(enivonment.return_pressure() >= SOUND_MINIMUM_PRESSURE)
+	if(enivonment?.return_pressure() >= SOUND_MINIMUM_PRESSURE)
 		check_triggers(/datum/artifact_trigger/proc/on_gas_exposure, enivonment)
 
 	for(var/datum/artifact_effect/effect in list(my_effect, secondary_effect))
 		effect.process()
 
-/obj/structure/artifact/attack_robot(mob/living/user)
+/obj/structure/artifact/attack_robot(mob/user)
 	if(!CanPhysicallyInteract(user))
 		return
 	visible_message(SPAN_NOTICE("[user] touches \the [src]."))
 	check_triggers(/datum/artifact_trigger/proc/on_touch, user)
 	touched(user)
 
-/obj/structure/artifact/attack_hand(mob/living/user)
+/obj/structure/artifact/attack_hand(mob/user)
 	. = ..()
 	visible_message(SPAN_NOTICE("[user] touches \the [src]."))
 	check_triggers(/datum/artifact_trigger/proc/on_touch, user)
 	touched(user)
 
-/obj/structure/artifact/attackby(obj/item/W, mob/living/user)
+/obj/structure/artifact/attackby(obj/item/used_item, mob/user)
 	. = ..()
-	visible_message(SPAN_WARNING("[user] hits \the [src] with \the [W]."))
-	check_triggers(/datum/artifact_trigger/proc/on_hit, W, user)
+	visible_message(SPAN_WARNING("[user] hits \the [src] with \the [used_item]."))
+	check_triggers(/datum/artifact_trigger/proc/on_hit, used_item, user)
 
 /obj/structure/artifact/Bumped(M)
 	..()
 	check_triggers(/datum/artifact_trigger/proc/on_bump, M)
-	touched(M)
+	if(isliving(M))
+		touched(M)
 
 /obj/structure/artifact/bullet_act(var/obj/item/projectile/P)
 	visible_message(SPAN_WARNING("\The [P] hits \the [src]!"))
@@ -107,7 +111,7 @@
 		physically_destroyed()
 
 /obj/structure/artifact/Move()
-	..()
+	. = ..()
 	if(my_effect)
 		my_effect.UpdateMove()
 	if(secondary_effect)
@@ -129,3 +133,12 @@
 		out += secondary_effect.getDescription()
 
 	return out
+
+/obj/structure/artifact/fluid_act(datum/reagents/fluids)
+	..()
+	if(!QDELETED(src) && REAGENT_TOTAL_VOLUME(fluids))
+		check_triggers(/datum/artifact_trigger/proc/on_fluid_act, fluids)
+
+// Premade subtypes for mapping or testing.
+/obj/structure/artifact/dnascramble
+	my_effect = /datum/artifact_effect/dnaswitch

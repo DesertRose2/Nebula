@@ -1,12 +1,12 @@
 //Basically a one way passive valve. If the pressure inside is greater than the environment then gas will flow passively,
 //but it does not permit gas to flow back from the environment into the injector. Can be turned off to prevent any gas flow.
-//When it receives the "inject" signal, it will try to pump it's entire contents into the environment regardless of pressure, using power.
+//When it receives the "inject" signal, it will try to pump its entire contents into the environment regardless of pressure, using power.
 
 /obj/machinery/atmospherics/unary/outlet_injector
 	icon = 'icons/atmos/injector.dmi'
 	icon_state = "off"
 
-	name = "injector"
+	name = "injector outlet"
 	desc = "Passively injects air into its surroundings. Has a valve attached to it that can control flow rate."
 
 	use_power = POWER_USE_OFF
@@ -17,7 +17,7 @@
 
 	var/volume_rate = 50	//flow rate limit
 
-	level = 1
+	level = LEVEL_BELOW_PLATING
 
 	connect_types = CONNECT_TYPE_REGULAR|CONNECT_TYPE_FUEL
 
@@ -56,7 +56,7 @@
 /obj/machinery/atmospherics/unary/outlet_injector/Initialize()
 	. = ..()
 	//Give it a small reservoir for injecting. Also allows it to have a higher flow rate limit than vent pumps, to differentiate injectors a bit more.
-	air_contents.volume = ATMOS_DEFAULT_VOLUME_PUMP + 500	
+	air_contents.total_volume = ATMOS_DEFAULT_VOLUME_PUMP + 500
 
 /obj/machinery/atmospherics/unary/outlet_injector/on_update_icon()
 	if(stat & NOPOWER)
@@ -64,33 +64,20 @@
 	else
 		icon_state = "[use_power ? "on" : "off"]"
 
-/obj/machinery/atmospherics/unary/outlet_injector/update_underlays()
-	if(..())
-		underlays.Cut()
-		var/turf/T = get_turf(src)
-		if(!istype(T))
-			return
-		if(!T.is_plating() && node && node.level == 1 && istype(node, /obj/machinery/atmospherics/pipe))
-			return
-		else
-			if(node)
-				add_underlay(T, node, dir, node.icon_connect_type)
-			else
-				add_underlay(T,, dir)
+	build_device_underlays()
 
 /obj/machinery/atmospherics/unary/outlet_injector/proc/get_console_data()
 	. = list()
 	. += "<table>"
 	. += "<tr><td><b>Name:</b></td><td>[name]</td>"
-	. += "<tr><td><b>Power:</b></td><td>[use_power?("<font color = 'green'>Injecting</font>"):("<font color = 'red'>Offline</font>")]</td><td><a href='?src=\ref[src];toggle_power=\ref[src]'>Toggle</a></td></tr>"
+	. += "<tr><td><b>Power:</b></td><td>[use_power?("<font color = 'green'>Injecting</font>"):("<font color = 'red'>Offline</font>")]</td><td><a href='byond://?src=\ref[src];toggle_power=\ref[src]'>Toggle</a></td></tr>"
 	. = JOINTEXT(.)
 
 /obj/machinery/atmospherics/unary/outlet_injector/OnTopic(mob/user, href_list, datum/topic_state/state)
 	if((. = ..()))
 		return
-	if(href_list["toggle_power"])
+	if(href_list["toggle_power"]) // todo: this could easily be refhacked if you don't have a multitool
 		update_use_power(!use_power)
-		queue_icon_update()
 		to_chat(user, "<span class='notice'>The multitool emits a short beep confirming the change.</span>")
 		return TOPIC_REFRESH
 
@@ -107,10 +94,10 @@
 	var/datum/gas_mixture/environment = loc.return_air()
 
 	if(environment && air_contents.temperature > 0)
-		var/transfer_moles = (volume_rate/air_contents.volume)*air_contents.total_moles //apply flow rate limit
+		var/transfer_moles = (volume_rate/air_contents.total_volume)*air_contents.total_moles //apply flow rate limit
 		power_draw = pump_gas(src, air_contents, environment, transfer_moles, power_rating)
-		if(network && (transfer_moles > 0))
-			network.update = 1
+		if(transfer_moles > 0)
+			update_networks()
 
 	if (power_draw >= 0)
 		last_power_draw = power_draw
@@ -133,21 +120,19 @@
 	if(air_contents.temperature > 0)
 		var/power_used = pump_gas(src, air_contents, environment, air_contents.total_moles, power_rating)
 		use_power_oneoff(power_used)
-
-		if(network)
-			network.update = 1
+		update_networks()
 
 	flick("inject", src)
 
 /obj/machinery/atmospherics/unary/outlet_injector/hide(var/i)
-	update_underlays()
+	update_icon()
 
-/obj/machinery/atmospherics/unary/outlet_injector/attackby(var/obj/item/O, var/mob/user)
-	if(isMultitool(O))
-		var/datum/browser/written/popup = new (user, "Vent Configuration Utility", "[src] Configuration Panel", 600, 200)
+/obj/machinery/atmospherics/unary/outlet_injector/attackby(var/obj/item/used_item, var/mob/user)
+	if(IS_MULTITOOL(used_item))
+		var/datum/browser/written_digital/popup = new (user, "Vent Configuration Utility", "[src] Configuration Panel", 600, 200)
 		popup.set_content(jointext(get_console_data(),"<br>"))
 		popup.open()
-		return
+		return TRUE
 	return ..()
 
 /decl/public_access/public_variable/volume_rate
@@ -156,13 +141,13 @@
 	desc = "The rate at which the machine pumps (a number)."
 	can_write = TRUE
 	has_updates = FALSE
-	var_type = IC_FORMAT_NUMBER
+	var_type = VAR_FORMAT_NUMBER
 
 /decl/public_access/public_variable/volume_rate/access_var(obj/machinery/atmospherics/unary/outlet_injector/machine)
 	return machine.volume_rate
 
 /decl/public_access/public_variable/volume_rate/write_var(obj/machinery/atmospherics/unary/outlet_injector/machine, new_value)
-	new_value = Clamp(new_value, 0, machine.air_contents.volume)
+	new_value = clamp(new_value, 0, machine.air_contents.total_volume)
 	. = ..()
 	if(.)
 		machine.volume_rate = new_value
@@ -170,7 +155,7 @@
 /decl/public_access/public_method/inject
 	name = "inject"
 	desc = "Injects gas into its environment."
-	call_proc = /obj/machinery/atmospherics/unary/outlet_injector/proc/inject
+	call_proc = TYPE_PROC_REF(/obj/machinery/atmospherics/unary/outlet_injector, inject)
 
 /decl/stock_part_preset/radio/event_transmitter/outlet_injector
 	frequency = ATMOS_TANK_FREQ

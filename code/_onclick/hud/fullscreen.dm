@@ -16,22 +16,24 @@
 			return null
 
 	if(!screen)
-		screen = new type()
+		screen = new type(null, src)
 
 	screen.icon_state = "[initial(screen.icon_state)][severity]"
 	screen.severity = severity
 
 	screens[category] = screen
 	screen.transform = null
-	if(screen && client)
-		if(screen.screen_loc != ui_entire_screen)
-			if(max(client.last_view_x_dim, client.last_view_y_dim) > 7)
-				var/matrix/M = matrix()
-				M.Scale(ceil(client.last_view_x_dim/7),ceil(client.last_view_y_dim/7))
-				screen.transform = M
-		if(stat != DEAD || screen.allstate)
-			client.screen += screen
+	if(screen && client && (stat != DEAD || screen.allstate))
+		client.screen += screen
 	return screen
+
+/mob/proc/show_screen(var/screen, var/animated)
+	set waitfor = FALSE
+	animate(screen, alpha = 0, time = animated)
+	sleep(animated)
+	if(screen && client)
+		client.screen -= screen
+		qdel(screen)
 
 /mob/proc/clear_fullscreen(category, animated = 10)
 	var/obj/screen/fullscreen/screen = screens[category]
@@ -41,12 +43,7 @@
 	screens -= category
 
 	if(animated)
-		spawn(0)
-			animate(screen, alpha = 0, time = animated)
-			sleep(animated)
-			if(client)
-				client.screen -= screen
-			qdel(screen)
+		show_screen(screen, animated)
 	else
 		if(client)
 			client.screen -= screen
@@ -73,103 +70,3 @@
 				screen.transform = M
 			client.screen |= screen
 
-/obj/screen/fullscreen
-	icon = 'icons/mob/screen_full.dmi'
-	icon_state = "default"
-	screen_loc = "CENTER-7,CENTER-7"
-	plane = FULLSCREEN_PLANE
-	mouse_opacity = 0
-	var/severity = 0
-	var/allstate = 0 //shows if it should show up for dead people too
-
-/obj/screen/fullscreen/Destroy()
-	severity = 0
-	return ..()
-
-/obj/screen/fullscreen/brute
-	icon_state = "brutedamageoverlay"
-	layer = DAMAGE_LAYER
-
-/obj/screen/fullscreen/oxy
-	icon_state = "oxydamageoverlay"
-	layer = DAMAGE_LAYER
-
-/obj/screen/fullscreen/crit
-	icon_state = "passage"
-	layer = CRIT_LAYER
-
-/obj/screen/fullscreen/blind
-	icon_state = "blackimageoverlay"
-	layer = BLIND_LAYER
-
-/obj/screen/fullscreen/blackout
-	icon = 'icons/mob/screen1.dmi'
-	icon_state = "black"
-	screen_loc = ui_entire_screen
-	layer = BLIND_LAYER
-
-/obj/screen/fullscreen/impaired
-	icon_state = "impairedoverlay"
-	layer = IMPAIRED_LAYER
-
-/obj/screen/fullscreen/blurry
-	icon = 'icons/mob/screen1.dmi'
-	screen_loc = ui_entire_screen
-	icon_state = "blurry"
-	alpha = 100
-
-/obj/screen/fullscreen/flash
-	icon = 'icons/mob/screen1.dmi'
-	screen_loc = ui_entire_screen
-	icon_state = "flash"
-
-/obj/screen/fullscreen/flash/noise
-	icon_state = "noise"
-
-/obj/screen/fullscreen/high
-	icon = 'icons/mob/screen1.dmi'
-	screen_loc = ui_entire_screen
-	icon_state = "druggy"
-	alpha = 127
-	blend_mode = BLEND_MULTIPLY
-
-/obj/screen/fullscreen/noise
-	icon = 'icons/effects/static.dmi'
-	icon_state = "1 light"
-	screen_loc = ui_entire_screen
-	layer = FULLSCREEN_LAYER
-	alpha = 127
-
-/obj/screen/fullscreen/fadeout
-	icon = 'icons/mob/screen1.dmi'
-	icon_state = "black"
-	screen_loc = ui_entire_screen
-	layer = FULLSCREEN_LAYER
-	alpha = 0
-	allstate = 1
-
-/obj/screen/fullscreen/fadeout/Initialize()
-	. = ..()
-	animate(src, alpha = 255, time = 10)
-
-/obj/screen/fullscreen/scanline
-	icon = 'icons/effects/static.dmi'
-	icon_state = "scanlines"
-	screen_loc = ui_entire_screen
-	alpha = 50
-	layer = FULLSCREEN_LAYER
-
-/obj/screen/fullscreen/fishbed
-	icon_state = "fishbed"
-	allstate = 1
-
-/obj/screen/fullscreen/pain
-	icon_state = "brutedamageoverlay6"
-	alpha = 0
-
-/obj/screen/fullscreen/blueprints
-	icon = 'icons/effects/blueprints.dmi'
-	icon_state = "base"
-	screen_loc = ui_entire_screen
-	alpha = 100
-	layer = FULLSCREEN_LAYER

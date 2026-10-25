@@ -18,9 +18,9 @@
 
 /datum/random_map/winding_dungeon
 	descriptor = "winding dungeon"
-	wall_type = /turf/simulated/wall/natural
-	floor_type = /turf/simulated/floor/tiled
-	var/room_wall_type = /turf/simulated/wall
+	wall_type = /turf/wall/natural
+	floor_type = /turf/floor/tiled
+	var/room_wall_type = /turf/wall
 	var/border_wall_type = /turf/unsimulated/mineral
 
 	target_turf_type = /turf/unsimulated/mask
@@ -60,7 +60,7 @@
 	limit_x = 50
 	limit_y = 50
 
-/datum/random_map/winding_dungeon/New(var/seed, var/tx, var/ty, var/tz, var/tlx, var/tly, var/do_not_apply, var/do_not_announce, var/list/variable_list)
+/datum/random_map/winding_dungeon/New(var/tx, var/ty, var/tz, var/tlx, var/tly, var/do_not_apply, var/do_not_announce, var/used_area, var/list/variable_list)
 	for(var/variable in variable_list)
 		if(variable in src.vars)
 			src.vars[variable] = variable_list[variable]
@@ -73,10 +73,10 @@
 /datum/random_map/winding_dungeon/proc/get_appropriate_list(var/list/common, var/list/uncommon, var/list/rare, var/x, var/y)
 	var/distance = sqrt((x - round(first_room_x+first_room_width/2)) ** 2 + (y - round(first_room_y+first_room_height/2)) ** 2)
 	if(prob(distance))
-		if(prob(distance/100) && rare && rare.len)
+		if(prob(distance/100) && LAZYLEN(rare))
 			logging("Returning rare list.")
 			return rare
-		else if(uncommon && uncommon.len)
+		else if(LAZYLEN(uncommon))
 			logging("Returning uncommon list.")
 			return uncommon
 	logging("Returning common list.")
@@ -86,20 +86,18 @@
 /datum/random_map/winding_dungeon/apply_to_map()
 	logging("You have [rooms.len] # of rooms")
 	for(var/datum/room/R in rooms)
-		if(!priority_process)
-			sleep(-1)
+		CHECK_TICK
 		R.apply_to_map(origin_x,origin_y,origin_z,src)
 	..()
 	var/num_of_loot = round(limit_x * limit_y * loot_multiplier)
 	logging("Attempting to add [num_of_loot] # of loot")
 	var/sanity = 0
-	if((loot_common && loot_common.len) || (loot_uncommon && loot_uncommon.len) || (loot_rare && loot_rare.len)) //no monsters no problem
+	if((LAZYLEN(loot_common)) || (LAZYLEN(loot_uncommon)) || (LAZYLEN(loot_rare))) //no monsters no problem
 		while(rooms.len && num_of_loot > 0)
-			if(!priority_process)
-				sleep(-1)
+			CHECK_TICK
 			var/datum/room/R = pick(rooms)
 			var/list/loot_list = get_appropriate_list(loot_common, loot_uncommon, loot_rare, round(R.x+R.width/2), round(R.y+R.height/2))
-			if(!loot_list || !loot_list.len || R.add_loot(origin_x,origin_y,origin_z,pickweight(loot_list)))
+			if(!LAZYLEN(loot_list) || R.add_loot(origin_x,origin_y,origin_z,pickweight(loot_list)))
 				num_of_loot--
 				sanity -= 10 //we hahve success so more tries
 				continue
@@ -112,7 +110,7 @@
 		rooms -= R
 		qdel(R)
 
-	if((!monsters_common || !monsters_common.len) && (!monsters_uncommon || !monsters_uncommon.len) && (!monsters_rare || !monsters_rare.len)) //no monsters no problem
+	if(!LAZYLEN(monsters_common) && !LAZYLEN(monsters_uncommon) && !LAZYLEN(monsters_rare)) //no monsters no problem
 		logging("No monster lists detected. Not spawning monsters.")
 		return
 
@@ -120,16 +118,15 @@
 	logging("Attempting to add [num_of_monsters] # of monsters")
 
 	while(num_of_monsters > 0)
-		if(!priority_process)
-			sleep(-1)
-		if(!monster_available || !monster_available.len)
+		CHECK_TICK
+		if(!LAZYLEN(monster_available))
 			logging("There are no available turfs left.")
 			num_of_monsters = 0
 			continue
 		var/turf/T = pick(monster_available)
 		monster_available -= T
 		var/list/monster_list = get_appropriate_list(monsters_common, monsters_uncommon, monsters_rare, T.x, T.y)
-		if(monster_list && monster_list.len)
+		if(LAZYLEN(monster_list))
 			var/type = pickweight(monster_list)
 			logging("Generating a monster of type [type] at position ([T.x],[T.y],[origin_z])")
 			var/mob/M = new type(T)
@@ -142,26 +139,26 @@
 	monster_available = null //Get rid of all the references
 
 /datum/random_map/winding_dungeon/apply_to_turf(var/x, var/y)
-	. = ..()
-	var/turf/T = locate((origin_x-1)+x,(origin_y-1)+y,origin_z)
+	var/turf/T = ..()
 	if(T && !T.density)
 		var/can = 1
 		for(var/atom/movable/M in T)
-			if(istype(M,/mob/living) || M.density)
+			if(isliving(M) || M.density)
 				can = 0
 				break
 		if(can)
 			monster_available += T
+	return T
 
 /datum/random_map/winding_dungeon/generate_map()
 	logging("Winding Dungeon Generation Start")
 	//first generate the border
 	for(var/xx = 1, xx <= limit_x, xx++)
-		map[get_map_cell(xx,1)] = BORDER_CHAR
-		map[get_map_cell(xx,limit_y)] = BORDER_CHAR
+		map[TRANSLATE_COORD(xx,1)] = BORDER_CHAR
+		map[TRANSLATE_COORD(xx,limit_y)] = BORDER_CHAR
 	for(var/yy = 1, yy < limit_y, yy++)
-		map[get_map_cell(1,yy)] = BORDER_CHAR
-		map[get_map_cell(limit_x,yy)] = BORDER_CHAR
+		map[TRANSLATE_COORD(1,yy)] = BORDER_CHAR
+		map[TRANSLATE_COORD(limit_x,yy)] = BORDER_CHAR
 
 	var/num_of_features = limit_x * limit_y * features_multiplier
 	logging("Number of features: [num_of_features]")
@@ -170,9 +167,7 @@
 	logging("First room result: [result ? "Success" : "Failure"]")
 	var/sanity = 0
 	for(sanity = 0, sanity < 1000, sanity++)
-		if(!priority_process)
-			sleep(-1)
-
+		CHECK_TICK
 		if(currentFeatures == num_of_features)
 			break
 		/* WHAT THIS CODE IS DOING:
@@ -202,7 +197,7 @@
 				logging("open_positions empty. Using randomly chosen coords ([newx],[newy])")
 
 			//We want to make sure we aren't RIGHT next to another corridor or something.
-			if(map[get_map_cell(newx,newy+1)] == ARTIFACT_CHAR || map[get_map_cell(newx-1,newy)] == ARTIFACT_CHAR || map[get_map_cell(newx,newy-1)] == ARTIFACT_CHAR || map[get_map_cell(newx+1,newy)] == ARTIFACT_CHAR)
+			if(LAZYACCESS(map, TRANSLATE_COORD(newx,newy+1)) == ARTIFACT_CHAR || LAZYACCESS(map, TRANSLATE_COORD(newx-1,newy)) == ARTIFACT_CHAR || LAZYACCESS(map, TRANSLATE_COORD(newx,newy-1)) == ARTIFACT_CHAR || LAZYACCESS(map, TRANSLATE_COORD(newx+1,newy)) == ARTIFACT_CHAR)
 				logging("Coords ([newx],[newy]) are too close to an ARTIFACT_CHAR position.")
 				continue
 
@@ -212,9 +207,9 @@
 			height = rand(room_size_min,room_size_max)
 			isRoom = rand(100) <= chance_of_room
 
-			if(map[get_map_cell(newx, newy)] == ARTIFACT_TURF_CHAR || map[get_map_cell(newx, newy)] == CORRIDOR_TURF_CHAR)
+			if(LAZYACCESS(map, TRANSLATE_COORD(newx, newy)) == ARTIFACT_TURF_CHAR || LAZYACCESS(map, TRANSLATE_COORD(newx, newy)) == CORRIDOR_TURF_CHAR)
 				//we are basically checking to see where we're going. Up, right, down or left and finding the bottom left corner.
-				if(map[get_map_cell(newx,newy+1)] == FLOOR_CHAR || map[get_map_cell(newx,newy+1)] == CORRIDOR_TURF_CHAR) //0 - down
+				if(LAZYACCESS(map, TRANSLATE_COORD(newx,newy+1)) == FLOOR_CHAR || LAZYACCESS(map, TRANSLATE_COORD(newx,newy+1)) == CORRIDOR_TURF_CHAR) //0 - down
 					logging("This feature is DOWN")
 					if(isRoom) //gotta do some math for this one, since the origin is centered.
 						xmod = -width/2
@@ -224,7 +219,7 @@
 					ymod = -height //a lot of this will seem nonsense but I swear its not
 					doorx = 0
 					doory = -1
-				else if(map[get_map_cell(newx-1,newy)] == FLOOR_CHAR || map[get_map_cell(newx-1,newy)] == CORRIDOR_TURF_CHAR) //1 - right
+				else if(LAZYACCESS(map, TRANSLATE_COORD(newx-1,newy)) == FLOOR_CHAR || LAZYACCESS(map, TRANSLATE_COORD(newx-1,newy)) == CORRIDOR_TURF_CHAR) //1 - right
 					logging("This feature is RIGHT")
 					if(isRoom)
 						ymod = -height/2
@@ -234,7 +229,7 @@
 					xmod = 1
 					doorx = 1
 					doory = 0
-				else if(map[get_map_cell(newx,newy-1)] == FLOOR_CHAR || map[get_map_cell(newx,newy-1)] == CORRIDOR_TURF_CHAR) //2 - up
+				else if(LAZYACCESS(map, TRANSLATE_COORD(newx,newy-1)) == FLOOR_CHAR || LAZYACCESS(map, TRANSLATE_COORD(newx,newy-1)) == CORRIDOR_TURF_CHAR) //2 - up
 					logging("This feature is UP")
 					if(isRoom)
 						xmod = -width/2
@@ -244,7 +239,7 @@
 					ymod = 1
 					doorx = 0
 					doory = 1
-				else if(map[get_map_cell(newx+1,newy)] == FLOOR_CHAR || map[get_map_cell(newx+1,newy)] == CORRIDOR_TURF_CHAR) // 3 - left
+				else if(LAZYACCESS(map, TRANSLATE_COORD(newx+1,newy)) == FLOOR_CHAR || LAZYACCESS(map, TRANSLATE_COORD(newx+1,newy)) == CORRIDOR_TURF_CHAR) // 3 - left
 					logging("This feature is LEFT")
 					if(isRoom)
 						ymod = -height/2
@@ -268,16 +263,17 @@
 			currentFeatures++
 			if(isRoom)
 				logging("Room created at: [newx+xmod], [newy+ymod].")
-				map[get_map_cell(newx,newy)] = FLOOR_CHAR
-				map[get_map_cell(newx+doorx,newy+doory)] = ARTIFACT_CHAR
+				map[TRANSLATE_COORD(newx,newy)] = FLOOR_CHAR
+				map[TRANSLATE_COORD(newx+doorx,newy+doory)] = ARTIFACT_CHAR
 				if(rand(0,100) >= chance_of_room_empty)
 					var/room_result = create_room_features(round(newx+xmod),round(newy+ymod),width,height)
 					logging("Attempted room feature creation: [room_result ? "Success" : "Failure"]")
 			else
 				logging("Creating corridor.")
-				var/door = get_map_cell(newx,newy)
-				if(map[door] == ARTIFACT_TURF_CHAR)
-					map[door] = ARTIFACT_CHAR
+				var/tmp_cell
+				TRANSLATE_AND_VERIFY_COORD(newx,newy)
+				if(map[tmp_cell] == ARTIFACT_TURF_CHAR)
+					map[tmp_cell] = ARTIFACT_CHAR
 	logging("Map completed. Loops: [sanity], [currentFeatures] out of [num_of_features] created.")
 	open_positions.Cut()
 
@@ -292,17 +288,17 @@
 					if(xtemp < 0 || xtemp > limit_x)
 						logging("We are beyond our x limits")
 						return 0
-					if(map[get_map_cell(xtemp,ytemp)] != WALL_CHAR)
+					if(map[TRANSLATE_COORD(xtemp,ytemp)] != WALL_CHAR)
 						logging("[xtemp],[ytemp] is not equal to WALL_CHAR")
 						return 0
 				else
 					if(wall_char && (ytemp == truey || ytemp == truey + height - 1 || xtemp == truex || xtemp == truex + width - 1))
-						map[get_map_cell(xtemp,ytemp)] = wall_char
+						map[TRANSLATE_COORD(xtemp,ytemp)] = wall_char
 						if(!("[xtemp]:[ytemp]" in open_positions))
 							open_positions += "[xtemp]:[ytemp]"
 							logging("Adding \"[xtemp]:[ytemp]\" to open_positions (length: [open_positions.len])")
 					else
-						map[get_map_cell(xtemp,ytemp)] = char
+						map[TRANSLATE_COORD(xtemp,ytemp)] = char
 	return 1
 
 /datum/random_map/winding_dungeon/proc/create_room_features(var/rox,var/roy,var/width,var/height)
@@ -316,10 +312,6 @@
 		return 0
 	rooms += R
 	return 1
-
-/datum/random_map/winding_dungeon/proc/add_loot(var/xorigin,var/yorigin,var/zorigin,var/type)
-	var/datum/room/room = pick(rooms)
-	return room.add_loot(type)
 
 /datum/random_map/winding_dungeon/get_appropriate_path(var/value)
 	switch(value)

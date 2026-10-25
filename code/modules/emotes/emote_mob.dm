@@ -1,24 +1,55 @@
-/mob/proc/can_emote(var/emote_type)
+/mob
+	var/next_emote
+	var/next_emote_refresh
+	var/last_emote_summary
+
+/mob/proc/can_emote(emote_type, show_message)
+	. = check_mob_can_emote(emote_type)
+	if(!. && show_message)
+		to_chat(show_message, SPAN_WARNING("You cannot currently [emote_type == AUDIBLE_MESSAGE ? "audibly" : "visually"] emote!"))
+
+/mob/proc/check_mob_can_emote(var/emote_type)
+	SHOULD_CALL_PARENT(TRUE)
 	return (stat == CONSCIOUS)
 
-/mob/living/can_emote(var/emote_type)
-	return (..() && !(silent && emote_type == AUDIBLE_MESSAGE))
+/mob/living/check_mob_can_emote(var/emote_type)
+	return ..() && !(HAS_STATUS(src, STAT_SILENCE) && emote_type == AUDIBLE_MESSAGE)
 
+/mob/living/brain/check_mob_can_emote(var/emote_type, allow_brain_emote = FALSE)
+	return ..() && allow_brain_emote
+
+#define EMOTE_REFRESH_SPAM_COOLDOWN (5 SECONDS)
 /mob/proc/emote(var/act, var/m_type, var/message)
-	// s-s-snowflake
-	if(src.stat == DEAD && act != "deathgasp")
+	set waitfor = FALSE
+
+	if(stat == DEAD && act != "deathgasp")
 		return
+
+	var/decl/emote/use_emote
+	if(ispath(act, /decl/emote))
+		use_emote = GET_DECL(act)
+		m_type = use_emote.message_type
+
+	var/show_message_to
 	if(usr == src) //client-called emote
-		if (client && (client.prefs.muted & MUTE_IC))
-			to_chat(src, "<span class='warning'>You cannot send IC messages (muted).</span>")
+		if (client?.prefs?.muted & MUTE_IC)
+			to_chat(src, SPAN_WARNING("You cannot send IC messages (muted)."))
+			return
+
+		if(world.time < next_emote)
+			to_chat(src, SPAN_WARNING("You cannot use another emote yet."))
 			return
 
 		if(act == "help")
-			to_chat(src,"<b>Usable emotes:</b> [english_list(usable_emotes)]")
-			return
-
-		if(!can_emote(m_type))
-			to_chat(src, "<span class='warning'>You cannot currently [m_type == AUDIBLE_MESSAGE ? "audibly" : "visually"] emote!</span>")
+			if(world.time >= next_emote_refresh)
+				var/list/usable_emotes = list()
+				next_emote_refresh = world.time + EMOTE_REFRESH_SPAM_COOLDOWN
+				for(var/emote in get_default_emotes())
+					var/decl/emote/emote_datum = GET_DECL(emote)
+					if(emote_datum.mob_can_use(src, assume_available = TRUE))
+						usable_emotes[emote_datum.key] = emote_datum
+				last_emote_summary = english_list(sortTim(usable_emotes, /proc/cmp_text_asc, associative = TRUE))
+			to_chat(src, "<b>Usable emotes:</b> [last_emote_summary].")
 			return
 
 		if(act == "me")
@@ -36,29 +67,44 @@
 					m_type = AUDIBLE_MESSAGE
 			return custom_emote(m_type, message)
 
+		show_message_to = usr
+
+	if(!can_emote(m_type, show_message_to))
+		return
+
 	var/splitpoint = findtext(act, " ")
 	if(splitpoint > 0)
 		var/tempstr = act
 		act = copytext(tempstr,1,splitpoint)
 		message = copytext(tempstr,splitpoint+1,0)
 
-	var/decl/emote/use_emote = usable_emotes[act]
 	if(!use_emote)
-		to_chat(src, "<span class='warning'>Unknown emote '[act]'. Type <b>say *help</b> for a list of usable emotes.</span>")
+		use_emote = get_emote_by_key(act)
+
+	if(!istype(use_emote))
+		to_chat(show_message_to, SPAN_WARNING("Unknown emote '[act]'. Type <b>say *help</b> for a list of usable emotes."))
+		return
+
+	if(!use_emote.mob_can_use(src))
+		to_chat(show_message_to, SPAN_WARNING("You cannot use the emote '[act]'. Type <b>say *help</b> for  a list of usable emotes."))
 		return
 
 	if(m_type != use_emote.message_type && use_emote.conscious && stat != CONSCIOUS)
 		return
 
-	if(use_emote.message_type == AUDIBLE_MESSAGE && is_muzzled())
-		audible_message("<b>\The [src]</b> makes a muffled sound.")
+	if(use_emote.message_type == AUDIBLE_MESSAGE && get_item_blocking_speech())
+		audible_message("<b>\The [src]</b> [use_emote.emote_message_muffled || "makes a muffled sound."]")
 		return
-	else
-		use_emote.do_emote(src, message)
 
-	for (var/obj/item/implant/I in src)
-		if (I.implanted)
-			I.trigger(act, src)
+	next_emote = world.time + use_emote.emote_delay
+	use_emote.do_emote(src, message)
+
+	for (var/obj/item/implant/implant in src)
+		if(!implant.implanted)
+			continue
+		implant.trigger(act, src)
+
+#undef EMOTE_REFRESH_SPAM_COOLDOWN
 
 /mob/proc/format_emote(var/emoter = null, var/message = null)
 	var/pretext
@@ -71,8 +117,6 @@
 
 	if(!message || !emoter)
 		return
-
-	message = html_decode(message)
 
 	name_anchor = findtext(message, anchor_char)
 	if(name_anchor > 0) // User supplied emote with visible_emote token (default ^)
@@ -94,11 +138,7 @@
 		if(end_char != " ")
 			pretext += " "
 
-	// Grab the last character of the emote message.
-	end_char = copytext(subtext, length(subtext), length(subtext) + 1)
-	if(!(end_char in list(".", "?", "!", "\"", "-", "~"))) // gotta include ~ for all you fucking weebs
-		// No punctuation supplied. Tack a period on the end.
-		subtext += "."
+	handle_autopunctuation(subtext)
 
 	// Add a space to the subtext, unless it begins with an apostrophe or comma.
 	if(subtext != ".")
@@ -108,17 +148,13 @@
 		if(start_char != "," && start_char != "'")
 			subtext = " " + subtext
 
-	pretext = capitalize(html_encode(pretext))
-	nametext = html_encode(nametext)
-	subtext = html_encode(subtext)
 	// Store the player's name in a nice bold, naturalement
 	nametext = "<B>[emoter]</B>"
-	return pretext + nametext + subtext
+	return capitalize(pretext) + nametext + subtext
 
 /mob/proc/custom_emote(var/m_type = VISIBLE_MESSAGE, var/message = null)
-
-	if((usr && stat) || (!use_me && usr == src))
-		to_chat(src, "You are unable to emote.")
+	set waitfor = FALSE
+	if(!can_emote(m_type, src))
 		return
 
 	var/input
@@ -127,27 +163,30 @@
 	else
 		input = message
 
-	if(input)
-		message = format_emote(src, message)
-	else
+	if(!input)
 		return
+
+	message = trim(html_encode(message))
+	message = filter_modify_message(message)
+	message = format_emote(src, message)
+	message = trim(html_decode(message))
 
 	if (message)
 		log_emote("[name]/[key] : [message]")
 	//do not show NPC animal emotes to ghosts, it turns into hellscape
 	var/check_ghosts = client ? /datum/client_preference/ghost_sight : null
 	if(m_type == VISIBLE_MESSAGE)
-		visible_message(message, checkghosts = check_ghosts)
+		visible_message(message, check_ghosts = check_ghosts)
 	else
-		audible_message(message, checkghosts = check_ghosts)
+		audible_message(message, check_ghosts = check_ghosts)
 
 // Specific mob type exceptions below.
 /mob/living/silicon/ai/emote(var/act, var/type, var/message)
-	var/obj/machinery/hologram/holopad/T = src.holo
+	var/obj/machinery/holopad/T = src.holo
 	if(T && T.masters[src]) //Is the AI using a holopad?
 		src.holopad_emote(message)
-	else //Emote normally, then.
-		..()
+		return
+	return ..()
 
 /mob/living/captive_brain/emote(var/message)
 	return

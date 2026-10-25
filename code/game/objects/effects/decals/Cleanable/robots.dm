@@ -1,33 +1,29 @@
 /obj/effect/decal/cleanable/blood/gibs/robot
 	name = "robot debris"
 	desc = "It's a useless heap of junk..."
-	icon = 'icons/mob/robots_gibs.dmi'
+	icon = 'icons/mob/robots/_gibs.dmi'
 	icon_state = "gib1"
-	basecolor = SYNTH_BLOOD_COLOUR
+	basecolor = SYNTH_BLOOD_COLOR
 	random_icon_states = list("gib1", "gib2", "gib3", "gib4", "gib5", "gib6", "gib7")
 	cleanable_scent = "industrial lubricant"
 	scent_intensity = /decl/scent_intensity/normal
 	scent_range = 2
+	chemical = /decl/material/liquid/lube
 
 /obj/effect/decal/cleanable/blood/gibs/robot/on_update_icon()
 	color = "#ffffff"
 
-/obj/effect/decal/cleanable/blood/gibs/robot/dry()	//pieces of robots do not dry up like
-	return
-
 /obj/effect/decal/cleanable/blood/gibs/robot/streak(var/list/directions)
 	spawn (0)
 		var/direction = pick(directions)
-		for (var/i = 0, i < pick(1, 200; 2, 150; 3, 50; 4), i++)
+		for (var/i in 1 to pick(1, 200; 2, 150; 3, 50; 4))
 			sleep(3)
-			if (i > 0)
+			if (i > 1)
 				if (prob(40))
 					var/obj/effect/decal/cleanable/blood/oil/streak = new(src.loc)
 					streak.update_icon()
 				else if (prob(10))
-					var/datum/effect/effect/system/spark_spread/s = new /datum/effect/effect/system/spark_spread
-					s.set_up(3, 1, src)
-					s.start()
+					spark_at(src, cardinal_only = TRUE)
 			if (step_to(src, get_step(src, direction), 0))
 				break
 
@@ -41,10 +37,13 @@
 	random_icon_states = list("gib1", "gib2", "gib3", "gib4", "gib5", "gib6", "gib7","gibdown1","gibdown1") //2:7 is close enough to 1:4
 
 /obj/effect/decal/cleanable/blood/oil
-	basecolor = SYNTH_BLOOD_COLOUR
+	basecolor = SYNTH_BLOOD_COLOR
+	chemical = /decl/material/liquid/lube
+	cleanable_scent = "industrial lubricant"
 
-/obj/effect/decal/cleanable/blood/oil/dry()
-	return
+/obj/effect/decal/cleanable/blood/oil/Initialize(mapload)
+	. = ..()
+	update_icon()
 
 /obj/effect/decal/cleanable/blood/oil/streak
 	random_icon_states = list("mgibbl1", "mgibbl2", "mgibbl3", "mgibbl4", "mgibbl5")

@@ -1,20 +1,3 @@
-/decl/language/ling
-	name = "Changeling"
-	desc = "Although they are normally wary and suspicious of each other, changelings can commune over a distance."
-	speech_verb = "says"
-	colour = "changeling"
-	key = "g"
-	flags = RESTRICTED | HIVEMIND
-	shorthand = "N/A"
-	hidden_from_codex = TRUE
-
-/decl/language/ling/broadcast(var/mob/living/speaker,var/message,var/speaker_mask)
-
-	if(speaker.mind && speaker.mind.changeling)
-		..(speaker,message,speaker.mind.changeling.changelingID)
-	else
-		..(speaker,message)
-
 /decl/language/cultcommon
 	name = "Cult"
 	desc = "The chants of the occult, the incomprehensible."
@@ -22,8 +5,8 @@
 	ask_verb = "intones"
 	exclaim_verb = "chants"
 	colour = "cult"
-	key = "f"
-	flags = RESTRICTED
+	language_key = "cult"
+	language_flags = LANG_FLAG_RESTRICTED
 	space_chance = 100
 	syllables = list("ire","ego","nahlizet","certum","veri","jatkaa","mgar","balaq", "karazet", "geeri", \
 		"orkan", "allaq", "sas'so", "c'arta", "forbici", "tarem", "n'ath", "reth", "sh'yro", "eth", "d'raggathnor", \
@@ -43,8 +26,8 @@
 	ask_verb = "intones"
 	exclaim_verb = "chants"
 	colour = "cult"
-	key = "y"
-	flags = RESTRICTED | HIVEMIND
+	language_key = "occult"
+	language_flags = LANG_FLAG_RESTRICTED | LANG_FLAG_HIVEMIND
 	shorthand = "N/A"
 	hidden_from_codex = TRUE
 
@@ -52,8 +35,8 @@
 	name = "Alium"
 	colour = "cult"
 	speech_verb = "hisses"
-	key = "c"
-	flags = RESTRICTED
+	language_key = "alien"
+	language_flags = LANG_FLAG_RESTRICTED
 	syllables = list("qy","bok","mok","yok","dy","gly","ryl","byl","dok","forbici", "tarem", "n'ath", "reth", "sh'yro", "eth", "d'raggathnor","niii",
 	"d'rekkathnor", "khari'd", "gual'te", "ki","ki","ki","ki","ya","ta","wej","nym","assah","qwssa","nieasl","qyno","shaffar",
 	"eg","bog","voijs","nekks","bollos","qoulsan","borrksakja","neemen","aka","nikka","qyegno","shafra","beolas","Byno")
@@ -61,13 +44,13 @@
 	shorthand = "AL"
 	hidden_from_codex = TRUE
 
-/decl/language/alium/New()
+/decl/language/alium/Initialize()
+	. = ..()
 	speech_verb = pick("hisses","growls","whistles","blubbers","chirps","skreeches","rumbles","clicks")
-	..()
 
-/decl/language/alium/get_random_name()
+/decl/language/alium/get_random_language_name(gender, name_count=2, syllable_count=4, syllable_divisor=2)
 	var/new_name = ""
-	var/length = rand(1,3)
-	for(var/i=0 to length)
+	var/name_length = rand(1,3)
+	for(var/i=0 to name_length)
 		new_name += pick(syllables)
 	return capitalize(new_name)

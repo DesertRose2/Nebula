@@ -5,68 +5,87 @@
 	item_state = "assembly"
 	movable_flags = MOVABLE_FLAG_PROXMOVE
 	obj_flags = OBJ_FLAG_CONDUCTIBLE
-	throwforce = 5
 	w_class = ITEM_SIZE_SMALL
 	throw_speed = 3
 	throw_range = 10
+	is_spawnable_type = FALSE
 
 	var/secured = 0
 	var/obj/item/assembly/a_left = null
 	var/obj/item/assembly/a_right = null
 	var/obj/special_assembly = null
 
-	proc/attach(var/obj/item/D, var/obj/item/D2, var/mob/user)
-		return
+/obj/item/assembly_holder/Initialize()
+	. = ..()
+	global.listening_objects += src
 
-	proc/attach_special(var/obj/O, var/mob/user)
-		return
+/obj/item/assembly_holder/Destroy()
 
-	proc/process_activation(var/obj/item/D)
-		return
+	if(a_left)
+		if(a_left.holder == src)
+			a_left.holder = null
+		if(!QDELETED(a_left))
+			qdel(a_left)
+		a_left = null
 
-	proc/detached()
-		return
+	if(a_right)
+		if(a_right.holder == src)
+			a_right.holder = null
+		if(!QDELETED(a_right))
+			qdel(a_right)
+		a_right = null
 
+	if(special_assembly)
+		if(!QDELETED(special_assembly))
+			qdel(special_assembly)
+		special_assembly = null
 
-	IsAssemblyHolder()
-		return 1
+	return ..()
 
+/obj/item/assembly_holder/proc/attach(var/obj/item/left_item, var/obj/item/right_item, var/mob/user)
+	if(!istype(left_item) || !istype(right_item))
+		return 0
+	var/obj/item/assembly/left = left_item
+	var/obj/item/assembly/right = right_item
+	if((left.secured)||(right.secured))
+		return 0
+	if(user)
+		user.drop_from_inventory(left)
+		user.drop_from_inventory(right)
+	left.holder = src
+	right.holder = src
+	left.forceMove(src)
+	right.forceMove(src)
+	a_left = left
+	a_right = right
+	SetName("[left.name]-[right.name] assembly")
+	update_icon()
+	usr.put_in_hands(src)
 
-	attach(var/obj/item/assembly/D, var/obj/item/assembly/D2, var/mob/user)
-		if((!D)||(!D2))
-			return 0
-		if((!istype(D))||(!istype(D2)))
-			return 0
-		if((D.secured)||(D2.secured))
-			return 0
-		if(user)
-			user.drop_from_inventory(D)
-			user.drop_from_inventory(D2)
-		D.holder = src
-		D2.holder = src
-		D.forceMove(src)
-		D2.forceMove(src)
-		a_left = D
-		a_right = D2
-		SetName("[D.name]-[D2.name] assembly")
-		update_icon()
-		usr.put_in_hands(src)
+	return 1
 
-		return 1
+/obj/item/assembly_holder/proc/process_activation(var/atom/activator, var/normal = 1, var/special = 1)
+	if(!activator)	return 0
+	if(!secured)
+		visible_message("[html_icon(src)] *beep* *beep*", "*beep* *beep*")
+	if((normal) && (a_right) && (a_left))
+		if(a_right != activator)
+			a_right.pulsed(0)
+		if(a_left != activator)
+			a_left.pulsed(0)
+	if(master)
+		master.receive_signal()
+//	if(special && special_assembly)
+//		if(!special_assembly == activator)
+//			special_assembly.dothings()
+	return 1
 
+/obj/item/assembly_holder/proc/detached()
+	return
 
-	attach_special(var/obj/O, var/mob/user)
-		if(!O)	return
-		if(!O.IsSpecialAssembly())	return 0
-
-/*		if(O:Attach_Holder())
-			special_assembly = O
-			update_icon()
-			src.SetName("[a_left.name] [a_right.name] [special_assembly.name] assembly")
-*/
-		return
-
-	HasProximity(atom/movable/AM as mob|obj)
+/obj/item/assembly_holder/HasProximity(atom/movable/AM)
+	. = ..()
+	if(.)
 		if(a_left)
 			a_left.HasProximity(AM)
 		if(a_right)
@@ -75,147 +94,104 @@
 			special_assembly.HasProximity(AM)
 
 
-	Crossed(atom/movable/AM as mob|obj)
-		if(a_left)
-			a_left.Crossed(AM)
-		if(a_right)
-			a_right.Crossed(AM)
-		if(special_assembly)
-			special_assembly.Crossed(AM)
+/obj/item/assembly_holder/Crossed(atom/movable/AM)
+	if(a_left)
+		a_left.Crossed(AM)
+	if(a_right)
+		a_right.Crossed(AM)
+	if(special_assembly)
+		special_assembly.Crossed(AM)
 
+/obj/item/assembly_holder/on_found(mob/finder as mob)
+	if(a_left)
+		a_left.on_found(finder)
+	if(a_right)
+		a_right.on_found(finder)
+	if(special_assembly)
+		if(istype(special_assembly, /obj/item))
+			var/obj/item/S = special_assembly
+			S.on_found(finder)
 
-	on_found(mob/finder as mob)
-		if(a_left)
-			a_left.on_found(finder)
-		if(a_right)
-			a_right.on_found(finder)
-		if(special_assembly)
-			if(istype(special_assembly, /obj/item))
-				var/obj/item/S = special_assembly
-				S.on_found(finder)
-
-
-	Move()
-		..()
-		if(a_left && a_right)
-			a_left.holder_movement()
-			a_right.holder_movement()
-//		if(special_assembly)
-//			special_assembly:holder_movement()
-		return
-
-
-	attack_hand()//Perhapse this should be a holder_pickup proc instead, can add if needbe I guess
-		if(a_left && a_right)
-			a_left.holder_movement()
-			a_right.holder_movement()
-//		if(special_assembly)
-//			special_assembly:Holder_Movement()
-		..()
-		return
-
-
-	attackby(obj/item/W as obj, mob/user as mob)
-		if(isScrewdriver(W))
-			if(!a_left || !a_right)
-				to_chat(user, "<span class='warning'>BUG:Assembly part missing, please report this!</span>")
-				return
-			a_left.toggle_secure()
-			a_right.toggle_secure()
-			secured = !secured
-			if(secured)
-				to_chat(user, "<span class='notice'>\The [src] is ready!</span>")
-			else
-				to_chat(user, "<span class='notice'>\The [src] can now be taken apart!</span>")
-			update_icon()
-			return
-		else if(W.IsSpecialAssembly())
-			attach_special(W, user)
-		else
-			..()
-		return
-
-
-	attack_self(mob/user as mob)
-		src.add_fingerprint(user)
-		if(src.secured)
-			if(!a_left || !a_right)
-				to_chat(user, "<span class='warning'>Assembly part missing!</span>")
-				return
-			if(istype(a_left,a_right.type))//If they are the same type it causes issues due to window code
-				switch(alert("Which side would you like to use?",,"Left","Right"))
-					if("Left")	a_left.attack_self(user)
-					if("Right")	a_right.attack_self(user)
-				return
-			else
-				if(!istype(a_left,/obj/item/assembly/igniter))
-					a_left.attack_self(user)
-				if(!istype(a_right,/obj/item/assembly/igniter))
-					a_right.attack_self(user)
-		else
-			var/turf/T = get_turf(src)
-			if(!T)	return 0
-			if(a_left)
-				a_left.holder = null
-				a_left.forceMove(T)
-			if(a_right)
-				a_right.holder = null
-				a_right.forceMove(T)
-			spawn(0)
-				qdel(src)
-		return
-
-
-	process_activation(var/obj/D, var/normal = 1, var/special = 1)
-		if(!D)	return 0
-		if(!secured)
-			visible_message("\icon[src] *beep* *beep*", "*beep* *beep*")
-		if((normal) && (a_right) && (a_left))
-			if(a_right != D)
-				a_right.pulsed(0)
-			if(a_left != D)
-				a_left.pulsed(0)
-		if(master)
-			master.receive_signal()
-//		if(special && special_assembly)
-//			if(!special_assembly == D)
-//				special_assembly.dothings()
-		return 1
-
-
-/obj/item/assembly_holder/Initialize()
+/obj/item/assembly_holder/Move()
 	. = ..()
-	GLOB.listening_objects += src
+	if(. && a_left && a_right)
+		a_left.holder_movement()
+		a_right.holder_movement()
 
-/obj/item/assembly_holder/Destroy()
-	GLOB.listening_objects -= src
+/obj/item/assembly_holder/attack_hand()//Perhapse this should be a holder_pickup proc instead, can add if needbe I guess
+	if(a_left && a_right)
+		a_left.holder_movement()
+		a_right.holder_movement()
 	return ..()
 
+/obj/item/assembly_holder/attackby(obj/item/used_item, mob/user)
+	if(IS_SCREWDRIVER(used_item))
+		if(!a_left || !a_right)
+			to_chat(user, "<span class='warning'>BUG:Assembly part missing, please report this!</span>")
+			return TRUE
+		a_left.toggle_secure()
+		a_right.toggle_secure()
+		secured = !secured
+		if(secured)
+			to_chat(user, "<span class='notice'>\The [src] is ready!</span>")
+		else
+			to_chat(user, "<span class='notice'>\The [src] can now be taken apart!</span>")
+		update_icon()
+		return TRUE
+	return ..()
 
-/obj/item/assembly_holder/hear_talk(mob/living/M, msg, verb, decl/language/speaking)
-	if(a_right)
-		a_right.hear_talk(M,msg,verb,speaking)
-	if(a_left)
-		a_left.hear_talk(M,msg,verb,speaking)
+/obj/item/assembly_holder/attack_self(mob/user as mob)
+	src.add_fingerprint(user)
+	if(src.secured)
+		if(!a_left || !a_right)
+			to_chat(user, "<span class='warning'>Assembly part missing!</span>")
+			return
+		if(istype(a_left,a_right.type))//If they are the same type it causes issues due to window code
+			switch(alert("Which side would you like to use?",,"Left","Right"))
+				if("Left")	a_left.attack_self(user)
+				if("Right")	a_right.attack_self(user)
+			return
+		else
+			if(!istype(a_left,/obj/item/assembly/igniter))
+				a_left.attack_self(user)
+			if(!istype(a_right,/obj/item/assembly/igniter))
+				a_right.attack_self(user)
+	else
+		var/turf/T = get_turf(src)
+		if(!T)	return 0
+		if(a_left)
+			a_left.holder = null
+			a_left.forceMove(T)
+		if(a_right)
+			a_right.holder = null
+			a_right.forceMove(T)
+		qdel(src)
+	return
 
-/obj/item/assembly_holder/examine(mob/user, distance)
+/obj/item/assembly_holder/hear_talk(mob/living/speaker, datum/speech/phrases, verb, stars, decl/language/force_language)
+	a_left?.hear_talk( speaker, phrases, verb, stars, force_language)
+	a_right?.hear_talk(speaker, phrases, verb, stars, force_language)
+
+/obj/item/assembly_holder/get_examine_strings(mob/user, distance, infix, suffix)
 	. = ..()
 	if (distance <= 1 || src.loc == user)
 		if (src.secured)
-			to_chat(user, "\The [src] is ready!")
+			. += "\The [src] is ready!"
 		else
-			to_chat(user, "\The [src] can be attached!")
+			. += "\The [src] can be attached!"
 
 /obj/item/assembly_holder/on_update_icon()
-	overlays.Cut()
+	. = ..()
 	if(a_left)
-		overlays += "[a_left.icon_state]_left"
+		var/list/left_overlays = list(overlay_image(icon, "[a_left.icon_state]_left"))
 		for(var/O in a_left.attached_overlays)
-			overlays += "[O]_l"
+			left_overlays += "[O]_l"
+		add_overlay(left_overlays)
 	if(a_right)
-		src.overlays += "[a_right.icon_state]_right"
+		var/list/right_overlays = list(overlay_image(icon, "[a_right.icon_state]_right"))
 		for(var/O in a_right.attached_overlays)
-			overlays += "[O]_r"
+			right_overlays += "[O]_r"
+		add_overlay(right_overlays)
 	if(master)
 		master.update_icon()
 

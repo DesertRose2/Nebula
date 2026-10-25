@@ -3,64 +3,64 @@
 
 /decl/hierarchy/supply_pack/galley/food
 	name = "General - Kitchen supplies"
-	contains = list(/obj/item/chems/food/condiment/flour = 6,
-					/obj/item/chems/food/drinks/milk = 4,
-					/obj/item/chems/food/drinks/soymilk = 2,
-					/obj/item/storage/fancy/egg_box = 2,
-					/obj/item/chems/food/snacks/tofu = 4,
-					/obj/item/chems/food/snacks/meat = 4,
-					/obj/item/chems/food/condiment/enzyme = 1
+	contains = list(/obj/item/chems/condiment/flour = 6,
+					/obj/item/chems/condiment/yeast = 1,
+					/obj/item/chems/condiment/spices = 1,
+					/obj/item/chems/drinks/milk = 4,
+					/obj/item/chems/drinks/soymilk = 2,
+					/obj/item/food/dairy/butter/stick = 2,
+					/obj/item/food/dairy/butter/stick/margarine = 2,
+					/obj/item/box/fancy/egg_box = 2,
+					/obj/item/food/tofu = 4,
+					/obj/item/food/butchery/meat = 4,
+					/obj/item/chems/condiment/enzyme = 1
 					)
-	cost = 10
 	containertype = /obj/structure/closet/crate/freezer
 	containername = "kitchen supplies crate"
 
 /decl/hierarchy/supply_pack/galley/beef
 	name = "Perishables - Beef"
-	contains = list(/obj/item/chems/food/snacks/meat/beef = 6)
+	contains = list(/obj/item/food/butchery/meat/beef = 6)
 	containertype = /obj/structure/closet/crate/freezer
 	containername = "cow meat crate"
-	cost = 20
 
 /decl/hierarchy/supply_pack/galley/goat
 	name = "Perishables - Goat meat"
-	contains = list(/obj/item/chems/food/snacks/meat/goat = 6)
+	contains = list(/obj/item/food/butchery/meat/goat = 6)
 	containertype = /obj/structure/closet/crate/freezer
 	containername = "goat meat crate"
-	cost = 20
 
 /decl/hierarchy/supply_pack/galley/chicken
 	name = "Perishables - Poultry"
-	contains = list(/obj/item/chems/food/snacks/meat/chicken = 6)
+	contains = list(/obj/item/food/butchery/meat/chicken = 6)
 	containertype = /obj/structure/closet/crate/freezer
 	containername = "chicken meat crate"
-	cost = 20
 
 /decl/hierarchy/supply_pack/galley/seafood
 	name = "Perishables - Seafood"
 	contains = list(
-		/obj/item/chems/food/snacks/fish = 3,
-		/obj/item/chems/food/snacks/fish/shark = 3,
-		/obj/item/chems/food/snacks/fish/octopus = 3,
+		/obj/item/food/butchery/meat/fish = 3,
+		/obj/item/food/butchery/meat/fish/shark = 3,
+		/obj/item/food/butchery/meat/fish/octopus = 3,
 		/obj/item/mollusc/clam = 3
 		)
 	containertype = /obj/structure/closet/crate/freezer
 	containername = "seafood crate"
-	cost = 30
 
 /decl/hierarchy/supply_pack/galley/eggs
 	name = "Perishables - Eggs"
-	contains = list(/obj/item/storage/fancy/egg_box = 2)
+	contains = list(/obj/item/box/fancy/egg_box = 2)
 	containertype = /obj/structure/closet/crate/freezer
 	containername = "egg crate"
-	cost = 15
 
 /decl/hierarchy/supply_pack/galley/milk
-	name = "Perishables - Milk"
-	contains = list(/obj/item/chems/food/drinks/milk = 3)
+	name = "Perishables - Dairy"
+	contains = list(
+		/obj/item/chems/drinks/milk = 3,
+		/obj/item/food/dairy/butter/stick = 2
+	)
 	containertype = /obj/structure/closet/crate/freezer
 	containername = "milk crate"
-	cost = 15
 
 /decl/hierarchy/supply_pack/galley/pizza
 	num_contained = 5
@@ -69,25 +69,29 @@
 					/obj/item/pizzabox/mushroom,
 					/obj/item/pizzabox/meat,
 					/obj/item/pizzabox/vegetable)
-	cost = 15
 	containertype = /obj/structure/closet/crate/freezer
 	containername = "pizza crate"
 	supply_method = /decl/supply_method/randomized
 
+/decl/hierarchy/supply_pack/galley/nuggets
+	name = "Emergency - Nugget crate"
+	contains = list(/obj/item/box/nuggets = 2)
+	containertype = /obj/structure/closet/crate/freezer
+	containername = "nugget crate"
+
 /decl/hierarchy/supply_pack/galley/rations
 	num_contained = 6
 	name = "Emergency - MREs"
-	contains = list(/obj/item/storage/mre,
-					/obj/item/storage/mre/menu2,
-					/obj/item/storage/mre/menu3,
-					/obj/item/storage/mre/menu4,
-					/obj/item/storage/mre/menu5,
-					/obj/item/storage/mre/menu6,
-					/obj/item/storage/mre/menu7,
-					/obj/item/storage/mre/menu8,
-					/obj/item/storage/mre/menu9,
-					/obj/item/storage/mre/menu10)
-	cost = 30
+	contains = list(/obj/item/mre,
+					/obj/item/mre/menu2,
+					/obj/item/mre/menu3,
+					/obj/item/mre/menu4,
+					/obj/item/mre/menu5,
+					/obj/item/mre/menu6,
+					/obj/item/mre/menu7,
+					/obj/item/mre/menu8,
+					/obj/item/mre/menu9,
+					/obj/item/mre/menu10)
 	containertype = /obj/structure/closet/crate/freezer
 	containername = "emergency rations"
 	supply_method = /decl/supply_method/randomized
@@ -95,62 +99,82 @@
 /decl/hierarchy/supply_pack/galley/party
 	name = "Bar - Party equipment"
 	contains = list(
-			/obj/item/storage/box/mixedglasses = 2,
-			/obj/item/storage/box/glasses/square,
-			/obj/item/chems/food/drinks/shaker,
-			/obj/item/chems/food/drinks/flask/barflask,
-			/obj/item/chems/food/drinks/bottle/patron,
-			/obj/item/chems/food/drinks/bottle/goldschlager,
-			/obj/item/chems/food/drinks/bottle/agedwhiskey,
-			/obj/item/storage/fancy/cigarettes/dromedaryco,
-			/obj/random/lipstick,
-			/obj/item/chems/food/drinks/bottle/small/ale = 2,
-			/obj/item/chems/food/drinks/bottle/small/beer = 4,
-			/obj/item/storage/box/glowsticks = 2)
-	cost = 20
+			/obj/item/box/mixedglasses = 2,
+			/obj/item/box/glasses/square,
+			/obj/item/chems/drinks/shaker,
+			/obj/item/chems/drinks/flask/barflask,
+			/obj/item/chems/drinks/bottle/patron,
+			/obj/item/chems/drinks/bottle/goldschlager,
+			/obj/item/chems/drinks/bottle/agedwhiskey,
+			/obj/item/box/fancy/cigarettes/dromedaryco,
+			/obj/random/lipstick = 2,
+			/obj/item/chems/drinks/bottle/small/ale = 2,
+			/obj/item/chems/drinks/bottle/small/beer = 4,
+			/obj/item/box/glowsticks = 2)
 	containername = "party equipment crate"
 
 // TODO; Add more premium drinks at a later date. Could be useful for diplomatic events or fancy parties.
 /decl/hierarchy/supply_pack/galley/premiumalcohol
 	name = "Bar - Premium drinks"
-	contains = list(/obj/item/chems/food/drinks/bottle/premiumwine = 1,
-					/obj/item/chems/food/drinks/bottle/premiumvodka = 1)
-	cost = 60
-	containertype = /obj/structure/closet/crate/freezer
+	contains = list(
+		/obj/item/chems/drinks/bottle/premiumwine =  3,
+		/obj/item/chems/drinks/bottle/premiumvodka = 3,
+		/obj/item/chems/drinks/bottle/whiskey =      3
+	)
+	containertype = /obj/structure/closet/crate/plastic
 	containername = "premium drinks crate"
 
 /decl/hierarchy/supply_pack/galley/barsupplies
 	name = "Bar - Bar supplies"
 	contains = list(
-			/obj/item/storage/box/glasses/cocktail,
-			/obj/item/storage/box/glasses/rocks,
-			/obj/item/storage/box/glasses/square,
-			/obj/item/storage/box/glasses/pint,
-			/obj/item/storage/box/glasses/wine,
-			/obj/item/storage/box/glasses/shake,
-			/obj/item/storage/box/glasses/shot,
-			/obj/item/storage/box/glasses/mug,
-			/obj/item/chems/food/drinks/shaker,
-			/obj/item/storage/box/glass_extras/straws,
-			/obj/item/storage/box/glass_extras/sticks
+			/obj/item/box/glasses/cocktail,
+			/obj/item/box/glasses/rocks,
+			/obj/item/box/glasses/square,
+			/obj/item/box/glasses/pint,
+			/obj/item/box/glasses/wine,
+			/obj/item/box/glasses/shake,
+			/obj/item/box/glasses/shot,
+			/obj/item/box/glasses/mug,
+			/obj/item/chems/drinks/shaker,
+			/obj/item/box/glass_extras/straws,
+			/obj/item/box/glass_extras/sticks
 			)
-	cost = 10
 	containername = "bar supplies crate"
 
 /decl/hierarchy/supply_pack/galley/beer_dispenser
 	name = "Equipment - Booze dispenser"
 	contains = list(
-			/obj/machinery/chemical_dispenser/bar_alc{anchored = 0}
+			/obj/machinery/chemical_dispenser/bar_alc/unanchored
 		)
-	cost = 25
 	containertype = /obj/structure/largecrate
 	containername = "booze dispenser crate"
 
 /decl/hierarchy/supply_pack/galley/soda_dispenser
 	name = "Equipment - Soda dispenser"
 	contains = list(
-			/obj/machinery/chemical_dispenser/bar_soft{anchored = 0}
+			/obj/machinery/chemical_dispenser/bar_soft/unanchored
 		)
-	cost = 25
 	containertype = /obj/structure/largecrate
 	containername = "soda dispenser crate"
+
+
+/decl/hierarchy/supply_pack/galley/flour
+	name = "Non-perishables - Flour"
+	contains = list(
+		/obj/item/chems/condiment/flour = 3
+	)
+	containername = "yeast crate"
+
+/decl/hierarchy/supply_pack/galley/yeast
+	name = "Non-perishables - Yeast"
+	contains = list(
+		/obj/item/chems/condiment/yeast = 3
+	)
+	containername = "yeast crate"
+
+/decl/hierarchy/supply_pack/galley/spices
+	name = "Non-perishables - Spices"
+	contains = list(
+		/obj/item/chems/condiment/spices = 3
+	)
+	containername = "spice crate"

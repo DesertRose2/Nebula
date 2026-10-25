@@ -43,6 +43,8 @@
 
 	var/static/list/failure_strikes //How many times we suspect a subsystem type has crashed the MC, 3 strikes and you're out!
 
+	var/_internal_name //! A stringified version of the variable name for this subsystem. Used by the processing subsystem to make sure is_processing is unset properly.
+
 //Do not override
 ///datum/controller/subsystem/New()
 
@@ -172,7 +174,7 @@
 	Initialize(timeofday)
 	init_finish = REALTIMEOFDAY
 	. = (REALTIMEOFDAY - timeofday)/10
-	var/msg = "Initialized [name] subsystem within [.] second[. == 1 ? "" : "s"]!"
+	var/msg = "Initialized [name] subsystem within [.] second\s!"
 	to_chat(world, "<span class='boldannounce'>[msg]</span>")
 	log_world(msg)
 

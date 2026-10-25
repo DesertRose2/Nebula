@@ -8,16 +8,28 @@
 	path = /obj/machinery/floor_light
 
 /datum/fabricator_recipe/extinguisher
-	path = /obj/item/extinguisher/empty
+	path = /obj/item/chems/spray/extinguisher/empty
+
+/datum/fabricator_recipe/extinguisher/mini
+	path = /obj/item/chems/spray/extinguisher/mini/empty
 
 /datum/fabricator_recipe/jar
 	path = /obj/item/glass_jar
 
+/datum/fabricator_recipe/pot
+	path = /obj/item/chems/cooking_vessel/pot
+
+/datum/fabricator_recipe/skillet
+	path = /obj/item/chems/cooking_vessel/skillet
+
 /datum/fabricator_recipe/radio_headset
 	path = /obj/item/radio/headset
 
-/datum/fabricator_recipe/radio_bounced
+/datum/fabricator_recipe/radio_dual
 	path = /obj/item/radio/off
+
+/datum/fabricator_recipe/radio_shortwave
+	path = /obj/item/radio/shortwave/off
 
 /datum/fabricator_recipe/suit_cooler
 	path = /obj/item/suit_cooling_unit
@@ -31,17 +43,8 @@
 /datum/fabricator_recipe/taperecorder
 	path = /obj/item/taperecorder/empty
 
-/datum/fabricator_recipe/tape
-	path = /obj/item/tape
-
-/datum/fabricator_recipe/tube/large
-	path = /obj/item/light/tube/large
-
-/datum/fabricator_recipe/tube
-	path = /obj/item/light/tube
-
-/datum/fabricator_recipe/bulb
-	path = /obj/item/light/bulb
+/datum/fabricator_recipe/taperecorder_tape
+	path = /obj/item/magnetic_tape
 
 /datum/fabricator_recipe/ashtray_glass
 	path = /obj/item/ashtray/glass
@@ -88,4 +91,123 @@
 	hidden = TRUE
 
 /datum/fabricator_recipe/plunger
-	path = /obj/item/clothing/mask/plunger
+	path = /obj/item/plunger
+
+/datum/fabricator_recipe/fiberglass
+	path = /obj/item/stack/material/sheet/reinforced/mapped/fiberglass
+	category = "Textiles"
+	fabricator_types = list(
+		FABRICATOR_CLASS_GENERAL,
+		FABRICATOR_CLASS_TEXTILE
+	)
+
+/datum/fabricator_recipe/fiberglass/get_resources()
+	resources = list(
+		/decl/material/solid/glass =   ceil((SHEET_MATERIAL_AMOUNT * FABRICATOR_EXTRA_COST_FACTOR)/2),
+		/decl/material/solid/organic/plastic = ceil((SHEET_MATERIAL_AMOUNT * FABRICATOR_EXTRA_COST_FACTOR)/2)
+	)
+
+/datum/fabricator_recipe/rods
+	name = "rod, steel"
+	path = /obj/item/stack/material/rods/mapped/steel
+
+/datum/fabricator_recipe/rods/plastic
+	name = "rod, plastic"
+	path = /obj/item/stack/material/rods/mapped/plastic
+
+/datum/fabricator_recipe/rods/aluminium
+	name = "rod, aluminium"
+	path = /obj/item/stack/material/rods/mapped/aluminium
+	fabricator_types = list(FABRICATOR_CLASS_INDUSTRIAL)
+
+/datum/fabricator_recipe/rods/titanium
+	name = "rod, titanium"
+	path = /obj/item/stack/material/rods/mapped/titanium
+	fabricator_types = list(FABRICATOR_CLASS_INDUSTRIAL)
+
+/datum/fabricator_recipe/umbrella
+	path = /obj/item/umbrella
+
+/datum/fabricator_recipe/network_id
+	path = /obj/item/card/id/network
+	fabricator_types = list(
+		FABRICATOR_CLASS_GENERAL
+	)
+
+/datum/fabricator_recipe/emergency_tank
+	path = /obj/item/tank/emergency
+
+/datum/fabricator_recipe/package_wrapper
+	path = /obj/item/stack/package_wrap
+
+/datum/fabricator_recipe/package_wrapper/gift
+	path = /obj/item/stack/package_wrap/gift
+
+/datum/fabricator_recipe/clothes_iron
+	path = /obj/item/ironingiron
+
+/datum/fabricator_recipe/ironing_board
+	path = /obj/item/roller/ironingboard
+
+/datum/fabricator_recipe/duct_tape
+	path = /obj/item/stack/tape_roll/duct_tape
+	pass_multiplier_to_product_new = FALSE // they are printed as single items with 32 uses
+
+/datum/fabricator_recipe/chipboard // base type is for oak
+	path = /obj/item/stack/material/sheet/mapped/chipboard_oak
+	category = "Textiles"
+	fabricator_types = list(
+		FABRICATOR_CLASS_GENERAL,
+		FABRICATOR_CLASS_TEXTILE
+	)
+
+/datum/fabricator_recipe/chipboard/get_resources()
+	resources = list(
+		/decl/material/solid/organic/wood/oak = ceil((SHEET_MATERIAL_AMOUNT * FABRICATOR_EXTRA_COST_FACTOR)/2),
+		/decl/material/solid/organic/plastic  = ceil((SHEET_MATERIAL_AMOUNT * FABRICATOR_EXTRA_COST_FACTOR)/2)
+	)
+
+/datum/fabricator_recipe/chipboard/maple
+	path = /obj/item/stack/material/sheet/mapped/chipboard_maple
+
+/datum/fabricator_recipe/chipboard/maple/get_resources()
+	resources = list(
+		/decl/material/solid/organic/wood/maple = ceil((SHEET_MATERIAL_AMOUNT * FABRICATOR_EXTRA_COST_FACTOR)/2),
+		/decl/material/solid/organic/plastic    = ceil((SHEET_MATERIAL_AMOUNT * FABRICATOR_EXTRA_COST_FACTOR)/2)
+	)
+
+/datum/fabricator_recipe/chipboard/mahogany
+	path = /obj/item/stack/material/sheet/mapped/chipboard_mahogany
+
+/datum/fabricator_recipe/chipboard/mahogany/get_resources()
+	resources = list(
+		/decl/material/solid/organic/wood/mahogany = ceil((SHEET_MATERIAL_AMOUNT * FABRICATOR_EXTRA_COST_FACTOR)/2),
+		/decl/material/solid/organic/plastic       = ceil((SHEET_MATERIAL_AMOUNT * FABRICATOR_EXTRA_COST_FACTOR)/2)
+	)
+
+/datum/fabricator_recipe/chipboard/ebony
+	path = /obj/item/stack/material/sheet/mapped/chipboard_ebony
+
+/datum/fabricator_recipe/chipboard/ebony/get_resources()
+	resources = list(
+		/decl/material/solid/organic/wood/ebony = ceil((SHEET_MATERIAL_AMOUNT * FABRICATOR_EXTRA_COST_FACTOR)/2),
+		/decl/material/solid/organic/plastic    = ceil((SHEET_MATERIAL_AMOUNT * FABRICATOR_EXTRA_COST_FACTOR)/2)
+	)
+
+/datum/fabricator_recipe/chipboard/walnut
+	path = /obj/item/stack/material/sheet/mapped/chipboard_walnut
+
+/datum/fabricator_recipe/chipboard/walnut/get_resources()
+	resources = list(
+		/decl/material/solid/organic/wood/walnut = ceil((SHEET_MATERIAL_AMOUNT * FABRICATOR_EXTRA_COST_FACTOR)/2),
+		/decl/material/solid/organic/plastic    = ceil((SHEET_MATERIAL_AMOUNT * FABRICATOR_EXTRA_COST_FACTOR)/2)
+	)
+
+/datum/fabricator_recipe/chipboard/yew
+	path = /obj/item/stack/material/sheet/mapped/chipboard_yew
+
+/datum/fabricator_recipe/chipboard/yew/get_resources()
+	resources = list(
+		/decl/material/solid/organic/wood/yew = ceil((SHEET_MATERIAL_AMOUNT * FABRICATOR_EXTRA_COST_FACTOR)/2),
+		/decl/material/solid/organic/plastic  = ceil((SHEET_MATERIAL_AMOUNT * FABRICATOR_EXTRA_COST_FACTOR)/2)
+	)
